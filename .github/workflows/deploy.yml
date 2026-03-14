@@ -1,3 +1,7 @@
+# Módulo: .github/workflows/deploy.yml
+# Versão: v1.2.0
+# Descrição: Automação completa CI/CD. Resolução de anomalia de ambiente (Detached HEAD). Injeção da flag '--branch main' para forçar a marcação de 'Produção' na infraestrutura do Cloudflare Pages. Atualizado para Node.js 24.
+
 name: Deploy Pipeline Cloudflare
 
 on:
@@ -5,7 +9,6 @@ on:
     branches:
       - main
 
-# Injeção global para forçar as Actions internas do GitHub a usarem o Node 24 e silenciar o aviso
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -19,13 +22,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24' # Atualizado para a versão LTS mais recente
+          node-version: '24'
           
       - name: Instalar e Publicar Worker
         working-directory: ./mainsite-worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        # O Worker (Hono/Backend) já assume Produção nativamente no comando padrão
         run: |
           npm install
           npx wrangler deploy
@@ -47,10 +51,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        # Injeção cirúrgica da flag --branch main
         run: |
           npm install
           npm run build
-          npx wrangler pages deploy ./dist --project-name=mainsite-admin
+          npx wrangler pages deploy ./dist --project-name=mainsite-admin --branch main
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -69,7 +74,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        # Injeção cirúrgica da flag --branch main
         run: |
           npm install
           npm run build
-          npx wrangler pages deploy ./dist --project-name=mainsite-frontend
+          npx wrangler pages deploy ./dist --project-name=mainsite-frontend --branch main
