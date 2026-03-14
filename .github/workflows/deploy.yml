@@ -1,6 +1,6 @@
 # Módulo: .github/workflows/deploy.yml
-# Versão: v1.2.0
-# Descrição: Automação completa CI/CD. Resolução de anomalia de ambiente (Detached HEAD). Injeção da flag '--branch main' para forçar a marcação de 'Produção' na infraestrutura do Cloudflare Pages. Atualizado para Node.js 24.
+# Versão: v1.3.0
+# Descrição: Automação completa CI/CD. Adequação da flag de ramificação para '--branch production', pareando perfeitamente com a nomenclatura nativa do ambiente de Produção da Cloudflare Pages.
 
 name: Deploy Pipeline Cloudflare
 
@@ -29,7 +29,6 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        # O Worker (Hono/Backend) já assume Produção nativamente no comando padrão
         run: |
           npm install
           npx wrangler deploy
@@ -51,11 +50,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        # Injeção cirúrgica da flag --branch main
+        # Injeção cirúrgica da flag --branch production
         run: |
           npm install
           npm run build
-          npx wrangler pages deploy ./dist --project-name=mainsite-admin --branch main
+          npx wrangler pages deploy ./dist --project-name=mainsite-admin --branch production
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -74,8 +73,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        # Injeção cirúrgica da flag --branch main
+        # Injeção cirúrgica da flag --branch production
         run: |
           npm install
           npm run build
-          npx wrangler pages deploy ./dist --project-name=mainsite-frontend --branch main
+          npx wrangler pages deploy ./dist --project-name=mainsite-frontend --branch production
