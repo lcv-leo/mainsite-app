@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+# Injeção global para forçar as Actions internas do GitHub a usarem o Node 24 e silenciar o aviso
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   deploy-worker:
     runs-on: ubuntu-latest
@@ -15,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24' # Atualizado para a versão LTS mais recente
           
       - name: Instalar e Publicar Worker
         working-directory: ./mainsite-worker
@@ -36,7 +40,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           
       - name: Instalar, Compilar e Publicar Admin
         working-directory: ./mainsite-admin
@@ -58,7 +62,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           
       - name: Instalar, Compilar e Publicar Frontend
         working-directory: ./mainsite-frontend
