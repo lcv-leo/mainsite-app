@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mainsite-admin",
+  "pages_build_output_dir": "dist",
+  "compatibility_date": "2026-03-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mainsite-db",
+      "database_id": "a1c24837-241f-4204-970b-54b430a942c4"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+# Dependências do Node.js
+node_modules/
+
+# Pastas de build/compilação (O GitHub Actions vai gerar isso na nuvem)
+dist/
+build/
+.output/
+
+# Segredos e Variáveis Locais (CRÍTICO: NUNCA ENVIAR PARA O GITHUB)
+.dev.vars
+.env
+.env.local
+
+# Arquivos de estado do Wrangler e Sistema Operacional
+.wrangler/
+.DS_Store
+Thumbs.db

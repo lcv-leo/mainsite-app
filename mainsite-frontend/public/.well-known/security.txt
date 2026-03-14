@@ -1,0 +1,16 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Contact: mailto:leonardo@cardozovargas.com
+Expires: 2027-02-28T11:59:00Z
+Encryption: https://mainsite-frontend.pages.dev/pubkey.asc
+Canonical: https://mainsite-frontend.pages.dev/.well-known/security.txt
+Preferred-Languages: pt-BR, en
+-----BEGIN PGP SIGNATURE-----
+
+iK0EARYKAFUWIQSzTOzRq/rMOQIJ9pRZ766qS4vDQAUCaa2zShsUgAAAAAAEAA5t
+YW51MiwyLjUrMS4xMiwyLDEbHGxlb25hcmRvQGNhcmRvem92YXJnYXMuY29tAAoJ
+EFnvrqpLi8NA3dEBAJLR+rbMuI6q2EtL6SWWoU52R+XuyzM+1yTMGYLjvUGgAP99
+T/y5Z62BxDSBVaMjQJ2H0ukxaSudOvSc/86vyAFrDw==
+=4CZK
+-----END PGP SIGNATURE-----
