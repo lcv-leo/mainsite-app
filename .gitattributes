@@ -1,0 +1,37 @@
+# Módulo: .gitattributes (Raiz Global)
+# Versão: v1.0.0
+# Descrição: Otimização de rastreamento do Git, normalização de quebras de linha (Windows/Linux) e classificação de binários.
+
+# 1. Normalização de Quebra de Linha (Crucial para CI/CD em Ubuntu)
+# Força todas as quebras de linha de arquivos de texto para LF, independentemente do OS local.
+* text=auto eol=lf
+
+# 2. Declaração Explícita de Arquivos de Texto (Garante diffs legíveis e exatos)
+*.js text
+*.jsx text
+*.json text
+*.html text
+*.css text
+*.md text
+*.yml text
+*.env text
+
+# 3. Declaração Explícita de Arquivos Binários
+# Impede que o Git tente realizar "diff" linha por linha, economizando processamento e memória.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.pdf binary
+
+# 4. SVG é texto (XML), mas não queremos diffs poluídos com coordenadas matemáticas longas
+*.svg text -diff
+
+# 5. Otimização de Estatísticas do GitHub (Linguist)
+# Oculte os lockfiles gerados automaticamente das estatísticas de linguagem do repositório.
+package-lock.json linguist-generated=true
