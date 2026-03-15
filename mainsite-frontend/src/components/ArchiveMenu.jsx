@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/components/ArchiveMenu.jsx
-// Versão: v1.0.0
+// Versão: v1.0.1
 // Descrição: Componente isolado para a listagem, busca e navegação no histórico de fragmentos.
 
 import React, { useState } from 'react';
@@ -66,7 +66,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
           {filteredArchive.length > 0 ? (
             filteredArchive.map(post => (
               <div key={post.id} onClick={() => handleSelectPost(post)} style={{...styles.card, backgroundColor: `rgba(${isDarkBase ? '0,0,0' : '255,255,255'},0.5)`, borderColor: `rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.1)` }}>
-                <div style={styles.cardDate}>{new Date(post.created_at).toLocaleDateString('pt-BR')}</div>
+                <div style={styles.cardDate}>{new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR')}</div>
                 <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 'bold', color: activePalette.titleColor, transition: 'color 0.5s ease' }}>{post.title}</div>
               </div>
             ))
