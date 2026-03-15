@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/components/EditorPanel.jsx
-// Versão: v1.0.0
+// Versão: v1.0.1
 // Descrição: Componente isolado do Editor Tiptap, Inteligência Artificial e Barra de Ferramentas.
 
 import React, { useState, useRef } from 'react';
@@ -209,7 +209,7 @@ const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotificatio
 
   const editor = useEditor({
     extensions: [
-      StarterKit, Markdown, Underline, Highlight, Subscript, Superscript, TextStyle, Color, FontFamily, FontSize, Typography,
+      StarterKit.configure({ dropcursor: false }), Markdown, Underline, Highlight, Subscript, Superscript, TextStyle, Color, FontFamily, FontSize, Typography,
       TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'justify' }),
       Image.configure({ inline: true }),
       YoutubeExtension.configure({ inline: false, width: 840, height: 472.5 }),

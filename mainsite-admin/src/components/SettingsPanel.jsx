@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/components/SettingsPanel.jsx
-// Versão: v1.1.0
+// Versão: v1.1.1
 // Descrição: Componente isolado para gerenciamento de configurações globais (Rate Limit, Rotação, Multi-Tema e Upload R2).
 
 import React from 'react';
@@ -9,6 +9,7 @@ const SettingsPanel = ({
   settings, setSettings,
   rateLimit, setRateLimit,
   rotation, setRotation,
+  disclaimers, setDisclaimers,
   isSaving, onSave, onClose,
   triggerBgUpload, isUploadingBg, uploadTarget,
   styles
