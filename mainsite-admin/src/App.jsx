@@ -1,21 +1,21 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.21.0
-// Descrição: Monólito purificado. Orquestração central com painel de auditoria unificado e code-splitting.
+// Versão: v3.22.0
+// Descrição: Monólito purificado. Orquestração central com comunicação apontando para domínio customizado.
 
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { 
   Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2
 } from 'lucide-react';
 
-import PostList from './components/PostList'; // O PostList carrega imediatamente (crítico)
+import PostList from './components/PostList';
 
-// Code Splitting: Componentes pesados carregados apenas sob demanda
 const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
 const EditorPanel = lazy(() => import('./components/EditorPanel'));
 const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel'));
 
-const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.21.0';
+// INJEÇÃO: URL Oficial da API
+const API_URL = 'https://mainsite-app.lcv.rio.br/api';
+const APP_VERSION = 'APP v3.22.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -28,7 +28,6 @@ const App = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados de Navegação Purificados
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);

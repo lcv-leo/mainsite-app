@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.11.0
-// Descrição: Código integral restaurado. Rate Limiting de memória, Telemetria via waitUntil e Integração com a API Resend para e-mails transacionais.
+// Versão: v1.12.0
+// Descrição: Código integral. Telemetria, D1, R2, IA, Sitemap Dinâmico e Remetente Resend Padronizado.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -29,14 +29,13 @@ let rlConfigLastFetched = 0;
 const rateLimiterMiddleware = async (c, next) => {
   const now = Date.now();
   
-  // Cache da configuração por 60s para evitar leitura constante no D1
   if (!cachedRlConfig || now - rlConfigLastFetched > 60000) {
     try {
       const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'ratelimit'").first();
       cachedRlConfig = record ? JSON.parse(record.payload) : { enabled: false, maxRequests: 5, windowMinutes: 1 };
       rlConfigLastFetched = now;
     } catch (e) {
-      cachedRlConfig = { enabled: false }; // Fallback de segurança
+      cachedRlConfig = { enabled: false };
     }
   }
 
@@ -51,7 +50,6 @@ const rateLimiterMiddleware = async (c, next) => {
   } else {
     const data = ipCache.get(ip);
     if (now - data.firstRequest > windowMs) {
-      // Janela de tempo expirou, reseta o contador
       ipCache.set(ip, { count: 1, firstRequest: now });
     } else {
       data.count++;
@@ -61,7 +59,6 @@ const rateLimiterMiddleware = async (c, next) => {
     }
   }
   
-  // Limpeza de memória assíncrona (Lazy Cleanup 5% de chance)
   if (Math.random() < 0.05) {
     for (const [key, value] of ipCache.entries()) {
       if (now - value.firstRequest > windowMs) ipCache.delete(key);
@@ -71,7 +68,6 @@ const rateLimiterMiddleware = async (c, next) => {
   await next();
 };
 
-// Aplicação do escudo estritamente nas rotas públicas da IA
 app.use('/api/ai/public/*', rateLimiterMiddleware);
 
 // --- ROTAS DE INTELIGÊNCIA ARTIFICIAL (GEMINI 2.5 PRO) ---
@@ -133,7 +129,6 @@ app.post('/api/ai/public/chat', async (c) => {
     
     const replyText = data.candidates[0].content.parts[0].text;
 
-    // INJEÇÃO: Gravação de Telemetria em Background
     const logPromise = c.env.DB.batch([
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('user', ?, ?)").bind(message, contextTitleLog),
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('bot', ?, ?)").bind(replyText, contextTitleLog)
@@ -189,19 +184,19 @@ app.get('/api/chat-logs', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+app.get('/api/contact-logs', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const { results } = await c.env.DB.prepare("SELECT * FROM contact_logs ORDER BY created_at DESC LIMIT 200").all();
+    return c.json(results || []);
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
 // --- ROTAS DE AUDITORIA E REGISTRO DE COMPARTILHAMENTOS ---
 app.get('/api/shares', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const { results } = await c.env.DB.prepare("SELECT * FROM shares ORDER BY created_at DESC LIMIT 200").all();
-    return c.json(results || []);
-  } catch (err) { return c.json({ error: err.message }, 500); }
-});
-
-app.get('/api/contact-logs', async (c) => {
-  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
-  try {
-    const { results } = await c.env.DB.prepare("SELECT * FROM contact_logs ORDER BY created_at DESC LIMIT 200").all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -219,12 +214,11 @@ app.post('/api/share/email', async (c) => {
     const { post_id, post_title, link, target_email } = await c.req.json();
     if (!c.env.RESEND_API_KEY) throw new Error("Chave do Resend não configurada.");
     
-    // Disparo Transacional via Resend
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: 'mainsite@lcv.app.br',
+        from: 'Divagações Filosóficas <mainsite@lcv.app.br>',
         to: [target_email],
         subject: `Compartilhamento: ${post_title}`,
         html: `<div style="font-family: sans-serif; padding: 20px;">
@@ -240,7 +234,6 @@ app.post('/api/share/email', async (c) => {
       throw new Error(errData.message || "Erro no envio pelo Resend.");
     }
 
-    // Gravação de Telemetria em Background
     c.executionCtx.waitUntil(
       c.env.DB.prepare("INSERT INTO shares (post_id, post_title, platform, target) VALUES (?, ?, 'email', ?)")
       .bind(post_id, post_title, target_email).run()
@@ -256,10 +249,7 @@ app.post('/api/contact', async (c) => {
     if (!name || !email || !message) return c.json({ error: "Dados incompletos" }, 400);
 
     const resendToken = c.env.RESEND_API_KEY; 
-    // IMPORTANTE: Use c.env.API_SECRET ou a variável de ambiente correta que guarda o token da Resend no seu Worker.
-    // Baseado nas rotas anteriores, se você usa a mesma chave para tudo, adapte a variável de ambiente se necessário.
 
-    // 1. E-mail blindado para o Administrador
     const adminHtml = `
       <div style="font-family: sans-serif; color: #333;">
         <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Contato pelo Site</h2>
@@ -272,7 +262,6 @@ app.post('/api/contact', async (c) => {
       </div>
     `;
 
-    // 2. E-mail de confirmação para o Leitor
     const userHtml = `
       <div style="font-family: sans-serif; color: #333; line-height: 1.6;">
         <h2 style="color: #0ea5e9;">Olá, ${name}</h2>
@@ -285,7 +274,6 @@ app.post('/api/contact', async (c) => {
       </div>
     `;
 
-    // Disparo 1: Para você (Admin)
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
@@ -297,7 +285,6 @@ app.post('/api/contact', async (c) => {
       })
     });
 
-    // Disparo 2: Para o Leitor
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
@@ -309,7 +296,6 @@ app.post('/api/contact', async (c) => {
       })
     });
 
-    // Gravação de Telemetria (Log de Contato) em Background
     c.executionCtx.waitUntil(
       c.env.DB.prepare("INSERT INTO contact_logs (name, phone, email, message) VALUES (?, ?, ?, ?)")
       .bind(name, phone || '', email, message).run()
@@ -356,27 +342,6 @@ app.get('/api/posts', async (c) => {
     const { results } = await c.env.DB.prepare("SELECT * FROM posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC").all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
-});
-
-// --- ROTA DE SITEMAP PARA MOTORES DE BUSCA ---
-app.get('/api/sitemap.xml', async (c) => {
-  try {
-    const { results } = await c.env.DB.prepare("SELECT id, created_at FROM posts ORDER BY created_at DESC").all();
-    
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
-    
-    // Rota Base (Home) - Corrigido para o domínio público oficial
-    xml += `\n  <url>\n    <loc>https://www.lcv.rio.br/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`;
-    
-    // Rotas Dinâmicas (Posts) - Corrigido para o domínio público oficial
-    results.forEach(post => {
-      const dateIso = new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString().split('T')[0];
-      xml += `\n  <url>\n    <loc>https://www.lcv.rio.br/?p=${post.id}</loc>\n    <lastmod>${dateIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
-    });
-    
-    xml += `\n</urlset>`;
-    return new Response(xml, { headers: { 'Content-Type': 'application/xml', 'Cache-Control': 'public, max-age=3600' } });
-  } catch (err) { return c.text('Erro ao gerar sitemap', 500); }
 });
 
 app.post('/api/posts', async (c) => {
@@ -492,7 +457,6 @@ app.get('/api/settings/disclaimers', async (c) => {
     const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'disclaimers'").first();
     if (record) return c.json(JSON.parse(record.payload));
     
-    // Fallback padrão se não existir no banco
     return c.json({ 
       enabled: true, 
       items: [{ id: crypto.randomUUID(), title: 'Aviso ao Leitor', text: 'Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.', buttonText: 'Concordo' }] 
@@ -507,6 +471,25 @@ app.put('/api/settings/disclaimers', async (c) => {
     await c.env.DB.prepare("INSERT INTO settings (id, payload) VALUES ('disclaimers', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+// --- ROTA DE SITEMAP PARA MOTORES DE BUSCA ---
+app.get('/api/sitemap.xml', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare("SELECT id, created_at FROM posts ORDER BY created_at DESC").all();
+    
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+    
+    xml += `\n  <url>\n    <loc>https://www.lcv.rio.br/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`;
+    
+    results.forEach(post => {
+      const dateIso = new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString().split('T')[0];
+      xml += `\n  <url>\n    <loc>https://www.lcv.rio.br/?p=${post.id}</loc>\n    <lastmod>${dateIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
+    });
+    
+    xml += `\n</urlset>`;
+    return new Response(xml, { headers: { 'Content-Type': 'application/xml', 'Cache-Control': 'public, max-age=3600' } });
+  } catch (err) { return c.text('Erro ao gerar sitemap', 500); }
 });
 
 export default {

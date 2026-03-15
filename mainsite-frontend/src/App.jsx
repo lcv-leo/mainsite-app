@@ -1,23 +1,22 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.19.0
-// Descrição: Baseline consolidado. Motor de Temas, Roteamento Purificado e Code Splitting (Lighthouse 100).
+// Versão: v3.20.0
+// Descrição: Baseline consolidado. Motor de Temas e comunicação apontando para domínio customizado.
 
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Loader2, AlertTriangle, Check } from 'lucide-react';
 
-// Componentes estruturais vitais (Carregamento imediato)
 import PostReader from './components/PostReader';
 import ArchiveMenu from './components/ArchiveMenu';
 import FloatingControls from './components/FloatingControls';
 
-// Componentes Modais Pesados (Carregamento Preguiçoso / Lazy Loading)
 const DisclaimerModal = lazy(() => import('./components/DisclaimerModal'));
 const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
 const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const ContactModal = lazy(() => import('./components/ContactModal'));
 
-const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.19.0';
+// INJEÇÃO: URL Oficial da API
+const API_URL = 'https://mainsite-app.lcv.rio.br/api';
+const APP_VERSION = 'APP v3.20.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -63,7 +62,6 @@ const App = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Motor de SEO e Acionamento de Modal
   useEffect(() => {
     if (currentPost) {
       setShowDisclaimer(true);
@@ -76,7 +74,6 @@ const App = () => {
       const ogDesc = document.querySelector('meta[property="og:description"]');
       if (ogDesc) ogDesc.setAttribute("content", cleanText);
       
-      // Restauração da Memória de Estado: Mantém o ?p= na URL para que o F5 não expulse o leitor da postagem atual.
       window.history.replaceState(null, '', `?p=${currentPost.id}`);
     } else {
       document.title = "Divagações Filosóficas";
@@ -196,12 +193,10 @@ const App = () => {
   return (
     <div style={{ backgroundColor: activePalette.bgColor, backgroundImage: bgImageToUse, backgroundSize: bgSizeToUse, backgroundAttachment: 'fixed', backgroundPosition: 'center', color: activePalette.fontColor, fontFamily: settings.shared.fontFamily, minHeight: '100vh', width: '100%', margin: 0, padding: 0, position: 'relative', transition: 'background-color 0.5s ease, color 0.5s ease' }}>
       
-      {/* Componente Toast Nativo */}
       <div style={{ position: 'fixed', top: '30px', left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#000' : '#fff', color: toast.type === 'error' ? '#fff' : '#000', padding: '15px 25px', borderRadius: '8px', zIndex: 10000, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)', border: '2px solid #000', fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', pointerEvents: 'none' }}>
         {toast.type === 'error' ? <AlertTriangle size={18} /> : <Check size={18} />} {toast.message}
       </div>
 
-      {/* Componentes Modais Pesados via Suspense/Lazy */}
       <Suspense fallback={null}>
         <ShareOverlay modalState={emailModal} setModalState={setEmailModal} onSubmit={submitEmailShare} activePalette={activePalette} />
         
@@ -233,7 +228,6 @@ const App = () => {
         @media (max-width: 768px) { .public-wrapper { padding: 20px 10px; } .app-container { padding: 30px 20px; border-radius: 0; } }
       `}</style>
 
-      {/* Componentes Flutuantes Isolados */}
       <FloatingControls showBackToTop={showBackToTop} scrollToTop={scrollToTop} userTheme={userTheme} cycleTheme={cycleTheme} isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} activePalette={activePalette} />
       
       <div className="public-wrapper">
@@ -252,7 +246,6 @@ const App = () => {
           )}
         </div>
 
-        {/* Componente Modular do Rodapé de Arquivos */}
         <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={setCurrentPost} activePalette={activePalette} APP_VERSION={APP_VERSION} />
       </div>
     </div>
