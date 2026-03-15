@@ -1,6 +1,6 @@
 # Módulo: .github/workflows/deploy.yml
-# Versão: v1.4.0
-# Descrição: Automação completa CI/CD para o ecossistema Mainsite. Solução definitiva para a depreciação do Node 20. Atualização direta dos módulos actions/checkout e actions/setup-node para a versão v5 nos três microsserviços.
+# Versão: v1.5.0
+# Descrição: Automação completa CI/CD para o ecossistema Mainsite. Implementação de inteligência de cache nativo (npm) nos três microsserviços para eliminação de redundância de download e otimização drástica do tempo de execução da esteira.
 
 name: Deploy Pipeline Cloudflare
 
@@ -16,10 +16,12 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v5
       
-      - name: Setup Node.js
+      - name: Setup Node.js com Inteligência de Cache
         uses: actions/setup-node@v5
         with:
           node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: './mainsite-worker/package-lock.json'
           
       - name: Instalar e Publicar Worker
         working-directory: ./mainsite-worker
@@ -37,10 +39,12 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v5
       
-      - name: Setup Node.js
+      - name: Setup Node.js com Inteligência de Cache
         uses: actions/setup-node@v5
         with:
           node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: './mainsite-admin/package-lock.json'
           
       - name: Instalar, Compilar e Publicar Admin
         working-directory: ./mainsite-admin
@@ -59,10 +63,12 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v5
       
-      - name: Setup Node.js
+      - name: Setup Node.js com Inteligência de Cache
         uses: actions/setup-node@v5
         with:
           node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: './mainsite-frontend/package-lock.json'
           
       - name: Instalar, Compilar e Publicar Frontend
         working-directory: ./mainsite-frontend
