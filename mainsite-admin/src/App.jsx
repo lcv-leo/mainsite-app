@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.13.0
-// Descrição: Injeção de motor de Upload Nativo (Cloudflare R2) para imagens de fundo (background) nos painéis de Multi-Tema.
+// Versão: v3.14.0
+// Descrição: Injeção de painel de auditoria de compartilhamentos (Shares). Código reestruturado com precisão para evitar truncamento.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
@@ -8,7 +8,7 @@ import {
   Image as ImageIcon, Youtube, Bold, Italic, Strikethrough, Heading1, Heading2, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Link as LinkIcon, Unlink, Underline as UnderlineIcon,
   Highlighter, Subscript as SubIcon, Superscript as SuperIcon, Quote, Minus, Code, Table as TableIcon,
-  CheckSquare, Palette, Type, Settings, RefreshCw, WrapText, Upload, Sparkles, MessageSquare, ShieldAlert
+  CheckSquare, Palette, Type, Settings, RefreshCw, WrapText, Upload, Sparkles, MessageSquare, ShieldAlert, Share2
 } from 'lucide-react';
 
 import { Extension } from '@tiptap/core';
@@ -38,7 +38,7 @@ import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.13.0';
+const APP_VERSION = 'APP v3.14.0';
 
 const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
 
@@ -278,7 +278,11 @@ const App = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isChatLogsOpen, setIsChatLogsOpen] = useState(false);
   
+  // INJEÇÃO ARQUITETURAL: Estado para aba de compartilhamentos
+  const [isSharesOpen, setIsSharesOpen] = useState(false); 
+  
   const [chatLogs, setChatLogs] = useState([]);
+  const [shareLogs, setShareLogs] = useState([]); 
   const [loadingLogs, setLoadingLogs] = useState(false);
   
   const [editingId, setEditingId] = useState(null);
@@ -294,7 +298,6 @@ const App = () => {
   const [rotation, setRotation] = useState({ enabled: false, interval: 60, last_rotated_at: 0 });
   const [rateLimit, setRateLimit] = useState({ enabled: false, maxRequests: 5, windowMinutes: 1 });
 
-  // INJEÇÃO ARQUITETURAL: Controle de Upload para Imagem de Fundo (Background)
   const fileInputBgRef = useRef(null);
   const [uploadTarget, setUploadTarget] = useState(null);
   const [isUploadingBg, setIsUploadingBg] = useState(false);
@@ -386,6 +389,20 @@ const App = () => {
     }
   }, [secret, showNotification]);
 
+  // INJEÇÃO ARQUITETURAL: Fetch de Logs de Compartilhamento
+  const fetchShareLogs = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setLoadingLogs(true);
+    try { 
+      const res = await fetch(`${API_URL}/shares`, { headers: { 'Authorization': `Bearer ${secret}` } }); 
+      if (res.ok) setShareLogs(await res.json()); 
+      else throw new Error(); 
+    } catch (err) { 
+      if (showSpinner) showNotification("Falha ao puxar compartilhamentos.", "error"); 
+    } finally { 
+      if (showSpinner) setLoadingLogs(false); 
+    }
+  }, [secret, showNotification]);
+
   useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
@@ -398,7 +415,6 @@ const App = () => {
     return () => clearInterval(pollInterval);
   }, [isChatLogsOpen, fetchChatLogs]);
 
-  // INJEÇÃO ARQUITETURAL: Engine de Upload para o Background
   const triggerBgUpload = (targetTheme) => {
     setUploadTarget(targetTheme);
     if (fileInputBgRef.current) fileInputBgRef.current.click();
@@ -519,6 +535,7 @@ const App = () => {
   const openEditor = (post = null) => {
     setIsSettingsOpen(false);
     setIsChatLogsOpen(false);
+    setIsSharesOpen(false);
     if (post) { 
       setEditingId(post.id); 
       setTitle(post.title); 
@@ -530,8 +547,7 @@ const App = () => {
     }
     setIsEditorOpen(true);
   };
-
-  if (loading) return <div style={styles.center}><Loader2 className="animate-spin" color="#000" /></div>;
+if (loading) return <div style={styles.center}><Loader2 className="animate-spin" color="#000" /></div>;
 
   return (
     <div style={styles.adminBody}>
@@ -570,18 +586,55 @@ const App = () => {
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.13.0</h1></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.14.0</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
-            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
+            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
             
-            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={() => { setIsChatLogsOpen(true); fetchChatLogs(true); }} style={{...styles.settingsBtn, backgroundColor: '#f0f9ff', borderColor: '#bae6fd'}} title="Auditoria de IA"><MessageSquare size={16} color="#0284c7" /> Telemetria IA</button>}
+            {/* INJEÇÃO ARQUITETURAL: Botão da Auditoria de Engajamento */}
+            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => { setIsSharesOpen(true); fetchShareLogs(true); }} style={{...styles.settingsBtn, backgroundColor: '#fdf4ff', borderColor: '#fbcfe8'}} title="Auditoria de Compartilhamentos"><Share2 size={16} color="#d946ef" /> Engajamento</button>}
             
-            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurações e Rotinas"><Settings size={16} /> Sistema</button>}
-            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> Novo</button>}
+            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => { setIsChatLogsOpen(true); fetchChatLogs(true); }} style={{...styles.settingsBtn, backgroundColor: '#f0f9ff', borderColor: '#bae6fd'}} title="Auditoria de IA"><MessageSquare size={16} color="#0284c7" /> Telemetria IA</button>}
+            
+            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurações e Rotinas"><Settings size={16} /> Sistema</button>}
+            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> Novo</button>}
           </div>
         </header>
 
-        {isChatLogsOpen ? (
+        {isSharesOpen ? (
+          <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+            <button onClick={() => { setIsSharesOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '16px', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Share2 size={20} /> Compartilhamentos e Engajamento (Últimos 200)
+              </h2>
+              <button onClick={() => fetchShareLogs(true)} style={{...styles.settingsBtn, padding: '6px 12px'}} title="Forçar sincronização">
+                <RefreshCw size={14} className={loadingLogs ? "animate-spin" : ""} /> Atualizar
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {loadingLogs ? ( 
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><Loader2 className="animate-spin" color="#000" /></div> 
+              ) : shareLogs.length === 0 ? ( 
+                <p style={{fontSize: '12px', opacity: 0.6, textAlign: 'center'}}>Nenhum compartilhamento registrado na telemetria.</p> 
+              ) : shareLogs.map((log, i) => (
+                <div key={i} className="log-card" style={{ background: '#f8fafc', borderLeft: `4px solid ${log.platform === 'whatsapp' ? '#22c55e' : log.platform === 'email' ? '#38bdf8' : '#94a3b8'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                    <span>Plataforma: {log.platform}</span>
+                    <span>{new Date(log.created_at).toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0f172a' }}>{log.post_title}</div>
+                  {log.target && (
+                    <div style={{ marginTop: '12px', fontSize: '9px', background: '#e2e8f0', display: 'inline-block', padding: '4px 8px', borderRadius: '4px', color: '#475569', fontWeight: 'bold' }}>
+                      Destino: {log.target}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : isChatLogsOpen ? (
           <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
             <button onClick={() => { setIsChatLogsOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
             
@@ -666,8 +719,8 @@ const App = () => {
 
                 <h3 style={{ fontSize: '14px', marginTop: '10px', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>Configurações Globais (Ambos os Temas)</h3>
                 <div style={styles.settingsGrid}>
-                  <label style={styles.label}>Tamanho da Fonte Base (p): <input type="text" value={settings.shared.fontSize} onChange={e => setSettings({...settings, shared: {...settings.shared, fontSize: e.target.value}})} style={styles.textInput} /></label>
-                  <label style={styles.label}>Tamanho da Fonte Títulos (H1): <input type="text" value={settings.shared.titleFontSize} onChange={e => setSettings({...settings, shared: {...settings.shared, titleFontSize: e.target.value}})} style={styles.textInput} /></label>
+                  <label style={styles.label}>Tamanho da Fonte Base (p): <input type="text" placeholder="Ex: 1.15rem" value={settings.shared.fontSize} onChange={e => setSettings({...settings, shared: {...settings.shared, fontSize: e.target.value}})} style={styles.textInput} /></label>
+                  <label style={styles.label}>Tamanho da Fonte Títulos (H1): <input type="text" placeholder="Ex: 1.8rem" value={settings.shared.titleFontSize} onChange={e => setSettings({...settings, shared: {...settings.shared, titleFontSize: e.target.value}})} style={styles.textInput} /></label>
                   <label style={styles.label}>Família da Fonte: 
                     <select value={settings.shared.fontFamily} onChange={e => setSettings({...settings, shared: {...settings.shared, fontFamily: e.target.value}})} style={styles.textInput}>
                       <option value="sans-serif">Sans-Serif (Estilo Google)</option>
@@ -684,8 +737,6 @@ const App = () => {
                   <label style={styles.label}>Cor de Fundo: <input type="color" value={settings.dark.bgColor} onChange={e => setSettings({...settings, dark: {...settings.dark, bgColor: e.target.value}})} style={styles.colorInput} /></label>
                   <label style={styles.label}>Cor do Texto Base: <input type="color" value={settings.dark.fontColor} onChange={e => setSettings({...settings, dark: {...settings.dark, fontColor: e.target.value}})} style={styles.colorInput} /></label>
                   <label style={styles.label}>Cor dos Títulos (H1/H2): <input type="color" value={settings.dark.titleColor} onChange={e => setSettings({...settings, dark: {...settings.dark, titleColor: e.target.value}})} style={styles.colorInput} /></label>
-                  
-                  {/* INJEÇÃO: Upload Nativo no Tema Escuro */}
                   <label style={styles.label}>Imagem de Fundo (R2 ou URL externa): 
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input type="text" placeholder="https://..." value={settings.dark.bgImage} onChange={e => setSettings({...settings, dark: {...settings.dark, bgImage: e.target.value}})} style={{...styles.textInput, flex: 1}} />
@@ -701,8 +752,6 @@ const App = () => {
                   <label style={styles.label}>Cor de Fundo: <input type="color" value={settings.light.bgColor} onChange={e => setSettings({...settings, light: {...settings.light, bgColor: e.target.value}})} style={styles.colorInput} /></label>
                   <label style={styles.label}>Cor do Texto Base: <input type="color" value={settings.light.fontColor} onChange={e => setSettings({...settings, light: {...settings.light, fontColor: e.target.value}})} style={styles.colorInput} /></label>
                   <label style={styles.label}>Cor dos Títulos (H1/H2): <input type="color" value={settings.light.titleColor} onChange={e => setSettings({...settings, light: {...settings.light, titleColor: e.target.value}})} style={styles.colorInput} /></label>
-                  
-                  {/* INJEÇÃO: Upload Nativo no Tema Claro */}
                   <label style={styles.label}>Imagem de Fundo (R2 ou URL externa): 
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input type="text" placeholder="https://..." value={settings.light.bgImage} onChange={e => setSettings({...settings, light: {...settings.light, bgImage: e.target.value}})} style={{...styles.textInput, flex: 1}} />

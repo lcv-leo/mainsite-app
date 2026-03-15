@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.5.0
-// Descrição: Implementação de Rate Limiting em memória (Isolate Cache) nas rotas públicas de IA, com configuração dinâmica via D1.
+// Versão: v1.6.0
+// Descrição: Código integral restaurado. Rate Limiting de memória, Telemetria via waitUntil e Integração com a API Resend para e-mails transacionais.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -74,7 +74,6 @@ const rateLimiterMiddleware = async (c, next) => {
 // Aplicação do escudo estritamente nas rotas públicas da IA
 app.use('/api/ai/public/*', rateLimiterMiddleware);
 
-
 // --- ROTAS DE INTELIGÊNCIA ARTIFICIAL (GEMINI 2.5 PRO) ---
 app.post('/api/ai/transform', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
@@ -134,6 +133,7 @@ app.post('/api/ai/public/chat', async (c) => {
     
     const replyText = data.candidates[0].content.parts[0].text;
 
+    // INJEÇÃO: Gravação de Telemetria em Background
     const logPromise = c.env.DB.batch([
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('user', ?, ?)").bind(message, contextTitleLog),
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('bot', ?, ?)").bind(replyText, contextTitleLog)
@@ -180,11 +180,65 @@ app.post('/api/ai/public/translate', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+// --- ROTA DE AUDITORIA DE TELEMETRIA (ADMIN) ---
 app.get('/api/chat-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const { results } = await c.env.DB.prepare("SELECT * FROM chat_logs ORDER BY created_at DESC LIMIT 200").all();
     return c.json(results || []);
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+// --- ROTAS DE AUDITORIA E REGISTRO DE COMPARTILHAMENTOS ---
+app.get('/api/shares', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const { results } = await c.env.DB.prepare("SELECT * FROM shares ORDER BY created_at DESC LIMIT 200").all();
+    return c.json(results || []);
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.post('/api/shares', async (c) => {
+  try {
+    const { post_id, post_title, platform, target } = await c.req.json();
+    await c.env.DB.prepare("INSERT INTO shares (post_id, post_title, platform, target) VALUES (?, ?, ?, ?)").bind(post_id, post_title, platform, target || null).run();
+    return c.json({ success: true });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.post('/api/share/email', async (c) => {
+  try {
+    const { post_id, post_title, link, target_email } = await c.req.json();
+    if (!c.env.RESEND_API_KEY) throw new Error("Chave do Resend não configurada.");
+    
+    // Disparo Transacional via Resend
+    const emailRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'onboarding@resend.dev',
+        to: [target_email],
+        subject: `Compartilhamento: ${post_title}`,
+        html: `<div style="font-family: sans-serif; padding: 20px;">
+                <h2>Alguém compartilhou uma leitura com você</h2>
+                <p><strong>${post_title}</strong></p>
+                <a href="${link}" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 10px;">Ler Texto Completo</a>
+               </div>`
+      })
+    });
+    
+    if (!emailRes.ok) {
+      const errData = await emailRes.json();
+      throw new Error(errData.message || "Erro no envio pelo Resend.");
+    }
+
+    // Gravação de Telemetria em Background
+    c.executionCtx.waitUntil(
+      c.env.DB.prepare("INSERT INTO shares (post_id, post_title, platform, target) VALUES (?, ?, 'email', ?)")
+      .bind(post_id, post_title, target_email).run()
+    );
+    
+    return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
@@ -280,7 +334,12 @@ app.get('/api/settings', async (c) => {
   try {
     const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'appearance'").first();
     if (record) return c.json(JSON.parse(record.payload));
-    return c.json({ allowAutoMode: true, light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' }, dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' }, shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' } });
+    return c.json({ 
+      allowAutoMode: true, 
+      light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' }, 
+      dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' }, 
+      shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' } 
+    });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
@@ -310,7 +369,6 @@ app.put('/api/settings/rotation', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// NOVA ROTA: Escrita/Leitura de Rate Limit
 app.get('/api/settings/ratelimit', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
@@ -338,18 +396,25 @@ export default {
       if (!record) return;
       const config = JSON.parse(record.payload);
       if (!config.enabled) return;
+      
       const pinnedCheck = await env.DB.prepare("SELECT id FROM posts WHERE is_pinned = 1 LIMIT 1").first();
       if (pinnedCheck) return;
+      
       const now = Date.now();
       const lastRotated = config.last_rotated_at || 0;
       const intervalMs = (config.interval || 60) * 60 * 1000;
+      
       if (now - lastRotated < intervalMs) return;
+      
       const { results: posts } = await env.DB.prepare("SELECT id FROM posts ORDER BY display_order ASC, created_at DESC").all();
       if (!posts || posts.length <= 1) return;
+      
       const topPost = posts.shift();
       posts.push(topPost);
+      
       const statements = posts.map((post, index) => env.DB.prepare("UPDATE posts SET display_order = ? WHERE id = ?").bind(index, post.id));
       await env.DB.batch(statements);
+      
       config.last_rotated_at = now;
       await env.DB.prepare("UPDATE settings SET payload = ? WHERE id = 'rotation'").bind(JSON.stringify(config)).run();
     } catch (err) { console.error("Falha no Job de Rotação:", err); }

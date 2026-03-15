@@ -1,12 +1,15 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.7.0
-// Descrição: Injeção de estado `currentContext` no payload do Chat para focar as respostas da IA no texto renderizado ativamente na tela.
+// Versão: v3.8.0
+// Descrição: Código integral restaurado. Injeção de Proteção Anti-Cópia, Botões de Engajamento e Roteamento via parâmetro de URL (?p=).
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Loader2, ChevronUp, ArrowUp, Search, Bot, X, Send, Languages, AlignLeft, Sparkles, AlertTriangle, Sun, Moon, Monitor } from 'lucide-react';
+import { 
+  Loader2, ChevronUp, ArrowUp, Search, Bot, X, Send, Languages, AlignLeft, Sparkles, 
+  AlertTriangle, Sun, Moon, Monitor, Share2, Link2, MessageCircle, Mail 
+} from 'lucide-react';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.7.0';
+const APP_VERSION = 'APP v3.8.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -39,6 +42,9 @@ const App = () => {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef(null);
 
+  // INJEÇÃO: Estado de disparo de e-mail
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e) => setSystemIsDark(e.matches);
@@ -53,7 +59,7 @@ const App = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // --- MOTOR DE SEO DINÂMICO E GERENCIAMENTO DE IA ---
+  // --- MOTOR DE SEO DINÂMICO E ROTEAMENTO ---
   useEffect(() => {
     setPostSummary(null);
     setTranslatedContent(null);
@@ -72,6 +78,9 @@ const App = () => {
       
       const ogDesc = document.querySelector('meta[property="og:description"]');
       if (ogDesc) ogDesc.setAttribute("content", cleanText);
+
+      // Atualiza a URL de forma silenciosa para permitir compartilhamento do link exato
+      window.history.replaceState(null, '', `?p=${currentPost.id}`);
     } else {
       document.title = "Divagações Filosóficas";
     }
@@ -87,9 +96,19 @@ const App = () => {
       const dataPosts = await resPosts.json();
       const dataSettings = await resSettings.json();
 
-      if (Array.isArray(dataPosts)) {
+      if (Array.isArray(dataPosts) && dataPosts.length > 0) {
         setPosts(dataPosts);
-        if (dataPosts.length > 0) setCurrentPost(dataPosts[0]);
+        
+        // Validação de Roteamento Direto (Direct Link Access)
+        const params = new URLSearchParams(window.location.search);
+        const requestedPostId = params.get('p');
+        
+        if (requestedPostId) {
+          const targetPost = dataPosts.find(p => p.id.toString() === requestedPostId);
+          setCurrentPost(targetPost || dataPosts[0]);
+        } else {
+          setCurrentPost(dataPosts[0]);
+        }
       }
       
       if (!dataSettings.error) {
@@ -130,6 +149,52 @@ const App = () => {
     localStorage.setItem('themePref', next);
   };
 
+  // --- MOTOR DE COMPARTILHAMENTO ---
+  const handleShare = async (platform) => {
+    if (!currentPost) return;
+    
+    const postLink = `${window.location.origin}/?p=${currentPost.id}`;
+    const shareText = `Recomendo esta leitura: "${currentPost.title}"`;
+
+    try {
+      if (platform === 'whatsapp') {
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} - ${postLink}`)}`, '_blank');
+        fetch(`${API_URL}/shares`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'whatsapp' }) 
+        });
+      } 
+      else if (platform === 'link') {
+        await navigator.clipboard.writeText(postLink);
+        alert("Link direto copiado para a área de transferência!");
+        fetch(`${API_URL}/shares`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'link' }) 
+        });
+      }
+      else if (platform === 'email') {
+        const email = window.prompt("Digite o e-mail de destino para compartilhar este texto:");
+        if (!email) return;
+        
+        setIsSendingEmail(true);
+        const res = await fetch(`${API_URL}/share/email`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, link: postLink, target_email: email })
+        });
+        
+        if (res.ok) alert("E-mail de recomendação disparado com sucesso!");
+        else alert("Falha ao enviar e-mail. Verifique o servidor de telemetria.");
+        
+        setIsSendingEmail(false);
+      }
+    } catch (e) { 
+      console.error("Falha na interface de compartilhamento", e); 
+    }
+  };
+
   const handleSummarize = async () => {
     if (!currentPost) return;
     setIsSummarizing(true); setAiError(null);
@@ -166,14 +231,12 @@ const App = () => {
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setChatInput(''); setIsChatLoading(true);
 
-    // INJEÇÃO ARQUITETURAL: Coleta do Post Ativo para Foco Semântico da IA
     const payloadContext = currentPost ? { title: currentPost.title, content: currentPost.content } : null;
 
     try {
       const [res] = await Promise.all([
         fetch(`${API_URL}/ai/public/chat`, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, 
           body: JSON.stringify({ message: userMessage, currentContext: payloadContext }) 
         }),
         new Promise(resolve => setTimeout(resolve, 800))
@@ -288,6 +351,13 @@ const App = () => {
         
         .ai-summary-box { background: linear-gradient(to right, rgba(0, 150, 255, 0.05), transparent); border-left: 4px solid #4da6ff; padding: 25px; margin-bottom: 3rem; font-style: italic; line-height: 1.6; border-radius: 0 8px 8px 0; }
         
+        /* INJEÇÃO ARQUITETURAL: Classes de Proteção Anti-Cópia */
+        .protected-content { 
+          user-select: none; 
+          -webkit-user-select: none; 
+          -ms-user-select: none; 
+        }
+
         .p-content, .html-content p, .html-content ul, .html-content ol { font-size: ${settings.shared.fontSize}; color: ${activePalette.fontColor}; transition: color 0.5s ease; }
         .html-content h1 { color: ${activePalette.titleColor}; margin: 2rem 0 1rem 0; font-weight: bold; font-size: ${settings.shared.titleFontSize}; transition: color 0.5s ease; }
         .html-content h2 { color: ${activePalette.titleColor}; margin: 2rem 0 1rem 0; font-weight: bold; font-size: calc(${settings.shared.titleFontSize} * 0.85); transition: color 0.5s ease; }
@@ -298,6 +368,40 @@ const App = () => {
         .html-content li { margin-bottom: 0.5rem; }
         .html-content a { color: #4da6ff; text-decoration: underline; text-underline-offset: 4px; font-weight: bold; }
         
+        /* INJEÇÃO ARQUITETURAL: Estilos do Painel de Compartilhamento */
+        .share-bar { 
+          display: flex; 
+          justify-content: center; 
+          gap: 15px; 
+          margin-top: 3rem; 
+          padding-top: 2rem; 
+          border-top: 1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.1); 
+        }
+        .share-btn { 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          gap: 8px; 
+          padding: 10px 15px; 
+          border-radius: 6px; 
+          cursor: pointer; 
+          font-family: inherit;
+          font-size: 11px; 
+          font-weight: bold; 
+          letter-spacing: 1px; 
+          text-transform: uppercase; 
+          border: none; 
+          transition: all 0.2s; 
+          color: #fff; 
+        }
+        .share-whatsapp { background: #25D366; } 
+        .share-whatsapp:hover { background: #128C7E; transform: translateY(-2px); }
+        .share-link { background: #64748b; } 
+        .share-link:hover { background: #475569; transform: translateY(-2px); }
+        .share-email { background: #0ea5e9; } 
+        .share-email:hover:not(:disabled) { background: #0284c7; transform: translateY(-2px); }
+        .share-email:disabled { background: #94a3b8; cursor: wait; }
+
         .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; padding: 20px; width: 100%; box-sizing: border-box; }
         
         .floating-controls { position: fixed; right: 30px; bottom: 30px; display: flex; flex-direction: column; gap: 15px; z-index: 9999; }
@@ -415,7 +519,29 @@ const App = () => {
                 </div>
               )}
 
-              {renderContent(currentPost.content)}
+              {/* INJEÇÃO ARQUITETURAL: Aplicação de Muralha Anti-Cópia via Eventos DOM */}
+              <div 
+                className="protected-content" 
+                onCopy={(e) => { e.preventDefault(); return false; }} 
+                onContextMenu={(e) => { e.preventDefault(); return false; }} 
+                onDragStart={(e) => { e.preventDefault(); return false; }}
+              >
+                {renderContent(currentPost.content)}
+              </div>
+
+              {/* INJEÇÃO ARQUITETURAL: Painel de Compartilhamento */}
+              <div className="share-bar">
+                <button onClick={() => handleShare('whatsapp')} className="share-btn share-whatsapp" title="Compartilhar no WhatsApp">
+                  <MessageCircle size={16} /> WhatsApp
+                </button>
+                <button onClick={() => handleShare('link')} className="share-btn share-link" title="Copiar Link Direto">
+                  <Link2 size={16} /> Copiar Link
+                </button>
+                <button onClick={() => handleShare('email')} disabled={isSendingEmail} className="share-btn share-email" title="Enviar por E-mail">
+                  {isSendingEmail ? <Loader2 className="animate-spin" size={16} /> : <Mail size={16} />} E-Mail
+                </button>
+              </div>
+
             </div>
           )}
         </div>
