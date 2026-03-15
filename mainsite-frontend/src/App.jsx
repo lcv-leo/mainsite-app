@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.12.0
+// Versão: v3.13.2
 // Descrição: Código integral restaurado. Injeção de Proteção Anti-Cópia, Botões de Engajamento e Roteamento via parâmetro de URL (?p=).
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -15,7 +15,7 @@ import FloatingControls from './components/FloatingControls';
 import ArchiveMenu from './components/ArchiveMenu';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.13.0';
+const APP_VERSION = 'APP v3.13.2';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -263,6 +263,7 @@ const App = () => {
   };
 
   const isDarkBase = activePalette && activePalette.bgColor ? (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1')) : true;
+  const hasCustomImage = activePalette.bgImage && activePalette.bgImage.trim() !== '';
 
   if (loading) return <div style={{...styles.center, backgroundColor: activePalette.bgColor }}><Loader2 color={activePalette.fontColor} size={40} className="animate-spin" /></div>;
 
