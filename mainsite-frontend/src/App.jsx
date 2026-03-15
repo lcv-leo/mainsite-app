@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/App.jsx
 // Versão: v3.16.0
-// Descrição: Monólito completamente refatorado (Component Splitting). Orquestração de estado central e Motor de Temas.
+// Descrição: Baseline consolidado (Component Splitting). Orquestração central, Motor de Temas e Roteamento URL Purificado.
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Loader2, AlertTriangle, Check } from 'lucide-react';
@@ -13,7 +13,7 @@ import ArchiveMenu from './components/ArchiveMenu';
 import PostReader from './components/PostReader';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.14.0';
+const APP_VERSION = 'APP v3.16.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
