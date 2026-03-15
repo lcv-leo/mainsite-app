@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.8.0
-// Descrição: Formatação estrutural preservada. Adição do painel de controle para Rotação Autônoma da fila (Cron Jobs).
+// Versão: v3.9.0
+// Descrição: Injeção de reatividade no Frontend. Atualização automática do banco de dados ao retornar para a tela principal e adição de botão manual de sincronização.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
@@ -38,7 +38,7 @@ import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.8.0';
+const APP_VERSION = 'APP v3.9.0';
 
 const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
 
@@ -287,7 +287,6 @@ const App = () => {
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   
-  // NOVA INJEÇÃO DE ESTADO: Controle de Rotação Autônoma
   const [rotation, setRotation] = useState({ enabled: false, interval: 60, last_rotated_at: 0 });
 
   const secret = import.meta.env.VITE_API_SECRET;
@@ -343,7 +342,6 @@ const App = () => {
         }
       }
 
-      // NOVA INJEÇÃO DE FETCH: Recuperar configurações da Rotação
       const resRotation = await fetch(`${API_URL}/settings/rotation`);
       if (resRotation.ok) {
         const dataRotation = await resRotation.json();
@@ -385,8 +383,6 @@ const App = () => {
 
     try {
       const resApp = await fetch(`${API_URL}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(formattedSettings) });
-      
-      // NOVA INJEÇÃO DE SAVE: Persistir configurações da Rotação
       const resRot = await fetch(`${API_URL}/settings/rotation`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rotation) });
 
       if (resApp.ok && resRot.ok) { 
@@ -480,8 +476,10 @@ const App = () => {
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.8.0</h1></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.9.0</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
+            {/* INJEÇÃO DE BOTÃO MANUAL DE ATUALIZAÇÃO (REFRESH) */}
+            {!isEditorOpen && !isSettingsOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
             {!isEditorOpen && !isSettingsOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurações e Rotinas"><Settings size={16} /> Sistema</button>}
             {!isEditorOpen && !isSettingsOpen && <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> Novo</button>}
           </div>
@@ -489,11 +487,11 @@ const App = () => {
 
         {isSettingsOpen ? (
           <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-             <button onClick={() => setIsSettingsOpen(false)} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
+             {/* INJEÇÃO DE AUTO-REFRESH NO BOTÃO CANCELAR */}
+             <button onClick={() => { setIsSettingsOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
              
              <form onSubmit={handleSaveSettings} style={styles.form}>
                 
-                {/* INJEÇÃO DE INTERFACE: Bloco de Engenharia de Automação */}
                 <h2 style={{ fontSize: '16px', borderBottom: '2px solid #000', paddingBottom: '10px' }}>Engenharia de Automação</h2>
                 <div style={{ padding: '15px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', color: '#0369a1' }}>
@@ -552,7 +550,8 @@ const App = () => {
           </div>
         ) : isEditorOpen ? (
           <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-            <button onClick={() => setIsEditorOpen(false)} style={styles.backButton}><ArrowLeft size={16} /> Cancelar</button>
+            {/* INJEÇÃO DE AUTO-REFRESH NO BOTÃO CANCELAR */}
+            <button onClick={() => { setIsEditorOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Cancelar</button>
             <form onSubmit={handleSavePost} style={styles.form}>
               <input style={styles.adminInput} placeholder="TÍTULO" value={title} onChange={e => setTitle(e.target.value)} required />
               <div style={styles.editorContainer}>
