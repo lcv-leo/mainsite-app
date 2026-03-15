@@ -636,11 +636,13 @@ if (loading) return <div style={styles.center}><Loader2 className="animate-spin"
                   <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0f172a' }}>{log.post_title}</div>
                   {log.target && (
                     <div style={{ marginTop: '12px', fontSize: '10px', background: '#e2e8f0', display: 'inline-block', padding: '6px 10px', borderRadius: '4px', color: '#334155', fontWeight: 'bold', wordBreak: 'break-all' }}>
-                      Destino: {
-                        log.platform === 'link' || log.platform === 'whatsapp' ? <a href={log.target} target="_blank" rel="noopener noreferrer" style={{color: '#0ea5e9', textDecoration: 'underline', marginLeft: '5px'}}>{log.target}</a> :
-                        log.platform === 'email' ? <a href={`mailto:${log.target}`} style={{color: '#0ea5e9', textDecoration: 'underline', marginLeft: '5px'}}>{log.target}</a> :
+                      Destino: {(log.platform === 'link' || log.platform === 'whatsapp') ? (
+                        <a href={log.target} target="_blank" rel="noopener noreferrer" style={{color: '#0ea5e9', textDecoration: 'underline', marginLeft: '5px'}}>{log.target}</a>
+                      ) : log.platform === 'email' ? (
+                        <a href={`mailto:${log.target}`} style={{color: '#0ea5e9', textDecoration: 'underline', marginLeft: '5px'}}>{log.target}</a>
+                      ) : (
                         <span style={{marginLeft: '5px'}}>{log.target}</span>
-                      }
+                      )}
                     </div>
                   )}
                 </div>
