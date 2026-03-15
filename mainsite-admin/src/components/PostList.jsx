@@ -1,0 +1,68 @@
+// Módulo: mainsite-admin/src/components/PostList.jsx
+// Versão: v1.0.0
+// Descrição: Componente isolado para renderização, ordenação (Drag and Drop) e ações dos fragmentos de texto.
+
+import React from 'react';
+import { Pin, Edit3, Trash2, GripVertical } from 'lucide-react';
+
+const PostList = ({
+  posts,
+  onPin,
+  onEdit,
+  onDelete,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+  styles
+}) => {
+  if (!posts || posts.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px', opacity: 0.5, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px' }}>
+        Nenhum fragmento encontrado.
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.list}>
+      {posts.map((post, index) => (
+        <div 
+          key={post.id} 
+          draggable 
+          onDragStart={(e) => onDragStart(e, index)} 
+          onDragEnd={onDragEnd} 
+          onDragOver={onDragOver} 
+          onDrop={(e) => onDrop(e, index)} 
+          style={{ ...styles.postCard, borderLeft: post.is_pinned ? '4px solid #000' : '1px solid #eee' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{ cursor: 'grab', color: '#ccc' }} title="Reordenar">
+              <GripVertical size={20} />
+            </div>
+            <div>
+              <div style={styles.cardDate}>
+                {new Date(post.created_at).toLocaleDateString()} 
+                {post.is_pinned && <span style={styles.pinnedBadge}>FIXADO</span>}
+              </div>
+              <h2 style={styles.cardTitle}>{post.title}</h2>
+            </div>
+          </div>
+          <div style={styles.actions}>
+            <button onClick={() => onPin(post.id)} style={{ ...styles.actionBtnPin, backgroundColor: post.is_pinned ? '#000' : '#f0f0f0', color: post.is_pinned ? '#fff' : '#333' }} title="Fixar/Desafixar">
+              <Pin size={16} />
+            </button>
+            <button onClick={() => onEdit(post)} style={styles.actionBtnEdit} title="Editar">
+              <Edit3 size={16} />
+            </button>
+            <button onClick={() => onDelete(post.id)} style={styles.actionBtnDelete} title="Excluir">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default PostList;

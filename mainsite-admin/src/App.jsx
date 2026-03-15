@@ -1,19 +1,19 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.17.0
+// Versão: v3.19.0
 // Descrição: Monólito completamente refatorado (Component Splitting). Orquestração de estado central e listagem de postagens isolada.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  Database, Edit3, Trash2, PlusCircle, Check, AlertCircle, Pin, GripVertical,
-  Settings, RefreshCw, MessageSquare, Share2, Loader2
+  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, MessageSquare, Share2, Loader2
 } from 'lucide-react';
 
 import TelemetryPanel from './components/TelemetryPanel';
 import SettingsPanel from './components/SettingsPanel';
 import EditorPanel from './components/EditorPanel';
+import PostList from './components/PostList';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.17.0';
+const APP_VERSION = 'APP v3.19.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -236,18 +236,17 @@ const App = () => {
         ) : isEditorOpen ? (
           <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
         ) : (
-          <div style={styles.list}>
-            {posts.map((post, index) => (
-              <div key={post.id} draggable onDragStart={(e) => handleDragStart(e, index)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, index)} style={{ ...styles.postCard, borderLeft: post.is_pinned ? '4px solid #000' : '1px solid #eee' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><div style={{ cursor: 'grab', color: '#ccc' }} title="Reordenar"><GripVertical size={20} /></div><div><div style={styles.cardDate}>{new Date(post.created_at).toLocaleDateString()} {post.is_pinned && <span style={styles.pinnedBadge}>FIXADO</span>}</div><h2 style={styles.cardTitle}>{post.title}</h2></div></div>
-                <div style={styles.actions}>
-                  <button onClick={() => handlePin(post.id)} style={{ ...styles.actionBtnPin, backgroundColor: post.is_pinned ? '#000' : '#f0f0f0', color: post.is_pinned ? '#fff' : '#333' }} title="Fixar/Desafixar"><Pin size={16} /></button>
-                  <button onClick={() => openEditor(post)} style={styles.actionBtnEdit} title="Editar"><Edit3 size={16} /></button>
-                  <button onClick={() => setModal({ show: true, id: post.id })} style={styles.actionBtnDelete} title="Excluir"><Trash2 size={16} /></button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <PostList 
+            posts={posts} 
+            onPin={handlePin} 
+            onEdit={openEditor} 
+            onDelete={(id) => setModal({ show: true, id })} 
+            onDragStart={handleDragStart} 
+            onDragEnd={handleDragEnd} 
+            onDragOver={handleDragOver} 
+            onDrop={handleDrop} 
+            styles={styles} 
+          />
         )}
         <footer style={styles.versionFooterAdmin}>{APP_VERSION}</footer>
       </div>
