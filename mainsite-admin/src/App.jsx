@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.11.0
-// Descrição: Injeção de arquitetura de Long Polling (atualização a cada 10s) e botão de sincronização manual na tela de Telemetria da IA.
+// Versão: v3.12.0
+// Descrição: Código integral restaurado. Injeção de painel de controle de Rate Limiting (Escudo de API) na tela de configurações do sistema.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
@@ -8,7 +8,7 @@ import {
   Image as ImageIcon, Youtube, Bold, Italic, Strikethrough, Heading1, Heading2, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Link as LinkIcon, Unlink, Underline as UnderlineIcon,
   Highlighter, Subscript as SubIcon, Superscript as SuperIcon, Quote, Minus, Code, Table as TableIcon,
-  CheckSquare, Palette, Type, Settings, RefreshCw, WrapText, Upload, Sparkles, MessageSquare
+  CheckSquare, Palette, Type, Settings, RefreshCw, WrapText, Upload, Sparkles, MessageSquare, ShieldAlert
 } from 'lucide-react';
 
 import { Extension } from '@tiptap/core';
@@ -38,16 +38,14 @@ import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.11.0';
+const APP_VERSION = 'APP v3.12.0';
 
 const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
 
 // Extensão Customizada: Manipulação de Tamanho de Fonte no DOM
 const FontSize = Extension.create({
   name: 'fontSize',
-  addOptions() {
-    return { types: ['textStyle'] };
-  },
+  addOptions() { return { types: ['textStyle'] }; },
   addGlobalAttributes() {
     return [
       {
@@ -293,6 +291,9 @@ const App = () => {
   
   const [rotation, setRotation] = useState({ enabled: false, interval: 60, last_rotated_at: 0 });
 
+  // INJEÇÃO ARQUITETURAL: Estado do Rate Limit
+  const [rateLimit, setRateLimit] = useState({ enabled: false, maxRequests: 5, windowMinutes: 1 });
+
   const secret = import.meta.env.VITE_API_SECRET;
 
   const editor = useEditor({
@@ -352,12 +353,20 @@ const App = () => {
         setRotation(dataRotation);
       }
 
+      // INJEÇÃO ARQUITETURAL: Fetch do Rate Limit (Segurança)
+      const resRateLimit = await fetch(`${API_URL}/settings/ratelimit`, {
+        headers: { 'Authorization': `Bearer ${secret}` }
+      });
+      if (resRateLimit.ok) {
+        const dataRateLimit = await resRateLimit.json();
+        setRateLimit(dataRateLimit);
+      }
+
     } catch (err) {
       showNotification("Erro na sincronização.", "error");
     } finally { setLoading(false); }
-  }, [showNotification]);
+  }, [showNotification, secret]);
 
-  // INJEÇÃO ARQUITETURAL: Fetch de Logs com flag de background (silencioso)
   const fetchChatLogs = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoadingLogs(true);
     try {
@@ -375,12 +384,11 @@ const App = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // INJEÇÃO ARQUITETURAL: Ciclo de Vida do Long Polling (Atualização a cada 10s)
   useEffect(() => {
     let pollInterval;
     if (isChatLogsOpen) {
       pollInterval = setInterval(() => {
-        fetchChatLogs(false); // Chama o fetch no modo background (sem girar loader na tela)
+        fetchChatLogs(false);
       }, 10000);
     }
     return () => clearInterval(pollInterval);
@@ -415,8 +423,11 @@ const App = () => {
     try {
       const resApp = await fetch(`${API_URL}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(formattedSettings) });
       const resRot = await fetch(`${API_URL}/settings/rotation`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rotation) });
+      
+      // INJEÇÃO ARQUITETURAL: Gravação do Rate Limit (Segurança)
+      const resRL = await fetch(`${API_URL}/settings/ratelimit`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rateLimit) });
 
-      if (resApp.ok && resRot.ok) { 
+      if (resApp.ok && resRot.ok && resRL.ok) { 
         showNotification("Configurações salvas com sucesso.", "success"); 
       } else {
         throw new Error("Erro ao salvar configs.");
@@ -510,7 +521,7 @@ const App = () => {
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.11.0</h1></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.12.0</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
             
@@ -525,7 +536,6 @@ const App = () => {
           <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
             <button onClick={() => { setIsChatLogsOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
             
-            {/* INJEÇÃO DE INTERFACE: Cabeçalho reativo da Telemetria */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '20px' }}>
               <h2 style={{ fontSize: '16px', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <MessageSquare size={20} /> Telemetria e Auditoria de Chatbot (Últimos 200)
@@ -561,8 +571,31 @@ const App = () => {
              <button onClick={() => { setIsSettingsOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
              
              <form onSubmit={handleSaveSettings} style={styles.form}>
+
+                {/* INJEÇÃO DE INTERFACE: Bloco do Escudo Rate Limiting */}
+                <h2 style={{ fontSize: '16px', borderBottom: '2px solid #000', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShieldAlert size={18} color="#ef4444" /> Segurança e Custos (Limitação de API)
+                </h2>
+                <div style={{ padding: '15px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', color: '#b91c1c' }}>
+                    <input type="checkbox" checked={rateLimit.enabled} onChange={e => setRateLimit({...rateLimit, enabled: e.target.checked})} style={{ width: '18px', height: '18px' }} />
+                    Habilitar Escudo contra Robôs / Abusos (Rate Limiting)
+                  </label>
+                  <p style={{ fontSize: '11px', color: '#dc2626', margin: 0 }}>* Quando ativado, bloqueia temporariamente visitantes (por IP) que dispararem requisições excessivas (Chat, Resumo, Tradução) à Inteligência Artificial.</p>
+                  
+                  <div style={{ display: 'flex', gap: '20px', marginTop: '10px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#b91c1c', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      Máximo de Requisições por IP:
+                      <input type="number" min="1" value={rateLimit.maxRequests} onChange={e => setRateLimit({...rateLimit, maxRequests: parseInt(e.target.value) || 5})} style={{ padding: '5px', width: '150px', border: '1px solid #fca5a5', borderRadius: '4px', outline: 'none' }} disabled={!rateLimit.enabled} />
+                    </label>
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#b91c1c', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      Na Janela de Tempo (Minutos):
+                      <input type="number" min="1" value={rateLimit.windowMinutes} onChange={e => setRateLimit({...rateLimit, windowMinutes: parseInt(e.target.value) || 1})} style={{ padding: '5px', width: '150px', border: '1px solid #fca5a5', borderRadius: '4px', outline: 'none' }} disabled={!rateLimit.enabled} />
+                    </label>
+                  </div>
+                </div>
                 
-                <h2 style={{ fontSize: '16px', borderBottom: '2px solid #000', paddingBottom: '10px' }}>Engenharia de Automação</h2>
+                <h2 style={{ fontSize: '16px', borderBottom: '2px solid #000', paddingBottom: '10px', marginTop: '20px' }}>Engenharia de Automação</h2>
                 <div style={{ padding: '15px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', color: '#0369a1' }}>
                     <input type="checkbox" checked={rotation.enabled} onChange={e => setRotation({...rotation, enabled: e.target.checked})} style={{ width: '18px', height: '18px' }} />

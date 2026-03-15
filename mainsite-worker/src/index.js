@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.4.0
-// Descrição: Injeção de telemetria não-bloqueante (waitUntil) na rota de chat e criação de endpoint seguro de auditoria (GET /chat-logs).
+// Versão: v1.5.0
+// Descrição: Implementação de Rate Limiting em memória (Isolate Cache) nas rotas públicas de IA, com configuração dinâmica via D1.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -20,6 +20,60 @@ app.use('/api/*', cors({
   credentials: true,
   maxAge: 86400,
 }));
+
+// --- ENGINE DE RATE LIMITING (ISOLATE MEMORY) ---
+const ipCache = new Map();
+let cachedRlConfig = null;
+let rlConfigLastFetched = 0;
+
+const rateLimiterMiddleware = async (c, next) => {
+  const now = Date.now();
+  
+  // Cache da configuração por 60s para evitar leitura constante no D1
+  if (!cachedRlConfig || now - rlConfigLastFetched > 60000) {
+    try {
+      const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'ratelimit'").first();
+      cachedRlConfig = record ? JSON.parse(record.payload) : { enabled: false, maxRequests: 5, windowMinutes: 1 };
+      rlConfigLastFetched = now;
+    } catch (e) {
+      cachedRlConfig = { enabled: false }; // Fallback de segurança
+    }
+  }
+
+  if (!cachedRlConfig.enabled) return next();
+
+  const ip = c.req.header('cf-connecting-ip') || 'unknown';
+  const windowMs = (cachedRlConfig.windowMinutes || 1) * 60000;
+  const maxReq = cachedRlConfig.maxRequests || 5;
+  
+  if (!ipCache.has(ip)) {
+    ipCache.set(ip, { count: 1, firstRequest: now });
+  } else {
+    const data = ipCache.get(ip);
+    if (now - data.firstRequest > windowMs) {
+      // Janela de tempo expirou, reseta o contador
+      ipCache.set(ip, { count: 1, firstRequest: now });
+    } else {
+      data.count++;
+      if (data.count > maxReq) {
+        return c.json({ error: "Limite de requisições de IA excedido. Aguarde alguns instantes." }, 429);
+      }
+    }
+  }
+  
+  // Limpeza de memória assíncrona (Lazy Cleanup 5% de chance)
+  if (Math.random() < 0.05) {
+    for (const [key, value] of ipCache.entries()) {
+      if (now - value.firstRequest > windowMs) ipCache.delete(key);
+    }
+  }
+
+  await next();
+};
+
+// Aplicação do escudo estritamente nas rotas públicas da IA
+app.use('/api/ai/public/*', rateLimiterMiddleware);
+
 
 // --- ROTAS DE INTELIGÊNCIA ARTIFICIAL (GEMINI 2.5 PRO) ---
 app.post('/api/ai/transform', async (c) => {
@@ -80,7 +134,6 @@ app.post('/api/ai/public/chat', async (c) => {
     
     const replyText = data.candidates[0].content.parts[0].text;
 
-    // INJEÇÃO ARQUITETURAL: Telemetria Não-Bloqueante (Background Task)
     const logPromise = c.env.DB.batch([
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('user', ?, ?)").bind(message, contextTitleLog),
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('bot', ?, ?)").bind(replyText, contextTitleLog)
@@ -127,11 +180,9 @@ app.post('/api/ai/public/translate', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- ROTA DE AUDITORIA DE TELEMETRIA (ADMIN) ---
 app.get('/api/chat-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    // Busca os últimos 200 registros de interação
     const { results } = await c.env.DB.prepare("SELECT * FROM chat_logs ORDER BY created_at DESC LIMIT 200").all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
@@ -224,18 +275,12 @@ app.delete('/api/posts/:id', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- ROTAS DE CONFIGURAÇÃO DE APARÊNCIA E SISTEMA ---
+// --- ROTAS DE CONFIGURAÇÃO DE SISTEMA ---
 app.get('/api/settings', async (c) => {
   try {
     const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'appearance'").first();
     if (record) return c.json(JSON.parse(record.payload));
-    
-    return c.json({ 
-      allowAutoMode: true,
-      light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' },
-      dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' },
-      shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' }
-    });
+    return c.json({ allowAutoMode: true, light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' }, dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' }, shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' } });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
@@ -265,6 +310,25 @@ app.put('/api/settings/rotation', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+// NOVA ROTA: Escrita/Leitura de Rate Limit
+app.get('/api/settings/ratelimit', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'ratelimit'").first();
+    if (record) return c.json(JSON.parse(record.payload));
+    return c.json({ enabled: false, maxRequests: 5, windowMinutes: 1 });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.put('/api/settings/ratelimit', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const payload = await c.req.text();
+    await c.env.DB.prepare("INSERT INTO settings (id, payload) VALUES ('ratelimit', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
+    return c.json({ success: true });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
 export default {
   fetch: app.fetch,
   
@@ -273,36 +337,21 @@ export default {
       const record = await env.DB.prepare("SELECT payload FROM settings WHERE id = 'rotation'").first();
       if (!record) return;
       const config = JSON.parse(record.payload);
-      
       if (!config.enabled) return;
-
       const pinnedCheck = await env.DB.prepare("SELECT id FROM posts WHERE is_pinned = 1 LIMIT 1").first();
       if (pinnedCheck) return;
-
       const now = Date.now();
       const lastRotated = config.last_rotated_at || 0;
       const intervalMs = (config.interval || 60) * 60 * 1000;
-      
       if (now - lastRotated < intervalMs) return;
-
       const { results: posts } = await env.DB.prepare("SELECT id FROM posts ORDER BY display_order ASC, created_at DESC").all();
-      
       if (!posts || posts.length <= 1) return;
-
       const topPost = posts.shift();
       posts.push(topPost);
-
-      const statements = posts.map((post, index) => 
-        env.DB.prepare("UPDATE posts SET display_order = ? WHERE id = ?").bind(index, post.id)
-      );
-      
+      const statements = posts.map((post, index) => env.DB.prepare("UPDATE posts SET display_order = ? WHERE id = ?").bind(index, post.id));
       await env.DB.batch(statements);
-
       config.last_rotated_at = now;
       await env.DB.prepare("UPDATE settings SET payload = ? WHERE id = 'rotation'").bind(JSON.stringify(config)).run();
-      
-    } catch (err) {
-      console.error("Falha no Job de Rotação Automática:", err);
-    }
+    } catch (err) { console.error("Falha no Job de Rotação:", err); }
   }
 };
