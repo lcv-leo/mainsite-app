@@ -118,9 +118,15 @@ const [chatInput, setChatInput] = useState('');
         }
       }
       
-      if (!dataSettings.error) {
+       if (!dataSettings.error) {
          if (dataSettings.light) {
-             setSettings(dataSettings);
+             // Injeção de Segurança: Garante que as chaves existam mesmo se o banco de dados antigo entregar um JSON incompleto.
+             setSettings({
+                 allowAutoMode: dataSettings.allowAutoMode ?? true,
+                 light: dataSettings.light,
+                 dark: dataSettings.dark,
+                 shared: dataSettings.shared || { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' }
+             });
          } else {
              setSettings(prev => ({
                  ...prev,
@@ -142,10 +148,12 @@ const [chatInput, setChatInput] = useState('');
   };
 
   const activePalette = useMemo(() => {
-    if (!settings.allowAutoMode && userTheme === 'auto') return settings.dark;
+    const safeDark = settings.dark || { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' };
+    const safeLight = settings.light || { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' };
+    if (!settings.allowAutoMode && userTheme === 'auto') return safeDark;
     let resolved = userTheme;
     if (resolved === 'auto') resolved = systemIsDark ? 'dark' : 'light';
-    return resolved === 'dark' ? settings.dark : settings.light;
+    return resolved === 'dark' ? safeDark : safeLight;
   }, [settings, userTheme, systemIsDark]);
 
   const cycleTheme = () => {
