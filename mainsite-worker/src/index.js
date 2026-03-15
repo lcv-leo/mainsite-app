@@ -364,13 +364,14 @@ app.get('/api/sitemap.xml', async (c) => {
     const { results } = await c.env.DB.prepare("SELECT id, created_at FROM posts ORDER BY created_at DESC").all();
     
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
-    // Rota Base (Home)
-    xml += `\n  <url>\n    <loc>https://lcv.app.br/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`;
     
-    // Rotas Dinâmicas (Posts)
+    // Rota Base (Home) - Corrigido para o domínio público oficial
+    xml += `\n  <url>\n    <loc>https://www.lcv.rio.br/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`;
+    
+    // Rotas Dinâmicas (Posts) - Corrigido para o domínio público oficial
     results.forEach(post => {
       const dateIso = new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString().split('T')[0];
-      xml += `\n  <url>\n    <loc>https://lcv.app.br/?p=${post.id}</loc>\n    <lastmod>${dateIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
+      xml += `\n  <url>\n    <loc>https://www.lcv.rio.br/?p=${post.id}</loc>\n    <lastmod>${dateIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
     });
     
     xml += `\n</urlset>`;
