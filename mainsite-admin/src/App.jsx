@@ -1,19 +1,19 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.19.0
-// Descrição: Monólito completamente refatorado (Component Splitting). Orquestração de estado central e listagem de postagens isolada.
+// Versão: v3.20.1
+// Descrição: Monólito purificado. Orquestração central com painel de auditoria unificado e estados legados removidos.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, MessageSquare, Share2, Loader2
+  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2
 } from 'lucide-react';
 
-import TelemetryPanel from './components/TelemetryPanel';
 import SettingsPanel from './components/SettingsPanel';
 import EditorPanel from './components/EditorPanel';
 import PostList from './components/PostList';
+import AnalyticsPanel from './components/AnalyticsPanel';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.19.0';
+const APP_VERSION = 'APP v3.20.1';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -26,14 +26,10 @@ const App = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   
+  // Estados de Navegação Purificados
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isChatLogsOpen, setIsChatLogsOpen] = useState(false);
-  const [isSharesOpen, setIsSharesOpen] = useState(false); 
-  
-  const [chatLogs, setChatLogs] = useState([]);
-  const [shareLogs, setShareLogs] = useState([]); 
-  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   
   const [editingPost, setEditingPost] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,35 +75,14 @@ const App = () => {
 
       const resRateLimit = await fetch(`${API_URL}/settings/ratelimit`, { headers: { 'Authorization': `Bearer ${secret}` } });
       if (resRateLimit.ok) setRateLimit(await resRateLimit.json());
+      
       const resDisclaimers = await fetch(`${API_URL}/settings/disclaimers`);
       if (resDisclaimers.ok) setDisclaimers(await resDisclaimers.json());
 
     } catch (err) { showNotification("Erro na sincronização.", "error"); } finally { setLoading(false); }
   }, [showNotification, secret]);
 
-  const fetchChatLogs = useCallback(async (showSpinner = true) => {
-    if (showSpinner) setLoadingLogs(true);
-    try { 
-      const res = await fetch(`${API_URL}/chat-logs`, { headers: { 'Authorization': `Bearer ${secret}` } }); 
-      if (res.ok) setChatLogs(await res.json()); else throw new Error(); 
-    } catch (err) { if (showSpinner) showNotification("Falha ao puxar logs de IA.", "error"); } finally { if (showSpinner) setLoadingLogs(false); }
-  }, [secret, showNotification]);
-
-  const fetchShareLogs = useCallback(async (showSpinner = true) => {
-    if (showSpinner) setLoadingLogs(true);
-    try { 
-      const res = await fetch(`${API_URL}/shares`, { headers: { 'Authorization': `Bearer ${secret}` } }); 
-      if (res.ok) setShareLogs(await res.json()); else throw new Error(); 
-    } catch (err) { if (showSpinner) showNotification("Falha ao puxar compartilhamentos.", "error"); } finally { if (showSpinner) setLoadingLogs(false); }
-  }, [secret, showNotification]);
-
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  useEffect(() => {
-    let pollInterval;
-    if (isChatLogsOpen) pollInterval = setInterval(() => fetchChatLogs(false), 10000);
-    return () => clearInterval(pollInterval);
-  }, [isChatLogsOpen, fetchChatLogs]);
 
   const triggerBgUpload = (targetTheme) => { setUploadTarget(targetTheme); if (fileInputBgRef.current) fileInputBgRef.current.click(); };
 
@@ -178,7 +153,8 @@ const App = () => {
   };
 
   const openEditor = (post = null) => {
-    setIsSettingsOpen(false); setIsChatLogsOpen(false); setIsSharesOpen(false);
+    setIsSettingsOpen(false); 
+    setIsAnalyticsOpen(false);
     setEditingPost(post);
     setIsEditorOpen(true);
   };
@@ -221,20 +197,24 @@ const App = () => {
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'Console')}</h1></div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
-            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => { setIsSharesOpen(true); fetchShareLogs(true); }} style={{...styles.settingsBtn, backgroundColor: '#fdf4ff', borderColor: '#fbcfe8'}} title="Auditoria de Compartilhamentos"><Share2 size={16} color="#d946ef" /> Engajamento</button>}
-            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => { setIsChatLogsOpen(true); fetchChatLogs(true); }} style={{...styles.settingsBtn, backgroundColor: '#f0f9ff', borderColor: '#bae6fd'}} title="Auditoria de IA"><MessageSquare size={16} color="#0284c7" /> Telemetria IA</button>}
-            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurações e Rotinas"><Settings size={16} /> Sistema</button>}
-            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> Novo</button>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Database size={18} />
+            <h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'Console')}</h1>
+            {/* Restauração do botão NOVO perdido na colagem anterior */}
+            {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && (
+              <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> NOVO</button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <button onClick={() => fetchData()} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={18} /></button>
+            <button onClick={() => setIsAnalyticsOpen(true)} style={styles.headerBtn}><BarChart2 size={18} /> Auditoria</button>
+            <button onClick={() => setIsSettingsOpen(true)} style={styles.headerBtn}><Settings size={18} /> Sistema</button>
+            <button onClick={() => { localStorage.removeItem('admin_secret'); setSecret(''); window.location.reload(); }} style={{ ...styles.headerBtn, color: '#ff4d4d', borderColor: '#ff4d4d' }}>Sair</button>
           </div>
         </header>
 
-        {isSharesOpen ? (
-          <TelemetryPanel type="shares" logs={shareLogs} loading={loadingLogs} onRefresh={fetchShareLogs} onClose={() => { setIsSharesOpen(false); fetchData(); }} styles={styles} />
-        ) : isChatLogsOpen ? (
-          <TelemetryPanel type="chat" logs={chatLogs} loading={loadingLogs} onRefresh={fetchChatLogs} onClose={() => { setIsChatLogsOpen(false); fetchData(); }} styles={styles} />
+        {isAnalyticsOpen ? (
+          <AnalyticsPanel onClose={() => { setIsAnalyticsOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} />
         ) : isSettingsOpen ? (
           <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} rotation={rotation} setRotation={setRotation} disclaimers={disclaimers} setDisclaimers={setDisclaimers} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
         ) : isEditorOpen ? (
@@ -272,6 +252,10 @@ const styles = {
   adminHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: '3px solid #000', paddingBottom: '20px' },
   adminTitle: { fontSize: '14px', letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: '900' },
   plusButton: { backgroundColor: '#000', color: '#fff', border: 'none', padding: '10px 15px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
+  
+  // INJEÇÃO: Restaurado o estilo de botão de cabeçalho unificado
+  headerBtn: { backgroundColor: '#fff', color: '#000', border: '2px solid #000', padding: '10px 15px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
+  
   settingsBtn: { backgroundColor: '#fff', color: '#000', border: '2px solid #000', padding: '10px 15px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
   backButton: { background: 'none', border: 'none', fontSize: '12px', fontWeight: '900', cursor: 'pointer', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px', color: '#555' },
   form: { display: 'flex', flexDirection: 'column', gap: '30px' },
