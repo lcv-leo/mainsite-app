@@ -1,5 +1,5 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.6.0
+// Versão: v1.7.0
 // Descrição: Código integral restaurado. Rate Limiting de memória, Telemetria via waitUntil e Integração com a API Resend para e-mails transacionais.
 
 import { Hono } from 'hono';
@@ -383,6 +383,28 @@ app.put('/api/settings/ratelimit', async (c) => {
   try {
     const payload = await c.req.text();
     await c.env.DB.prepare("INSERT INTO settings (id, payload) VALUES ('ratelimit', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
+    return c.json({ success: true });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.get('/api/settings/disclaimers', async (c) => {
+  try {
+    const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'disclaimers'").first();
+    if (record) return c.json(JSON.parse(record.payload));
+    
+    // Fallback padrão se não existir no banco
+    return c.json({ 
+      enabled: true, 
+      items: [{ id: crypto.randomUUID(), title: 'Aviso ao Leitor', text: 'Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.', buttonText: 'Concordo' }] 
+    });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.put('/api/settings/disclaimers', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const payload = await c.req.text();
+    await c.env.DB.prepare("INSERT INTO settings (id, payload) VALUES ('disclaimers', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
