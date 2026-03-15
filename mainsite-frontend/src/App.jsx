@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.15.0
+// Versão: v3.16.0
 // Descrição: Monólito completamente refatorado (Component Splitting). Orquestração de estado central e Motor de Temas.
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -69,7 +69,10 @@ const App = () => {
       if (ogTitle) ogTitle.setAttribute("content", currentPost.title);
       const ogDesc = document.querySelector('meta[property="og:description"]');
       if (ogDesc) ogDesc.setAttribute("content", cleanText);
-      window.history.replaceState(null, '', `?p=${currentPost.id}`);
+      
+      // Purificação da URL: Remove qualquer parâmetro de busca (?p=) da vista do usuário.
+      // Garante que o F5 (Refresh) sempre retorne ao estado natural de rotação da homepage.
+      window.history.replaceState(null, '', window.location.pathname);
     } else {
       document.title = "Divagações Filosóficas";
     }
