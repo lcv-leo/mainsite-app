@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.12.0
-// Descrição: Código integral restaurado. Injeção de painel de controle de Rate Limiting (Escudo de API) na tela de configurações do sistema.
+// Versão: v3.13.0
+// Descrição: Injeção de motor de Upload Nativo (Cloudflare R2) para imagens de fundo (background) nos painéis de Multi-Tema.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
@@ -38,14 +38,16 @@ import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.12.0';
+const APP_VERSION = 'APP v3.13.0';
 
 const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
 
 // Extensão Customizada: Manipulação de Tamanho de Fonte no DOM
 const FontSize = Extension.create({
   name: 'fontSize',
-  addOptions() { return { types: ['textStyle'] }; },
+  addOptions() {
+    return { types: ['textStyle'] };
+  },
   addGlobalAttributes() {
     return [
       {
@@ -290,9 +292,12 @@ const App = () => {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   
   const [rotation, setRotation] = useState({ enabled: false, interval: 60, last_rotated_at: 0 });
-
-  // INJEÇÃO ARQUITETURAL: Estado do Rate Limit
   const [rateLimit, setRateLimit] = useState({ enabled: false, maxRequests: 5, windowMinutes: 1 });
+
+  // INJEÇÃO ARQUITETURAL: Controle de Upload para Imagem de Fundo (Background)
+  const fileInputBgRef = useRef(null);
+  const [uploadTarget, setUploadTarget] = useState(null);
+  const [isUploadingBg, setIsUploadingBg] = useState(false);
 
   const secret = import.meta.env.VITE_API_SECRET;
 
@@ -353,7 +358,6 @@ const App = () => {
         setRotation(dataRotation);
       }
 
-      // INJEÇÃO ARQUITETURAL: Fetch do Rate Limit (Segurança)
       const resRateLimit = await fetch(`${API_URL}/settings/ratelimit`, {
         headers: { 'Authorization': `Bearer ${secret}` }
       });
@@ -394,6 +398,50 @@ const App = () => {
     return () => clearInterval(pollInterval);
   }, [isChatLogsOpen, fetchChatLogs]);
 
+  // INJEÇÃO ARQUITETURAL: Engine de Upload para o Background
+  const triggerBgUpload = (targetTheme) => {
+    setUploadTarget(targetTheme);
+    if (fileInputBgRef.current) fileInputBgRef.current.click();
+  };
+
+  const handleBgImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file || !uploadTarget) return;
+
+    setIsUploadingBg(true);
+    showNotification(`Enviando fundo para R2 (${uploadTarget})...`, "info");
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${secret}` },
+        body: formData
+      });
+      
+      if (!res.ok) throw new Error("Falha na consolidação da imagem.");
+      const data = await res.json();
+      
+      setSettings(prev => ({
+        ...prev,
+        [uploadTarget]: {
+          ...prev[uploadTarget],
+          bgImage: data.url
+        }
+      }));
+      
+      showNotification("Upload de fundo concluído com sucesso.", "success");
+    } catch (err) {
+      showNotification(err.message, "error");
+    } finally {
+      setIsUploadingBg(false);
+      setUploadTarget(null);
+      if (fileInputBgRef.current) fileInputBgRef.current.value = '';
+    }
+  };
+
   const handleSavePost = async (e) => {
     e.preventDefault();
     if (!editor) return;
@@ -423,8 +471,6 @@ const App = () => {
     try {
       const resApp = await fetch(`${API_URL}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(formattedSettings) });
       const resRot = await fetch(`${API_URL}/settings/rotation`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rotation) });
-      
-      // INJEÇÃO ARQUITETURAL: Gravação do Rate Limit (Segurança)
       const resRL = await fetch(`${API_URL}/settings/ratelimit`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rateLimit) });
 
       if (resApp.ok && resRot.ok && resRL.ok) { 
@@ -519,9 +565,12 @@ const App = () => {
         </div>
       )}
 
+      {/* Input de arquivo oculto para o Upload de Background */}
+      <input type="file" accept="image/*" ref={fileInputBgRef} onChange={handleBgImageUpload} style={{ display: 'none' }} />
+
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.12.0</h1></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.13.0</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
             
@@ -572,7 +621,6 @@ const App = () => {
              
              <form onSubmit={handleSaveSettings} style={styles.form}>
 
-                {/* INJEÇÃO DE INTERFACE: Bloco do Escudo Rate Limiting */}
                 <h2 style={{ fontSize: '16px', borderBottom: '2px solid #000', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ShieldAlert size={18} color="#ef4444" /> Segurança e Custos (Limitação de API)
                 </h2>
@@ -601,7 +649,6 @@ const App = () => {
                     <input type="checkbox" checked={rotation.enabled} onChange={e => setRotation({...rotation, enabled: e.target.checked})} style={{ width: '18px', height: '18px' }} />
                     Habilitar Rotação Autônoma da Fila de Textos
                   </label>
-                  <p style={{ fontSize: '11px', color: '#0284c7', margin: 0 }}>* A automação move o texto mais recente para o final da fila. Aborta imediatamente se houver um post FIXADO.</p>
                   <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#0369a1', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
                     Intervalo de Rotação (Minutos):
                     <input type="number" min="1" value={rotation.interval} onChange={e => setRotation({...rotation, interval: parseInt(e.target.value) || 60})} style={{ padding: '5px', width: '80px', border: '1px solid #7dd3fc', borderRadius: '4px', outline: 'none' }} disabled={!rotation.enabled} />
@@ -619,8 +666,8 @@ const App = () => {
 
                 <h3 style={{ fontSize: '14px', marginTop: '10px', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>Configurações Globais (Ambos os Temas)</h3>
                 <div style={styles.settingsGrid}>
-                  <label style={styles.label}>Tamanho da Fonte Base (p): <input type="text" placeholder="Ex: 1.15rem" value={settings.shared.fontSize} onChange={e => setSettings({...settings, shared: {...settings.shared, fontSize: e.target.value}})} style={styles.textInput} /></label>
-                  <label style={styles.label}>Tamanho da Fonte Títulos (H1): <input type="text" placeholder="Ex: 1.8rem" value={settings.shared.titleFontSize} onChange={e => setSettings({...settings, shared: {...settings.shared, titleFontSize: e.target.value}})} style={styles.textInput} /></label>
+                  <label style={styles.label}>Tamanho da Fonte Base (p): <input type="text" value={settings.shared.fontSize} onChange={e => setSettings({...settings, shared: {...settings.shared, fontSize: e.target.value}})} style={styles.textInput} /></label>
+                  <label style={styles.label}>Tamanho da Fonte Títulos (H1): <input type="text" value={settings.shared.titleFontSize} onChange={e => setSettings({...settings, shared: {...settings.shared, titleFontSize: e.target.value}})} style={styles.textInput} /></label>
                   <label style={styles.label}>Família da Fonte: 
                     <select value={settings.shared.fontFamily} onChange={e => setSettings({...settings, shared: {...settings.shared, fontFamily: e.target.value}})} style={styles.textInput}>
                       <option value="sans-serif">Sans-Serif (Estilo Google)</option>
@@ -637,7 +684,16 @@ const App = () => {
                   <label style={styles.label}>Cor de Fundo: <input type="color" value={settings.dark.bgColor} onChange={e => setSettings({...settings, dark: {...settings.dark, bgColor: e.target.value}})} style={styles.colorInput} /></label>
                   <label style={styles.label}>Cor do Texto Base: <input type="color" value={settings.dark.fontColor} onChange={e => setSettings({...settings, dark: {...settings.dark, fontColor: e.target.value}})} style={styles.colorInput} /></label>
                   <label style={styles.label}>Cor dos Títulos (H1/H2): <input type="color" value={settings.dark.titleColor} onChange={e => setSettings({...settings, dark: {...settings.dark, titleColor: e.target.value}})} style={styles.colorInput} /></label>
-                  <label style={styles.label}>Imagem de Fundo (URL): <input type="text" placeholder="https://..." value={settings.dark.bgImage} onChange={e => setSettings({...settings, dark: {...settings.dark, bgImage: e.target.value}})} style={styles.textInput} /></label>
+                  
+                  {/* INJEÇÃO: Upload Nativo no Tema Escuro */}
+                  <label style={styles.label}>Imagem de Fundo (R2 ou URL externa): 
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input type="text" placeholder="https://..." value={settings.dark.bgImage} onChange={e => setSettings({...settings, dark: {...settings.dark, bgImage: e.target.value}})} style={{...styles.textInput, flex: 1}} />
+                      <button type="button" onClick={() => triggerBgUpload('dark')} disabled={isUploadingBg} style={{...styles.toolbarBtn, height: '35px', width: '40px', border: '1px solid #ccc'}} title="Fazer upload para o Storage R2">
+                        {isUploadingBg && uploadTarget === 'dark' ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                      </button>
+                    </div>
+                  </label>
                 </div>
 
                 <h3 style={{ fontSize: '14px', marginTop: '10px', borderBottom: '1px solid #eee', paddingBottom: '5px', color: '#f59e0b' }}>Paleta Tema Claro (Light Mode)</h3>
@@ -645,7 +701,16 @@ const App = () => {
                   <label style={styles.label}>Cor de Fundo: <input type="color" value={settings.light.bgColor} onChange={e => setSettings({...settings, light: {...settings.light, bgColor: e.target.value}})} style={styles.colorInput} /></label>
                   <label style={styles.label}>Cor do Texto Base: <input type="color" value={settings.light.fontColor} onChange={e => setSettings({...settings, light: {...settings.light, fontColor: e.target.value}})} style={styles.colorInput} /></label>
                   <label style={styles.label}>Cor dos Títulos (H1/H2): <input type="color" value={settings.light.titleColor} onChange={e => setSettings({...settings, light: {...settings.light, titleColor: e.target.value}})} style={styles.colorInput} /></label>
-                  <label style={styles.label}>Imagem de Fundo (URL): <input type="text" placeholder="https://..." value={settings.light.bgImage} onChange={e => setSettings({...settings, light: {...settings.light, bgImage: e.target.value}})} style={styles.textInput} /></label>
+                  
+                  {/* INJEÇÃO: Upload Nativo no Tema Claro */}
+                  <label style={styles.label}>Imagem de Fundo (R2 ou URL externa): 
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input type="text" placeholder="https://..." value={settings.light.bgImage} onChange={e => setSettings({...settings, light: {...settings.light, bgImage: e.target.value}})} style={{...styles.textInput, flex: 1}} />
+                      <button type="button" onClick={() => triggerBgUpload('light')} disabled={isUploadingBg} style={{...styles.toolbarBtn, height: '35px', width: '40px', border: '1px solid #ccc'}} title="Fazer upload para o Storage R2">
+                        {isUploadingBg && uploadTarget === 'light' ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                      </button>
+                    </div>
+                  </label>
                 </div>
 
                 <button type="submit" disabled={isSaving} style={styles.adminButton}>{isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} SALVAR CONFIGURAÇÕES GLOBAIS</button>
