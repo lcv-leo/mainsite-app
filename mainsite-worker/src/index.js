@@ -1,5 +1,5 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.9.0
+// Versão: v1.9.1
 // Descrição: Código integral restaurado. Rate Limiting de memória, Telemetria via waitUntil e Integração com a API Resend para e-mails transacionais.
 
 import { Hono } from 'hono';
@@ -264,7 +264,7 @@ app.post('/api/contact', async (c) => {
       </div>
     `;
 
-    2. E-mail de confirmação para o Leitor
+    // 2. E-mail de confirmação para o Leitor
     const userHtml = `
       <div style="font-family: sans-serif; color: #333; line-height: 1.6;">
         <h2 style="color: #0ea5e9;">Olá, ${name}</h2>
