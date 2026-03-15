@@ -1,20 +1,23 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.18.0
-// Descrição: Baseline consolidado (Component Splitting). Orquestração central, Motor de Temas e Roteamento URL Purificado.
+// Versão: v3.19.0
+// Descrição: Baseline consolidado. Motor de Temas, Roteamento Purificado e Code Splitting (Lighthouse 100).
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Loader2, AlertTriangle, Check } from 'lucide-react';
 
-import DisclaimerModal from './components/DisclaimerModal';
-import ShareOverlay from './components/ShareOverlay';
-import ChatWidget from './components/ChatWidget';
-import FloatingControls from './components/FloatingControls';
-import ArchiveMenu from './components/ArchiveMenu';
+// Componentes estruturais vitais (Carregamento imediato)
 import PostReader from './components/PostReader';
-import ContactModal from './components/ContactModal';
+import ArchiveMenu from './components/ArchiveMenu';
+import FloatingControls from './components/FloatingControls';
+
+// Componentes Modais Pesados (Carregamento Preguiçoso / Lazy Loading)
+const DisclaimerModal = lazy(() => import('./components/DisclaimerModal'));
+const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
+const ChatWidget = lazy(() => import('./components/ChatWidget'));
+const ContactModal = lazy(() => import('./components/ContactModal'));
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.18.0';
+const APP_VERSION = 'APP v3.19.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -198,22 +201,27 @@ const App = () => {
         {toast.type === 'error' ? <AlertTriangle size={18} /> : <Check size={18} />} {toast.message}
       </div>
 
-      {/* Componentes Modais Isolados */}
-      <ShareOverlay modalState={emailModal} setModalState={setEmailModal} onSubmit={submitEmailShare} activePalette={activePalette} />
-      <DisclaimerModal 
-        show={showDisclaimer} 
-        onClose={() => setShowDisclaimer(false)} 
-        activePalette={activePalette} 
-        config={disclaimersConfig}
-      />
+      {/* Componentes Modais Pesados via Suspense/Lazy */}
+      <Suspense fallback={null}>
+        <ShareOverlay modalState={emailModal} setModalState={setEmailModal} onSubmit={submitEmailShare} activePalette={activePalette} />
+        
+        <DisclaimerModal 
+          show={showDisclaimer} 
+          onClose={() => setShowDisclaimer(false)} 
+          activePalette={activePalette} 
+          config={disclaimersConfig}
+        />
 
-      <ContactModal 
-        show={isContactOpen} 
-        onClose={() => setIsContactOpen(false)} 
-        onSubmit={submitContactForm} 
-        activePalette={activePalette} 
-        isSubmitting={isSendingContact} 
-      />
+        <ContactModal 
+          show={isContactOpen} 
+          onClose={() => setIsContactOpen(false)} 
+          onSubmit={submitContactForm} 
+          activePalette={activePalette} 
+          isSubmitting={isSendingContact} 
+        />
+        
+        <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} activePalette={activePalette} API_URL={API_URL} />
+      </Suspense>
 
       <style>{`
         @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
@@ -227,8 +235,7 @@ const App = () => {
 
       {/* Componentes Flutuantes Isolados */}
       <FloatingControls showBackToTop={showBackToTop} scrollToTop={scrollToTop} userTheme={userTheme} cycleTheme={cycleTheme} isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} activePalette={activePalette} />
-      <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} activePalette={activePalette} API_URL={API_URL} />
-
+      
       <div className="public-wrapper">
         <div className="fade-in-node app-container">
           {currentPost && (

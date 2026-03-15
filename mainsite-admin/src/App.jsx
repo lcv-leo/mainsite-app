@@ -1,8 +1,7 @@
 // Módulo: mainsite-admin/src/App.jsx
 // Versão: v3.21.0
-// Descrição: Monólito purificado. Orquestração central com painel de auditoria unificado e estados legados removidos.
+// Descrição: Monólito purificado. Orquestração central com painel de auditoria unificado e code-splitting.
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { 
   Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2
@@ -203,7 +202,6 @@ const App = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Database size={18} />
             <h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'Console')}</h1>
-            {/* Restauração do botão NOVO perdido na colagem anterior */}
             {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && (
               <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> NOVO</button>
             )}
@@ -256,10 +254,7 @@ const styles = {
   adminHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: '3px solid #000', paddingBottom: '20px' },
   adminTitle: { fontSize: '14px', letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: '900' },
   plusButton: { backgroundColor: '#000', color: '#fff', border: 'none', padding: '10px 15px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
-  
-  // INJEÇÃO: Restaurado o estilo de botão de cabeçalho unificado
   headerBtn: { backgroundColor: '#fff', color: '#000', border: '2px solid #000', padding: '10px 15px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
-  
   settingsBtn: { backgroundColor: '#fff', color: '#000', border: '2px solid #000', padding: '10px 15px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
   backButton: { background: 'none', border: 'none', fontSize: '12px', fontWeight: '900', cursor: 'pointer', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px', color: '#555' },
   form: { display: 'flex', flexDirection: 'column', gap: '30px' },
