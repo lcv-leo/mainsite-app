@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/components/PostReader.jsx
-// Versão: v1.0.1
+// Versão: v1.0.2
 // Descrição: Componente isolado para renderização do fragmento, muralha anti-cópia e requisições de Inteligência Artificial.
 
 import React, { useState, useEffect } from 'react';
@@ -192,6 +192,8 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
           <MessageSquare size={16} /> Contato
         </button>
       </div>
+
+    </div>
   );
 };
 
