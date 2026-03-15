@@ -377,8 +377,6 @@ return (
       )}
 
       <style>{`
-
-      <style>{`
         @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
         .fade-in-node { opacity: 0; transform: translateY(10px); animation: fadeIn 1.5s forwards; }
 
