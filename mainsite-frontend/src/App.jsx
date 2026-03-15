@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.10.0
+// Versão: v3.11.0
 // Descrição: Código integral restaurado. Injeção de Proteção Anti-Cópia, Botões de Engajamento e Roteamento via parâmetro de URL (?p=).
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -8,8 +8,11 @@ import {
   AlertTriangle, Sun, Moon, Monitor, Share2, Link2, MessageCircle, Mail, Check
 } from 'lucide-react';
 
+import DisclaimerModal from './components/DisclaimerModal';
+import ShareOverlay from './components/ShareOverlay';
+
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.10.0';
+const APP_VERSION = 'APP v3.11.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -338,43 +341,19 @@ return (
         {toast.type === 'error' ? <AlertTriangle size={18} /> : <Check size={18} />} {toast.message}
       </div>
 
-      {/* Modal de E-mail Responsivo */}
-      {emailModal.show && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.3s' }}>
-          <form onSubmit={submitEmailShare} style={{ background: activePalette.bgColor, padding: '40px', borderRadius: '12px', border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)`, width: '90%', maxWidth: '400px', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: activePalette.titleColor, fontWeight: 'bold', fontSize: '18px' }}><Mail size={24}/> Enviar Leitura</div>
-            <p style={{ fontSize: '13px', color: activePalette.fontColor, opacity: 0.8, margin: 0 }}>Digite o e-mail do destinatário que receberá o link para este texto.</p>
-            <input type="email" required autoFocus placeholder="exemplo@email.com" value={emailModal.email} onChange={e => setEmailModal({...emailModal, email: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', padding: '15px', borderRadius: '6px', border: `2px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)`, background: isDarkBase ? 'rgba(0,0,0,0.5)' : '#f9f9f9', color: activePalette.fontColor, outline: 'none', fontSize: '14px' }} />
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-              <button type="button" onClick={() => setEmailModal({show: false, email: ''})} style={{ padding: '12px 20px', border: 'none', background: 'transparent', color: activePalette.fontColor, cursor: 'pointer', fontWeight: 'bold' }}>CANCELAR</button>
-              <button type="submit" style={{ padding: '12px 25px', border: 'none', background: '#0ea5e9', color: '#fff', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}><Send size={16}/> ENVIAR</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Modal de Aviso / Disclaimer (Glassmorphism) */}
-      {showDisclaimer && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000, animation: 'fadeIn 0.4s ease-out' }}>
-          
-          {/* Fundo escurecido suave */}
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)' }} onClick={() => setShowDisclaimer(false)}></div>
-          
-          {/* Cartão Vídrico */}
-          <div style={{ position: 'relative', width: '90%', maxWidth: '450px', background: isDarkBase ? 'rgba(20, 20, 20, 0.65)' : 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.15)`, borderRadius: '16px', padding: '40px', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', color: activePalette.fontColor, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', color: activePalette.titleColor, opacity: 0.8 }}>
-              <AlertTriangle size={40} />
-            </div>
-            <h3 style={{ margin: 0, fontSize: '18px', color: activePalette.titleColor, textTransform: 'uppercase', letterSpacing: '1px' }}>Aviso ao Leitor</h3>
-            <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.8', opacity: 0.85 }}>
-              Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.
-            </p>
-            <button onClick={() => setShowDisclaimer(false)} style={{ marginTop: '10px', padding: '15px 30px', background: activePalette.titleColor, color: activePalette.bgColor, border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', letterSpacing: '2px', transition: 'transform 0.2s', textTransform: 'uppercase' }}>
-              Concordo
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Componentes Modais Isolados */}
+      <ShareOverlay 
+        modalState={emailModal} 
+        setModalState={setEmailModal} 
+        onSubmit={submitEmailShare} 
+        activePalette={activePalette} 
+      />
+      
+      <DisclaimerModal 
+        show={showDisclaimer} 
+        onClose={() => setShowDisclaimer(false)} 
+        activePalette={activePalette} 
+      />
 
       <style>{`
         @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
