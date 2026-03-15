@@ -1,5 +1,6 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.6.0
+// Versão: v3.7.0
+// Descrição: Implementação de extensão customizada do Tiptap para manipulação de tamanho de fonte no DOM e atualização da interface gráfica.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
@@ -10,6 +11,7 @@ import {
   CheckSquare, Palette, Type, Settings, RefreshCw, WrapText, Upload, Sparkles
 } from 'lucide-react';
 
+import { Extension } from '@tiptap/core';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
@@ -36,9 +38,40 @@ import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.6.0';
+const APP_VERSION = 'APP v3.7.0';
 
 const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
+
+// Extensão Customizada: Manipulação de Tamanho de Fonte no DOM
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addOptions() {
+    return { types: ['textStyle'] };
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: element => element.style.fontSize.replace(/['"]+/g, ''),
+            renderHTML: attributes => {
+              if (!attributes.fontSize) return {};
+              return { style: `font-size: ${attributes.fontSize}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontSize: fontSize => ({ chain }) => chain().setMark('textStyle', { fontSize }).run(),
+      unsetFontSize: () => ({ chain }) => chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run(),
+    };
+  },
+});
 
 const formatImageUrl = (url) => {
   if (!url) return '';
@@ -206,11 +239,24 @@ const MenuBar = ({ editor, secret, showNotification }) => {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title="Família da Fonte">
         <Type size={14} />
-        <select onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()} style={{ fontSize: '11px', padding: '2px' }}>
+        <select onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()} value={editor.getAttributes('textStyle').fontFamily || 'inherit'} style={{ fontSize: '11px', padding: '2px' }}>
           <option value="inherit">Padrão</option>
           <option value="monospace">Monospace</option>
           <option value="Arial">Arial</option>
-          <option value="Times New Roman">Times</option>
+          <option value="'Times New Roman', Times, serif">Times</option>
+        </select>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title="Tamanho da Fonte">
+        <select onChange={e => editor.chain().focus().setFontSize(e.target.value).run()} value={editor.getAttributes('textStyle').fontSize || ''} style={{ fontSize: '11px', padding: '2px' }}>
+          <option value="">Tam. Padrão</option>
+          <option value="12px">12px</option>
+          <option value="14px">14px</option>
+          <option value="16px">16px</option>
+          <option value="18px">18px</option>
+          <option value="20px">20px</option>
+          <option value="24px">24px</option>
+          <option value="30px">30px</option>
+          <option value="36px">36px</option>
         </select>
       </div>
     </div>
@@ -245,7 +291,7 @@ const App = () => {
 
   const editor = useEditor({
     extensions: [
-      StarterKit, Markdown, Underline, Highlight, Subscript, Superscript, TextStyle, Color, FontFamily, Typography,
+      StarterKit, Markdown, Underline, Highlight, Subscript, Superscript, TextStyle, Color, FontFamily, FontSize, Typography,
       TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'justify' }),
       Image.configure({ inline: true }),
       YoutubeExtension.configure({ inline: false, width: 840, height: 472.5 }),
@@ -418,7 +464,7 @@ const App = () => {
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.6.0</h1></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.7.0</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
             {!isEditorOpen && !isSettingsOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurar Aparência do Frontend"><Settings size={16} /> Estilos</button>}
             {!isEditorOpen && !isSettingsOpen && <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> Novo</button>}
