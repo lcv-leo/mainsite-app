@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.14.0
+// Versão: v3.15.0
 // Descrição: Injeção de painel de auditoria de compartilhamentos (Shares). Código reestruturado com precisão para evitar truncamento.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -38,7 +38,7 @@ import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.14.0';
+const APP_VERSION = 'APP v3.15.0';
 
 const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
 
@@ -148,29 +148,38 @@ const MenuBar = ({ editor, secret, showNotification }) => {
     }
   };
 
-  const addImageUrl = () => { 
-    const rawUrl = window.prompt('URL da imagem (Suporta links de compartilhamento do Google Drive):'); 
-    if (rawUrl) {
-      const url = formatImageUrl(rawUrl);
-      editor.chain().focus().setImage({ src: url }).run(); 
-    }
-  };
-  
-  const addYoutube = () => { const url = window.prompt('URL do vídeo:'); if (url) editor.chain().focus().setYoutubeVideo({ src: url }).run(); };
-  
+const [promptModal, setPromptModal] = useState({ show: false, title: '', value: '', callback: null, isLink: false, linkText: '' });
+
+  const addImageUrl = () => { setPromptModal({ show: true, title: 'URL da Imagem (Google Drive / Externa):', value: '', callback: (url) => { if(url) editor.chain().focus().setImage({ src: formatImageUrl(url) }).run(); } }); };
+  const addYoutube = () => { setPromptModal({ show: true, title: 'URL do vídeo (YouTube):', value: '', callback: (url) => { if(url) editor.chain().focus().setYoutubeVideo({ src: url }).run(); } }); };
   const addLink = () => {
-    const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('URL do link:', previousUrl);
-    if (url === null) return;
-    if (url === '') { editor.chain().focus().extendMarkRange('link').unsetLink().run(); return; }
-    if (editor.state.selection.empty) {
-      const text = window.prompt('Texto (deixe em branco para exibir a URL):', url);
-      if (text) editor.chain().focus().insertContent(`<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`).run();
-    } else { editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run(); }
+    const prev = editor.getAttributes('link').href || '';
+    setPromptModal({ show: true, title: 'Inserir Link de Hipertexto:', value: prev, isLink: true, linkText: '', callback: (url, text) => {
+      if (url === '') { editor.chain().focus().extendMarkRange('link').unsetLink().run(); return; }
+      if (editor.state.selection.empty && text) { editor.chain().focus().insertContent(`<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`).run(); } 
+      else { editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run(); }
+    }});
   };
 
   return (
     <div style={styles.toolbar}>
+      
+      {promptModal.show && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 12000, backdropFilter: 'blur(5px)' }}>
+          <div style={{ background: '#fff', padding: '30px', border: '3px solid #000', width: '90%', maxWidth: '450px', display: 'flex', flexDirection: 'column', gap: '15px', boxShadow: '15px 15px 0px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: 0, fontSize: '14px', textTransform: 'uppercase', borderBottom: '2px solid #000', paddingBottom: '10px' }}>{promptModal.title}</h3>
+            <input autoFocus type="text" placeholder="https://..." value={promptModal.value} onChange={e => setPromptModal({...promptModal, value: e.target.value})} style={{ padding: '12px', border: '2px solid #ccc', outline: 'none', fontFamily: 'monospace', fontSize: '13px' }} />
+            {promptModal.isLink && editor.state.selection.empty && (
+              <input type="text" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({...promptModal, linkText: e.target.value})} style={{ padding: '12px', border: '2px solid #ccc', outline: 'none', fontFamily: 'monospace', fontSize: '13px' }} />
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              <button type="button" onClick={() => setPromptModal({show: false})} style={{ padding: '12px 18px', background: '#f5f5f5', border: '2px solid #ccc', cursor: 'pointer', fontWeight: 'bold' }}>CANCELAR</button>
+              <button type="button" onClick={() => { promptModal.callback(promptModal.value, promptModal.linkText); setPromptModal({show: false}); }} style={{ padding: '12px 18px', background: '#000', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>INSERIR</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#f0f9ff', padding: '2px 5px', borderRadius: '4px', border: '1px solid #bae6fd', marginRight: '5px' }} title="Inteligência Artificial (Gemini 2.5 Pro)">
         <Sparkles size={14} color="#0284c7" />
         <select
@@ -625,6 +634,16 @@ if (loading) return <div style={styles.center}><Loader2 className="animate-spin"
                     <span>{new Date(log.created_at).toLocaleString('pt-BR')}</span>
                   </div>
                   <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0f172a' }}>{log.post_title}</div>
+                  {log.target && (
+                    <div style={{ marginTop: '12px', fontSize: '10px', background: '#e2e8f0', display: 'inline-block', padding: '6px 10px', borderRadius: '4px', color: '#334155', fontWeight: 'bold', wordBreak: 'break-all' }}>
+                      Destino: {
+                        log.platform === 'link' || log.platform === 'whatsapp' ? <a href={log.target} target="_blank" rel="noopener noreferrer" style={{color: '#0ea5e9', textDecoration: 'underline', marginLeft: '5px'}}>{log.target}</a> :
+                        log.platform === 'email' ? <a href={`mailto:${log.target}`} style={{color: '#0ea5e9', textDecoration: 'underline', marginLeft: '5px'}}>{log.target}</a> :
+                        <span style={{marginLeft: '5px'}}>{log.target}</span>
+                      }
+                    </div>
+                  )}
+                </div>
                   {log.target && (
                     <div style={{ marginTop: '12px', fontSize: '9px', background: '#e2e8f0', display: 'inline-block', padding: '4px 8px', borderRadius: '4px', color: '#475569', fontWeight: 'bold' }}>
                       Destino: {log.target}

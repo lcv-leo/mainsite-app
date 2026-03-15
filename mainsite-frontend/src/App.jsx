@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.8.0
+// Versão: v3.9.0
 // Descrição: Código integral restaurado. Injeção de Proteção Anti-Cópia, Botões de Engajamento e Roteamento via parâmetro de URL (?p=).
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.8.0';
+const APP_VERSION = 'APP v3.9.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -38,12 +38,19 @@ const App = () => {
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([{ role: 'bot', text: 'Olá. Como posso ajudar você a explorar os textos publicados neste site?' }]);
-  const [chatInput, setChatInput] = useState('');
+const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef(null);
 
-  // INJEÇÃO: Estado de disparo de e-mail
+  // INJEÇÃO ARQUITETURAL: Interface Dinâmica e Modais
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+  const [emailModal, setEmailModal] = useState({ show: false, email: '' });
+
+  const showNotification = useCallback((message, type = 'info') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -149,49 +156,47 @@ const App = () => {
     localStorage.setItem('themePref', next);
   };
 
-  // --- MOTOR DE COMPARTILHAMENTO ---
+// --- MOTOR DE COMPARTILHAMENTO ---
   const handleShare = async (platform) => {
     if (!currentPost) return;
-    
     const postLink = `${window.location.origin}/?p=${currentPost.id}`;
     const shareText = `Recomendo esta leitura: "${currentPost.title}"`;
 
     try {
       if (platform === 'whatsapp') {
         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} - ${postLink}`)}`, '_blank');
-        fetch(`${API_URL}/shares`, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'whatsapp' }) 
-        });
+        fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'whatsapp', target: postLink }) });
       } 
       else if (platform === 'link') {
         await navigator.clipboard.writeText(postLink);
-        alert("Link direto copiado para a área de transferência!");
-        fetch(`${API_URL}/shares`, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'link' }) 
-        });
+        showNotification("Link copiado para a área de transferência!", "success");
+        fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'link', target: postLink }) });
       }
       else if (platform === 'email') {
-        const email = window.prompt("Digite o e-mail de destino para compartilhar este texto:");
-        if (!email) return;
-        
-        setIsSendingEmail(true);
-        const res = await fetch(`${API_URL}/share/email`, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, link: postLink, target_email: email })
-        });
-        
-        if (res.ok) alert("E-mail de recomendação disparado com sucesso!");
-        else alert("Falha ao enviar e-mail. Verifique o servidor de telemetria.");
-        
-        setIsSendingEmail(false);
+        setEmailModal({ show: true, email: '' });
       }
-    } catch (e) { 
-      console.error("Falha na interface de compartilhamento", e); 
+    } catch (e) { showNotification("Falha no compartilhamento. Verifique permissões do navegador.", "error"); }
+  };
+
+  const submitEmailShare = async (e) => {
+    e.preventDefault();
+    if (!emailModal.email || !currentPost) return;
+    const postLink = `${window.location.origin}/?p=${currentPost.id}`;
+    
+    setIsSendingEmail(true);
+    setEmailModal({ show: false, email: '' });
+    
+    try {
+      const res = await fetch(`${API_URL}/share/email`, { 
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, link: postLink, target_email: emailModal.email })
+      });
+      if (res.ok) showNotification("E-mail disparado com sucesso!", "success");
+      else throw new Error();
+    } catch (err) {
+      showNotification("Falha ao enviar e-mail. Tente novamente.", "error");
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -304,7 +309,7 @@ const App = () => {
     ? 'cover'
     : '100% 100%, 100% 100%, 40px 40px, 40px 40px';
 
-  return (
+return (
     <div style={{
       backgroundColor: activePalette.bgColor, 
       backgroundImage: bgImageToUse,
@@ -314,6 +319,27 @@ const App = () => {
       color: activePalette.fontColor, fontFamily: settings.shared.fontFamily,
       minHeight: '100vh', width: '100%', margin: 0, padding: 0, position: 'relative', transition: 'background-color 0.5s ease, color 0.5s ease'
     }}>
+      
+      {/* Componente Toast Nativo */}
+      <div style={{ position: 'fixed', top: '30px', left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#000' : '#fff', color: toast.type === 'error' ? '#fff' : '#000', padding: '15px 25px', borderRadius: '8px', zIndex: 10000, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)', border: '2px solid #000', fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', pointerEvents: 'none' }}>
+        {toast.type === 'error' ? <AlertTriangle size={18} /> : <Check size={18} />} {toast.message}
+      </div>
+
+      {/* Modal de E-mail Responsivo */}
+      {emailModal.show && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.3s' }}>
+          <form onSubmit={submitEmailShare} style={{ background: activePalette.bgColor, padding: '40px', borderRadius: '12px', border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)`, width: '90%', maxWidth: '400px', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: activePalette.titleColor, fontWeight: 'bold', fontSize: '18px' }}><Mail size={24}/> Enviar Leitura</div>
+            <p style={{ fontSize: '13px', color: activePalette.fontColor, opacity: 0.8, margin: 0 }}>Digite o e-mail do destinatário que receberá o link para este texto.</p>
+            <input type="email" required autoFocus placeholder="exemplo@email.com" value={emailModal.email} onChange={e => setEmailModal({...emailModal, email: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', padding: '15px', borderRadius: '6px', border: `2px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)`, background: isDarkBase ? 'rgba(0,0,0,0.5)' : '#f9f9f9', color: activePalette.fontColor, outline: 'none', fontSize: '14px' }} />
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+              <button type="button" onClick={() => setEmailModal({show: false, email: ''})} style={{ padding: '12px 20px', border: 'none', background: 'transparent', color: activePalette.fontColor, cursor: 'pointer', fontWeight: 'bold' }}>CANCELAR</button>
+              <button type="submit" style={{ padding: '12px 25px', border: 'none', background: '#0ea5e9', color: '#fff', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}><Send size={16}/> ENVIAR</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <style>{`
         @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
         .fade-in-node { opacity: 0; transform: translateY(10px); animation: fadeIn 1.5s forwards; }
