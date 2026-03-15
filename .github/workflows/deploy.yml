@@ -1,6 +1,6 @@
 # Módulo: .github/workflows/deploy.yml
-# Versão: v1.3.0
-# Descrição: Automação completa CI/CD. Adequação da flag de ramificação para '--branch production', pareando perfeitamente com a nomenclatura nativa do ambiente de Produção da Cloudflare Pages.
+# Versão: v1.4.0
+# Descrição: Automação completa CI/CD para o ecossistema Mainsite. Solução definitiva para a depreciação do Node 20. Atualização direta dos módulos actions/checkout e actions/setup-node para a versão v5 nos três microsserviços.
 
 name: Deploy Pipeline Cloudflare
 
@@ -9,18 +9,15 @@ on:
     branches:
       - main
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   deploy-worker:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           
@@ -38,10 +35,10 @@ jobs:
     needs: deploy-worker
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           
@@ -50,7 +47,6 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        # Injeção cirúrgica da flag --branch production
         run: |
           npm install
           npm run build
@@ -61,10 +57,10 @@ jobs:
     needs: deploy-worker
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           
@@ -73,7 +69,6 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        # Injeção cirúrgica da flag --branch production
         run: |
           npm install
           npm run build
