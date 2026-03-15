@@ -1,11 +1,11 @@
 // Módulo: mainsite-frontend/src/components/PostReader.jsx
-// Versão: v1.0.0
+// Versão: v1.0.1
 // Descrição: Componente isolado para renderização do fragmento, muralha anti-cópia e requisições de Inteligência Artificial.
 
 import React, { useState, useEffect } from 'react';
 import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail } from 'lucide-react';
 
-const PostReader = ({ post, activePalette, settings, API_URL, onShare, isSendingEmail }) => {
+const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, isSendingEmail }) => {
   const [postSummary, setPostSummary] = useState(null);
   const [translatedContent, setTranslatedContent] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -124,6 +124,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, isSending
         .share-link { background: #64748b; } .share-link:hover { background: #475569; transform: translateY(-2px); }
         .share-email { background: #0ea5e9; } .share-email:hover:not(:disabled) { background: #0284c7; transform: translateY(-2px); }
         .share-email:disabled { background: #94a3b8; cursor: wait; }
+        .share-contact { background: #8b5cf6; } .share-contact:hover { background: #7c3aed; transform: translateY(-2px); }
       `}</style>
 
       <h1 className="h1-title">{post.title}</h1>
@@ -187,9 +188,10 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, isSending
         <button onClick={() => onShare('email')} disabled={isSendingEmail} className="share-btn share-email" title="Enviar por E-mail">
           {isSendingEmail ? <Loader2 className="animate-spin" size={16} /> : <Mail size={16} />} E-Mail
         </button>
+        <button onClick={onContact} className="share-btn share-contact" title="Falar com o Autor">
+          <MessageSquare size={16} /> Contato
+        </button>
       </div>
-
-    </div>
   );
 };
 

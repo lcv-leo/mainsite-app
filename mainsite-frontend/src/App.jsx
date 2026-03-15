@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.16.0
+// Versão: v3.17.0
 // Descrição: Baseline consolidado (Component Splitting). Orquestração central, Motor de Temas e Roteamento URL Purificado.
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -11,9 +11,10 @@ import ChatWidget from './components/ChatWidget';
 import FloatingControls from './components/FloatingControls';
 import ArchiveMenu from './components/ArchiveMenu';
 import PostReader from './components/PostReader';
+import ContactModal from './components/ContactModal';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.16.0';
+const APP_VERSION = 'APP v3.17.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -35,6 +36,8 @@ const App = () => {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
   const [emailModal, setEmailModal] = useState({ show: false, email: '' });
+  const [isContactOpen, setIsContactOpen] = useState(false);
+  const [isSendingContact, setIsSendingContact] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [disclaimersConfig, setDisclaimersConfig] = useState({ enabled: false, items: [] });
 
@@ -155,6 +158,25 @@ const App = () => {
     } catch (err) { showNotification("Falha ao enviar e-mail. Tente novamente.", "error"); } finally { setIsSendingEmail(false); }
   };
 
+  const submitContactForm = async (formData, resetFormCb) => {
+    setIsSendingContact(true);
+    try {
+      const res = await fetch(`${API_URL}/contact`, { 
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(formData) 
+      });
+      if (res.ok) {
+        showNotification("Mensagem enviada com sucesso! Verifique seu e-mail.", "success");
+        resetFormCb();
+        setIsContactOpen(false);
+      } else throw new Error();
+    } catch (err) { 
+      showNotification("Falha ao enviar mensagem. Tente novamente.", "error"); 
+    } finally { 
+      setIsSendingContact(false); 
+    }
+  };
+
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const isDarkBase = activePalette && activePalette.bgColor ? (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1')) : true;
@@ -186,6 +208,14 @@ const App = () => {
         config={disclaimersConfig}
       />
 
+      <ContactModal 
+        show={isContactOpen} 
+        onClose={() => setIsContactOpen(false)} 
+        onSubmit={submitContactForm} 
+        activePalette={activePalette} 
+        isSubmitting={isSendingContact} 
+      />
+
       <style>{`
         @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
         .fade-in-node { opacity: 0; transform: translateY(10px); animation: fadeIn 1.5s forwards; }
@@ -209,6 +239,7 @@ const App = () => {
               settings={settings} 
               API_URL={API_URL} 
               onShare={handleShare} 
+              onContact={() => setIsContactOpen(true)}
               isSendingEmail={isSendingEmail} 
             />
           )}

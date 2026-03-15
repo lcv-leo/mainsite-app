@@ -1,5 +1,5 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.7.0
+// Versão: v1.8.0
 // Descrição: Código integral restaurado. Rate Limiting de memória, Telemetria via waitUntil e Integração com a API Resend para e-mails transacionais.
 
 import { Hono } from 'hono';
@@ -240,6 +240,70 @@ app.post('/api/share/email', async (c) => {
     
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.post('/api/contact', async (c) => {
+  try {
+    const { name, phone, email, message } = await c.req.json();
+    if (!name || !email || !message) return c.json({ error: "Dados incompletos" }, 400);
+
+    const resendToken = c.env.RESEND_API_KEY; 
+    // IMPORTANTE: Use c.env.API_SECRET ou a variável de ambiente correta que guarda o token da Resend no seu Worker.
+    // Baseado nas rotas anteriores, se você usa a mesma chave para tudo, adapte a variável de ambiente se necessário.
+
+    // 1. E-mail blindado para o Administrador
+    const adminHtml = `
+      <div style="font-family: sans-serif; color: #333;">
+        <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Contato pelo Site</h2>
+        <p><strong>Nome:</strong> ${name}</p>
+        <p><strong>Telefone:</strong> ${phone || 'Não informado'}</p>
+        <p><strong>E-mail:</strong> ${email}</p>
+        <div style="background: #f5f5f5; padding: 15px; border-left: 4px solid #000; margin-top: 20px;">
+          <p style="margin: 0; white-space: pre-wrap;">${message}</p>
+        </div>
+      </div>
+    `;
+
+    // 2. E-mail de confirmação para o Leitor
+    const userHtml = `
+      <div style="font-family: sans-serif; color: #333; line-height: 1.6;">
+        <h2 style="color: #0ea5e9;">Olá, ${name}</h2>
+        <p>Recebemos sua mensagem com sucesso através do nosso site. Abaixo está uma cópia do que você nos enviou:</p>
+        <div style="background: #f0f9ff; padding: 15px; border-left: 4px solid #0ea5e9; margin: 20px 0;">
+          <p style="margin: 0; white-space: pre-wrap; font-style: italic;">"${message}"</p>
+        </div>
+        <p>Atenciosamente,<br/><strong>Divagações Filosóficas</strong></p>
+      </div>
+    `;
+
+    // Disparo 1: Para você (Admin)
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'Divagações Filosóficas <mainsite@lcv.app.br>',
+        to: 'lcv@lcv.rio.br',
+        subject: `Novo Contato de ${name}`,
+        html: adminHtml
+      })
+    });
+
+    // Disparo 2: Para o Leitor
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'Divagações Filosóficas <mainsite@lcv.app.br>',
+        to: email,
+        subject: 'Recebemos sua mensagem - Divagações Filosóficas',
+        html: userHtml
+      })
+    });
+
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: "Falha ao processar o formulário de contato." }, 500);
+  }
 });
 
 // --- ROTAS DE UPLOAD E MÍDIA (R2) ---
