@@ -1,12 +1,12 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.6.0
-// Descrição: Código COMPLETO. Injeção de lógica de SEO Dinâmico (Vanilla DOM Manipulation). O title e a meta-description agora reagem à mudança do fragmento visualizado, extraindo um extrato limpo do Tiptap HTML.
+// Versão: v3.7.0
+// Descrição: Injeção de estado `currentContext` no payload do Chat para focar as respostas da IA no texto renderizado ativamente na tela.
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Loader2, ChevronUp, ArrowUp, Search, Bot, X, Send, Languages, AlignLeft, Sparkles, AlertTriangle, Sun, Moon, Monitor } from 'lucide-react';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.6.0';
+const APP_VERSION = 'APP v3.7.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -59,11 +59,9 @@ const App = () => {
     setTranslatedContent(null);
     setAiError(null);
 
-    // Manipulação nativa do DOM para injeção de SEO em Single Page Applications
     if (currentPost) {
       document.title = `${currentPost.title} | Divagações Filosóficas`;
       
-      // Sanitização de Regex para extrair apenas texto limpo do HTML gerado pelo Tiptap
       const cleanText = currentPost.content ? currentPost.content.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : '';
       
       const metaDesc = document.querySelector('meta[name="description"]');
@@ -168,9 +166,16 @@ const App = () => {
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setChatInput(''); setIsChatLoading(true);
 
+    // INJEÇÃO ARQUITETURAL: Coleta do Post Ativo para Foco Semântico da IA
+    const payloadContext = currentPost ? { title: currentPost.title, content: currentPost.content } : null;
+
     try {
       const [res] = await Promise.all([
-        fetch(`${API_URL}/ai/public/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: userMessage }) }),
+        fetch(`${API_URL}/ai/public/chat`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ message: userMessage, currentContext: payloadContext }) 
+        }),
         new Promise(resolve => setTimeout(resolve, 800))
       ]);
       const data = await res.json();

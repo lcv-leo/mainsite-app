@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.2.0
-// Descrição: Adição de endpoints para configurações de rotação e injeção do tratador de eventos Cron (scheduled) para rotação autônoma da fila.
+// Versão: v1.3.0
+// Descrição: Rota pública de Chat atualizada com injeção de Contexto Ativo para resolução de foco semântico no texto em exibição.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -51,18 +51,25 @@ app.post('/api/ai/transform', async (c) => {
 
 app.post('/api/ai/public/chat', async (c) => {
   try {
-    const { message } = await c.req.json();
+    // INJEÇÃO ARQUITETURAL: Recepção do currentContext
+    const { message, currentContext } = await c.req.json();
     const apiKey = c.env.GEMINI_API_KEY;
     if (!apiKey || !message) throw new Error("Parâmetros inválidos.");
 
     const { results } = await c.env.DB.prepare("SELECT title, content FROM posts ORDER BY is_pinned DESC, created_at DESC LIMIT 30").all();
     const dbContext = results.map(p => `TÍTULO: ${p.title}\nCONTEÚDO: ${p.content}`).join('\n\n---\n\n');
 
-    const systemPrompt = `Você é o assistente de IA do site. O usuário fará uma pergunta ou busca semântica. 
-    Responda baseando-se EXCLUSIVAMENTE nos textos fornecidos abaixo. 
-    Se a resposta não estiver nos textos, diga educadamente que o site ainda não abordou este tema.
+    // INJEÇÃO DE DIRETRIZ DE FOCO SEMÂNTICO
+    let activeContextPrompt = "";
+    if (currentContext && currentContext.title) {
+      activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${currentContext.title}\n[CONTEÚDO DO TEXTO NA TELA]: ${currentContext.content}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
+    }
+
+    const systemPrompt = `Você é o assistente de IA do site. O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
+    \nComo base de conhecimento secundária (para perguntas sobre outros assuntos do site), utilize os textos gerais fornecidos abaixo. 
+    Se a resposta não estiver em nenhum dos textos, diga educadamente que o site ainda não abordou este tema.
     Forneça respostas diretas, limpas e cite o TÍTULO do texto quando for relevante.
-    \n\nTEXTOS DO SITE:\n${dbContext}\n\nPERGUNTA DO USUÁRIO: ${message}`;
+    \n\nTEXTOS GERAIS DO SITE:\n${dbContext}\n\nPERGUNTA DO USUÁRIO: ${message}`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -238,47 +245,39 @@ app.put('/api/settings/rotation', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- EXPORTAÇÃO COMPÓSITA (HTTP + CRON) ---
 export default {
   fetch: app.fetch,
   
-  // Tratador de Eventos Agendados (Cron Triggers)
   async scheduled(event, env, ctx) {
     try {
-      // 1. Extração da Configuração de Rotação
       const record = await env.DB.prepare("SELECT payload FROM settings WHERE id = 'rotation'").first();
       if (!record) return;
       const config = JSON.parse(record.payload);
       
       if (!config.enabled) return;
 
-      // 2. Validação de Interrupção por Fixação (Pinned Constraint)
       const pinnedCheck = await env.DB.prepare("SELECT id FROM posts WHERE is_pinned = 1 LIMIT 1").first();
       if (pinnedCheck) return;
 
-      // 3. Cálculo de Latência de Intervalo
       const now = Date.now();
       const lastRotated = config.last_rotated_at || 0;
       const intervalMs = (config.interval || 60) * 60 * 1000;
       
       if (now - lastRotated < intervalMs) return;
 
-      // 4. Operação de Fila (Shift and Push)
       const { results: posts } = await env.DB.prepare("SELECT id FROM posts ORDER BY display_order ASC, created_at DESC").all();
       
-      if (!posts || posts.length <= 1) return; // Nada a rotacionar
+      if (!posts || posts.length <= 1) return;
 
       const topPost = posts.shift();
       posts.push(topPost);
 
-      // 5. Mapeamento Criptográfico e Execução em Lote
       const statements = posts.map((post, index) => 
         env.DB.prepare("UPDATE posts SET display_order = ? WHERE id = ?").bind(index, post.id)
       );
       
       await env.DB.batch(statements);
 
-      // 6. Atualização do Carimbo de Tempo (Timestamp)
       config.last_rotated_at = now;
       await env.DB.prepare("UPDATE settings SET payload = ? WHERE id = 'rotation'").bind(JSON.stringify(config)).run();
       
