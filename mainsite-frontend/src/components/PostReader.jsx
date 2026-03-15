@@ -1,9 +1,9 @@
 // Módulo: mainsite-frontend/src/components/PostReader.jsx
-// Versão: v1.0.2
+// Versão: v1.0.3
 // Descrição: Componente isolado para renderização do fragmento, muralha anti-cópia e requisições de Inteligência Artificial.
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail } from 'lucide-react';
+import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare } from 'lucide-react';
 
 const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, isSendingEmail }) => {
   const [postSummary, setPostSummary] = useState(null);
