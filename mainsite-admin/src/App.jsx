@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.7.0
-// Descrição: Implementação de extensão customizada do Tiptap para manipulação de tamanho de fonte no DOM e atualização da interface gráfica.
+// Versão: v3.8.0
+// Descrição: Formatação estrutural preservada. Adição do painel de controle para Rotação Autônoma da fila (Cron Jobs).
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
@@ -38,7 +38,7 @@ import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.7.0';
+const APP_VERSION = 'APP v3.8.0';
 
 const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
 
@@ -286,6 +286,9 @@ const App = () => {
   const [draggedIndex, setDraggedIndex] = useState(null);
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  
+  // NOVA INJEÇÃO DE ESTADO: Controle de Rotação Autônoma
+  const [rotation, setRotation] = useState({ enabled: false, interval: 60, last_rotated_at: 0 });
 
   const secret = import.meta.env.VITE_API_SECRET;
 
@@ -320,7 +323,6 @@ const App = () => {
       const dataSettings = await resSettings.json();
       
       if (!dataSettings.error) {
-        // Validador de Migração: Se o JSON não tiver o nó 'light', é o formato antigo.
         if (dataSettings.light) {
           setSettings(dataSettings);
         } else {
@@ -340,6 +342,14 @@ const App = () => {
           });
         }
       }
+
+      // NOVA INJEÇÃO DE FETCH: Recuperar configurações da Rotação
+      const resRotation = await fetch(`${API_URL}/settings/rotation`);
+      if (resRotation.ok) {
+        const dataRotation = await resRotation.json();
+        setRotation(dataRotation);
+      }
+
     } catch (err) {
       showNotification("Erro na sincronização.", "error");
     } finally { setLoading(false); }
@@ -366,7 +376,6 @@ const App = () => {
     e.preventDefault();
     setIsSaving(true);
     
-    // Tratamento de URLs do Drive em ambos os temas
     const formattedSettings = { 
       ...settings, 
       light: { ...settings.light, bgImage: formatImageUrl(settings.light.bgImage) },
@@ -375,9 +384,16 @@ const App = () => {
     setSettings(formattedSettings);
 
     try {
-      const res = await fetch(`${API_URL}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(formattedSettings) });
-      if (res.ok) { showNotification("Aparência salva com sucesso.", "success"); }
-      else throw new Error("Erro ao salvar configs.");
+      const resApp = await fetch(`${API_URL}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(formattedSettings) });
+      
+      // NOVA INJEÇÃO DE SAVE: Persistir configurações da Rotação
+      const resRot = await fetch(`${API_URL}/settings/rotation`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rotation) });
+
+      if (resApp.ok && resRot.ok) { 
+        showNotification("Configurações salvas com sucesso.", "success"); 
+      } else {
+        throw new Error("Erro ao salvar configs.");
+      }
     } catch (err) { showNotification(err.message, "error"); } finally { setIsSaving(false); }
   };
 
@@ -464,9 +480,9 @@ const App = () => {
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.7.0</h1></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.8.0</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
-            {!isEditorOpen && !isSettingsOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurar Aparência do Frontend"><Settings size={16} /> Estilos</button>}
+            {!isEditorOpen && !isSettingsOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurações e Rotinas"><Settings size={16} /> Sistema</button>}
             {!isEditorOpen && !isSettingsOpen && <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> Novo</button>}
           </div>
         </header>
@@ -474,10 +490,25 @@ const App = () => {
         {isSettingsOpen ? (
           <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
              <button onClick={() => setIsSettingsOpen(false)} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
-             <h2 style={{ fontSize: '16px', marginBottom: '20px', borderBottom: '2px solid #000', paddingBottom: '10px' }}>Customização Visual: Multi-Tema</h2>
+             
              <form onSubmit={handleSaveSettings} style={styles.form}>
                 
-                {/* Switch de Controle Automático */}
+                {/* INJEÇÃO DE INTERFACE: Bloco de Engenharia de Automação */}
+                <h2 style={{ fontSize: '16px', borderBottom: '2px solid #000', paddingBottom: '10px' }}>Engenharia de Automação</h2>
+                <div style={{ padding: '15px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', color: '#0369a1' }}>
+                    <input type="checkbox" checked={rotation.enabled} onChange={e => setRotation({...rotation, enabled: e.target.checked})} style={{ width: '18px', height: '18px' }} />
+                    Habilitar Rotação Autônoma da Fila de Textos
+                  </label>
+                  <p style={{ fontSize: '11px', color: '#0284c7', margin: 0 }}>* A automação move o texto mais recente para o final da fila. Aborta imediatamente se houver um post FIXADO.</p>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#0369a1', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                    Intervalo de Rotação (Minutos):
+                    <input type="number" min="1" value={rotation.interval} onChange={e => setRotation({...rotation, interval: parseInt(e.target.value) || 60})} style={{ padding: '5px', width: '80px', border: '1px solid #7dd3fc', borderRadius: '4px', outline: 'none' }} disabled={!rotation.enabled} />
+                  </label>
+                </div>
+
+                <h2 style={{ fontSize: '16px', borderBottom: '2px solid #000', paddingBottom: '10px', marginTop: '20px' }}>Customização Visual: Multi-Tema</h2>
+                
                 <div style={{ padding: '15px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
                     <input type="checkbox" checked={settings.allowAutoMode} onChange={e => setSettings({...settings, allowAutoMode: e.target.checked})} style={{ width: '18px', height: '18px' }} />
@@ -485,7 +516,6 @@ const App = () => {
                   </label>
                 </div>
 
-                {/* Configurações Globais Compartilhadas */}
                 <h3 style={{ fontSize: '14px', marginTop: '10px', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>Configurações Globais (Ambos os Temas)</h3>
                 <div style={styles.settingsGrid}>
                   <label style={styles.label}>Tamanho da Fonte Base (p): <input type="text" placeholder="Ex: 1.15rem" value={settings.shared.fontSize} onChange={e => setSettings({...settings, shared: {...settings.shared, fontSize: e.target.value}})} style={styles.textInput} /></label>
@@ -501,7 +531,6 @@ const App = () => {
                   </label>
                 </div>
 
-                {/* Paleta Tema Escuro */}
                 <h3 style={{ fontSize: '14px', marginTop: '10px', borderBottom: '1px solid #eee', paddingBottom: '5px', color: '#334155' }}>Paleta Tema Escuro (Dark Mode)</h3>
                 <div style={styles.settingsGrid}>
                   <label style={styles.label}>Cor de Fundo: <input type="color" value={settings.dark.bgColor} onChange={e => setSettings({...settings, dark: {...settings.dark, bgColor: e.target.value}})} style={styles.colorInput} /></label>
@@ -510,7 +539,6 @@ const App = () => {
                   <label style={styles.label}>Imagem de Fundo (URL): <input type="text" placeholder="https://..." value={settings.dark.bgImage} onChange={e => setSettings({...settings, dark: {...settings.dark, bgImage: e.target.value}})} style={styles.textInput} /></label>
                 </div>
 
-                {/* Paleta Tema Claro */}
                 <h3 style={{ fontSize: '14px', marginTop: '10px', borderBottom: '1px solid #eee', paddingBottom: '5px', color: '#f59e0b' }}>Paleta Tema Claro (Light Mode)</h3>
                 <div style={styles.settingsGrid}>
                   <label style={styles.label}>Cor de Fundo: <input type="color" value={settings.light.bgColor} onChange={e => setSettings({...settings, light: {...settings.light, bgColor: e.target.value}})} style={styles.colorInput} /></label>
@@ -519,7 +547,7 @@ const App = () => {
                   <label style={styles.label}>Imagem de Fundo (URL): <input type="text" placeholder="https://..." value={settings.light.bgImage} onChange={e => setSettings({...settings, light: {...settings.light, bgImage: e.target.value}})} style={styles.textInput} /></label>
                 </div>
 
-                <button type="submit" disabled={isSaving} style={styles.adminButton}>{isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} SALVAR MUDANÇAS</button>
+                <button type="submit" disabled={isSaving} style={styles.adminButton}>{isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} SALVAR CONFIGURAÇÕES GLOBAIS</button>
              </form>
           </div>
         ) : isEditorOpen ? (

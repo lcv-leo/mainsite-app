@@ -1,5 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.1.0
+// Versão: v1.2.0
+// Descrição: Adição de endpoints para configurações de rotação e injeção do tratador de eventos Cron (scheduled) para rotação autônoma da fila.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -196,13 +197,12 @@ app.delete('/api/posts/:id', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- ROTAS DE CONFIGURAÇÃO DE APARÊNCIA ---
+// --- ROTAS DE CONFIGURAÇÃO DE APARÊNCIA E SISTEMA ---
 app.get('/api/settings', async (c) => {
   try {
     const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'appearance'").first();
     if (record) return c.json(JSON.parse(record.payload));
     
-    // Novo fallback com suporte a Multi-Tema (v1.1.0)
     return c.json({ 
       allowAutoMode: true,
       light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' },
@@ -221,4 +221,69 @@ app.put('/api/settings', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-export default app;
+app.get('/api/settings/rotation', async (c) => {
+  try {
+    const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'rotation'").first();
+    if (record) return c.json(JSON.parse(record.payload));
+    return c.json({ enabled: false, interval: 60, last_rotated_at: 0 });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.put('/api/settings/rotation', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const payload = await c.req.text();
+    await c.env.DB.prepare("INSERT INTO settings (id, payload) VALUES ('rotation', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
+    return c.json({ success: true });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+// --- EXPORTAÇÃO COMPÓSITA (HTTP + CRON) ---
+export default {
+  fetch: app.fetch,
+  
+  // Tratador de Eventos Agendados (Cron Triggers)
+  async scheduled(event, env, ctx) {
+    try {
+      // 1. Extração da Configuração de Rotação
+      const record = await env.DB.prepare("SELECT payload FROM settings WHERE id = 'rotation'").first();
+      if (!record) return;
+      const config = JSON.parse(record.payload);
+      
+      if (!config.enabled) return;
+
+      // 2. Validação de Interrupção por Fixação (Pinned Constraint)
+      const pinnedCheck = await env.DB.prepare("SELECT id FROM posts WHERE is_pinned = 1 LIMIT 1").first();
+      if (pinnedCheck) return;
+
+      // 3. Cálculo de Latência de Intervalo
+      const now = Date.now();
+      const lastRotated = config.last_rotated_at || 0;
+      const intervalMs = (config.interval || 60) * 60 * 1000;
+      
+      if (now - lastRotated < intervalMs) return;
+
+      // 4. Operação de Fila (Shift and Push)
+      const { results: posts } = await env.DB.prepare("SELECT id FROM posts ORDER BY display_order ASC, created_at DESC").all();
+      
+      if (!posts || posts.length <= 1) return; // Nada a rotacionar
+
+      const topPost = posts.shift();
+      posts.push(topPost);
+
+      // 5. Mapeamento Criptográfico e Execução em Lote
+      const statements = posts.map((post, index) => 
+        env.DB.prepare("UPDATE posts SET display_order = ? WHERE id = ?").bind(index, post.id)
+      );
+      
+      await env.DB.batch(statements);
+
+      // 6. Atualização do Carimbo de Tempo (Timestamp)
+      config.last_rotated_at = now;
+      await env.DB.prepare("UPDATE settings SET payload = ? WHERE id = 'rotation'").bind(JSON.stringify(config)).run();
+      
+    } catch (err) {
+      console.error("Falha no Job de Rotação Automática:", err);
+    }
+  }
+};

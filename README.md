@@ -66,7 +66,9 @@ Crie um arquivo `.dev.vars` na raiz do `mainsite-worker` com o seguinte conteúd
 
 ```env
 
-API\_SECRET="seu\_token\_alfanumerico\_de\_autorizacao"
+API_SECRET="Unrobed9-Unable4-Emoticon2-Spud1-Retrial0-Fidgeting0-Clustered0-Body8-Chemicals0-Android4"
 
-GEMINI\_API\_KEY="sua\_chave\_real\_do\_google\_ai\_studio"
+GEMINI_API_KEY="__GOOGLE_API_KEY__"
+
+
 
