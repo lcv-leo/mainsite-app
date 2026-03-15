@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.9.5
+// Versão: v3.10.0
 // Descrição: Código integral restaurado. Injeção de Proteção Anti-Cópia, Botões de Engajamento e Roteamento via parâmetro de URL (?p=).
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.9.5';
+const APP_VERSION = 'APP v3.10.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -66,13 +66,16 @@ const [chatInput, setChatInput] = useState('');
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // --- MOTOR DE SEO DINÂMICO E ROTEAMENTO ---
+ // --- MOTOR DE SEO DINÂMICO E ROTEAMENTO ---
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+
   useEffect(() => {
     setPostSummary(null);
     setTranslatedContent(null);
     setAiError(null);
 
     if (currentPost) {
+      setShowDisclaimer(true);
       document.title = `${currentPost.title} | Divagações Filosóficas`;
       
       const cleanText = currentPost.content ? currentPost.content.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : '';
@@ -349,6 +352,31 @@ return (
           </form>
         </div>
       )}
+
+      {/* Modal de Aviso / Disclaimer (Glassmorphism) */}
+      {showDisclaimer && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000, animation: 'fadeIn 0.4s ease-out' }}>
+          
+          {/* Fundo escurecido suave */}
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)' }} onClick={() => setShowDisclaimer(false)}></div>
+          
+          {/* Cartão Vídrico */}
+          <div style={{ position: 'relative', width: '90%', maxWidth: '450px', background: isDarkBase ? 'rgba(20, 20, 20, 0.65)' : 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.15)`, borderRadius: '16px', padding: '40px', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', color: activePalette.fontColor, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', color: activePalette.titleColor, opacity: 0.8 }}>
+              <AlertTriangle size={40} />
+            </div>
+            <h3 style={{ margin: 0, fontSize: '18px', color: activePalette.titleColor, textTransform: 'uppercase', letterSpacing: '1px' }}>Aviso ao Leitor</h3>
+            <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.8', opacity: 0.85 }}>
+              Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.
+            </p>
+            <button onClick={() => setShowDisclaimer(false)} style={{ marginTop: '10px', padding: '15px 30px', background: activePalette.titleColor, color: activePalette.bgColor, border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', letterSpacing: '2px', transition: 'transform 0.2s', textTransform: 'uppercase' }}>
+              Concordo
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`
 
       <style>{`
         @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }

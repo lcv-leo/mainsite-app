@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.15.1
+// Versão: v3.16.0
 // Descrição: Injeção de painel de auditoria de compartilhamentos (Shares). Código reestruturado com precisão para evitar truncamento.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -38,7 +38,7 @@ import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.15.1';
+const APP_VERSION = 'APP v3.16.0';
 
 const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
 
@@ -541,7 +541,7 @@ const App = () => {
     } catch (err) { showNotification("Erro de ordem.", "error"); await fetchData(); }
   };
 
-  const openEditor = (post = null) => {
+ const openEditor = (post = null) => {
     setIsSettingsOpen(false);
     setIsChatLogsOpen(false);
     setIsSharesOpen(false);
@@ -552,7 +552,7 @@ const App = () => {
     } else { 
       setEditingId(null); 
       setTitle(''); 
-      editor?.commands.setContent(DEFAULT_DISCLAIMER); 
+      editor?.commands.setContent(''); 
     }
     setIsEditorOpen(true);
   };
