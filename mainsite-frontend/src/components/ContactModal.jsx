@@ -13,6 +13,16 @@ const ContactModal = ({ show, onClose, onSubmit, activePalette, isSubmitting }) 
   const isDarkBase = activePalette.bgColor && (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1'));
   const charsLeft = 500 - formData.message.length;
 
+  // Motor de Máscara em Tempo Real para padrão (NN) N NNNN-NNNN
+  const formatPhone = (val) => {
+    let v = val.replace(/\D/g, '').substring(0, 11);
+    if (v.length === 0) return '';
+    if (v.length <= 2) return `(${v}`;
+    if (v.length <= 3) return `(${v.slice(0, 2)}) ${v.slice(2)}`;
+    if (v.length <= 7) return `(${v.slice(0, 2)}) ${v.slice(2, 3)} ${v.slice(3)}`;
+    return `(${v.slice(0, 2)}) ${v.slice(2, 3)} ${v.slice(3, 7)}-${v.slice(7)}`;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(formData, () => setFormData({ name: '', phone: '', email: '', message: '' }));
@@ -49,9 +59,17 @@ const ContactModal = ({ show, onClose, onSubmit, activePalette, isSubmitting }) 
               <Phone size={16} style={{ position: 'absolute', top: '13px', left: '12px', opacity: 0.5 }} />
               <input type="tel" placeholder="Telefone (Opcional)" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} style={inputStyle} />
             </div>
+            <div style={{ display: 'flex', gap: '15px' }}>
             <div style={{ position: 'relative', flex: 1 }}>
-              <Mail size={16} style={{ position: 'absolute', top: '13px', left: '12px', opacity: 0.5 }} />
-              <input type="email" required placeholder="Seu E-mail" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={inputStyle} />
+              <Phone size={16} style={{ position: 'absolute', top: '13px', left: '12px', opacity: 0.5 }} />
+              <input 
+                type="tel" 
+                placeholder="Telefone (Opcional)" 
+                value={formData.phone} 
+                onChange={e => setFormData({...formData, phone: formatPhone(e.target.value)})} 
+                maxLength={16}
+                style={inputStyle} 
+              />
             </div>
           </div>
 
