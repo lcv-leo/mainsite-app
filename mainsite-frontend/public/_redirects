@@ -1,1 +1,4 @@
-/sitemap.xml https://mainsite-app.lcv.rio.br/api/sitemap.xml 301
+# Módulo: public/_redirects
+# Substitua TUDO no arquivo por esta linha única:
+
+/sitemap.xml https://mainsite-app.lcv.rio.br/api/sitemap.xml 200
