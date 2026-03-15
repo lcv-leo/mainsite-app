@@ -12,17 +12,16 @@ import DisclaimerModal from './components/DisclaimerModal';
 import ShareOverlay from './components/ShareOverlay';
 import ChatWidget from './components/ChatWidget';
 import FloatingControls from './components/FloatingControls';
+import ArchiveMenu from './components/ArchiveMenu';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.12.0';
+const APP_VERSION = 'APP v3.13.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
   const [currentPost, setCurrentPost] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   
   const [settings, setSettings] = useState({
     allowAutoMode: true,
@@ -267,13 +266,6 @@ const App = () => {
 
   if (loading) return <div style={{...styles.center, backgroundColor: activePalette.bgColor }}><Loader2 color={activePalette.fontColor} size={40} className="animate-spin" /></div>;
 
-  const filteredArchive = posts.filter(post => {
-    const safeTitle = post.title || '';
-    const safeContent = post.content || '';
-    const matchesSearch = searchTerm === '' || safeTitle.toLowerCase().includes(searchTerm.toLowerCase()) || safeContent.toLowerCase().includes(searchTerm.toLowerCase());
-    return searchTerm ? matchesSearch : (matchesSearch && post.id !== currentPost?.id);
-  });
-
   const defaultCSSPattern = isDarkBase 
     ? `radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.25), transparent 45%), 
        radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.25), transparent 45%), 
@@ -284,8 +276,6 @@ const App = () => {
        linear-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px), 
        linear-gradient(90deg, rgba(0, 0, 0, 0.08) 1px, transparent 1px)`;
 
-  const hasCustomImage = activePalette.bgImage && activePalette.bgImage.trim() !== '';
-  
   const bgImageToUse = hasCustomImage
     ? (isDarkBase 
         ? `url("${activePalette.bgImage}")` 
@@ -296,7 +286,6 @@ const App = () => {
     ? 'cover'
     : '100% 100%, 100% 100%, 40px 40px, 40px 40px';
 
-return (
     <div style={{
       backgroundColor: activePalette.bgColor, 
       backgroundImage: bgImageToUse,
@@ -414,8 +403,6 @@ return (
         .share-email:hover:not(:disabled) { background: #0284c7; transform: translateY(-2px); }
         .share-email:disabled { background: #94a3b8; cursor: wait; }
 
-        .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; padding: 20px; width: 100%; box-sizing: border-box; }
-        
         .floating-controls { position: fixed; right: 30px; bottom: 30px; display: flex; flex-direction: column; gap: 15px; z-index: 9999; }
         .fab-btn { background-color: ${activePalette.bgColor}; border: 1px solid rgba(128,128,128,0.3); color: ${activePalette.fontColor}; width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; backdrop-filter: blur(8px); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .fab-btn:hover { transform: scale(1.1); border-color: ${activePalette.fontColor}; }
@@ -537,42 +524,22 @@ return (
           )}
         </div>
 
-        <footer style={styles.footer}>
-          <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={styles.archiveToggle} className="archive-btn">
-            <span style={{ letterSpacing: '0.5em', color: activePalette.fontColor, transition: 'color 0.5s ease' }}>FRAGMENTOS ANTERIORES</span>
-            <ChevronUp size={16} color={activePalette.fontColor} style={{ transform: isHistoryOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.5s' }} />
-          </button>
-          
-          <div style={{ maxHeight: isHistoryOpen ? '2000px' : '0', opacity: isHistoryOpen ? 1 : 0, overflow: 'hidden', transition: 'all 0.8s ease-in-out', width: '100%', maxWidth: '1200px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)`, margin: '20px 20px 0 20px', paddingBottom: '15px' }}>
-              <Search size={18} style={{ opacity: 0.6, marginRight: '15px' }} color={activePalette.fontColor} />
-              <input type="text" placeholder="BUSCA EXATA POR PALAVRAS-CHAVE..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ background: 'none', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: '12px', width: '100%', outline: 'none', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 'bold' }} />
-            </div>
-
-            <div className="archive-grid">
-              {filteredArchive.length > 0 ? (
-                filteredArchive.map(post => (
-                  <div key={post.id} onClick={() => { setCurrentPost(post); setIsHistoryOpen(false); window.scrollTo(0,0); setSearchTerm(''); }} style={{...styles.card, backgroundColor: `rgba(${isDarkBase ? '0,0,0' : '255,255,255'},0.5)`, borderColor: `rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.1)` }}>
-                    <div style={styles.cardDate}>{new Date(post.created_at).toLocaleDateString('pt-BR')}</div>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 'bold', color: activePalette.titleColor, transition: 'color 0.5s ease' }}>{post.title}</div>
-                  </div>
-                ))
-              ) : (<div style={{ gridColumn: '1 / -1', textAlign: 'center', opacity: 0.6, fontSize: '12px', padding: '40px 0', textTransform: 'uppercase', letterSpacing: '2px' }}>Nenhum registro encontrado.</div>)}
-            </div>
-          </div>
-          <div style={{ marginTop: '40px', fontSize: '10px', opacity: 0.5, letterSpacing: '4px', textTransform: 'uppercase', fontWeight: 'bold' }}>{APP_VERSION}</div>
-        </footer>
+        {/* Componente Modular do Rodapé de Arquivos */}
+        <ArchiveMenu 
+          posts={posts} 
+          currentPost={currentPost} 
+          setCurrentPost={setCurrentPost} 
+          activePalette={activePalette} 
+          APP_VERSION={APP_VERSION} 
+        />
+        
       </div>
     </div>
   );
 };
 
 const styles = {
-  center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.5s ease' },
-  footer: { marginTop: '40px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '40px' },
-  archiveToggle: { background: 'none', border: 'none', fontSize: '10px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', opacity: 0.7 },
-  card: { padding: '25px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s', borderRadius: '4px' },
-  cardDate: { fontSize: '9px', opacity: 0.6, marginBottom: '12px' }
+  center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.5s ease' }
 };
 
 export default App;
