@@ -644,12 +644,6 @@ if (loading) return <div style={styles.center}><Loader2 className="animate-spin"
                     </div>
                   )}
                 </div>
-                  {log.target && (
-                    <div style={{ marginTop: '12px', fontSize: '9px', background: '#e2e8f0', display: 'inline-block', padding: '4px 8px', borderRadius: '4px', color: '#475569', fontWeight: 'bold' }}>
-                      Destino: {log.target}
-                    </div>
-                  )}
-                </div>
               ))}
             </div>
           </div>

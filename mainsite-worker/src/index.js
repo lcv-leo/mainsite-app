@@ -216,7 +216,7 @@ app.post('/api/share/email', async (c) => {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: 'onboarding@resend.dev',
+        from: 'mainsite@lcv.app.br',
         to: [target_email],
         subject: `Compartilhamento: ${post_title}`,
         html: `<div style="font-family: sans-serif; padding: 20px;">
