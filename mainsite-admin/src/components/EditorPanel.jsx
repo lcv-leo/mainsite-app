@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/components/EditorPanel.jsx
-// Versão: v1.0.1
+// Versão: v1.0.2
 // Descrição: Componente isolado do Editor Tiptap, Inteligência Artificial e Barra de Ferramentas.
 
 import React, { useState, useRef } from 'react';
@@ -207,19 +207,22 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
 const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotification, styles, API_URL }) => {
   const [title, setTitle] = useState(post ? post.title : '');
 
+  // Blindagem de memória: Impede a recriação do array no Strict Mode
+  const editorExtensions = React.useMemo(() => [
+    StarterKit.configure({ dropcursor: false }), Markdown, Underline, Highlight, Subscript, Superscript, TextStyle, Color, FontFamily, FontSize, Typography,
+    TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'justify' }),
+    Image.configure({ inline: true }),
+    YoutubeExtension.configure({ inline: false, width: 840, height: 472.5 }),
+    Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
+    TaskList, TaskItem.configure({ nested: true }),
+    Dropcursor.configure({ color: '#ff0000', width: 2 }),
+    CharacterCount,
+    Placeholder.configure({ placeholder: 'O fluxo da consciência (Aceita Markdown na colagem)...' }),
+    LinkExtension.configure({ openOnClick: false, autolink: true, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' }})
+  ], []);
+
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ dropcursor: false }), Markdown, Underline, Highlight, Subscript, Superscript, TextStyle, Color, FontFamily, FontSize, Typography,
-      TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'justify' }),
-      Image.configure({ inline: true }),
-      YoutubeExtension.configure({ inline: false, width: 840, height: 472.5 }),
-      Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
-      TaskList, TaskItem.configure({ nested: true }),
-      Dropcursor.configure({ color: '#ff0000', width: 2 }),
-      CharacterCount,
-      Placeholder.configure({ placeholder: 'O fluxo da consciência (Aceita Markdown na colagem)...' }),
-      LinkExtension.configure({ openOnClick: false, autolink: true, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' }})
-    ],
+    extensions: editorExtensions,
     content: post ? post.content : '',
   });
 
