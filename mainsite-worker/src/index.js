@@ -1,5 +1,5 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.10.0
+// Versão: v1.11.0
 // Descrição: Código integral restaurado. Rate Limiting de memória, Telemetria via waitUntil e Integração com a API Resend para e-mails transacionais.
 
 import { Hono } from 'hono';
@@ -345,7 +345,7 @@ app.get('/api/uploads/:filename', async (c) => {
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
-    headers.set('Cache-Control', 'public, max-age=31536000');
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
     return new Response(object.body, { headers });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -356,6 +356,26 @@ app.get('/api/posts', async (c) => {
     const { results } = await c.env.DB.prepare("SELECT * FROM posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC").all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+// --- ROTA DE SITEMAP PARA MOTORES DE BUSCA ---
+app.get('/api/sitemap.xml', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare("SELECT id, created_at FROM posts ORDER BY created_at DESC").all();
+    
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+    // Rota Base (Home)
+    xml += `\n  <url>\n    <loc>https://lcv.app.br/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`;
+    
+    // Rotas Dinâmicas (Posts)
+    results.forEach(post => {
+      const dateIso = new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString().split('T')[0];
+      xml += `\n  <url>\n    <loc>https://lcv.app.br/?p=${post.id}</loc>\n    <lastmod>${dateIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
+    });
+    
+    xml += `\n</urlset>`;
+    return new Response(xml, { headers: { 'Content-Type': 'application/xml', 'Cache-Control': 'public, max-age=3600' } });
+  } catch (err) { return c.text('Erro ao gerar sitemap', 500); }
 });
 
 app.post('/api/posts', async (c) => {

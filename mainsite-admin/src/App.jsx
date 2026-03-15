@@ -1,19 +1,22 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.20.2
+// Versão: v3.21.0
 // Descrição: Monólito purificado. Orquestração central com painel de auditoria unificado e estados legados removidos.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { 
   Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2
 } from 'lucide-react';
 
-import SettingsPanel from './components/SettingsPanel';
-import EditorPanel from './components/EditorPanel';
-import PostList from './components/PostList';
-import AnalyticsPanel from './components/AnalyticsPanel';
+import PostList from './components/PostList'; // O PostList carrega imediatamente (crítico)
+
+// Code Splitting: Componentes pesados carregados apenas sob demanda
+const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
+const EditorPanel = lazy(() => import('./components/EditorPanel'));
+const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel'));
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.20.1';
+const APP_VERSION = 'APP v3.21.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -212,25 +215,27 @@ const App = () => {
           </div>
         </header>
 
-        {isAnalyticsOpen ? (
-          <AnalyticsPanel onClose={() => { setIsAnalyticsOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} />
-        ) : isSettingsOpen ? (
-          <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} rotation={rotation} setRotation={setRotation} disclaimers={disclaimers} setDisclaimers={setDisclaimers} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
-        ) : isEditorOpen ? (
-          <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
-        ) : (
-          <PostList 
-            posts={posts} 
-            onPin={handlePin} 
-            onEdit={openEditor} 
-            onDelete={(id) => setModal({ show: true, id })} 
-            onDragStart={handleDragStart} 
-            onDragEnd={handleDragEnd} 
-            onDragOver={handleDragOver} 
-            onDrop={handleDrop} 
-            styles={styles} 
-          />
-        )}
+        <Suspense fallback={<div style={{ padding: '50px', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" size={32} /></div>}>
+          {isAnalyticsOpen ? (
+            <AnalyticsPanel onClose={() => { setIsAnalyticsOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} />
+          ) : isSettingsOpen ? (
+            <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} rotation={rotation} setRotation={setRotation} disclaimers={disclaimers} setDisclaimers={setDisclaimers} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
+          ) : isEditorOpen ? (
+            <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
+          ) : (
+            <PostList 
+              posts={posts} 
+              onPin={handlePin} 
+              onEdit={openEditor} 
+              onDelete={(id) => setModal({ show: true, id })} 
+              onDragStart={handleDragStart} 
+              onDragEnd={handleDragEnd} 
+              onDragOver={handleDragOver} 
+              onDrop={handleDrop} 
+              styles={styles} 
+            />
+          )}
+        </Suspense>
         <footer style={styles.versionFooterAdmin}>{APP_VERSION}</footer>
       </div>
     </div>

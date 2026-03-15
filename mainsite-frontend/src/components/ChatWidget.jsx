@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/components/ChatWidget.jsx
-// Versão: v1.0.0
+// Versão: v1.0.1
 // Descrição: Componente isolado do Assistente Virtual (IA), com gestão de estado próprio e auto-scroll.
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -71,7 +71,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) =>
 
       <div className="chat-window">
         <div className="chat-header">
-          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}><Bot size={18} color="#fff"/> Assistente Virtual</div>
+          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}><Bot size={18} color="#fff"/> Consciência Auxiliar</div>
           <button onClick={onClose} style={{background:'rgba(0,0,0,0.2)', border:'none', color:'inherit', cursor:'pointer', padding: '5px', borderRadius: '50%', display: 'flex', transition: 'background 0.2s'}}><X size={16}/></button>
         </div>
         

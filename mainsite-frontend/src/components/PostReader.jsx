@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/components/PostReader.jsx
-// Versão: v1.0.3
+// Versão: v1.0.5
 // Descrição: Componente isolado para renderização do fragmento, muralha anti-cópia e requisições de Inteligência Artificial.
 
 import React, { useState, useEffect } from 'react';
@@ -72,6 +72,17 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       );
       return <p key={index} className="p-content">{text}</p>;
     });
+  };
+
+  // Schema de SEO Dinâmico (JSON-LD) para o Google Indexer
+  const schemaOrgJSONLD = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": post.title,
+    "author": { "@type": "Person", "name": "Leonardo Cardozo Vargas", "url": "https://www.lcv.rio.br" },
+    "datePublished": post.created_at ? new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString(),
+    "publisher": { "@type": "Organization", "name": "Divagações Filosóficas", "logo": { "@type": "ImageObject", "url": "https://www.lcv.rio.br/favicon.ico" } },
+    "mainEntityOfPage": { "@type": "WebPage", "@id": `https://www.lcv.rio.br/?p=${post.id}` }
   };
 
   return (
@@ -200,6 +211,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         onContextMenu={(e) => { e.preventDefault(); return false; }} 
         onDragStart={(e) => { e.preventDefault(); return false; }}
       >
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrgJSONLD) }} />
         {renderContent(post.content)}
       </div>
 
