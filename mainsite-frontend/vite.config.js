@@ -1,20 +1,15 @@
-// ==========================================
-// PATCH 3.2: Otimização de Build (Frontend)
-// ==========================================
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // Instrução para o motor nativo (esbuild) limpar o lixo de desenvolvimento em produção
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   build: {
     target: 'esnext',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // Remove todos os console.log da produção
-        drop_debugger: true
-      }
-    },
+    // O Vite já usa o 'esbuild' como minificador padrão, não precisamos chamar o terser
     rollupOptions: {
       output: {
         manualChunks(id) {
