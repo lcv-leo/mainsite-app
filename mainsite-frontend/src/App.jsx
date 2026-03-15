@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.9.0
+// Versão: v3.9.1
 // Descrição: Código integral restaurado. Injeção de Proteção Anti-Cópia, Botões de Engajamento e Roteamento via parâmetro de URL (?p=).
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.9.0';
+const APP_VERSION = 'APP v3.9.1';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -255,7 +255,7 @@ const [chatInput, setChatInput] = useState('');
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const renderContent = (content) => {
-    const activeContent = translatedContent || content;
+    const activeContent = translatedContent || content || '';
     const isHtml = /<\/?[a-z][\s\S]*>/i.test(activeContent);
     if (isHtml) return <div className="html-content" dangerouslySetInnerHTML={{ __html: activeContent }} />;
 
@@ -278,12 +278,14 @@ const [chatInput, setChatInput] = useState('');
     });
   };
 
-  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
+  const isDarkBase = activePalette && activePalette.bgColor ? (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1')) : true;
 
   if (loading) return <div style={{...styles.center, backgroundColor: activePalette.bgColor }}><Loader2 color={activePalette.fontColor} size={40} className="animate-spin" /></div>;
 
   const filteredArchive = posts.filter(post => {
-    const matchesSearch = searchTerm === '' || post.title.toLowerCase().includes(searchTerm.toLowerCase()) || post.content.toLowerCase().includes(searchTerm.toLowerCase());
+    const safeTitle = post.title || '';
+    const safeContent = post.content || '';
+    const matchesSearch = searchTerm === '' || safeTitle.toLowerCase().includes(searchTerm.toLowerCase()) || safeContent.toLowerCase().includes(searchTerm.toLowerCase());
     return searchTerm ? matchesSearch : (matchesSearch && post.id !== currentPost?.id);
   });
 
