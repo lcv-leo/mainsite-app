@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.14.0
+// Versão: v3.15.0
 // Descrição: Monólito completamente refatorado (Component Splitting). Orquestração de estado central e Motor de Temas.
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -36,6 +36,7 @@ const App = () => {
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
   const [emailModal, setEmailModal] = useState({ show: false, email: '' });
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [disclaimersConfig, setDisclaimersConfig] = useState({ enabled: false, items: [] });
 
   const showNotification = useCallback((message, type = 'info') => {
     setToast({ show: true, message, type });
@@ -98,6 +99,8 @@ const App = () => {
           setSettings(prev => ({ ...prev, dark: { bgColor: dataSettings.bgColor || prev.dark.bgColor, bgImage: dataSettings.bgImage || prev.dark.bgImage, fontColor: dataSettings.fontColor || prev.dark.fontColor, titleColor: dataSettings.titleColor || prev.dark.titleColor }, shared: { fontSize: dataSettings.fontSize || prev.shared.fontSize, titleFontSize: dataSettings.titleFontSize || prev.shared.titleFontSize, fontFamily: dataSettings.fontFamily || prev.shared.fontFamily } }));
         }
       }
+      const resDisc = await fetch(`${API_URL}/settings/disclaimers`);
+      if (resDisc.ok) setDisclaimersConfig(await resDisc.json());
     } catch (err) { console.error("Falha na API."); } finally { setLoading(false); }
   };
 
@@ -173,7 +176,12 @@ const App = () => {
 
       {/* Componentes Modais Isolados */}
       <ShareOverlay modalState={emailModal} setModalState={setEmailModal} onSubmit={submitEmailShare} activePalette={activePalette} />
-      <DisclaimerModal show={showDisclaimer} onClose={() => setShowDisclaimer(false)} activePalette={activePalette} />
+      <DisclaimerModal 
+        show={showDisclaimer} 
+        onClose={() => setShowDisclaimer(false)} 
+        activePalette={activePalette} 
+        config={disclaimersConfig}
+      />
 
       <style>{`
         @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
