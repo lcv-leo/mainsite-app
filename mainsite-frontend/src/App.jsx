@@ -282,18 +282,19 @@ const App = () => {
         : `linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url("${activePalette.bgImage}")`)
     : defaultCSSPattern;
 
-  const bgSizeToUse = hasCustomImage
-    ? 'cover'
-    : '100% 100%, 100% 100%, 40px 40px, 40px 40px';
+  const bgSizeToUse = hasCustomImage ? 'cover' : '100% 100%, 100% 100%, 40px 40px, 40px 40px';
 
+  return (
     <div style={{
       backgroundColor: activePalette.bgColor, 
       backgroundImage: bgImageToUse,
       backgroundSize: bgSizeToUse,
       backgroundAttachment: 'fixed', 
       backgroundPosition: 'center',
-      color: activePalette.fontColor, fontFamily: settings.shared.fontFamily,
-      minHeight: '100vh', width: '100%', margin: 0, padding: 0, position: 'relative', transition: 'background-color 0.5s ease, color 0.5s ease'
+      color: activePalette.fontColor, 
+      fontFamily: settings.shared.fontFamily,
+      minHeight: '100vh', width: '100%', margin: 0, padding: 0, position: 'relative', 
+      transition: 'background-color 0.5s ease, color 0.5s ease'
     }}>
       
       {/* Componente Toast Nativo */}
@@ -403,32 +404,9 @@ const App = () => {
         .share-email:hover:not(:disabled) { background: #0284c7; transform: translateY(-2px); }
         .share-email:disabled { background: #94a3b8; cursor: wait; }
 
-        .floating-controls { position: fixed; right: 30px; bottom: 30px; display: flex; flex-direction: column; gap: 15px; z-index: 9999; }
-        .fab-btn { background-color: ${activePalette.bgColor}; border: 1px solid rgba(128,128,128,0.3); color: ${activePalette.fontColor}; width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; backdrop-filter: blur(8px); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .fab-btn:hover { transform: scale(1.1); border-color: ${activePalette.fontColor}; }
-        
-        .fab-btn.chat-trigger { background: linear-gradient(135deg, #0044cc, #3399ff); border: none; box-shadow: 0 6px 20px rgba(51, 153, 255, 0.4); color: #fff;}
-        .fab-btn.chat-trigger:hover { transform: scale(1.15) rotate(5deg); box-shadow: 0 8px 25px rgba(51, 153, 255, 0.6); }
-        .fab-btn.chat-active { background: ${activePalette.bgColor}; color: #4da6ff; border: 1px solid #4da6ff; }
-        
-        .chat-window { position: fixed; right: 30px; bottom: 100px; width: 380px; height: 550px; max-height: 80vh; background-color: ${activePalette.bgColor}; border: 1px solid rgba(77, 166, 255, 0.3); border-radius: 16px; display: flex; flex-direction: column; z-index: 10000; box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 30px rgba(77, 166, 255, 0.1); overflow: hidden; animation: fadeIn 0.3s ease-out; }
-        .chat-header { background: linear-gradient(to right, rgba(0, 68, 204, 0.9), rgba(51, 153, 255, 0.8)); padding: 18px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; letter-spacing: 1.5px; font-size: 14px; text-transform: uppercase; box-shadow: 0 2px 10px rgba(0,0,0,0.1); color: #fff; }
-        .chat-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
-        .chat-bubble { padding: 12px 18px; border-radius: 12px; font-size: 14px; line-height: 1.6; max-width: 85%; word-wrap: break-word; font-family: sans-serif; }
-        .bubble-user { background: rgba(128,128,128,0.1); align-self: flex-end; border-bottom-right-radius: 2px; color: ${activePalette.fontColor}; }
-        .bubble-bot { background: rgba(51, 153, 255, 0.15); align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid rgba(51, 153, 255, 0.3); color: ${activePalette.fontColor}; }
-        .chat-footer { padding: 15px; background: ${activePalette.bgColor}; border-top: 1px solid rgba(128,128,128,0.2); display: flex; gap: 12px; }
-        .chat-input { flex: 1; background: rgba(128,128,128,0.05); border: 1px solid rgba(128,128,128,0.2); padding: 12px 15px; border-radius: 8px; color: inherit; font-family: sans-serif; font-size: 14px; outline: none; transition: border-color 0.3s; }
-        .chat-input:focus { border-color: #4da6ff; background: rgba(128,128,128,0.1); }
-        .chat-send { background: #4da6ff; color: #000; border: none; cursor: pointer; padding: 10px; border-radius: 8px; display: flex; justify-content: center; align-items: center; transition: all 0.2s; }
-        .chat-send:hover:not(:disabled) { background: #66b3ff; transform: translateY(-2px); }
-        .chat-send:disabled { opacity: 0.5; cursor: not-allowed; background: rgba(128,128,128,0.2); color: ${activePalette.fontColor}; }
-
         @media (max-width: 768px) {
           .public-wrapper { padding: 20px 10px; }
           .app-container { padding: 30px 20px; border-radius: 0; }
-          .floating-controls { right: 15px; bottom: 15px; }
-          .chat-window { right: 10px; bottom: 85px; width: calc(100vw - 20px); height: 65vh; }
         }
       `}</style>
 
