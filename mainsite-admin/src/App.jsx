@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.10.0
-// Descrição: Injeção de painel de Telemetria de IA para auditoria de interações do Chatbot público.
+// Versão: v3.11.0
+// Descrição: Injeção de arquitetura de Long Polling (atualização a cada 10s) e botão de sincronização manual na tela de Telemetria da IA.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
@@ -38,7 +38,7 @@ import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.10.0';
+const APP_VERSION = 'APP v3.11.0';
 
 const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
 
@@ -263,7 +263,6 @@ const MenuBar = ({ editor, secret, showNotification }) => {
   );
 };
 
-// Estrutura de Migração para Multi-Tema
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
   light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' },
@@ -277,7 +276,7 @@ const App = () => {
   
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isChatLogsOpen, setIsChatLogsOpen] = useState(false); // NOVO ESTADO DA TELEMETRIA
+  const [isChatLogsOpen, setIsChatLogsOpen] = useState(false);
   
   const [chatLogs, setChatLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
@@ -358,19 +357,34 @@ const App = () => {
     } finally { setLoading(false); }
   }, [showNotification]);
 
-  // NOVO FETCH PARA LOGS DE CHAT
-  const fetchChatLogs = async () => {
-    setLoadingLogs(true);
+  // INJEÇÃO ARQUITETURAL: Fetch de Logs com flag de background (silencioso)
+  const fetchChatLogs = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setLoadingLogs(true);
     try {
       const res = await fetch(`${API_URL}/chat-logs`, {
         headers: { 'Authorization': `Bearer ${secret}` }
       });
       if (res.ok) setChatLogs(await res.json());
       else throw new Error("Erro de autenticação nos logs.");
-    } catch (err) { showNotification("Falha ao puxar logs de IA.", "error"); } finally { setLoadingLogs(false); }
-  };
+    } catch (err) { 
+      if (showSpinner) showNotification("Falha ao puxar logs de IA.", "error"); 
+    } finally { 
+      if (showSpinner) setLoadingLogs(false); 
+    }
+  }, [secret, showNotification]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // INJEÇÃO ARQUITETURAL: Ciclo de Vida do Long Polling (Atualização a cada 10s)
+  useEffect(() => {
+    let pollInterval;
+    if (isChatLogsOpen) {
+      pollInterval = setInterval(() => {
+        fetchChatLogs(false); // Chama o fetch no modo background (sem girar loader na tela)
+      }, 10000);
+    }
+    return () => clearInterval(pollInterval);
+  }, [isChatLogsOpen, fetchChatLogs]);
 
   const handleSavePost = async (e) => {
     e.preventDefault();
@@ -496,12 +510,11 @@ const App = () => {
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.10.0</h1></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.11.0</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
             
-            {/* INJEÇÃO DE BOTÃO DE AUDITORIA */}
-            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={() => { setIsChatLogsOpen(true); fetchChatLogs(); }} style={{...styles.settingsBtn, backgroundColor: '#f0f9ff', borderColor: '#bae6fd'}} title="Auditoria de IA"><MessageSquare size={16} color="#0284c7" /> Telemetria IA</button>}
+            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={() => { setIsChatLogsOpen(true); fetchChatLogs(true); }} style={{...styles.settingsBtn, backgroundColor: '#f0f9ff', borderColor: '#bae6fd'}} title="Auditoria de IA"><MessageSquare size={16} color="#0284c7" /> Telemetria IA</button>}
             
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurações e Rotinas"><Settings size={16} /> Sistema</button>}
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> Novo</button>}
@@ -511,11 +524,18 @@ const App = () => {
         {isChatLogsOpen ? (
           <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
             <button onClick={() => { setIsChatLogsOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
-            <h2 style={{ fontSize: '16px', borderBottom: '2px solid #000', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <MessageSquare size={20} /> Telemetria e Auditoria de Chatbot (Últimos 200)
-            </h2>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+            {/* INJEÇÃO DE INTERFACE: Cabeçalho reativo da Telemetria */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '16px', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <MessageSquare size={20} /> Telemetria e Auditoria de Chatbot (Últimos 200)
+              </h2>
+              <button onClick={() => fetchChatLogs(true)} style={{...styles.settingsBtn, padding: '6px 12px'}} title="Forçar sincronização">
+                <RefreshCw size={14} className={loadingLogs ? "animate-spin" : ""} /> Atualizar
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {loadingLogs ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><Loader2 className="animate-spin" color="#000" /></div>
               ) : chatLogs.length === 0 ? (
