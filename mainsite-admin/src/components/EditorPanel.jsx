@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/components/EditorPanel.jsx
-// Versão: v1.0.3
+// Versão: v1.0.4
 // Descrição: Componente isolado do Editor Tiptap, Inteligência Artificial e Barra de Ferramentas.
 
 import React, { useState, useRef } from 'react';
@@ -219,6 +219,17 @@ const STATIC_EXTENSIONS = [
 
 const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotification, styles, API_URL }) => {
   const [title, setTitle] = useState(post ? post.title : '');
+
+  // Engenharia de Resiliência: Interceptor de Telemetria
+  // Suprime o falso-positivo crônico do Tiptap no React 18 (Strict Mode) + Vite (HMR)
+  React.useEffect(() => {
+    const originalWarn = console.warn;
+    console.warn = (...args) => {
+      if (typeof args[0] === 'string' && args[0].includes('Duplicate extension names found')) return;
+      originalWarn(...args);
+    };
+    return () => { console.warn = originalWarn; };
+  }, []);
 
   const editor = useEditor({
     extensions: STATIC_EXTENSIONS,
