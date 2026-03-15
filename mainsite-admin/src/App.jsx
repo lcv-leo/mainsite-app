@@ -1,278 +1,19 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.16.0
-// Descrição: Injeção de painel de auditoria de compartilhamentos (Shares). Código reestruturado com precisão para evitar truncamento.
+// Versão: v3.17.0
+// Descrição: Monólito completamente refatorado (Component Splitting). Orquestração de estado central e listagem de postagens isolada.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  Save, Loader2, Database, Edit3, Trash2, PlusCircle, ArrowLeft, Check, AlertCircle, Pin, GripVertical,
-  Image as ImageIcon, Youtube, Bold, Italic, Strikethrough, Heading1, Heading2, List, ListOrdered,
-  AlignLeft, AlignCenter, AlignRight, AlignJustify, Link as LinkIcon, Unlink, Underline as UnderlineIcon,
-  Highlighter, Subscript as SubIcon, Superscript as SuperIcon, Quote, Minus, Code, Table as TableIcon,
-  CheckSquare, Palette, Type, Settings, RefreshCw, WrapText, Upload, Sparkles, MessageSquare, ShieldAlert, Share2
+  Database, Edit3, Trash2, PlusCircle, Check, AlertCircle, Pin, GripVertical,
+  Settings, RefreshCw, MessageSquare, Share2, Loader2
 } from 'lucide-react';
 
 import TelemetryPanel from './components/TelemetryPanel';
 import SettingsPanel from './components/SettingsPanel';
-import { Extension } from '@tiptap/core';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Image from '@tiptap/extension-image';
-import YoutubeExtension from '@tiptap/extension-youtube';
-import TextAlign from '@tiptap/extension-text-align';
-import LinkExtension from '@tiptap/extension-link';
-import { Underline } from '@tiptap/extension-underline';
-import { Highlight } from '@tiptap/extension-highlight';
-import { Subscript } from '@tiptap/extension-subscript';
-import { Superscript } from '@tiptap/extension-superscript';
-import { Color } from '@tiptap/extension-color';
-import { TextStyle } from '@tiptap/extension-text-style';
-import { FontFamily } from '@tiptap/extension-font-family';
-import { Table } from '@tiptap/extension-table';
-import { TableRow } from '@tiptap/extension-table-row';
-import { TableCell } from '@tiptap/extension-table-cell';
-import { TableHeader } from '@tiptap/extension-table-header';
-import { TaskList } from '@tiptap/extension-task-list';
-import { TaskItem } from '@tiptap/extension-task-item';
-import { CharacterCount } from '@tiptap/extension-character-count';
-import { Placeholder } from '@tiptap/extension-placeholder';
-import { Dropcursor } from '@tiptap/extension-dropcursor';
-import { Typography } from '@tiptap/extension-typography';
-import { Markdown } from 'tiptap-markdown';
+import EditorPanel from './components/EditorPanel';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.16.0';
-
-const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
-
-// Extensão Customizada: Manipulação de Tamanho de Fonte no DOM
-const FontSize = Extension.create({
-  name: 'fontSize',
-  addOptions() {
-    return { types: ['textStyle'] };
-  },
-  addGlobalAttributes() {
-    return [
-      {
-        types: this.options.types,
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: element => element.style.fontSize.replace(/['"]+/g, ''),
-            renderHTML: attributes => {
-              if (!attributes.fontSize) return {};
-              return { style: `font-size: ${attributes.fontSize}` };
-            },
-          },
-        },
-      },
-    ];
-  },
-  addCommands() {
-    return {
-      setFontSize: fontSize => ({ chain }) => chain().setMark('textStyle', { fontSize }).run(),
-      unsetFontSize: () => ({ chain }) => chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run(),
-    };
-  },
-});
-
-const formatImageUrl = (url) => {
-  if (!url) return '';
-  const driveRegex = /(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/;
-  const match = url.match(driveRegex);
-  if (match && match[1]) {
-    return `https://drive.google.com/uc?export=view&id=${match[1]}`;
-  }
-  return url;
-};
-
-const MenuBar = ({ editor, secret, showNotification }) => {
-  const fileInputRef = useRef(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-
-  if (!editor) return null;
-
-  const handleAITransform = async (action) => {
-    const { from, to, empty } = editor.state.selection;
-    if (empty) {
-      showNotification("Por favor, selecione um trecho de texto no editor para aplicar a IA.", "error");
-      return;
-    }
-
-    const selectedText = editor.state.doc.textBetween(from, to, ' ');
-    setIsGeneratingAI(true);
-    showNotification("Processando transformação textual no Gemini...", "info");
-
-    try {
-      const res = await fetch(`${API_URL}/ai/transform`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` },
-        body: JSON.stringify({ action, text: selectedText })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro na geração por IA.");
-
-      editor.chain().focus().deleteSelection().insertContent(data.text).run();
-      showNotification("Transformação aplicada.", "success");
-    } catch (err) {
-      showNotification(err.message, "error");
-    } finally {
-      setIsGeneratingAI(false);
-    }
-  };
-
-  const handleImageUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    showNotification("Enviando arquivo para o Cloudflare R2...", "info");
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const res = await fetch(`${API_URL}/upload`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${secret}` },
-        body: formData
-      });
-      if (!res.ok) throw new Error("Falha na consolidação do arquivo.");
-
-      const data = await res.json();
-      editor.chain().focus().setImage({ src: data.url }).run();
-      showNotification("Upload concluído com sucesso.", "success");
-    } catch (err) {
-      showNotification(err.message, "error");
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-const [promptModal, setPromptModal] = useState({ show: false, title: '', value: '', callback: null, isLink: false, linkText: '' });
-
-  const addImageUrl = () => { setPromptModal({ show: true, title: 'URL da Imagem (Google Drive / Externa):', value: '', callback: (url) => { if(url) editor.chain().focus().setImage({ src: formatImageUrl(url) }).run(); } }); };
-  const addYoutube = () => { setPromptModal({ show: true, title: 'URL do vídeo (YouTube):', value: '', callback: (url) => { if(url) editor.chain().focus().setYoutubeVideo({ src: url }).run(); } }); };
-  const addLink = () => {
-    const prev = editor.getAttributes('link').href || '';
-    setPromptModal({ show: true, title: 'Inserir Link de Hipertexto:', value: prev, isLink: true, linkText: '', callback: (url, text) => {
-      if (url === '') { editor.chain().focus().extendMarkRange('link').unsetLink().run(); return; }
-      if (editor.state.selection.empty && text) { editor.chain().focus().insertContent(`<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`).run(); } 
-      else { editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run(); }
-    }});
-  };
-
-  return (
-    <div style={styles.toolbar}>
-      
-      {promptModal.show && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 12000, backdropFilter: 'blur(5px)' }}>
-          <div style={{ background: '#fff', padding: '30px', border: '3px solid #000', width: '90%', maxWidth: '450px', display: 'flex', flexDirection: 'column', gap: '15px', boxShadow: '15px 15px 0px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ margin: 0, fontSize: '14px', textTransform: 'uppercase', borderBottom: '2px solid #000', paddingBottom: '10px' }}>{promptModal.title}</h3>
-            <input autoFocus type="text" placeholder="https://..." value={promptModal.value} onChange={e => setPromptModal({...promptModal, value: e.target.value})} style={{ padding: '12px', border: '2px solid #ccc', outline: 'none', fontFamily: 'monospace', fontSize: '13px' }} />
-            {promptModal.isLink && editor.state.selection.empty && (
-              <input type="text" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({...promptModal, linkText: e.target.value})} style={{ padding: '12px', border: '2px solid #ccc', outline: 'none', fontFamily: 'monospace', fontSize: '13px' }} />
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button type="button" onClick={() => setPromptModal({show: false})} style={{ padding: '12px 18px', background: '#f5f5f5', border: '2px solid #ccc', cursor: 'pointer', fontWeight: 'bold' }}>CANCELAR</button>
-              <button type="button" onClick={() => { promptModal.callback(promptModal.value, promptModal.linkText); setPromptModal({show: false}); }} style={{ padding: '12px 18px', background: '#000', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>INSERIR</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#f0f9ff', padding: '2px 5px', borderRadius: '4px', border: '1px solid #bae6fd', marginRight: '5px' }} title="Inteligência Artificial (Gemini 2.5 Pro)">
-        <Sparkles size={14} color="#0284c7" />
-        <select
-          onChange={(e) => { if (e.target.value) { handleAITransform(e.target.value); e.target.value = ''; } }}
-          style={{ fontSize: '11px', padding: '2px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#0369a1', fontWeight: 'bold', outline: 'none' }}
-          disabled={isGeneratingAI}
-        >
-          <option value="">{isGeneratingAI ? 'Processando...' : 'IA: Aprimorar Texto'}</option>
-          <option value="grammar">Corrigir Gramática</option>
-          <option value="summarize">Resumir Seleção</option>
-          <option value="expand">Expandir Conteúdo</option>
-          <option value="formal">Tornar Formal</option>
-        </select>
-      </div>
-
-      <div style={styles.toolbarDivider}></div>
-
-      <button type="button" title="Negrito" onClick={() => editor.chain().focus().toggleBold().run()} style={{...styles.toolbarBtn, background: editor.isActive('bold') ? '#ddd' : '#fff'}}><Bold size={14} /></button>
-      <button type="button" title="Itálico" onClick={() => editor.chain().focus().toggleItalic().run()} style={{...styles.toolbarBtn, background: editor.isActive('italic') ? '#ddd' : '#fff'}}><Italic size={14} /></button>
-      <button type="button" title="Sublinhado" onClick={() => editor.chain().focus().toggleUnderline().run()} style={{...styles.toolbarBtn, background: editor.isActive('underline') ? '#ddd' : '#fff'}}><UnderlineIcon size={14} /></button>
-      <button type="button" title="Tachado" onClick={() => editor.chain().focus().toggleStrike().run()} style={{...styles.toolbarBtn, background: editor.isActive('strike') ? '#ddd' : '#fff'}}><Strikethrough size={14} /></button>
-      <button type="button" title="Marca-texto" onClick={() => editor.chain().focus().toggleHighlight().run()} style={{...styles.toolbarBtn, background: editor.isActive('highlight') ? '#ffcc00' : '#fff'}}><Highlighter size={14} /></button>
-      
-      <div style={styles.toolbarDivider}></div>
-      
-      <button type="button" title="Subscrito (H2O)" onClick={() => editor.chain().focus().toggleSubscript().run()} style={{...styles.toolbarBtn, background: editor.isActive('subscript') ? '#ddd' : '#fff'}}><SubIcon size={14} /></button>
-      <button type="button" title="Sobrescrito (X2)" onClick={() => editor.chain().focus().toggleSuperscript().run()} style={{...styles.toolbarBtn, background: editor.isActive('superscript') ? '#ddd' : '#fff'}}><SuperIcon size={14} /></button>
-      <button type="button" title="Bloco de Código" onClick={() => editor.chain().focus().toggleCodeBlock().run()} style={{...styles.toolbarBtn, background: editor.isActive('codeBlock') ? '#ddd' : '#fff'}}><Code size={14} /></button>
-      <button type="button" title="Citação em Bloco" onClick={() => editor.chain().focus().toggleBlockquote().run()} style={{...styles.toolbarBtn, background: editor.isActive('blockquote') ? '#ddd' : '#fff'}}><Quote size={14} /></button>
-      
-      <div style={styles.toolbarDivider}></div>
-
-      <button type="button" title="Alinhar à Esquerda" onClick={() => editor.chain().focus().setTextAlign('left').run()} style={{...styles.toolbarBtn, background: editor.isActive({ textAlign: 'left' }) ? '#ddd' : '#fff'}}><AlignLeft size={14} /></button>
-      <button type="button" title="Centralizar" onClick={() => editor.chain().focus().setTextAlign('center').run()} style={{...styles.toolbarBtn, background: editor.isActive({ textAlign: 'center' }) ? '#ddd' : '#fff'}}><AlignCenter size={14} /></button>
-      <button type="button" title="Alinhar à Direita" onClick={() => editor.chain().focus().setTextAlign('right').run()} style={{...styles.toolbarBtn, background: editor.isActive({ textAlign: 'right' }) ? '#ddd' : '#fff'}}><AlignRight size={14} /></button>
-      <button type="button" title="Justificar" onClick={() => editor.chain().focus().setTextAlign('justify').run()} style={{...styles.toolbarBtn, background: editor.isActive({ textAlign: 'justify' }) ? '#ddd' : '#fff'}}><AlignJustify size={14} /></button>
-
-      <div style={styles.toolbarDivider}></div>
-
-      <button type="button" title="Título 1" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} style={{...styles.toolbarBtn, background: editor.isActive('heading', { level: 1 }) ? '#ddd' : '#fff'}}><Heading1 size={14} /></button>
-      <button type="button" title="Título 2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} style={{...styles.toolbarBtn, background: editor.isActive('heading', { level: 2 }) ? '#ddd' : '#fff'}}><Heading2 size={14} /></button>
-      <button type="button" title="Lista de Marcadores" onClick={() => editor.chain().focus().toggleBulletList().run()} style={{...styles.toolbarBtn, background: editor.isActive('bulletList') ? '#ddd' : '#fff'}}><List size={14} /></button>
-      <button type="button" title="Lista Numerada" onClick={() => editor.chain().focus().toggleOrderedList().run()} style={{...styles.toolbarBtn, background: editor.isActive('orderedList') ? '#ddd' : '#fff'}}><ListOrdered size={14} /></button>
-      <button type="button" title="Lista de Tarefas" onClick={() => editor.chain().focus().toggleTaskList().run()} style={{...styles.toolbarBtn, background: editor.isActive('taskList') ? '#ddd' : '#fff'}}><CheckSquare size={14} /></button>
-      <button type="button" title="Linha Horizontal" onClick={() => editor.chain().focus().setHorizontalRule().run()} style={styles.toolbarBtn}><Minus size={14} /></button>
-      <button type="button" title="Inserir Tabela (3x3)" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} style={styles.toolbarBtn}><TableIcon size={14} /></button>
-      
-      <button type="button" title="Quebra de Linha Simples (Shift+Enter)" onClick={() => editor.chain().focus().setHardBreak().run()} style={styles.toolbarBtn}><WrapText size={14} /></button>
-
-      <div style={styles.toolbarDivider}></div>
-
-      <button type="button" title="Inserir/Editar Link" onClick={addLink} style={{...styles.toolbarBtn, background: editor.isActive('link') ? '#ddd' : '#fff'}}><LinkIcon size={14} /></button>
-      <button type="button" title="Remover Link" onClick={() => editor.chain().focus().unsetLink().run()} disabled={!editor.isActive('link')} style={{...styles.toolbarBtn, opacity: editor.isActive('link') ? 1 : 0.5}}><Unlink size={14} /></button>
-      
-      <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{ display: 'none' }} />
-      <button type="button" title="Upload de Imagem Nativo (R2)" onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{...styles.toolbarBtn, opacity: isUploading ? 0.5 : 1}}><Upload size={14} /></button>
-      
-      <button type="button" title="Inserir Imagem via Link (Drive/Web)" onClick={addImageUrl} style={styles.toolbarBtn}><ImageIcon size={14} /></button>
-      <button type="button" title="Inserir YouTube" onClick={addYoutube} style={styles.toolbarBtn}><Youtube size={14} /></button>
-
-      <div style={styles.toolbarDivider}></div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title="Cor do Texto">
-        <Palette size={14} />
-        <input type="color" onInput={event => editor.chain().focus().setColor(event.target.value).run()} value={editor.getAttributes('textStyle').color || '#000000'} style={{ cursor: 'pointer', padding: 0, border: 'none', width: '25px', height: '25px' }}/>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title="Família da Fonte">
-        <Type size={14} />
-        <select onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()} value={editor.getAttributes('textStyle').fontFamily || 'inherit'} style={{ fontSize: '11px', padding: '2px' }}>
-          <option value="inherit">Padrão</option>
-          <option value="monospace">Monospace</option>
-          <option value="Arial">Arial</option>
-          <option value="'Times New Roman', Times, serif">Times</option>
-        </select>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title="Tamanho da Fonte">
-        <select onChange={e => editor.chain().focus().setFontSize(e.target.value).run()} value={editor.getAttributes('textStyle').fontSize || ''} style={{ fontSize: '11px', padding: '2px' }}>
-          <option value="">Tam. Padrão</option>
-          <option value="12px">12px</option>
-          <option value="14px">14px</option>
-          <option value="16px">16px</option>
-          <option value="18px">18px</option>
-          <option value="20px">20px</option>
-          <option value="24px">24px</option>
-          <option value="30px">30px</option>
-          <option value="36px">36px</option>
-        </select>
-      </div>
-    </div>
-  );
-};
+const APP_VERSION = 'APP v3.17.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -288,16 +29,13 @@ const App = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isChatLogsOpen, setIsChatLogsOpen] = useState(false);
-  
-  // INJEÇÃO ARQUITETURAL: Estado para aba de compartilhamentos
   const [isSharesOpen, setIsSharesOpen] = useState(false); 
   
   const [chatLogs, setChatLogs] = useState([]);
   const [shareLogs, setShareLogs] = useState([]); 
   const [loadingLogs, setLoadingLogs] = useState(false);
   
-  const [editingId, setEditingId] = useState(null);
-  const [title, setTitle] = useState('');
+  const [editingPost, setEditingPost] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
@@ -305,7 +43,6 @@ const App = () => {
   const [draggedIndex, setDraggedIndex] = useState(null);
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  
   const [rotation, setRotation] = useState({ enabled: false, interval: 60, last_rotated_at: 0 });
   const [rateLimit, setRateLimit] = useState({ enabled: false, maxRequests: 5, windowMinutes: 1 });
 
@@ -315,22 +52,6 @@ const App = () => {
 
   const secret = import.meta.env.VITE_API_SECRET;
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit, Markdown, Underline, Highlight, Subscript, Superscript, TextStyle, Color, FontFamily, FontSize, Typography,
-      TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'justify' }),
-      Image.configure({ inline: true }),
-      YoutubeExtension.configure({ inline: false, width: 840, height: 472.5 }),
-      Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
-      TaskList, TaskItem.configure({ nested: true }),
-      Dropcursor.configure({ color: '#ff0000', width: 2 }),
-      CharacterCount,
-      Placeholder.configure({ placeholder: 'O fluxo da consciência (Aceita Markdown na colagem)...' }),
-      LinkExtension.configure({ openOnClick: false, autolink: true, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' }})
-    ],
-    content: '',
-  });
-
   const showNotification = useCallback((message, type = 'info') => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
@@ -339,178 +60,90 @@ const App = () => {
   const fetchData = useCallback(async () => {
     try {
       const resPosts = await fetch(`${API_URL}/posts`);
-      const dataPosts = await resPosts.json();
-      if (Array.isArray(dataPosts)) setPosts(dataPosts);
+      if (resPosts.ok) setPosts(await resPosts.json());
 
       const resSettings = await fetch(`${API_URL}/settings`);
       const dataSettings = await resSettings.json();
-      
       if (!dataSettings.error) {
-        if (dataSettings.light) {
-          setSettings(dataSettings);
-        } else {
-          setSettings({
-            ...DEFAULT_SETTINGS,
-            dark: { 
-              bgColor: dataSettings.bgColor || '#131314', 
-              bgImage: dataSettings.bgImage || '', 
-              fontColor: dataSettings.fontColor || '#E3E3E3', 
-              titleColor: dataSettings.titleColor || '#8AB4F8' 
-            },
-            shared: { 
-              fontSize: dataSettings.fontSize || '1.15rem', 
-              titleFontSize: dataSettings.titleFontSize || '1.8rem', 
-              fontFamily: dataSettings.fontFamily || 'sans-serif' 
-            }
-          });
-        }
+        if (dataSettings.light) setSettings(dataSettings);
+        else setSettings({
+          ...DEFAULT_SETTINGS,
+          dark: { bgColor: dataSettings.bgColor || '#131314', bgImage: dataSettings.bgImage || '', fontColor: dataSettings.fontColor || '#E3E3E3', titleColor: dataSettings.titleColor || '#8AB4F8' },
+          shared: { fontSize: dataSettings.fontSize || '1.15rem', titleFontSize: dataSettings.titleFontSize || '1.8rem', fontFamily: dataSettings.fontFamily || 'sans-serif' }
+        });
       }
 
       const resRotation = await fetch(`${API_URL}/settings/rotation`);
-      if (resRotation.ok) {
-        const dataRotation = await resRotation.json();
-        setRotation(dataRotation);
-      }
+      if (resRotation.ok) setRotation(await resRotation.json());
 
-      const resRateLimit = await fetch(`${API_URL}/settings/ratelimit`, {
-        headers: { 'Authorization': `Bearer ${secret}` }
-      });
-      if (resRateLimit.ok) {
-        const dataRateLimit = await resRateLimit.json();
-        setRateLimit(dataRateLimit);
-      }
+      const resRateLimit = await fetch(`${API_URL}/settings/ratelimit`, { headers: { 'Authorization': `Bearer ${secret}` } });
+      if (resRateLimit.ok) setRateLimit(await resRateLimit.json());
 
-    } catch (err) {
-      showNotification("Erro na sincronização.", "error");
-    } finally { setLoading(false); }
+    } catch (err) { showNotification("Erro na sincronização.", "error"); } finally { setLoading(false); }
   }, [showNotification, secret]);
 
   const fetchChatLogs = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoadingLogs(true);
-    try {
-      const res = await fetch(`${API_URL}/chat-logs`, {
-        headers: { 'Authorization': `Bearer ${secret}` }
-      });
-      if (res.ok) setChatLogs(await res.json());
-      else throw new Error("Erro de autenticação nos logs.");
-    } catch (err) { 
-      if (showSpinner) showNotification("Falha ao puxar logs de IA.", "error"); 
-    } finally { 
-      if (showSpinner) setLoadingLogs(false); 
-    }
+    try { 
+      const res = await fetch(`${API_URL}/chat-logs`, { headers: { 'Authorization': `Bearer ${secret}` } }); 
+      if (res.ok) setChatLogs(await res.json()); else throw new Error(); 
+    } catch (err) { if (showSpinner) showNotification("Falha ao puxar logs de IA.", "error"); } finally { if (showSpinner) setLoadingLogs(false); }
   }, [secret, showNotification]);
 
-  // INJEÇÃO ARQUITETURAL: Fetch de Logs de Compartilhamento
   const fetchShareLogs = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoadingLogs(true);
     try { 
       const res = await fetch(`${API_URL}/shares`, { headers: { 'Authorization': `Bearer ${secret}` } }); 
-      if (res.ok) setShareLogs(await res.json()); 
-      else throw new Error(); 
-    } catch (err) { 
-      if (showSpinner) showNotification("Falha ao puxar compartilhamentos.", "error"); 
-    } finally { 
-      if (showSpinner) setLoadingLogs(false); 
-    }
+      if (res.ok) setShareLogs(await res.json()); else throw new Error(); 
+    } catch (err) { if (showSpinner) showNotification("Falha ao puxar compartilhamentos.", "error"); } finally { if (showSpinner) setLoadingLogs(false); }
   }, [secret, showNotification]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
     let pollInterval;
-    if (isChatLogsOpen) {
-      pollInterval = setInterval(() => {
-        fetchChatLogs(false);
-      }, 10000);
-    }
+    if (isChatLogsOpen) pollInterval = setInterval(() => fetchChatLogs(false), 10000);
     return () => clearInterval(pollInterval);
   }, [isChatLogsOpen, fetchChatLogs]);
 
-  const triggerBgUpload = (targetTheme) => {
-    setUploadTarget(targetTheme);
-    if (fileInputBgRef.current) fileInputBgRef.current.click();
-  };
+  const triggerBgUpload = (targetTheme) => { setUploadTarget(targetTheme); if (fileInputBgRef.current) fileInputBgRef.current.click(); };
 
   const handleBgImageUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file || !uploadTarget) return;
-
-    setIsUploadingBg(true);
-    showNotification(`Enviando fundo para R2 (${uploadTarget})...`, "info");
-
-    const formData = new FormData();
-    formData.append('file', file);
-
+    const file = event.target.files[0]; if (!file || !uploadTarget) return;
+    setIsUploadingBg(true); showNotification(`Enviando fundo para R2 (${uploadTarget})...`, "info");
+    const formData = new FormData(); formData.append('file', file);
     try {
-      const res = await fetch(`${API_URL}/upload`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${secret}` },
-        body: formData
-      });
-      
-      if (!res.ok) throw new Error("Falha na consolidação da imagem.");
+      const res = await fetch(`${API_URL}/upload`, { method: 'POST', headers: { 'Authorization': `Bearer ${secret}` }, body: formData });
+      if (!res.ok) throw new Error("Falha na consolidação.");
       const data = await res.json();
-      
-      setSettings(prev => ({
-        ...prev,
-        [uploadTarget]: {
-          ...prev[uploadTarget],
-          bgImage: data.url
-        }
-      }));
-      
-      showNotification("Upload de fundo concluído com sucesso.", "success");
-    } catch (err) {
-      showNotification(err.message, "error");
-    } finally {
-      setIsUploadingBg(false);
-      setUploadTarget(null);
-      if (fileInputBgRef.current) fileInputBgRef.current.value = '';
-    }
+      setSettings(prev => ({ ...prev, [uploadTarget]: { ...prev[uploadTarget], bgImage: data.url } }));
+      showNotification("Upload de fundo concluído.", "success");
+    } catch (err) { showNotification(err.message, "error"); } finally { setIsUploadingBg(false); setUploadTarget(null); if (fileInputBgRef.current) fileInputBgRef.current.value = ''; }
   };
 
-  const handleSavePost = async (e) => {
-    e.preventDefault();
-    if (!editor) return;
+  const handleSavePost = async ({ id, title, content }) => {
     setIsSaving(true);
-    const contentHTML = editor.getHTML();
-    const method = editingId ? 'PUT' : 'POST';
-    const url = editingId ? `${API_URL}/posts/${editingId}` : `${API_URL}/posts`;
-
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API_URL}/posts/${id}` : `${API_URL}/posts`;
     try {
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify({ title, content: contentHTML }) });
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify({ title, content }) });
       if (res.ok) { showNotification("Fragmento consolidado.", "success"); setIsEditorOpen(false); await fetchData(); } 
       else throw new Error("Falha na autorização.");
     } catch (err) { showNotification(err.message, "error"); } finally { setIsSaving(false); }
   };
 
   const handleSaveSettings = async (e) => {
-    e.preventDefault();
-    setIsSaving(true);
-    
-    const formattedSettings = { 
-      ...settings, 
-      light: { ...settings.light, bgImage: formatImageUrl(settings.light.bgImage) },
-      dark: { ...settings.dark, bgImage: formatImageUrl(settings.dark.bgImage) }
-    };
-    setSettings(formattedSettings);
-
+    e.preventDefault(); setIsSaving(true);
     try {
-      const resApp = await fetch(`${API_URL}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(formattedSettings) });
+      const resApp = await fetch(`${API_URL}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(settings) });
       const resRot = await fetch(`${API_URL}/settings/rotation`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rotation) });
       const resRL = await fetch(`${API_URL}/settings/ratelimit`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rateLimit) });
-
-      if (resApp.ok && resRot.ok && resRL.ok) { 
-        showNotification("Configurações salvas com sucesso.", "success"); 
-      } else {
-        throw new Error("Erro ao salvar configs.");
-      }
-    } catch (err) { showNotification(err.message, "error"); } finally { setIsSaving(false); }
+      if (resApp.ok && resRot.ok && resRL.ok) showNotification("Configurações salvas.", "success"); else throw new Error();
+    } catch (err) { showNotification("Erro ao salvar configs.", "error"); } finally { setIsSaving(false); }
   };
 
   const confirmDelete = async () => {
-    const id = modal.id;
-    setModal({ show: false, id: null });
+    const id = modal.id; setModal({ show: false, id: null });
     try {
       const res = await fetch(`${API_URL}/posts/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${secret}` } });
       if (res.ok) { showNotification("Removido.", "success"); await fetchData(); }
@@ -527,38 +160,26 @@ const App = () => {
   const handleDragStart = (e, index) => { setDraggedIndex(index); e.dataTransfer.effectAllowed = "move"; e.target.style.opacity = '0.5'; };
   const handleDragEnd = (e) => { e.target.style.opacity = '1'; setDraggedIndex(null); };
   const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; };
+  
   const handleDrop = async (e, dropIndex) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === dropIndex) return;
-    const newOrder = [...posts];
-    const draggedItem = newOrder[draggedIndex];
-    newOrder.splice(draggedIndex, 1);
-    newOrder.splice(dropIndex, 0, draggedItem);
+    e.preventDefault(); if (draggedIndex === null || draggedIndex === dropIndex) return;
+    const newOrder = [...posts]; const draggedItem = newOrder[draggedIndex];
+    newOrder.splice(draggedIndex, 1); newOrder.splice(dropIndex, 0, draggedItem);
     setPosts(newOrder);
-
-    const payload = newOrder.map((post, idx) => ({ id: post.id, display_order: idx }));
     try {
+      const payload = newOrder.map((post, idx) => ({ id: post.id, display_order: idx }));
       const res = await fetch(`${API_URL}/posts/reorder`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(payload) });
       if (res.ok) showNotification("Ordem sincronizada.", "success"); else throw new Error();
     } catch (err) { showNotification("Erro de ordem.", "error"); await fetchData(); }
   };
 
- const openEditor = (post = null) => {
-    setIsSettingsOpen(false);
-    setIsChatLogsOpen(false);
-    setIsSharesOpen(false);
-    if (post) { 
-      setEditingId(post.id); 
-      setTitle(post.title); 
-      editor?.commands.setContent(post.content); 
-    } else { 
-      setEditingId(null); 
-      setTitle(''); 
-      editor?.commands.setContent(''); 
-    }
+  const openEditor = (post = null) => {
+    setIsSettingsOpen(false); setIsChatLogsOpen(false); setIsSharesOpen(false);
+    setEditingPost(post);
     setIsEditorOpen(true);
   };
-if (loading) return <div style={styles.center}><Loader2 className="animate-spin" color="#000" /></div>;
+
+  if (loading) return <div style={styles.center}><Loader2 className="animate-spin" color="#000" /></div>;
 
   return (
     <div style={styles.adminBody}>
@@ -592,7 +213,6 @@ if (loading) return <div style={styles.center}><Loader2 className="animate-spin"
         </div>
       )}
 
-      {/* Input de arquivo oculto para o Upload de Background */}
       <input type="file" accept="image/*" ref={fileInputBgRef} onChange={handleBgImageUpload} style={{ display: 'none' }} />
 
       <div style={styles.adminContainer}>
@@ -600,12 +220,8 @@ if (loading) return <div style={styles.center}><Loader2 className="animate-spin"
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'Console')}</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
-            
-            {/* INJEÇÃO ARQUITETURAL: Botão da Auditoria de Engajamento */}
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => { setIsSharesOpen(true); fetchShareLogs(true); }} style={{...styles.settingsBtn, backgroundColor: '#fdf4ff', borderColor: '#fbcfe8'}} title="Auditoria de Compartilhamentos"><Share2 size={16} color="#d946ef" /> Engajamento</button>}
-            
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => { setIsChatLogsOpen(true); fetchChatLogs(true); }} style={{...styles.settingsBtn, backgroundColor: '#f0f9ff', borderColor: '#bae6fd'}} title="Auditoria de IA"><MessageSquare size={16} color="#0284c7" /> Telemetria IA</button>}
-            
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurações e Rotinas"><Settings size={16} /> Sistema</button>}
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> Novo</button>}
           </div>
@@ -615,76 +231,15 @@ if (loading) return <div style={styles.center}><Loader2 className="animate-spin"
           <TelemetryPanel type="shares" logs={shareLogs} loading={loadingLogs} onRefresh={fetchShareLogs} onClose={() => { setIsSharesOpen(false); fetchData(); }} styles={styles} />
         ) : isChatLogsOpen ? (
           <TelemetryPanel type="chat" logs={chatLogs} loading={loadingLogs} onRefresh={fetchChatLogs} onClose={() => { setIsChatLogsOpen(false); fetchData(); }} styles={styles} />
-        ) : isChatLogsOpen ? (
-          <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-            <button onClick={() => { setIsChatLogsOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '16px', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <MessageSquare size={20} /> Telemetria e Auditoria de Chatbot (Últimos 200)
-              </h2>
-              <button onClick={() => fetchChatLogs(true)} style={{...styles.settingsBtn, padding: '6px 12px'}} title="Forçar sincronização">
-                <RefreshCw size={14} className={loadingLogs ? "animate-spin" : ""} /> Atualizar
-              </button>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {loadingLogs ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><Loader2 className="animate-spin" color="#000" /></div>
-              ) : chatLogs.length === 0 ? (
-                <p style={{fontSize: '12px', opacity: 0.6, textAlign: 'center'}}>Nenhum log registrado na telemetria.</p>
-              ) : chatLogs.map((log, i) => (
-                <div key={i} className="log-card" style={{ background: log.role === 'user' ? '#f8fafc' : '#f0fdf4', borderLeft: `4px solid ${log.role === 'user' ? '#94a3b8' : '#4ade80'}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                    <span>{log.role === 'user' ? '👤 Pergunta (Usuário)' : '🤖 Resposta (IA)'}</span>
-                    <span>{new Date(log.created_at).toLocaleString('pt-BR')}</span>
-                  </div>
-                  <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#0f172a', whiteSpace: 'pre-wrap' }}>{log.message}</div>
-                  {log.context_title && (
-                    <div style={{ marginTop: '12px', fontSize: '9px', background: '#e2e8f0', display: 'inline-block', padding: '4px 8px', borderRadius: '4px', color: '#475569', fontWeight: 'bold' }}>
-                      CONTEXTO ATIVO: {log.context_title}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         ) : isSettingsOpen ? (
-          <SettingsPanel 
-            settings={settings} setSettings={setSettings}
-            rateLimit={rateLimit} setRateLimit={setRateLimit}
-            rotation={rotation} setRotation={setRotation}
-            isSaving={isSaving} onSave={handleSaveSettings}
-            onClose={() => { setIsSettingsOpen(false); fetchData(); }}
-            triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget}
-            styles={styles}
-          />
+          <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} rotation={rotation} setRotation={setRotation} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
         ) : isEditorOpen ? (
-          <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-            <button onClick={() => { setIsEditorOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Cancelar</button>
-            <form onSubmit={handleSavePost} style={styles.form}>
-              <input style={styles.adminInput} placeholder="TÍTULO" value={title} onChange={e => setTitle(e.target.value)} required />
-              <div style={styles.editorContainer}>
-                <MenuBar editor={editor} secret={secret} showNotification={showNotification} />
-                <div style={styles.tiptapWrapper}><EditorContent editor={editor} /></div>
-                <div style={styles.statusBar}>
-                  {editor ? `${editor.storage.characterCount.characters()} caracteres | ${editor.storage.characterCount.words()} palavras` : ''}
-                </div>
-              </div>
-              <button type="submit" disabled={isSaving} style={styles.adminButton}>{isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} {editingId ? 'ATUALIZAR' : 'CONSOLIDAR'}</button>
-            </form>
-          </div>
+          <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
         ) : (
           <div style={styles.list}>
             {posts.map((post, index) => (
               <div key={post.id} draggable onDragStart={(e) => handleDragStart(e, index)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, index)} style={{ ...styles.postCard, borderLeft: post.is_pinned ? '4px solid #000' : '1px solid #eee' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <div style={{ cursor: 'grab', color: '#ccc' }} title="Reordenar"><GripVertical size={20} /></div>
-                  <div>
-                    <div style={styles.cardDate}>{new Date(post.created_at).toLocaleDateString()} {post.is_pinned && <span style={styles.pinnedBadge}>FIXADO</span>}</div>
-                    <h2 style={styles.cardTitle}>{post.title}</h2>
-                  </div>
-                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}><div style={{ cursor: 'grab', color: '#ccc' }} title="Reordenar"><GripVertical size={20} /></div><div><div style={styles.cardDate}>{new Date(post.created_at).toLocaleDateString()} {post.is_pinned && <span style={styles.pinnedBadge}>FIXADO</span>}</div><h2 style={styles.cardTitle}>{post.title}</h2></div></div>
                 <div style={styles.actions}>
                   <button onClick={() => handlePin(post.id)} style={{ ...styles.actionBtnPin, backgroundColor: post.is_pinned ? '#000' : '#f0f0f0', color: post.is_pinned ? '#fff' : '#333' }} title="Fixar/Desafixar"><Pin size={16} /></button>
                   <button onClick={() => openEditor(post)} style={styles.actionBtnEdit} title="Editar"><Edit3 size={16} /></button>
