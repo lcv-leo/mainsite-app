@@ -1,6 +1,6 @@
 # Módulo: .github/workflows/deploy.yml
-# Versão: v1.5.0
-# Descrição: Automação completa CI/CD para o ecossistema Mainsite. Implementação de inteligência de cache nativo (npm) nos três microsserviços para eliminação de redundância de download e otimização drástica do tempo de execução da esteira.
+# Versão: v1.6.0
+# Descrição: Injeção de VITE_API_SECRET no ambiente de compilação do painel administrativo. Garante que o frontend seja forjado com a chave de autorização correta para comunicação com o Worker.
 
 name: Deploy Pipeline Cloudflare
 
@@ -48,9 +48,11 @@ jobs:
           
       - name: Instalar, Compilar e Publicar Admin
         working-directory: ./mainsite-admin
+        # INJEÇÃO CRÍTICA DE SEGURANÇA: A senha é passada para a VM para que o Vite a encontre
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VITE_API_SECRET: ${{ secrets.VITE_API_SECRET }}
         run: |
           npm install
           npm run build
