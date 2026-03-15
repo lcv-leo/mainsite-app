@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.9.1
+// Versão: v3.9.2
 // Descrição: Código integral restaurado. Injeção de Proteção Anti-Cópia, Botões de Engajamento e Roteamento via parâmetro de URL (?p=).
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.9.1';
+const APP_VERSION = 'APP v3.9.2';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
