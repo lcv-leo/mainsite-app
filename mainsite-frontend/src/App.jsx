@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.11.0
+// Versão: v3.12.0
 // Descrição: Código integral restaurado. Injeção de Proteção Anti-Cópia, Botões de Engajamento e Roteamento via parâmetro de URL (?p=).
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -10,9 +10,11 @@ import {
 
 import DisclaimerModal from './components/DisclaimerModal';
 import ShareOverlay from './components/ShareOverlay';
+import ChatWidget from './components/ChatWidget';
+import FloatingControls from './components/FloatingControls';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.11.0';
+const APP_VERSION = 'APP v3.12.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -40,10 +42,6 @@ const App = () => {
   const isAILoading = isSummarizing || isTranslating;
 
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState([{ role: 'bot', text: 'Olá. Como posso ajudar você a explorar os textos publicados neste site?' }]);
-const [chatInput, setChatInput] = useState('');
-  const [isChatLoading, setIsChatLoading] = useState(false);
-  const chatEndRef = useRef(null);
 
   // INJEÇÃO ARQUITETURAL: Interface Dinâmica e Modais
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -99,11 +97,7 @@ const [chatInput, setChatInput] = useState('');
     }
   }, [currentPost]);
 
-  useEffect(() => {
-    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
-
-  const fetchData = async () => {
+    const fetchData = async () => {
     try {
       const [resPosts, resSettings] = await Promise.all([ fetch(`${API_URL}/posts`), fetch(`${API_URL}/settings`) ]);
       const dataPosts = await resPosts.json();
@@ -241,29 +235,6 @@ const [chatInput, setChatInput] = useState('');
       if (res.ok) setTranslatedContent(data.translation);
       else throw new Error(data.error || "Falha na resposta do servidor.");
     } catch (err) { setAiError(`Falha ao traduzir para ${lang}.`); } finally { setIsTranslating(false); e.target.value = ''; }
-  };
-
-  const handleSendChatMessage = async (e) => {
-    e.preventDefault();
-    if (!chatInput.trim() || isChatLoading) return;
-    const userMessage = chatInput.trim();
-    setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
-    setChatInput(''); setIsChatLoading(true);
-
-    const payloadContext = currentPost ? { title: currentPost.title, content: currentPost.content } : null;
-
-    try {
-      const [res] = await Promise.all([
-        fetch(`${API_URL}/ai/public/chat`, { 
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify({ message: userMessage, currentContext: payloadContext }) 
-        }),
-        new Promise(resolve => setTimeout(resolve, 800))
-      ]);
-      const data = await res.json();
-      if (res.ok) setChatMessages(prev => [...prev, { role: 'bot', text: data.reply }]);
-      else throw new Error();
-    } catch (err) { setChatMessages(prev => [...prev, { role: 'bot', text: "Desculpe, ocorreu um erro de conexão com a IA." }]); } finally { setIsChatLoading(false); }
   };
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -474,45 +445,24 @@ return (
         }
       `}</style>
 
-      {isChatOpen && (
-        <div className="chat-window">
-          <div className="chat-header">
-            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}><Bot size={18} color="#fff"/> Assistente Virtual</div>
-            <button onClick={() => setIsChatOpen(false)} style={{background:'rgba(0,0,0,0.2)', border:'none', color:'inherit', cursor:'pointer', padding: '5px', borderRadius: '50%', display: 'flex', transition: 'background 0.2s'}}><X size={16}/></button>
-          </div>
-          <div className="chat-body">
-            {chatMessages.map((msg, i) => (
-              <div key={i} className={`chat-bubble ${msg.role === 'user' ? 'bubble-user' : 'bubble-bot'}`}>{msg.text}</div>
-            ))}
-            {isChatLoading && (
-              <div className="chat-bubble bubble-bot processing-active" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Loader2 size={16} className="animate-spin text-blue-400" /> Processando...
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-          <form onSubmit={handleSendChatMessage} className="chat-footer">
-            <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Digite sua pergunta..." className="chat-input" disabled={isChatLoading} />
-            <button type="submit" className="chat-send" disabled={isChatLoading}><Send size={18} /></button>
-          </form>
-        </div>
-      )}
+      {/* Componentes Flutuantes Isolados */}
+      <FloatingControls 
+        showBackToTop={showBackToTop} 
+        scrollToTop={scrollToTop} 
+        userTheme={userTheme} 
+        cycleTheme={cycleTheme} 
+        isChatOpen={isChatOpen} 
+        setIsChatOpen={setIsChatOpen} 
+        activePalette={activePalette} 
+      />
 
-      <div className="floating-controls">
-        {showBackToTop && (
-          <button onClick={scrollToTop} className="fab-btn" title="Voltar ao Topo">
-            <ArrowUp size={20} />
-          </button>
-        )}
-        
-        <button onClick={cycleTheme} className="fab-btn" title={`Modo do Tema: ${userTheme.toUpperCase()}`}>
-          {userTheme === 'auto' ? <Monitor size={20} /> : userTheme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
-        </button>
-
-        <button onClick={() => setIsChatOpen(!isChatOpen)} className={`fab-btn chat-trigger ${isChatOpen ? 'chat-active' : ''}`} title="Busca Semântica / Conversar">
-          {isChatOpen ? <X size={24} /> : <Bot size={24} />}
-        </button>
-      </div>
+      <ChatWidget 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        currentPost={currentPost} 
+        activePalette={activePalette} 
+        API_URL={API_URL} 
+      />
 
       <div className="public-wrapper">
         <div className="fade-in-node app-container">
