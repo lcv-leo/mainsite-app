@@ -1,5 +1,5 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.9.1
+// Versão: v1.10.0
 // Descrição: Código integral restaurado. Rate Limiting de memória, Telemetria via waitUntil e Integração com a API Resend para e-mails transacionais.
 
 import { Hono } from 'hono';
@@ -198,6 +198,14 @@ app.get('/api/shares', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+app.get('/api/contact-logs', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const { results } = await c.env.DB.prepare("SELECT * FROM contact_logs ORDER BY created_at DESC LIMIT 200").all();
+    return c.json(results || []);
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
 app.post('/api/shares', async (c) => {
   try {
     const { post_id, post_title, platform, target } = await c.req.json();
@@ -300,6 +308,12 @@ app.post('/api/contact', async (c) => {
         html: userHtml
       })
     });
+
+    // Gravação de Telemetria (Log de Contato) em Background
+    c.executionCtx.waitUntil(
+      c.env.DB.prepare("INSERT INTO contact_logs (name, phone, email, message) VALUES (?, ?, ?, ?)")
+      .bind(name, phone || '', email, message).run()
+    );
 
     return c.json({ success: true });
   } catch (err) {
