@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.9.0
-// Descrição: Injeção de reatividade no Frontend. Atualização automática do banco de dados ao retornar para a tela principal e adição de botão manual de sincronização.
+// Versão: v3.10.0
+// Descrição: Injeção de painel de Telemetria de IA para auditoria de interações do Chatbot público.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
@@ -8,7 +8,7 @@ import {
   Image as ImageIcon, Youtube, Bold, Italic, Strikethrough, Heading1, Heading2, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Link as LinkIcon, Unlink, Underline as UnderlineIcon,
   Highlighter, Subscript as SubIcon, Superscript as SuperIcon, Quote, Minus, Code, Table as TableIcon,
-  CheckSquare, Palette, Type, Settings, RefreshCw, WrapText, Upload, Sparkles
+  CheckSquare, Palette, Type, Settings, RefreshCw, WrapText, Upload, Sparkles, MessageSquare
 } from 'lucide-react';
 
 import { Extension } from '@tiptap/core';
@@ -38,7 +38,7 @@ import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.9.0';
+const APP_VERSION = 'APP v3.10.0';
 
 const DEFAULT_DISCLAIMER = "Atenção: Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.\n\n\\*Texto elaborado com auxílio de IA\\*";
 
@@ -274,8 +274,13 @@ const DEFAULT_SETTINGS = {
 const App = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isChatLogsOpen, setIsChatLogsOpen] = useState(false); // NOVO ESTADO DA TELEMETRIA
+  
+  const [chatLogs, setChatLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
   
   const [editingId, setEditingId] = useState(null);
   const [title, setTitle] = useState('');
@@ -352,6 +357,18 @@ const App = () => {
       showNotification("Erro na sincronização.", "error");
     } finally { setLoading(false); }
   }, [showNotification]);
+
+  // NOVO FETCH PARA LOGS DE CHAT
+  const fetchChatLogs = async () => {
+    setLoadingLogs(true);
+    try {
+      const res = await fetch(`${API_URL}/chat-logs`, {
+        headers: { 'Authorization': `Bearer ${secret}` }
+      });
+      if (res.ok) setChatLogs(await res.json());
+      else throw new Error("Erro de autenticação nos logs.");
+    } catch (err) { showNotification("Falha ao puxar logs de IA.", "error"); } finally { setLoadingLogs(false); }
+  };
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -430,6 +447,7 @@ const App = () => {
 
   const openEditor = (post = null) => {
     setIsSettingsOpen(false);
+    setIsChatLogsOpen(false);
     if (post) { 
       setEditingId(post.id); 
       setTitle(post.title); 
@@ -455,6 +473,8 @@ const App = () => {
         ul[data-type="taskList"] { list-style: none; padding: 0; }
         ul[data-type="taskList"] li { display: flex; align-items: center; }
         ul[data-type="taskList"] li label { margin-right: 8px; }
+        .log-card { padding: 15px; border-radius: 4px; border: 1px solid #eee; transition: all 0.2s; }
+        .log-card:hover { transform: translateX(2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
       `}</style>
       
       <div style={{ ...styles.toast, transform: toast.show ? 'translateY(0)' : 'translateY(-120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#000' : '#fff', color: toast.type === 'error' ? '#fff' : '#000' }}>
@@ -476,18 +496,48 @@ const App = () => {
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.9.0</h1></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>Console v3.10.0</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
-            {/* INJEÇÃO DE BOTÃO MANUAL DE ATUALIZAÇÃO (REFRESH) */}
-            {!isEditorOpen && !isSettingsOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
-            {!isEditorOpen && !isSettingsOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurações e Rotinas"><Settings size={16} /> Sistema</button>}
-            {!isEditorOpen && !isSettingsOpen && <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> Novo</button>}
+            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
+            
+            {/* INJEÇÃO DE BOTÃO DE AUDITORIA */}
+            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={() => { setIsChatLogsOpen(true); fetchChatLogs(); }} style={{...styles.settingsBtn, backgroundColor: '#f0f9ff', borderColor: '#bae6fd'}} title="Auditoria de IA"><MessageSquare size={16} color="#0284c7" /> Telemetria IA</button>}
+            
+            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={() => setIsSettingsOpen(true)} style={styles.settingsBtn} title="Configurações e Rotinas"><Settings size={16} /> Sistema</button>}
+            {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> Novo</button>}
           </div>
         </header>
 
-        {isSettingsOpen ? (
+        {isChatLogsOpen ? (
           <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-             {/* INJEÇÃO DE AUTO-REFRESH NO BOTÃO CANCELAR */}
+            <button onClick={() => { setIsChatLogsOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
+            <h2 style={{ fontSize: '16px', borderBottom: '2px solid #000', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <MessageSquare size={20} /> Telemetria e Auditoria de Chatbot (Últimos 200)
+            </h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+              {loadingLogs ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><Loader2 className="animate-spin" color="#000" /></div>
+              ) : chatLogs.length === 0 ? (
+                <p style={{fontSize: '12px', opacity: 0.6, textAlign: 'center'}}>Nenhum log registrado na telemetria.</p>
+              ) : chatLogs.map((log, i) => (
+                <div key={i} className="log-card" style={{ background: log.role === 'user' ? '#f8fafc' : '#f0fdf4', borderLeft: `4px solid ${log.role === 'user' ? '#94a3b8' : '#4ade80'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                    <span>{log.role === 'user' ? '👤 Pergunta (Usuário)' : '🤖 Resposta (IA)'}</span>
+                    <span>{new Date(log.created_at).toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#0f172a', whiteSpace: 'pre-wrap' }}>{log.message}</div>
+                  {log.context_title && (
+                    <div style={{ marginTop: '12px', fontSize: '9px', background: '#e2e8f0', display: 'inline-block', padding: '4px 8px', borderRadius: '4px', color: '#475569', fontWeight: 'bold' }}>
+                      CONTEXTO ATIVO: {log.context_title}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : isSettingsOpen ? (
+          <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
              <button onClick={() => { setIsSettingsOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
              
              <form onSubmit={handleSaveSettings} style={styles.form}>
@@ -550,7 +600,6 @@ const App = () => {
           </div>
         ) : isEditorOpen ? (
           <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-            {/* INJEÇÃO DE AUTO-REFRESH NO BOTÃO CANCELAR */}
             <button onClick={() => { setIsEditorOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Cancelar</button>
             <form onSubmit={handleSavePost} style={styles.form}>
               <input style={styles.adminInput} placeholder="TÍTULO" value={title} onChange={e => setTitle(e.target.value)} required />

@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.3.0
-// Descrição: Rota pública de Chat atualizada com injeção de Contexto Ativo para resolução de foco semântico no texto em exibição.
+// Versão: v1.4.0
+// Descrição: Injeção de telemetria não-bloqueante (waitUntil) na rota de chat e criação de endpoint seguro de auditoria (GET /chat-logs).
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -51,7 +51,6 @@ app.post('/api/ai/transform', async (c) => {
 
 app.post('/api/ai/public/chat', async (c) => {
   try {
-    // INJEÇÃO ARQUITETURAL: Recepção do currentContext
     const { message, currentContext } = await c.req.json();
     const apiKey = c.env.GEMINI_API_KEY;
     if (!apiKey || !message) throw new Error("Parâmetros inválidos.");
@@ -59,8 +58,9 @@ app.post('/api/ai/public/chat', async (c) => {
     const { results } = await c.env.DB.prepare("SELECT title, content FROM posts ORDER BY is_pinned DESC, created_at DESC LIMIT 30").all();
     const dbContext = results.map(p => `TÍTULO: ${p.title}\nCONTEÚDO: ${p.content}`).join('\n\n---\n\n');
 
-    // INJEÇÃO DE DIRETRIZ DE FOCO SEMÂNTICO
     let activeContextPrompt = "";
+    const contextTitleLog = currentContext && currentContext.title ? currentContext.title : "Contexto Geral / Busca Global";
+    
     if (currentContext && currentContext.title) {
       activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${currentContext.title}\n[CONTEÚDO DO TEXTO NA TELA]: ${currentContext.content}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
     }
@@ -77,7 +77,17 @@ app.post('/api/ai/public/chat', async (c) => {
     });
     const data = await response.json();
     if (!response.ok) throw new Error("Falha na API Gemini.");
-    return c.json({ success: true, reply: data.candidates[0].content.parts[0].text });
+    
+    const replyText = data.candidates[0].content.parts[0].text;
+
+    // INJEÇÃO ARQUITETURAL: Telemetria Não-Bloqueante (Background Task)
+    const logPromise = c.env.DB.batch([
+      c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('user', ?, ?)").bind(message, contextTitleLog),
+      c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('bot', ?, ?)").bind(replyText, contextTitleLog)
+    ]);
+    c.executionCtx.waitUntil(logPromise);
+
+    return c.json({ success: true, reply: replyText });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
@@ -114,6 +124,16 @@ app.post('/api/ai/public/translate', async (c) => {
     const data = await response.json();
     if (!response.ok) throw new Error("Falha na API Gemini.");
     return c.json({ success: true, translation: data.candidates[0].content.parts[0].text });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+// --- ROTA DE AUDITORIA DE TELEMETRIA (ADMIN) ---
+app.get('/api/chat-logs', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    // Busca os últimos 200 registros de interação
+    const { results } = await c.env.DB.prepare("SELECT * FROM chat_logs ORDER BY created_at DESC LIMIT 200").all();
+    return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
