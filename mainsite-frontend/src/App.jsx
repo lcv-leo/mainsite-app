@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Loader2, ChevronUp, ArrowUp, Search, Bot, X, Send, Languages, AlignLeft, Sparkles, 
-  AlertTriangle, Sun, Moon, Monitor, Share2, Link2, MessageCircle, Mail 
+  AlertTriangle, Sun, Moon, Monitor, Share2, Link2, MessageCircle, Mail, Check
 } from 'lucide-react';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
