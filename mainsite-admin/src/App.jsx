@@ -11,6 +11,7 @@ import {
   CheckSquare, Palette, Type, Settings, RefreshCw, WrapText, Upload, Sparkles, MessageSquare, ShieldAlert, Share2
 } from 'lucide-react';
 
+import TelemetryPanel from './components/TelemetryPanel';
 import { Extension } from '@tiptap/core';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -610,45 +611,9 @@ if (loading) return <div style={styles.center}><Loader2 className="animate-spin"
         </header>
 
         {isSharesOpen ? (
-          <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-            <button onClick={() => { setIsSharesOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '16px', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Share2 size={20} /> Compartilhamentos e Engajamento (Últimos 200)
-              </h2>
-              <button onClick={() => fetchShareLogs(true)} style={{...styles.settingsBtn, padding: '6px 12px'}} title="Forçar sincronização">
-                <RefreshCw size={14} className={loadingLogs ? "animate-spin" : ""} /> Atualizar
-              </button>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {loadingLogs ? ( 
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><Loader2 className="animate-spin" color="#000" /></div> 
-              ) : shareLogs.length === 0 ? ( 
-                <p style={{fontSize: '12px', opacity: 0.6, textAlign: 'center'}}>Nenhum compartilhamento registrado na telemetria.</p> 
-              ) : shareLogs.map((log, i) => (
-                <div key={i} className="log-card" style={{ background: '#f8fafc', borderLeft: `4px solid ${log.platform === 'whatsapp' ? '#22c55e' : log.platform === 'email' ? '#38bdf8' : '#94a3b8'}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                    <span>Plataforma: {log.platform}</span>
-                    <span>{new Date(log.created_at).toLocaleString('pt-BR')}</span>
-                  </div>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0f172a' }}>{log.post_title}</div>
-                  {log.target && (
-                    <div style={{ marginTop: '12px', fontSize: '10px', background: '#e2e8f0', display: 'inline-block', padding: '6px 10px', borderRadius: '4px', color: '#334155', fontWeight: 'bold', wordBreak: 'break-all' }}>
-                      Destino: {(log.platform === 'link' || log.platform === 'whatsapp') ? (
-                        <a href={log.target} target="_blank" rel="noopener noreferrer" style={{color: '#0ea5e9', textDecoration: 'underline', marginLeft: '5px'}}>{log.target}</a>
-                      ) : log.platform === 'email' ? (
-                        <a href={`mailto:${log.target}`} style={{color: '#0ea5e9', textDecoration: 'underline', marginLeft: '5px'}}>{log.target}</a>
-                      ) : (
-                        <span style={{marginLeft: '5px'}}>{log.target}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          <TelemetryPanel type="shares" logs={shareLogs} loading={loadingLogs} onRefresh={fetchShareLogs} onClose={() => { setIsSharesOpen(false); fetchData(); }} styles={styles} />
+        ) : isChatLogsOpen ? (
+          <TelemetryPanel type="chat" logs={chatLogs} loading={loadingLogs} onRefresh={fetchChatLogs} onClose={() => { setIsChatLogsOpen(false); fetchData(); }} styles={styles} />
         ) : isChatLogsOpen ? (
           <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
             <button onClick={() => { setIsChatLogsOpen(false); fetchData(); }} style={styles.backButton}><ArrowLeft size={16} /> Voltar aos Registros</button>
