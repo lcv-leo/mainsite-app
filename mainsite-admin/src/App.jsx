@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.20.1
+// Versão: v3.20.2
 // Descrição: Monólito purificado. Orquestração central com painel de auditoria unificado e estados legados removidos.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -209,7 +209,6 @@ const App = () => {
             <button onClick={() => fetchData()} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={18} /></button>
             <button onClick={() => setIsAnalyticsOpen(true)} style={styles.headerBtn}><BarChart2 size={18} /> Auditoria</button>
             <button onClick={() => setIsSettingsOpen(true)} style={styles.headerBtn}><Settings size={18} /> Sistema</button>
-            <button onClick={() => { localStorage.removeItem('admin_secret'); setSecret(''); window.location.reload(); }} style={{ ...styles.headerBtn, color: '#ff4d4d', borderColor: '#ff4d4d' }}>Sair</button>
           </div>
         </header>
 

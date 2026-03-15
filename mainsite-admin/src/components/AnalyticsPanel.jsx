@@ -64,7 +64,7 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
                     <div key={item.id} style={cardStyle}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                         <strong>{item.name}</strong>
-                        <div style={dateBadge}><Calendar size={12}/> {new Date(item.created_at).toLocaleString('pt-BR')}</div>
+                        <div style={dateBadge}><Calendar size={12}/> {new Date(item.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR')}</div>
                       </div>
                       <div style={{ color: '#64748b', marginBottom: '10px' }}>{item.email} {item.phone ? `| ${item.phone}` : ''}</div>
                       <div style={{ background: '#f1f5f9', padding: '10px', borderRadius: '4px', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>"{item.message}"</div>
@@ -84,7 +84,7 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
                           <strong style={{ color: item.platform === 'whatsapp' ? '#25D366' : item.platform === 'email' ? '#0ea5e9' : '#64748b', textTransform: 'uppercase', marginRight: '10px' }}>[{item.platform}]</strong>
                           {item.post_title}
                         </div>
-                        <div style={dateBadge}><Calendar size={12}/> {new Date(item.created_at).toLocaleString('pt-BR')}</div>
+                        <div style={dateBadge}><Calendar size={12}/> {new Date(item.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR')}</div>
                       </div>
                       {item.target && <div style={{ color: '#64748b', marginTop: '5px', fontSize: '11px' }}>Destino: {item.target}</div>}
                     </div>
@@ -100,7 +100,7 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
                     <div key={item.id} style={{ ...cardStyle, borderLeft: `4px solid ${item.role === 'user' ? '#94a3b8' : '#3b82f6'}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                         <strong style={{ color: item.role === 'user' ? '#475569' : '#2563eb', textTransform: 'uppercase' }}>{item.role === 'user' ? '👤 Usuário' : '🤖 IA (Gemini)'}</strong>
-                        <div style={dateBadge}><Calendar size={12}/> {new Date(item.created_at).toLocaleString('pt-BR')}</div>
+                        <div style={dateBadge}><Calendar size={12}/> {new Date(item.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR')}</div>
                       </div>
                       <div style={{ color: '#94a3b8', fontSize: '10px', marginBottom: '8px', textTransform: 'uppercase' }}>Contexto: {item.context_title || 'Nenhum'}</div>
                       <div style={{ whiteSpace: 'pre-wrap' }}>{item.message}</div>

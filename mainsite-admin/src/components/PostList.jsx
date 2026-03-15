@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/components/PostList.jsx
-// Versão: v1.0.0
+// Versão: v1.0.1
 // Descrição: Componente isolado para renderização, ordenação (Drag and Drop) e ações dos fragmentos de texto.
 
 import React from 'react';
@@ -42,7 +42,7 @@ const PostList = ({
             </div>
             <div>
               <div style={styles.cardDate}>
-                {new Date(post.created_at).toLocaleDateString()} 
+                {new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR')} 
                 {post.is_pinned && <span style={styles.pinnedBadge}>FIXADO</span>}
               </div>
               <h2 style={styles.cardTitle}>{post.title}</h2>
