@@ -595,7 +595,6 @@ if (loading) return <div style={styles.center}><Loader2 className="animate-spin"
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <header style={styles.adminHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><Database size={18} /><h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'Console')}</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
             {!isEditorOpen && !isSettingsOpen && !isChatLogsOpen && !isSharesOpen && <button onClick={fetchData} style={styles.settingsBtn} title="Sincronizar com Servidor"><RefreshCw size={16} /> Atualizar</button>}
