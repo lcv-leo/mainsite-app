@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/components/ContactModal.jsx
-// Versão: v1.0.0
-// Descrição: Modal de contato com estética Glassmorphism e limite de caracteres.
+// Versão: v1.1.1
+// Descrição: Modal de contato com estética Glassmorphism, limite de caracteres e máscara dinâmica de telefone.
 
 import React, { useState } from 'react';
 import { Send, User, Phone, Mail, MessageSquare, Loader2, X } from 'lucide-react';
@@ -49,17 +49,14 @@ const ContactModal = ({ show, onClose, onSubmit, activePalette, isSubmitting }) 
         </h3>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          
           <div style={{ position: 'relative' }}>
             <User size={16} style={{ position: 'absolute', top: '13px', left: '12px', opacity: 0.5 }} />
             <input type="text" required placeholder="Seu Nome" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} />
           </div>
 
           <div style={{ display: 'flex', gap: '15px' }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <Phone size={16} style={{ position: 'absolute', top: '13px', left: '12px', opacity: 0.5 }} />
-              <input type="tel" placeholder="Telefone (Opcional)" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} style={inputStyle} />
-            </div>
-            <div style={{ display: 'flex', gap: '15px' }}>
+            {/* Campo de Telefone com a Máscara */}
             <div style={{ position: 'relative', flex: 1 }}>
               <Phone size={16} style={{ position: 'absolute', top: '13px', left: '12px', opacity: 0.5 }} />
               <input 
@@ -70,6 +67,12 @@ const ContactModal = ({ show, onClose, onSubmit, activePalette, isSubmitting }) 
                 maxLength={16}
                 style={inputStyle} 
               />
+            </div>
+            
+            {/* Campo de E-mail restaurado */}
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Mail size={16} style={{ position: 'absolute', top: '13px', left: '12px', opacity: 0.5 }} />
+              <input type="email" required placeholder="Seu E-mail" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={inputStyle} />
             </div>
           </div>
 
