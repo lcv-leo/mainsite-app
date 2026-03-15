@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/components/SettingsPanel.jsx
-// Versão: v1.0.0
+// Versão: v1.1.0
 // Descrição: Componente isolado para gerenciamento de configurações globais (Rate Limit, Rotação, Multi-Tema e Upload R2).
 
 import React from 'react';
@@ -108,7 +108,37 @@ const SettingsPanel = ({
             </div>
           </label>
         </div>
+        
+        {/* BLOCO 4: MOTOR DE AVISOS (DISCLAIMERS) */}
+        <h2 style={{ fontSize: '16px', borderBottom: '2px solid #000', paddingBottom: '10px', marginTop: '30px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <ShieldAlert size={18} /> Janelas de Aviso (Disclaimers Sequenciais)
+        </h2>
+        <div style={{ padding: '15px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
+            <input type="checkbox" checked={disclaimers.enabled} onChange={e => setDisclaimers({...disclaimers, enabled: e.target.checked})} style={{ width: '18px', height: '18px' }} />
+            Exibir Janelas de Aviso antes da leitura dos fragmentos
+          </label>
 
+          {disclaimers.enabled && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
+              {disclaimers.items.map((item, index) => (
+                <div key={item.id} style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '15px', borderRadius: '6px', position: 'relative' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>AVISO {index + 1}</span>
+                    <button type="button" onClick={() => { const newItems = [...disclaimers.items]; newItems.splice(index, 1); setDisclaimers({...disclaimers, items: newItems}); }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>REMOVER</button>
+                  </div>
+                  <input type="text" placeholder="Título (Ex: Termos de Leitura)" value={item.title} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].title = e.target.value; setDisclaimers({...disclaimers, items: newItems}); }} style={{ width: '100%', padding: '8px', marginBottom: '10px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                  <textarea placeholder="Texto do aviso..." value={item.text} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].text = e.target.value; setDisclaimers({...disclaimers, items: newItems}); }} style={{ width: '100%', padding: '8px', marginBottom: '10px', border: '1px solid #ccc', borderRadius: '4px', minHeight: '80px', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical' }} />
+                  <input type="text" placeholder="Texto do Botão (Ex: Concordo)" value={item.buttonText} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].buttonText = e.target.value; setDisclaimers({...disclaimers, items: newItems}); }} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                </div>
+              ))}
+              <button type="button" onClick={() => setDisclaimers({...disclaimers, items: [...disclaimers.items, { id: crypto.randomUUID(), title: '', text: '', buttonText: 'Concordo' }]})} style={{ padding: '10px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
+                + ADICIONAR NOVO AVISO
+              </button>
+            </div>
+          )}
+        </div>
+        
         <button type="submit" disabled={isSaving} style={styles.adminButton}>
           {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} 
           SALVAR CONFIGURAÇÕES GLOBAIS

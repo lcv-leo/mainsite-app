@@ -45,6 +45,7 @@ const App = () => {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [rotation, setRotation] = useState({ enabled: false, interval: 60, last_rotated_at: 0 });
   const [rateLimit, setRateLimit] = useState({ enabled: false, maxRequests: 5, windowMinutes: 1 });
+  const [disclaimers, setDisclaimers] = useState({ enabled: true, items: [] });
 
   const fileInputBgRef = useRef(null);
   const [uploadTarget, setUploadTarget] = useState(null);
@@ -78,6 +79,8 @@ const App = () => {
 
       const resRateLimit = await fetch(`${API_URL}/settings/ratelimit`, { headers: { 'Authorization': `Bearer ${secret}` } });
       if (resRateLimit.ok) setRateLimit(await resRateLimit.json());
+      const resDisclaimers = await fetch(`${API_URL}/settings/disclaimers`);
+      if (resDisclaimers.ok) setDisclaimers(await resDisclaimers.json());
 
     } catch (err) { showNotification("Erro na sincronização.", "error"); } finally { setLoading(false); }
   }, [showNotification, secret]);
@@ -138,7 +141,8 @@ const App = () => {
       const resApp = await fetch(`${API_URL}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(settings) });
       const resRot = await fetch(`${API_URL}/settings/rotation`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rotation) });
       const resRL = await fetch(`${API_URL}/settings/ratelimit`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rateLimit) });
-      if (resApp.ok && resRot.ok && resRL.ok) showNotification("Configurações salvas.", "success"); else throw new Error();
+      const resDisc = await fetch(`${API_URL}/settings/disclaimers`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(disclaimers) });
+      if (resApp.ok && resRot.ok && resRL.ok && resDisc.ok) showNotification("Configurações salvas.", "success"); else throw new Error();
     } catch (err) { showNotification("Erro ao salvar configs.", "error"); } finally { setIsSaving(false); }
   };
 
@@ -232,7 +236,7 @@ const App = () => {
         ) : isChatLogsOpen ? (
           <TelemetryPanel type="chat" logs={chatLogs} loading={loadingLogs} onRefresh={fetchChatLogs} onClose={() => { setIsChatLogsOpen(false); fetchData(); }} styles={styles} />
         ) : isSettingsOpen ? (
-          <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} rotation={rotation} setRotation={setRotation} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
+          <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} rotation={rotation} setRotation={setRotation} disclaimers={disclaimers} setDisclaimers={setDisclaimers} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
         ) : isEditorOpen ? (
           <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
         ) : (
