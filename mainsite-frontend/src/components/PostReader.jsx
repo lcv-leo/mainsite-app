@@ -3,9 +3,9 @@
 // Descrição: Componente isolado para renderização do fragmento, muralha anti-cópia e requisições de Inteligência Artificial.
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare } from 'lucide-react';
+import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home } from 'lucide-react';
 
-const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, isSendingEmail }) => {
+const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, isSendingEmail, isNotHomePage }) => {
   const [postSummary, setPostSummary] = useState(null);
   const [translatedContent, setTranslatedContent] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -126,6 +126,32 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         .share-email:disabled { background: #94a3b8; cursor: wait; }
         .share-contact { background: #8b5cf6; } .share-contact:hover { background: #7c3aed; transform: translateY(-2px); }
       `}</style>
+
+      {/* Botão Dinâmico de Retorno à Home Page (Só aparece em textos antigos) */}
+      {isNotHomePage && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px', animation: 'fadeIn 0.5s ease-out' }}>
+          <button
+            onClick={() => window.location.href = '/'}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: '12px', color: activePalette.titleColor, opacity: 0.7, transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.08)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.transform = 'scale(1)'; }}
+            title="Voltar para a postagem principal"
+          >
+            <div style={{ 
+              padding: '18px', borderRadius: '50%', 
+              background: `rgba(${activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? '255,255,255' : '0,0,0'}, 0.05)`, 
+              border: `1px solid rgba(${activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? '255,255,255' : '0,0,0'}, 0.1)`,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+            }}>
+              <Home size={32} />
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: '900', letterSpacing: '3px', textTransform: 'uppercase' }}>Home Page</span>
+          </button>
+        </div>
+      )}
 
       <h1 className="h1-title">{post.title}</h1>
       

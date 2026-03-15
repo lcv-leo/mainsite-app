@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.17.0
+// Versão: v3.18.0
 // Descrição: Baseline consolidado (Component Splitting). Orquestração central, Motor de Temas e Roteamento URL Purificado.
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -14,7 +14,7 @@ import PostReader from './components/PostReader';
 import ContactModal from './components/ContactModal';
 
 const API_URL = 'https://mainsite-app.lcv.workers.dev/api';
-const APP_VERSION = 'APP v3.17.0';
+const APP_VERSION = 'APP v3.18.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -73,9 +73,8 @@ const App = () => {
       const ogDesc = document.querySelector('meta[property="og:description"]');
       if (ogDesc) ogDesc.setAttribute("content", cleanText);
       
-      // Purificação da URL: Remove qualquer parâmetro de busca (?p=) da vista do usuário.
-      // Garante que o F5 (Refresh) sempre retorne ao estado natural de rotação da homepage.
-      window.history.replaceState(null, '', window.location.pathname);
+      // Restauração da Memória de Estado: Mantém o ?p= na URL para que o F5 não expulse o leitor da postagem atual.
+      window.history.replaceState(null, '', `?p=${currentPost.id}`);
     } else {
       document.title = "Divagações Filosóficas";
     }
@@ -241,6 +240,7 @@ const App = () => {
               onShare={handleShare} 
               onContact={() => setIsContactOpen(true)}
               isSendingEmail={isSendingEmail} 
+              isNotHomePage={posts.length > 0 && currentPost.id !== posts[0].id}
             />
           )}
         </div>
