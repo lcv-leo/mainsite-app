@@ -2,142 +2,89 @@
 // Versão: v1.2.0
 // Descrição: Restauração da identidade visual (Glassmorphism e Elegância) integrada ao motor de Opt-Out (localStorage) do frontend público.
 
+// ==========================================
+// PATCH 5: mainsite-frontend/src/components/DisclaimerModal.jsx
+// ==========================================
+
 import React, { useState, useEffect } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 const DisclaimerModal = ({ show, onClose, activePalette, config }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  // INJEÇÃO: Estado para controlar o checkbox de opt-out
   const [dontShowAgain, setDontShowAgain] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
 
+  // Reinicia o índice sempre que o modal for aberto para um novo post
   useEffect(() => {
-    if (show) {
-      setIsVisible(true);
-    } else {
-      setTimeout(() => setIsVisible(false), 400); // Sincronizado com a transição CSS
-    }
+    if (show) setCurrentIndex(0);
   }, [show]);
 
-  if (!isVisible && !show) return null;
+  // Se estiver desativado, se não houver itens, ou se não deve mostrar, aborta silenciosamente.
+  if (!show || !activePalette || !config || !config.enabled || !config.items || config.items.length === 0) {
+    if (show) onClose(); // Força o fechamento se não houver nada a exibir
+    return null;
+  }
 
-  const safeConfig = config || { enabled: false, items: [] };
-  if (!safeConfig.enabled || !safeConfig.items || safeConfig.items.length === 0) return null;
+  const isDarkBase = activePalette.bgColor && (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1'));
+  const currentDisclaimer = config.items[currentIndex];
 
-  const disclaimerData = safeConfig.items[0];
-
-  const handleAccept = () => {
-    if (dontShowAgain) {
-      localStorage.setItem('hide_df_disclaimer', 'true');
+  const handleAgree = () => {
+    if (currentIndex < config.items.length - 1) {
+      // Se há mais um aviso na fila, avança.
+      setCurrentIndex(prev => prev + 1);
+    } else {
+      // INJEÇÃO: Se era o último e o usuário marcou a caixa, grava no navegador.
+      if (dontShowAgain) {
+        localStorage.setItem('hide_df_disclaimer', 'true');
+      }
+      // Fecha o modal e libera a leitura.
+      onClose();
     }
-    onClose();
-  };
-
-  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
-
-  // Estética Glassmorphism e Sombras Suaves (Frontend Público)
-  const overlayStyle = {
-    position: 'fixed',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: isDarkBase ? 'rgba(0, 0, 0, 0.65)' : 'rgba(255, 255, 255, 0.45)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 9999,
-    opacity: show ? 1 : 0,
-    transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-    padding: '20px'
-  };
-
-  const modalStyle = {
-    backgroundColor: activePalette.bgColor,
-    color: activePalette.fontColor,
-    padding: '40px 35px',
-    maxWidth: '520px',
-    width: '100%',
-    borderRadius: '16px',
-    border: '1px solid rgba(128, 128, 128, 0.15)',
-    boxShadow: isDarkBase 
-      ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' 
-      : '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
-    transform: show ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(15px)',
-    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    textAlign: 'center',
-    gap: '24px'
-  };
-
-  const buttonStyle = {
-    backgroundColor: activePalette.fontColor,
-    color: activePalette.bgColor,
-    border: 'none',
-    padding: '14px 35px',
-    fontSize: '15px',
-    fontWeight: '600',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    marginTop: '10px',
-    width: '100%',
-    transition: 'transform 0.2s ease, opacity 0.2s ease',
-    boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)'
-  };
-
-  const checkboxContainerStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '10px',
-    marginTop: '5px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    opacity: 0.85,
-    transition: 'opacity 0.2s ease'
   };
 
   return (
-    <div style={overlayStyle}>
-      <div style={modalStyle}>
-        <div style={{ padding: '15px', borderRadius: '50%', backgroundColor: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}>
-          <AlertCircle size={36} strokeWidth={1.5} style={{ opacity: 0.9 }} />
-        </div>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
+      
+      {/* Fundo escurecido suave (Animação reinicia a cada troca de índice para dar feedback visual) */}
+      <div key={`bg-${currentIndex}`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)', animation: 'fadeIn 0.3s ease-out' }}></div>
+      
+      {/* Cartão Vídrico Sequencial */}
+      <div key={`card-${currentIndex}`} style={{ position: 'relative', width: '90%', maxWidth: '450px', background: isDarkBase ? 'rgba(20, 20, 20, 0.65)' : 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.15)`, borderRadius: '16px', padding: '40px', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', color: activePalette.fontColor, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.4s ease-out' }}>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', letterSpacing: '-0.02em' }}>
-            {disclaimerData.title || "Aviso"}
-          </h2>
-          
-          <p style={{ margin: 0, fontSize: '15px', lineHeight: '1.6', opacity: 0.8 }}>
-            {disclaimerData.text}
-          </p>
-        </div>
+        {/* Indicador de Paginação (se houver mais de um) */}
+        {config.items.length > 1 && (
+          <div style={{ position: 'absolute', top: '15px', right: '20px', fontSize: '10px', fontWeight: 'bold', opacity: 0.5, letterSpacing: '1px' }}>
+            {currentIndex + 1} / {config.items.length}
+          </div>
+        )}
 
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
-          <label 
-            style={checkboxContainerStyle}
-            onMouseOver={(e) => e.currentTarget.style.opacity = 1}
-            onMouseOut={(e) => e.currentTarget.style.opacity = 0.85}
-          >
+        <div style={{ display: 'flex', justifyContent: 'center', color: activePalette.titleColor, opacity: 0.8 }}>
+          <AlertTriangle size={40} />
+        </div>
+        <h3 style={{ margin: 0, fontSize: '18px', color: activePalette.titleColor, textTransform: 'uppercase', letterSpacing: '1px' }}>
+          {currentDisclaimer.title || 'Aviso'}
+        </h3>
+        <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.8', opacity: 0.85, whiteSpace: 'pre-wrap' }}>
+          {currentDisclaimer.text}
+        </p>
+
+        {/* INJEÇÃO: Wrapper englobando o Checkbox e o Botão original para manter a harmonia do layout */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', opacity: 0.8, cursor: 'pointer' }}>
             <input 
               type="checkbox" 
               checked={dontShowAgain} 
               onChange={(e) => setDontShowAgain(e.target.checked)}
-              style={{ cursor: 'pointer', width: '18px', height: '18px', accentColor: activePalette.fontColor }}
+              style={{ cursor: 'pointer' }}
             />
-            Não exibir este aviso novamente
+            Não exibir {config.items.length > 1 ? 'estes avisos' : 'este aviso'} novamente
           </label>
 
-          <button 
-            onClick={handleAccept} 
-            style={buttonStyle}
-            onMouseOver={(e) => e.target.style.transform = 'translateY(-1px)'}
-            onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
-            onMouseDown={(e) => e.target.style.transform = 'translateY(1px)'}
-          >
-            {disclaimerData.buttonText || "Concordo"}
+          <button onClick={handleAgree} style={{ padding: '15px 30px', background: activePalette.titleColor, color: activePalette.bgColor, border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', letterSpacing: '2px', transition: 'transform 0.2s', textTransform: 'uppercase' }}>
+            {currentDisclaimer.buttonText || 'Concordo'}
           </button>
         </div>
+
       </div>
     </div>
   );
