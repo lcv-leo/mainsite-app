@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.20.1
-// Descrição: Baseline consolidado. Motor de Temas, comunicação apontando para domínio customizado e otimização tipográfica de line-height para títulos de matérias.
+// Versão: v3.21.0
+// Descrição: Baseline consolidado. Motor de Temas e implementação da trava de Opt-Out (localStorage) para o DisclaimerModal.
 
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Loader2, AlertTriangle, Check } from 'lucide-react';
@@ -15,7 +15,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const ContactModal = lazy(() => import('./components/ContactModal'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.20.1';
+const APP_VERSION = 'APP v3.21.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -61,9 +61,16 @@ const App = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // INJEÇÃO DA REGRA DE OPT-OUT NO MOTOR DE ROTEAMENTO/SEO
   useEffect(() => {
     if (currentPost) {
-      setShowDisclaimer(true);
+      // Verifica no navegador se o usuário já marcou a opção "Não mostrar novamente"
+      const userOptedOut = localStorage.getItem('hide_df_disclaimer');
+      
+      if (userOptedOut !== 'true') {
+        setShowDisclaimer(true);
+      }
+      
       document.title = `${currentPost.title} | Divagações Filosóficas`;
       const cleanText = currentPost.content ? currentPost.content.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : '';
       const metaDesc = document.querySelector('meta[name="description"]');
@@ -224,10 +231,7 @@ const App = () => {
         .animate-spin { animation: spin 1s linear infinite; }
         .public-wrapper { padding: 40px 20px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
         .app-container { max-width: 1200px; width: 100%; padding: 50px; border: 1px solid rgba(128,128,128,0.2); background-color: ${activePalette.bgColor}; margin: auto; box-sizing: border-box; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.15); transition: background-color 0.5s ease; }
-        
-        /* Otimização de Line Height: Adiciona 50% de espaçamento em quebras de linha de títulos */
         .public-wrapper h1, .public-wrapper h2, .public-wrapper h3, .public-wrapper h4 { line-height: 1.5 !important; }
-        
         @media (max-width: 768px) { .public-wrapper { padding: 20px 10px; } .app-container { padding: 30px 20px; border-radius: 0; } }
       `}</style>
 
