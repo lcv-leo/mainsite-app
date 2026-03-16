@@ -1,10 +1,10 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.22.0
-// Descrição: Monólito purificado. Orquestração central com comunicação apontando para domínio customizado.
+// Versão: v3.23.0
+// Descrição: Monólito purificado. Orquestração central com UI reconstruída em Glassmorphism/Material Design, sincronizada com o motor de temas Light/Dark.
 
-import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
-  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2
+  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2, Moon, Sun
 } from 'lucide-react';
 
 import PostList from './components/PostList';
@@ -13,15 +13,14 @@ const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
 const EditorPanel = lazy(() => import('./components/EditorPanel'));
 const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel'));
 
-// INJEÇÃO: URL Oficial da API
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.22.0';
+const APP_VERSION = 'Console v3.23.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
-  light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' },
-  dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' },
-  shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' }
+  light: { bgColor: '#f8f9fa', bgImage: '', fontColor: '#202124', titleColor: '#1a73e8' },
+  dark: { bgColor: '#131314', bgImage: '', fontColor: '#e3e3e3', titleColor: '#8ab4f8' },
+  shared: { fontSize: '1rem', titleFontSize: '1.5rem', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }
 };
 
 const App = () => {
@@ -44,6 +43,10 @@ const App = () => {
   const [rateLimit, setRateLimit] = useState({ enabled: false, maxRequests: 5, windowMinutes: 1 });
   const [disclaimers, setDisclaimers] = useState({ enabled: true, items: [] });
 
+  // Motor de Temas
+  const [userTheme, setUserTheme] = useState(localStorage.getItem('adminThemePref') || 'auto');
+  const [systemIsDark, setSystemIsDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
+
   const fileInputBgRef = useRef(null);
   const [uploadTarget, setUploadTarget] = useState(null);
   const [isUploadingBg, setIsUploadingBg] = useState(false);
@@ -53,6 +56,13 @@ const App = () => {
   const showNotification = useCallback((message, type = 'info') => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e) => setSystemIsDark(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -66,8 +76,8 @@ const App = () => {
         if (dataSettings.light) setSettings(dataSettings);
         else setSettings({
           ...DEFAULT_SETTINGS,
-          dark: { bgColor: dataSettings.bgColor || '#131314', bgImage: dataSettings.bgImage || '', fontColor: dataSettings.fontColor || '#E3E3E3', titleColor: dataSettings.titleColor || '#8AB4F8' },
-          shared: { fontSize: dataSettings.fontSize || '1.15rem', titleFontSize: dataSettings.titleFontSize || '1.8rem', fontFamily: dataSettings.fontFamily || 'sans-serif' }
+          dark: { bgColor: dataSettings.bgColor || '#131314', bgImage: dataSettings.bgImage || '', fontColor: dataSettings.fontColor || '#e3e3e3', titleColor: dataSettings.titleColor || '#8ab4f8' },
+          shared: { fontSize: dataSettings.fontSize || '1rem', titleFontSize: dataSettings.titleFontSize || '1.5rem', fontFamily: dataSettings.fontFamily || DEFAULT_SETTINGS.shared.fontFamily }
         });
       }
 
@@ -84,6 +94,24 @@ const App = () => {
   }, [showNotification, secret]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Cálculo da Paleta Ativa
+  const activePalette = useMemo(() => {
+    const safeDark = settings.dark || DEFAULT_SETTINGS.dark;
+    const safeLight = settings.light || DEFAULT_SETTINGS.light;
+    if (!settings.allowAutoMode && userTheme === 'auto') return safeDark;
+    let resolved = userTheme;
+    if (resolved === 'auto') resolved = systemIsDark ? 'dark' : 'light';
+    return resolved === 'dark' ? safeDark : safeLight;
+  }, [settings, userTheme, systemIsDark]);
+
+  const cycleTheme = () => {
+    const modes = settings.allowAutoMode ? ['auto', 'light', 'dark'] : ['light', 'dark'];
+    const nextIndex = (modes.indexOf(userTheme) + 1) % modes.length;
+    const next = modes[nextIndex];
+    setUserTheme(next);
+    localStorage.setItem('adminThemePref', next);
+  };
 
   const triggerBgUpload = (targetTheme) => { setUploadTarget(targetTheme); if (fileInputBgRef.current) fileInputBgRef.current.click(); };
 
@@ -160,35 +188,90 @@ const App = () => {
     setIsEditorOpen(true);
   };
 
-  if (loading) return <div style={styles.center}><Loader2 className="animate-spin" color="#000" /></div>;
+  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
+  const glassBg = isDarkBase ? 'rgba(30, 30, 32, 0.7)' : 'rgba(255, 255, 255, 0.75)';
+  const glassBorder = isDarkBase ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+
+  const defaultCSSPattern = isDarkBase 
+    ? `radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.15), transparent 45%), radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.15), transparent 45%)`
+    : `radial-gradient(circle at 15% 40%, rgba(26, 115, 232, 0.08), transparent 45%), radial-gradient(circle at 85% 60%, rgba(161, 66, 244, 0.08), transparent 45%)`;
+
+  const bgImageToUse = (activePalette.bgImage && activePalette.bgImage.trim() !== '') 
+    ? (isDarkBase ? `url("${activePalette.bgImage}")` : `linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url("${activePalette.bgImage}")`) 
+    : defaultCSSPattern;
+
+  const styles = {
+    center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: activePalette.bgColor },
+    adminBody: { backgroundColor: activePalette.bgColor, backgroundImage: bgImageToUse, backgroundSize: 'cover', backgroundAttachment: 'fixed', color: activePalette.fontColor, fontFamily: settings.shared.fontFamily, minHeight: '100vh', padding: '40px 20px', transition: 'all 0.4s ease' },
+    toast: { position: 'fixed', top: '30px', left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor, padding: '12px 24px', borderRadius: '12px', zIndex: 2000, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', border: `1px solid ${glassBorder}`, display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '500', fontSize: '14px' },
+    modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: isDarkBase ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 },
+    modalContent: { backgroundColor: isDarkBase ? '#1e1e1e' : '#ffffff', padding: '40px', borderRadius: '24px', border: `1px solid ${glassBorder}`, maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', color: activePalette.fontColor },
+    modalText: { fontSize: '16px', fontWeight: '500', marginBottom: '30px' },
+    modalActions: { display: 'flex', gap: '12px', justifyContent: 'center' },
+    modalBtnConfirm: { backgroundColor: '#ea4335', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
+    modalBtnCancel: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
+    adminContainer: { maxWidth: '1000px', margin: '0 auto', backgroundColor: glassBg, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: '24px', border: `1px solid ${glassBorder}`, padding: '40px', boxShadow: '0 20px 40px rgba(0,0,0,0.08)' },
+    adminHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: `1px solid ${glassBorder}`, paddingBottom: '24px' },
+    adminTitle: { fontSize: '18px', fontWeight: '600', color: activePalette.titleColor, letterSpacing: '-0.5px' },
+    plusButton: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none', borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', transition: 'opacity 0.2s' },
+    headerBtn: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', transition: 'background 0.2s' },
+    settingsBtn: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' },
+    backButton: { background: 'none', border: 'none', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px', color: activePalette.fontColor, opacity: 0.8 },
+    form: { display: 'flex', flexDirection: 'column', gap: '24px' },
+    settingsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)', padding: '20px', border: `1px solid ${glassBorder}`, borderRadius: '16px' },
+    label: { display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor },
+    colorInput: { height: '40px', width: '100%', cursor: 'pointer', border: 'none', borderRadius: '8px', background: 'transparent' },
+    textInput: { padding: '12px', border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff', color: activePalette.fontColor, outline: 'none', fontSize: '14px', borderRadius: '8px', transition: 'border 0.2s' },
+    adminInput: { border: 'none', borderBottom: `2px solid ${activePalette.titleColor}`, backgroundColor: 'transparent', color: activePalette.titleColor, padding: '15px 0', fontSize: '24px', fontWeight: '600', outline: 'none', marginBottom: '10px' },
+    editorContainer: { border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+    toolbar: { display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '12px', borderBottom: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' },
+    toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: activePalette.fontColor, border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '6px', width: '32px', height: '32px', transition: 'background 0.2s' },
+    toolbarDivider: { width: '1px', backgroundColor: glassBorder, margin: '0 8px' },
+    tiptapWrapper: { backgroundColor: 'transparent', color: activePalette.fontColor, cursor: 'text' },
+    statusBar: { padding: '8px 16px', borderTop: `1px solid ${glassBorder}`, fontSize: '12px', color: activePalette.fontColor, opacity: 0.6, textAlign: 'right', background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)' },
+    adminButton: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none', borderRadius: '12px', padding: '16px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', letterSpacing: '0.5px', marginTop: '20px', transition: 'opacity 0.2s' },
+    list: { display: 'flex', flexDirection: 'column', gap: '12px' },
+    postCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff', borderRadius: '16px', transition: 'transform 0.2s, box-shadow 0.2s' },
+    cardDate: { fontSize: '12px', color: activePalette.fontColor, opacity: 0.6, marginBottom: '6px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' },
+    pinnedBadge: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold' },
+    cardTitle: { fontSize: '16px', fontWeight: '600', color: activePalette.fontColor },
+    actions: { display: 'flex', gap: '8px' },
+    actionBtnPin: { background: 'transparent', border: 'none', padding: '8px', cursor: 'pointer', color: activePalette.fontColor, opacity: 0.8, borderRadius: '8px', transition: 'background 0.2s' },
+    actionBtnEdit: { background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: 'none', padding: '8px', cursor: 'pointer', color: activePalette.fontColor, borderRadius: '8px', transition: 'background 0.2s' },
+    actionBtnDelete: { background: 'transparent', border: 'none', padding: '8px', cursor: 'pointer', color: '#ea4335', borderRadius: '8px', transition: 'background 0.2s' },
+    versionFooterAdmin: { marginTop: '40px', textAlign: 'center', fontSize: '12px', color: activePalette.fontColor, opacity: 0.4, fontWeight: '500' }
+  };
+
+  if (loading) return <div style={styles.center}><Loader2 className="animate-spin" color={activePalette.fontColor} size={32} /></div>;
 
   return (
     <div style={styles.adminBody}>
       <style>{`
-        .ProseMirror { min-height: 400px; padding: 25px; outline: none; line-height: 1.6; font-size: 15px; }
-        .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: #adb5bd; pointer-events: none; height: 0; }
+        .ProseMirror { min-height: 400px; padding: 30px; outline: none; line-height: 1.6; font-size: 16px; }
+        .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: ${isDarkBase ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}; pointer-events: none; height: 0; }
         .ProseMirror table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 0; overflow: hidden; }
-        .ProseMirror table td, .ProseMirror table th { min-width: 1em; border: 1px solid #ced4da; padding: 3px 5px; vertical-align: top; box-sizing: border-box; position: relative; }
-        .ProseMirror table th { font-weight: bold; text-align: left; background-color: #f1f3f5; }
+        .ProseMirror table td, .ProseMirror table th { min-width: 1em; border: 1px solid ${glassBorder}; padding: 8px; vertical-align: top; box-sizing: border-box; position: relative; }
+        .ProseMirror table th { font-weight: bold; text-align: left; background-color: ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'}; }
         ul[data-type="taskList"] { list-style: none; padding: 0; }
         ul[data-type="taskList"] li { display: flex; align-items: center; }
         ul[data-type="taskList"] li label { margin-right: 8px; }
-        .log-card { padding: 15px; border-radius: 4px; border: 1px solid #eee; transition: all 0.2s; }
-        .log-card:hover { transform: translateX(2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .log-card { padding: 20px; border-radius: 16px; border: 1px solid ${glassBorder}; background: ${isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff'}; transition: all 0.2s; }
+        .log-card:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        button:hover { opacity: 0.9; }
       `}</style>
       
-      <div style={{ ...styles.toast, transform: toast.show ? 'translateY(0)' : 'translateY(-120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#000' : '#fff', color: toast.type === 'error' ? '#fff' : '#000' }}>
-        {toast.type === 'error' ? <AlertCircle size={16} /> : <Check size={16} />} <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{toast.message}</span>
+      <div style={styles.toast}>
+        {toast.type === 'error' ? <AlertCircle size={18} /> : <Check size={18} />} <span>{toast.message}</span>
       </div>
 
       {modal.show && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
-            <AlertCircle size={36} style={{ marginBottom: '20px' }} />
-            <p style={styles.modalText}>Deseja apagar permanentemente?</p>
+            <AlertCircle size={48} color="#ea4335" style={{ marginBottom: '20px' }} />
+            <p style={styles.modalText}>Deseja apagar este fragmento permanentemente?</p>
             <div style={styles.modalActions}>
-              <button onClick={() => setModal({ show: false, id: null })} style={styles.modalBtnCancel}>CANCELAR</button>
-              <button onClick={confirmDelete} style={styles.modalBtnConfirm}>EXCLUIR</button>
+              <button onClick={() => setModal({ show: false, id: null })} style={styles.modalBtnCancel}>Cancelar</button>
+              <button onClick={confirmDelete} style={styles.modalBtnConfirm}>Excluir</button>
             </div>
           </div>
         </div>
@@ -198,21 +281,24 @@ const App = () => {
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Database size={18} />
-            <h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'Console')}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <Database size={24} color={activePalette.titleColor} />
+            <h1 style={styles.adminTitle}>{APP_VERSION}</h1>
             {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && (
-              <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={16} /> NOVO</button>
+              <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={18} /> Novo</button>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '15px' }}>
-            <button onClick={() => fetchData()} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={18} /></button>
-            <button onClick={() => setIsAnalyticsOpen(true)} style={styles.headerBtn}><BarChart2 size={18} /> Auditoria</button>
-            <button onClick={() => setIsSettingsOpen(true)} style={styles.headerBtn}><Settings size={18} /> Sistema</button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button onClick={cycleTheme} style={styles.headerBtn} title="Alternar Tema">
+              {userTheme === 'auto' ? <Settings size={16}/> : userTheme === 'dark' ? <Moon size={16}/> : <Sun size={16}/>}
+            </button>
+            <button onClick={() => fetchData()} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={16} /></button>
+            <button onClick={() => setIsAnalyticsOpen(true)} style={styles.headerBtn}><BarChart2 size={16} /> Auditoria</button>
+            <button onClick={() => setIsSettingsOpen(true)} style={styles.headerBtn}><Settings size={16} /> Sistema</button>
           </div>
         </header>
 
-        <Suspense fallback={<div style={{ padding: '50px', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" size={32} /></div>}>
+        <Suspense fallback={<div style={{ padding: '50px', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" color={activePalette.fontColor} size={32} /></div>}>
           {isAnalyticsOpen ? (
             <AnalyticsPanel onClose={() => { setIsAnalyticsOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} />
           ) : isSettingsOpen ? (
@@ -237,48 +323,6 @@ const App = () => {
       </div>
     </div>
   );
-};
-
-const styles = {
-  center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f5f5' },
-  adminBody: { backgroundColor: '#f5f5f5', color: '#000', fontFamily: 'monospace', minHeight: '100vh', padding: '40px 20px' },
-  toast: { position: 'fixed', top: '30px', left: '50%', marginLeft: '-150px', width: '300px', padding: '15px 20px', display: 'flex', alignItems: 'center', gap: '15px', zIndex: 2000, boxShadow: '10px 10px 0px rgba(0,0,0,0.1)', transition: 'all 0.5s', border: '2px solid #000' },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, backdropFilter: 'blur(8px)' },
-  modalContent: { backgroundColor: '#fff', padding: '50px', border: '3px solid #000', maxWidth: '450px', width: '90%', textAlign: 'center', boxShadow: '25px 25px 0px #000' },
-  modalText: { fontSize: '15px', fontWeight: '900', marginBottom: '35px', letterSpacing: '1px', textTransform: 'uppercase' },
-  modalActions: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  modalBtnConfirm: { backgroundColor: '#000', color: '#fff', border: 'none', padding: '18px', fontWeight: 'bold', cursor: 'pointer', letterSpacing: '2px' },
-  modalBtnCancel: { backgroundColor: '#fff', color: '#000', border: '2px solid #000', padding: '18px', fontWeight: 'bold', cursor: 'pointer', letterSpacing: '2px' },
-  adminContainer: { maxWidth: '900px', margin: '0 auto', backgroundColor: '#fff', border: '2px solid #000', padding: '50px', boxShadow: '20px 20px 0px #d0d0d0' },
-  adminHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: '3px solid #000', paddingBottom: '20px' },
-  adminTitle: { fontSize: '14px', letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: '900' },
-  plusButton: { backgroundColor: '#000', color: '#fff', border: 'none', padding: '10px 15px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
-  headerBtn: { backgroundColor: '#fff', color: '#000', border: '2px solid #000', padding: '10px 15px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
-  settingsBtn: { backgroundColor: '#fff', color: '#000', border: '2px solid #000', padding: '10px 15px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' },
-  backButton: { background: 'none', border: 'none', fontSize: '12px', fontWeight: '900', cursor: 'pointer', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px', color: '#555' },
-  form: { display: 'flex', flexDirection: 'column', gap: '30px' },
-  settingsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', background: '#fafafa', padding: '15px', border: '1px solid #ddd', borderRadius: '4px' },
-  label: { display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 'bold' },
-  colorInput: { height: '35px', width: '100%', cursor: 'pointer', border: '1px solid #ccc', borderRadius: '4px' },
-  textInput: { padding: '8px', border: '1px solid #ccc', outline: 'none', fontSize: '13px', fontFamily: 'monospace', borderRadius: '4px' },
-  adminInput: { border: 'none', borderBottom: '3px solid #000', padding: '15px 0', fontSize: '18px', fontWeight: '900', outline: 'none' },
-  editorContainer: { border: '2px solid #000', backgroundColor: '#fff', display: 'flex', flexDirection: 'column' },
-  toolbar: { display: 'flex', flexWrap: 'wrap', gap: '3px', padding: '10px', borderBottom: '2px solid #000', backgroundColor: '#f4f4f4' },
-  toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #ccc', padding: '6px', cursor: 'pointer', borderRadius: '4px', width: '28px', height: '28px' },
-  toolbarDivider: { width: '1px', backgroundColor: '#ccc', margin: '0 8px' },
-  tiptapWrapper: { backgroundColor: '#fff', cursor: 'text' },
-  statusBar: { padding: '5px 15px', borderTop: '1px solid #eee', fontSize: '10px', color: '#888', textAlign: 'right', background: '#fafafa' },
-  adminButton: { backgroundColor: '#000', color: '#fff', border: 'none', padding: '20px', fontSize: '12px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px', letterSpacing: '3px', marginTop: '10px' },
-  list: { display: 'flex', flexDirection: 'column', gap: '10px' },
-  postCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', border: '1px solid #eee', backgroundColor: '#fff', transition: 'all 0.2s' },
-  cardDate: { fontSize: '9px', color: '#888', marginBottom: '5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px' },
-  pinnedBadge: { backgroundColor: '#000', color: '#fff', padding: '2px 5px', borderRadius: '3px', fontSize: '7px', letterSpacing: '1px' },
-  cardTitle: { fontSize: '13px', fontWeight: '900', textTransform: 'uppercase' },
-  actions: { display: 'flex', gap: '8px' },
-  actionBtnPin: { border: 'none', padding: '10px', cursor: 'pointer', borderRadius: '4px' },
-  actionBtnEdit: { background: '#f0f0f0', border: 'none', padding: '10px', cursor: 'pointer', borderRadius: '4px' },
-  actionBtnDelete: { background: '#fff', border: '2px solid #eee', padding: '10px', cursor: 'pointer', color: '#d00', borderRadius: '4px' },
-  versionFooterAdmin: { marginTop: '50px', textAlign: 'center', fontSize: '10px', color: '#bbb', letterSpacing: '4px', fontWeight: 'bold' }
 };
 
 export default App;
