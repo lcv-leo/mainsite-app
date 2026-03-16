@@ -1,90 +1,139 @@
 // Módulo: mainsite-frontend/src/components/ContactModal.jsx
-// Versão: v1.1.1
-// Descrição: Modal de contato com estética Glassmorphism, limite de caracteres e máscara dinâmica de telefone.
+// Versão: v1.2.0
+// Descrição: Formulário de Contato padronizado sob as métricas de Glassmorphism e Material Design.
 
-import React, { useState } from 'react';
-import { Send, User, Phone, Mail, MessageSquare, Loader2, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Send, Loader2 } from 'lucide-react';
 
 const ContactModal = ({ show, onClose, onSubmit, activePalette, isSubmitting }) => {
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', message: '' });
+  const [isVisible, setIsVisible] = useState(false);
 
-  if (!show || !activePalette) return null;
+  useEffect(() => {
+    if (show) {
+      setIsVisible(true);
+    } else {
+      setTimeout(() => setIsVisible(false), 400);
+    }
+  }, [show]);
 
-  const isDarkBase = activePalette.bgColor && (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1'));
-  const charsLeft = 500 - formData.message.length;
+  if (!isVisible && !show) return null;
 
-  // Motor de Máscara em Tempo Real para padrão (NN) N NNNN-NNNN
-  const formatPhone = (val) => {
-    let v = val.replace(/\D/g, '').substring(0, 11);
-    if (v.length === 0) return '';
-    if (v.length <= 2) return `(${v}`;
-    if (v.length <= 3) return `(${v.slice(0, 2)}) ${v.slice(2)}`;
-    if (v.length <= 7) return `(${v.slice(0, 2)}) ${v.slice(2, 3)} ${v.slice(3)}`;
-    return `(${v.slice(0, 2)}) ${v.slice(2, 3)} ${v.slice(3, 7)}-${v.slice(7)}`;
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(formData, () => setFormData({ name: '', phone: '', email: '', message: '' }));
   };
 
+  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
+
+  // Métrica Glassmorphism: Fundo da tela
+  const overlayStyle = {
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: isDarkBase ? 'rgba(0, 0, 0, 0.65)' : 'rgba(255, 255, 255, 0.45)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    opacity: show ? 1 : 0,
+    transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+    padding: '20px'
+  };
+
+  // Métrica Glassmorphism: Container do Modal
+  const modalStyle = {
+    backgroundColor: activePalette.bgColor,
+    color: activePalette.fontColor,
+    padding: '35px',
+    maxWidth: '500px',
+    width: '100%',
+    borderRadius: '16px',
+    border: '1px solid rgba(128, 128, 128, 0.15)',
+    boxShadow: isDarkBase 
+      ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' 
+      : '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+    transform: show ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(15px)',
+    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+    position: 'relative'
+  };
+
+  // Métrica Material: Inputs de formulário
   const inputStyle = {
-    width: '100%', boxSizing: 'border-box', padding: '12px 12px 12px 35px', borderRadius: '6px', 
-    border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)`, 
-    background: isDarkBase ? 'rgba(0,0,0,0.5)' : '#f9f9f9', 
-    color: activePalette.fontColor, outline: 'none', fontSize: '13px', fontFamily: 'inherit'
+    width: '100%',
+    padding: '12px 16px',
+    marginBottom: '16px',
+    backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+    border: '1px solid rgba(128, 128, 128, 0.2)',
+    borderRadius: '8px',
+    color: activePalette.fontColor,
+    fontSize: '14px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    boxSizing: 'border-box'
+  };
+
+  const buttonStyle = {
+    backgroundColor: activePalette.titleColor,
+    color: isDarkBase ? '#000' : '#fff',
+    border: 'none',
+    padding: '14px',
+    fontSize: '15px',
+    fontWeight: '600',
+    borderRadius: '8px',
+    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '10px',
+    transition: 'transform 0.2s ease, opacity 0.2s ease',
+    boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)',
+    opacity: isSubmitting ? 0.7 : 1
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 12000 }}>
-      
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', animation: 'fadeIn 0.3s' }} onClick={onClose}></div>
-      
-      <div style={{ position: 'relative', width: '90%', maxWidth: '450px', background: isDarkBase ? 'rgba(20, 20, 20, 0.75)' : 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.2)`, borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px rgba(0,0,0,0.3)', color: activePalette.fontColor, animation: 'fadeIn 0.4s ease-out' }}>
-        
-        <button onClick={onClose} style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.6 }}><X size={20}/></button>
+    <div style={overlayStyle}>
+      <div style={modalStyle}>
+        <button 
+          onClick={onClose} 
+          style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.6 }}
+          onMouseOver={(e) => e.currentTarget.style.opacity = 1}
+          onMouseOut={(e) => e.currentTarget.style.opacity = 0.6}
+        >
+          <X size={24} />
+        </button>
 
-        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: activePalette.titleColor, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <MessageSquare size={20} /> Fale com o Autor
-        </h3>
+        <h2 style={{ margin: '0 0 25px 0', fontSize: '22px', fontWeight: '600', color: activePalette.titleColor, letterSpacing: '-0.02em' }}>
+          Entre em Contato
+        </h2>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+          <input type="text" name="name" placeholder="Seu Nome" value={formData.name} onChange={handleChange} style={inputStyle} required />
+          <input type="email" name="email" placeholder="Seu E-mail" value={formData.email} onChange={handleChange} style={inputStyle} required />
+          <input type="tel" name="phone" placeholder="Seu Telefone / WhatsApp (Opcional)" value={formData.phone} onChange={handleChange} style={inputStyle} />
           
-          <div style={{ position: 'relative' }}>
-            <User size={16} style={{ position: 'absolute', top: '13px', left: '12px', opacity: 0.5 }} />
-            <input type="text" required placeholder="Seu Nome" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} />
-          </div>
+          <textarea 
+            name="message" 
+            placeholder="Sua Mensagem..." 
+            value={formData.message} 
+            onChange={handleChange} 
+            style={{ ...inputStyle, minHeight: '120px', resize: 'vertical' }} 
+            required 
+          />
 
-          <div style={{ display: 'flex', gap: '15px' }}>
-            {/* Campo de Telefone com a Máscara */}
-            <div style={{ position: 'relative', flex: 1 }}>
-              <Phone size={16} style={{ position: 'absolute', top: '13px', left: '12px', opacity: 0.5 }} />
-              <input 
-                type="tel" 
-                placeholder="Telefone (Opcional)" 
-                value={formData.phone} 
-                onChange={e => setFormData({...formData, phone: formatPhone(e.target.value)})} 
-                maxLength={16}
-                style={inputStyle} 
-              />
-            </div>
-            
-            {/* Campo de E-mail restaurado */}
-            <div style={{ position: 'relative', flex: 1 }}>
-              <Mail size={16} style={{ position: 'absolute', top: '13px', left: '12px', opacity: 0.5 }} />
-              <input type="email" required placeholder="Seu E-mail" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={inputStyle} />
-            </div>
-          </div>
-
-          <div style={{ position: 'relative' }}>
-            <textarea required maxLength={500} placeholder="Escreva sua mensagem aqui..." value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} style={{ ...inputStyle, padding: '15px', minHeight: '120px', resize: 'none' }} />
-            <div style={{ position: 'absolute', bottom: '10px', right: '15px', fontSize: '10px', fontWeight: 'bold', color: charsLeft < 50 ? '#ef4444' : activePalette.fontColor, opacity: 0.6 }}>
-              {charsLeft} caracteres restantes
-            </div>
-          </div>
-
-          <button type="submit" disabled={isSubmitting} style={{ marginTop: '10px', padding: '15px', background: activePalette.titleColor, color: activePalette.bgColor, border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', letterSpacing: '2px', transition: 'transform 0.2s', textTransform: 'uppercase', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
-            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />} 
+          <button 
+            type="submit" 
+            disabled={isSubmitting} 
+            style={buttonStyle}
+            onMouseOver={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(-1px)')}
+            onMouseOut={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(0)')}
+            onMouseDown={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(1px)')}
+          >
+            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             {isSubmitting ? 'ENVIANDO...' : 'ENVIAR MENSAGEM'}
           </button>
         </form>
