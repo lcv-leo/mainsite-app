@@ -147,7 +147,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) =>
             <div style={{ backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', padding: '6px', borderRadius: '50%' }}>
               <Bot size={16} />
             </div>
-            <span style={{ fontWeight: '600', fontSize: '15px', color: activePalette.fontColor }}>Assistente IA</span>
+            <span style={{ fontWeight: '600', fontSize: '15px', color: activePalette.fontColor }}>Consciência Auxiliar</span>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.6 }} onMouseOver={(e) => e.currentTarget.style.opacity = 1} onMouseOut={(e) => e.currentTarget.style.opacity = 0.6}>
             <X size={20} />
