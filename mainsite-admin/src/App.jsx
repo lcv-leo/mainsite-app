@@ -1,10 +1,10 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.24.0
-// Descrição: Monólito consolidado (v3.22.0) envelopado nas métricas de Glassmorphism e Material Design. Lógica funcional 100% preservada.
+// Versão: v3.25.0
+// Descrição: Monólito consolidado. Baseline v3.22.0 + Design Glassmorphism + Motor de Temas (Light/Dark) restaurado.
 
-import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
-  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2
+  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2, Moon, Sun
 } from 'lucide-react';
 
 import PostList from './components/PostList';
@@ -15,13 +15,13 @@ const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel'));
 
 // URL Oficial da API
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'Console v3.24.0';
+const APP_VERSION = 'Console v3.25.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
-  light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' },
-  dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' },
-  shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'system-ui, -apple-system, sans-serif' }
+  light: { bgColor: '#f8f9fa', bgImage: '', fontColor: '#202124', titleColor: '#1a73e8' },
+  dark: { bgColor: '#131314', bgImage: '', fontColor: '#e3e3e3', titleColor: '#8ab4f8' },
+  shared: { fontSize: '1rem', titleFontSize: '1.5rem', fontFamily: 'system-ui, -apple-system, sans-serif' }
 };
 
 const App = () => {
@@ -44,6 +44,10 @@ const App = () => {
   const [rateLimit, setRateLimit] = useState({ enabled: false, maxRequests: 5, windowMinutes: 1 });
   const [disclaimers, setDisclaimers] = useState({ enabled: true, items: [] });
 
+  // FUNÇÕES RESTAURADAS: Motor de Temas (Light/Dark)
+  const [userTheme, setUserTheme] = useState(localStorage.getItem('adminThemePref') || 'auto');
+  const [systemIsDark, setSystemIsDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
+
   const fileInputBgRef = useRef(null);
   const [uploadTarget, setUploadTarget] = useState(null);
   const [isUploadingBg, setIsUploadingBg] = useState(false);
@@ -53,6 +57,14 @@ const App = () => {
   const showNotification = useCallback((message, type = 'info') => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+  }, []);
+
+  // RESTAURAÇÃO: Listener de preferência do sistema operacional
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e) => setSystemIsDark(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -66,8 +78,8 @@ const App = () => {
         if (dataSettings.light) setSettings(dataSettings);
         else setSettings({
           ...DEFAULT_SETTINGS,
-          dark: { bgColor: dataSettings.bgColor || '#131314', bgImage: dataSettings.bgImage || '', fontColor: dataSettings.fontColor || '#E3E3E3', titleColor: dataSettings.titleColor || '#8AB4F8' },
-          shared: { fontSize: dataSettings.fontSize || '1.15rem', titleFontSize: dataSettings.titleFontSize || '1.8rem', fontFamily: dataSettings.fontFamily || 'system-ui, -apple-system, sans-serif' }
+          dark: { bgColor: dataSettings.bgColor || '#131314', bgImage: dataSettings.bgImage || '', fontColor: dataSettings.fontColor || '#e3e3e3', titleColor: dataSettings.titleColor || '#8ab4f8' },
+          shared: { fontSize: dataSettings.fontSize || '1rem', titleFontSize: dataSettings.titleFontSize || '1.5rem', fontFamily: dataSettings.fontFamily || DEFAULT_SETTINGS.shared.fontFamily }
         });
       }
 
@@ -84,6 +96,25 @@ const App = () => {
   }, [showNotification, secret]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // RESTAURAÇÃO: Cálculo da Paleta Ativa
+  const activePalette = useMemo(() => {
+    const safeDark = settings.dark || DEFAULT_SETTINGS.dark;
+    const safeLight = settings.light || DEFAULT_SETTINGS.light;
+    if (!settings.allowAutoMode && userTheme === 'auto') return safeDark;
+    let resolved = userTheme;
+    if (resolved === 'auto') resolved = systemIsDark ? 'dark' : 'light';
+    return resolved === 'dark' ? safeDark : safeLight;
+  }, [settings, userTheme, systemIsDark]);
+
+  // RESTAURAÇÃO: Ciclo de alternância de temas
+  const cycleTheme = () => {
+    const modes = settings.allowAutoMode ? ['auto', 'light', 'dark'] : ['light', 'dark'];
+    const nextIndex = (modes.indexOf(userTheme) + 1) % modes.length;
+    const next = modes[nextIndex];
+    setUserTheme(next);
+    localStorage.setItem('adminThemePref', next);
+  };
 
   const triggerBgUpload = (targetTheme) => { setUploadTarget(targetTheme); if (fileInputBgRef.current) fileInputBgRef.current.click(); };
 
@@ -160,74 +191,80 @@ const App = () => {
     setIsEditorOpen(true);
   };
 
-  // Cores dinâmicas para o Admin Vídrico (Base Escura Nativa)
-  const isDarkBase = true; 
-  const glassBg = 'rgba(20, 20, 22, 0.75)';
-  const glassBorder = 'rgba(255, 255, 255, 0.1)';
-  const fontColor = '#e3e3e3';
-  const titleColor = '#8ab4f8';
+  // RESTAURAÇÃO: Base dinâmica para o Glassmorphism
+  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
+  const glassBg = isDarkBase ? 'rgba(30, 30, 32, 0.7)' : 'rgba(255, 255, 255, 0.75)';
+  const glassBorder = isDarkBase ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+
+  const defaultCSSPattern = isDarkBase 
+    ? `radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.15), transparent 45%), radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.15), transparent 45%)`
+    : `radial-gradient(circle at 15% 40%, rgba(26, 115, 232, 0.08), transparent 45%), radial-gradient(circle at 85% 60%, rgba(161, 66, 244, 0.08), transparent 45%)`;
+
+  const bgImageToUse = (activePalette.bgImage && activePalette.bgImage.trim() !== '') 
+    ? (isDarkBase ? `url("${activePalette.bgImage}")` : `linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url("${activePalette.bgImage}")`) 
+    : defaultCSSPattern;
 
   const styles = {
-    center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#131314' },
+    center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: activePalette.bgColor },
     adminBody: { 
-      backgroundColor: '#131314', 
-      backgroundImage: `radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.15), transparent 45%), radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.15), transparent 45%)`,
+      backgroundColor: activePalette.bgColor, 
+      backgroundImage: bgImageToUse,
       backgroundSize: 'cover', backgroundAttachment: 'fixed',
-      color: fontColor, fontFamily: 'system-ui, -apple-system, sans-serif', minHeight: '100vh', padding: '40px 20px' 
+      color: activePalette.fontColor, fontFamily: settings.shared.fontFamily, minHeight: '100vh', padding: '40px 20px', transition: 'all 0.4s ease' 
     },
-    toast: { position: 'fixed', top: '30px', left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : '#1e1e1e', color: toast.type === 'error' ? '#fff' : fontColor, padding: '12px 24px', borderRadius: '12px', zIndex: 10000, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', border: `1px solid ${glassBorder}`, display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '500', fontSize: '14px' },
-    modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 },
-    modalContent: { backgroundColor: '#1e1e1e', padding: '40px', borderRadius: '24px', border: `1px solid ${glassBorder}`, maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', color: fontColor },
+    toast: { position: 'fixed', top: '30px', left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor, padding: '12px 24px', borderRadius: '12px', zIndex: 10000, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', border: `1px solid ${glassBorder}`, display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '500', fontSize: '14px' },
+    modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: isDarkBase ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 },
+    modalContent: { backgroundColor: isDarkBase ? '#1e1e1e' : '#ffffff', padding: '40px', borderRadius: '24px', border: `1px solid ${glassBorder}`, maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', color: activePalette.fontColor },
     modalText: { fontSize: '16px', fontWeight: '500', marginBottom: '30px' },
     modalActions: { display: 'flex', gap: '12px', justifyContent: 'center' },
     modalBtnConfirm: { backgroundColor: '#ea4335', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
-    modalBtnCancel: { backgroundColor: 'transparent', color: fontColor, border: `1px solid ${glassBorder}`, borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
-    adminContainer: { maxWidth: '1000px', margin: '0 auto', backgroundColor: glassBg, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: '24px', border: `1px solid ${glassBorder}`, padding: '40px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' },
+    modalBtnCancel: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
+    adminContainer: { maxWidth: '1000px', margin: '0 auto', backgroundColor: glassBg, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: '24px', border: `1px solid ${glassBorder}`, padding: '40px', boxShadow: '0 20px 40px rgba(0,0,0,0.08)' },
     adminHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: `1px solid ${glassBorder}`, paddingBottom: '24px' },
-    adminTitle: { fontSize: '18px', fontWeight: '600', color: titleColor, letterSpacing: '-0.5px' },
-    plusButton: { backgroundColor: titleColor, color: '#000', border: 'none', borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', transition: 'opacity 0.2s' },
-    headerBtn: { backgroundColor: 'transparent', color: fontColor, border: `1px solid ${glassBorder}`, borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', transition: 'background 0.2s' },
-    settingsBtn: { backgroundColor: 'transparent', color: fontColor, border: `1px solid ${glassBorder}`, borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' },
-    backButton: { background: 'none', border: 'none', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px', color: fontColor, opacity: 0.8 },
+    adminTitle: { fontSize: '18px', fontWeight: '600', color: activePalette.titleColor, letterSpacing: '-0.5px' },
+    plusButton: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none', borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', transition: 'opacity 0.2s' },
+    headerBtn: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', transition: 'background 0.2s' },
+    settingsBtn: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' },
+    backButton: { background: 'none', border: 'none', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px', color: activePalette.fontColor, opacity: 0.8 },
     form: { display: 'flex', flexDirection: 'column', gap: '24px' },
-    settingsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: 'rgba(0,0,0,0.2)', padding: '20px', border: `1px solid ${glassBorder}`, borderRadius: '16px' },
-    label: { display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: '600', color: fontColor },
+    settingsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)', padding: '20px', border: `1px solid ${glassBorder}`, borderRadius: '16px' },
+    label: { display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor },
     colorInput: { height: '40px', width: '100%', cursor: 'pointer', border: 'none', borderRadius: '8px', background: 'transparent' },
-    textInput: { padding: '12px', border: `1px solid ${glassBorder}`, backgroundColor: 'rgba(0,0,0,0.2)', color: fontColor, outline: 'none', fontSize: '14px', borderRadius: '8px', transition: 'border 0.2s' },
-    adminInput: { border: 'none', borderBottom: `2px solid ${titleColor}`, backgroundColor: 'transparent', color: titleColor, padding: '15px 0', fontSize: '24px', fontWeight: '600', outline: 'none', marginBottom: '10px' },
-    editorContainer: { border: `1px solid ${glassBorder}`, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
-    toolbar: { display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '12px', borderBottom: `1px solid ${glassBorder}`, backgroundColor: 'rgba(255,255,255,0.02)' },
-    toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: fontColor, border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '6px', width: '32px', height: '32px', transition: 'background 0.2s' },
+    textInput: { padding: '12px', border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff', color: activePalette.fontColor, outline: 'none', fontSize: '14px', borderRadius: '8px', transition: 'border 0.2s' },
+    adminInput: { border: 'none', borderBottom: `2px solid ${activePalette.titleColor}`, backgroundColor: 'transparent', color: activePalette.titleColor, padding: '15px 0', fontSize: '24px', fontWeight: '600', outline: 'none', marginBottom: '10px' },
+    editorContainer: { border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+    toolbar: { display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '12px', borderBottom: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' },
+    toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: activePalette.fontColor, border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '6px', width: '32px', height: '32px', transition: 'background 0.2s' },
     toolbarDivider: { width: '1px', backgroundColor: glassBorder, margin: '0 8px' },
-    tiptapWrapper: { backgroundColor: 'transparent', color: fontColor, cursor: 'text' },
-    statusBar: { padding: '8px 16px', borderTop: `1px solid ${glassBorder}`, fontSize: '12px', color: fontColor, opacity: 0.6, textAlign: 'right', background: 'rgba(0,0,0,0.2)' },
-    adminButton: { backgroundColor: titleColor, color: '#000', border: 'none', borderRadius: '12px', padding: '16px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', letterSpacing: '0.5px', marginTop: '20px', transition: 'opacity 0.2s' },
+    tiptapWrapper: { backgroundColor: 'transparent', color: activePalette.fontColor, cursor: 'text' },
+    statusBar: { padding: '8px 16px', borderTop: `1px solid ${glassBorder}`, fontSize: '12px', color: activePalette.fontColor, opacity: 0.6, textAlign: 'right', background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)' },
+    adminButton: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none', borderRadius: '12px', padding: '16px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', letterSpacing: '0.5px', marginTop: '20px', transition: 'opacity 0.2s' },
     list: { display: 'flex', flexDirection: 'column', gap: '12px' },
-    postCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', border: `1px solid ${glassBorder}`, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '16px', transition: 'transform 0.2s, box-shadow 0.2s' },
-    cardDate: { fontSize: '12px', color: fontColor, opacity: 0.6, marginBottom: '6px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' },
-    pinnedBadge: { backgroundColor: titleColor, color: '#000', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold' },
-    cardTitle: { fontSize: '16px', fontWeight: '600', color: fontColor },
+    postCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff', borderRadius: '16px', transition: 'transform 0.2s, box-shadow 0.2s' },
+    cardDate: { fontSize: '12px', color: activePalette.fontColor, opacity: 0.6, marginBottom: '6px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' },
+    pinnedBadge: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold' },
+    cardTitle: { fontSize: '16px', fontWeight: '600', color: activePalette.fontColor },
     actions: { display: 'flex', gap: '8px' },
-    actionBtnPin: { background: 'transparent', border: 'none', padding: '8px', cursor: 'pointer', color: fontColor, opacity: 0.8, borderRadius: '8px', transition: 'background 0.2s' },
-    actionBtnEdit: { background: 'rgba(255,255,255,0.05)', border: 'none', padding: '8px', cursor: 'pointer', color: fontColor, borderRadius: '8px', transition: 'background 0.2s' },
+    actionBtnPin: { background: 'transparent', border: 'none', padding: '8px', cursor: 'pointer', color: activePalette.fontColor, opacity: 0.8, borderRadius: '8px', transition: 'background 0.2s' },
+    actionBtnEdit: { background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: 'none', padding: '8px', cursor: 'pointer', color: activePalette.fontColor, borderRadius: '8px', transition: 'background 0.2s' },
     actionBtnDelete: { background: 'transparent', border: 'none', padding: '8px', cursor: 'pointer', color: '#ea4335', borderRadius: '8px', transition: 'background 0.2s' },
-    versionFooterAdmin: { marginTop: '40px', textAlign: 'center', fontSize: '12px', color: fontColor, opacity: 0.4, fontWeight: '500' }
+    versionFooterAdmin: { marginTop: '40px', textAlign: 'center', fontSize: '12px', color: activePalette.fontColor, opacity: 0.4, fontWeight: '500' }
   };
 
-  if (loading) return <div style={styles.center}><Loader2 className="animate-spin" color={fontColor} size={32} /></div>;
+  if (loading) return <div style={styles.center}><Loader2 className="animate-spin" color={activePalette.fontColor} size={32} /></div>;
 
   return (
     <div style={styles.adminBody}>
       <style>{`
         .ProseMirror { min-height: 400px; padding: 30px; outline: none; line-height: 1.6; font-size: 16px; }
-        .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: rgba(255,255,255,0.3); pointer-events: none; height: 0; }
+        .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: ${isDarkBase ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}; pointer-events: none; height: 0; }
         .ProseMirror table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 0; overflow: hidden; }
         .ProseMirror table td, .ProseMirror table th { min-width: 1em; border: 1px solid ${glassBorder}; padding: 8px; vertical-align: top; box-sizing: border-box; position: relative; }
-        .ProseMirror table th { font-weight: bold; text-align: left; background-color: rgba(255,255,255,0.05); }
+        .ProseMirror table th { font-weight: bold; text-align: left; background-color: ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'}; }
         ul[data-type="taskList"] { list-style: none; padding: 0; }
         ul[data-type="taskList"] li { display: flex; align-items: center; }
         ul[data-type="taskList"] li label { margin-right: 8px; }
-        .log-card { padding: 20px; border-radius: 16px; border: 1px solid ${glassBorder}; background: rgba(0,0,0,0.2); transition: all 0.2s; }
+        .log-card { padding: 20px; border-radius: 16px; border: 1px solid ${glassBorder}; background: ${isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff'}; transition: all 0.2s; }
         .log-card:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
         button:hover { opacity: 0.9; }
       `}</style>
@@ -254,20 +291,24 @@ const App = () => {
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <Database size={24} color={titleColor} />
+            <Database size={24} color={activePalette.titleColor} />
             <h1 style={styles.adminTitle}>{APP_VERSION}</h1>
             {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && (
               <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={18} /> NOVO</button>
             )}
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
+            {/* RESTAURAÇÃO: Ícone e Botão de Troca de Tema */}
+            <button onClick={cycleTheme} style={styles.headerBtn} title="Alternar Tema">
+              {userTheme === 'auto' ? <Settings size={16}/> : userTheme === 'dark' ? <Moon size={16}/> : <Sun size={16}/>}
+            </button>
             <button onClick={() => fetchData()} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={16} /></button>
             <button onClick={() => setIsAnalyticsOpen(true)} style={styles.headerBtn}><BarChart2 size={16} /> Auditoria</button>
             <button onClick={() => setIsSettingsOpen(true)} style={styles.headerBtn}><Settings size={16} /> Sistema</button>
           </div>
         </header>
 
-        <Suspense fallback={<div style={{ padding: '50px', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" color={fontColor} size={32} /></div>}>
+        <Suspense fallback={<div style={{ padding: '50px', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" color={activePalette.fontColor} size={32} /></div>}>
           {isAnalyticsOpen ? (
             <AnalyticsPanel onClose={() => { setIsAnalyticsOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} />
           ) : isSettingsOpen ? (
