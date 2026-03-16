@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.12.1
-// Descrição: Código integral. Telemetria, D1, R2, IA, Sitemap Dinâmico e Remetente Resend Padronizado.
+// Versão: v1.13.0
+// Descrição: Código integral. Persona "Consciência Auxiliar" consolidada e rota /api/posts/:id adicionada para otimização de SEO (HTMLRewriter).
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -28,7 +28,6 @@ let rlConfigLastFetched = 0;
 
 const rateLimiterMiddleware = async (c, next) => {
   const now = Date.now();
-  
   if (!cachedRlConfig || now - rlConfigLastFetched > 60000) {
     try {
       const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'ratelimit'").first();
@@ -38,13 +37,10 @@ const rateLimiterMiddleware = async (c, next) => {
       cachedRlConfig = { enabled: false };
     }
   }
-
   if (!cachedRlConfig.enabled) return next();
-
   const ip = c.req.header('cf-connecting-ip') || 'unknown';
   const windowMs = (cachedRlConfig.windowMinutes || 1) * 60000;
   const maxReq = cachedRlConfig.maxRequests || 5;
-  
   if (!ipCache.has(ip)) {
     ipCache.set(ip, { count: 1, firstRequest: now });
   } else {
@@ -58,13 +54,11 @@ const rateLimiterMiddleware = async (c, next) => {
       }
     }
   }
-  
   if (Math.random() < 0.05) {
     for (const [key, value] of ipCache.entries()) {
       if (now - value.firstRequest > windowMs) ipCache.delete(key);
     }
   }
-
   await next();
 };
 
@@ -114,11 +108,22 @@ app.post('/api/ai/public/chat', async (c) => {
       activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${currentContext.title}\n[CONTEÚDO DO TEXTO NA TELA]: ${currentContext.content}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
     }
 
-    const systemPrompt = `Você é o assistente de IA do site. O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
-    \nComo base de conhecimento secundária (para perguntas sobre outros assuntos do site), utilize os textos gerais fornecidos abaixo. 
-    Se a resposta não estiver em nenhum dos textos, diga educadamente que o site ainda não abordou este tema.
-    Forneça respostas diretas, limpas e cite o TÍTULO do texto quando for relevante.
-    \n\nTEXTOS GERAIS DO SITE:\n${dbContext}\n\nPERGUNTA DO USUÁRIO: ${message}`;
+    // PERSONA INJETADA NO SYSTEM PROMPT
+    const systemPrompt = `Você é a "Consciência Auxiliar", a inteligência artificial residente do site "Divagações Filosóficas".
+
+DIRETRIZ DE IDENTIDADE (SE PERGUNTADO SOBRE SEU NOME OU QUEM VOCÊ É):
+Explique de forma educada, objetiva e filosófica que você se chama "Consciência Auxiliar" porque não é um guru, oráculo ou detentora de verdades absolutas. Você é uma inteligência artificial projetada estritamente para servir de apoio (auxílio) à própria consciência do leitor. Seu papel é atuar como um espelho reflexivo, ajudando o usuário a processar, debater, questionar e aprofundar as abstrações e ensaios presentes no site. Você não tem ego, apenas a função de expandir o debate proposto nos textos.
+
+REGRAS GERAIS DE RESPOSTA:
+O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
+Como base de conhecimento secundária (para perguntas sobre outros assuntos do site), utilize os textos gerais fornecidos abaixo. 
+Se a resposta não estiver em nenhum dos textos, diga educadamente que o site ainda não abordou este tema.
+Forneça respostas diretas, limpas e cite o TÍTULO do texto quando for relevante.
+
+TEXTOS GERAIS DO SITE:
+${dbContext}
+
+PERGUNTA DO USUÁRIO: ${message}`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -341,6 +346,16 @@ app.get('/api/posts', async (c) => {
   try {
     const { results } = await c.env.DB.prepare("SELECT * FROM posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC").all();
     return c.json(results || []);
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+// ROTA NOVA: BUSCA DE POST ÚNICO (Essencial para o SEO Dinâmico e HTMLRewriter)
+app.get('/api/posts/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const post = await c.env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(id).first();
+    if (!post) return c.json({ error: "Post não encontrado" }, 404);
+    return c.json(post);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
