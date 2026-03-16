@@ -1,5 +1,5 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.12.0
+// Versão: v1.12.1
 // Descrição: Código integral. Telemetria, D1, R2, IA, Sitemap Dinâmico e Remetente Resend Padronizado.
 
 import { Hono } from 'hono';
