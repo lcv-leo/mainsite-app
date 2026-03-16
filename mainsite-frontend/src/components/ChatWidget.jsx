@@ -1,9 +1,9 @@
 // Módulo: mainsite-frontend/src/components/ChatWidget.jsx
-// Versão: v1.2.0
-// Descrição: Painel flutuante de IA padronizado em Glassmorphism, mantendo consistência visual de bordas, sombras e blur de fundo.
+// Versão: v1.3.0
+// Descrição: Painel flutuante de IA padronizado em Glassmorphism. Adoção do ícone Sparkles e correção de flex-shrink no cabeçalho.
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Loader2, Bot, User } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Sparkles, User } from 'lucide-react';
 
 const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) => {
   const [messages, setMessages] = useState([
@@ -144,8 +144,19 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) =>
       <div style={panelStyle}>
         <div style={headerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', padding: '6px', borderRadius: '50%' }}>
-              <Bot size={16} />
+            {/* CORREÇÃO APLICADA: Dimensões fixas e flexShrink a 0 para impedir o esmagamento do ícone */}
+            <div style={{ 
+              backgroundColor: activePalette.titleColor, 
+              color: isDarkBase ? '#000' : '#fff', 
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '30px',
+              height: '30px',
+              flexShrink: 0
+            }}>
+              <Sparkles size={16} />
             </div>
             <span style={{ fontWeight: '600', fontSize: '15px', color: activePalette.fontColor }}>Consciência Auxiliar</span>
           </div>
@@ -175,7 +186,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) =>
           ))}
           {isLoading && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: activePalette.fontColor, opacity: 0.6, fontSize: '12px', padding: '10px 0' }}>
-              <Loader2 size={14} className="animate-spin" /> Analisando contexto...
+              <Loader2 size={14} className="animate-spin" /> A analisar o contexto...
             </div>
           )}
           <div ref={messagesEndRef} />
