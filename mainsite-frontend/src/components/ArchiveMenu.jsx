@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/components/ArchiveMenu.jsx
-// Versão: v1.0.1
-// Descrição: Componente isolado para a listagem, busca e navegação no histórico de fragmentos.
+// Versão: v1.1.0
+// Descrição: Componente isolado para a listagem, busca e navegação no histórico de fragmentos. Atualizado 100% para métricas de Glassmorphism.
 
 import React, { useState } from 'react';
 import { ChevronUp, Search } from 'lucide-react';
@@ -32,7 +32,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
   const styles = {
     footer: { marginTop: '40px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '40px' },
     archiveToggle: { background: 'none', border: 'none', fontSize: '10px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', opacity: 0.7 },
-    card: { padding: '25px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s', borderRadius: '4px' },
+    card: { padding: '25px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s', borderRadius: '12px' },
     cardDate: { fontSize: '9px', opacity: 0.6, marginBottom: '12px', fontWeight: 'bold' }
   };
 
@@ -41,6 +41,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
       <style>{`
         .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; padding: 20px; width: 100%; box-sizing: border-box; }
         .archive-btn:hover { opacity: 1 !important; }
+        .glass-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important; }
       `}</style>
 
       <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={styles.archiveToggle} className="archive-btn">
@@ -65,7 +66,19 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
         <div className="archive-grid">
           {filteredArchive.length > 0 ? (
             filteredArchive.map(post => (
-              <div key={post.id} onClick={() => handleSelectPost(post)} style={{...styles.card, backgroundColor: `rgba(${isDarkBase ? '0,0,0' : '255,255,255'},0.5)`, borderColor: `rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.1)` }}>
+              <div 
+                key={post.id} 
+                onClick={() => handleSelectPost(post)} 
+                className="glass-card"
+                style={{
+                  ...styles.card, 
+                  backgroundColor: isDarkBase ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.4)', 
+                  border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
+                }}
+              >
                 <div style={styles.cardDate}>{new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR')}</div>
                 <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 'bold', color: activePalette.titleColor, transition: 'color 0.5s ease' }}>{post.title}</div>
               </div>

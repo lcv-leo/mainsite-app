@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/components/EditorPanel.jsx
-// Versão: v1.0.4
-// Descrição: Componente isolado do Editor Tiptap, Inteligência Artificial e Barra de Ferramentas.
+// Versão: v1.1.0
+// Descrição: Componente isolado. Preservação funcional do Tiptap/IA com integração plena às classes globais de UI (modalOverlay/modalContent) e paleta vídrica.
 
 import React, { useState, useRef } from 'react';
 import { Extension } from '@tiptap/core';
@@ -116,7 +116,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
     finally { setIsUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   };
 
-  const addImageUrl = () => { setPromptModal({ show: true, title: 'URL da Imagem (Google Drive / Externa):', value: '', callback: (url) => { if(url) editor.chain().focus().setImage({ src: formatImageUrl(url) }).run(); } }); };
+  const addImageUrl = () => { setPromptModal({ show: true, title: 'URL da Imagem (Drive/Externa):', value: '', callback: (url) => { if(url) editor.chain().focus().setImage({ src: formatImageUrl(url) }).run(); } }); };
   const addYoutube = () => { setPromptModal({ show: true, title: 'URL do vídeo (YouTube):', value: '', callback: (url) => { if(url) editor.chain().focus().setYoutubeVideo({ src: url }).run(); } }); };
   const addLink = () => {
     const prev = editor.getAttributes('link').href || '';
@@ -127,62 +127,67 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
     }});
   };
 
+  const getActiveStyle = (isActive) => ({
+    ...styles.toolbarBtn,
+    background: isActive ? 'rgba(128, 128, 128, 0.3)' : 'transparent'
+  });
+
   return (
     <div style={styles.toolbar}>
       {promptModal.show && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 12000, backdropFilter: 'blur(5px)' }}>
-          <div style={{ background: '#fff', padding: '30px', border: '3px solid #000', width: '90%', maxWidth: '450px', display: 'flex', flexDirection: 'column', gap: '15px', boxShadow: '15px 15px 0px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ margin: 0, fontSize: '14px', textTransform: 'uppercase', borderBottom: '2px solid #000', paddingBottom: '10px' }}>{promptModal.title}</h3>
-            <input autoFocus type="text" placeholder="https://..." value={promptModal.value} onChange={e => setPromptModal({...promptModal, value: e.target.value})} style={{ padding: '12px', border: '2px solid #ccc', outline: 'none', fontFamily: 'monospace', fontSize: '13px' }} />
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '14px', textTransform: 'uppercase', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '10px' }}>{promptModal.title}</h3>
+            <input autoFocus type="text" placeholder="https://..." value={promptModal.value} onChange={e => setPromptModal({...promptModal, value: e.target.value})} style={styles.textInput} />
             {promptModal.isLink && editor.state.selection.empty && (
-              <input type="text" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({...promptModal, linkText: e.target.value})} style={{ padding: '12px', border: '2px solid #ccc', outline: 'none', fontFamily: 'monospace', fontSize: '13px' }} />
+              <input type="text" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({...promptModal, linkText: e.target.value})} style={{...styles.textInput, marginTop: '15px'}} />
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button type="button" onClick={() => setPromptModal({show: false})} style={{ padding: '12px 18px', background: '#f5f5f5', border: '2px solid #ccc', cursor: 'pointer', fontWeight: 'bold' }}>CANCELAR</button>
-              <button type="button" onClick={() => { promptModal.callback(promptModal.value, promptModal.linkText); setPromptModal({show: false}); }} style={{ padding: '12px 18px', background: '#000', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>INSERIR</button>
+            <div style={styles.modalActions}>
+              <button type="button" onClick={() => setPromptModal({show: false})} style={styles.modalBtnCancel}>CANCELAR</button>
+              <button type="button" onClick={() => { promptModal.callback(promptModal.value, promptModal.linkText); setPromptModal({show: false}); }} style={styles.modalBtnConfirm}>INSERIR</button>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#f0f9ff', padding: '2px 5px', borderRadius: '4px', border: '1px solid #bae6fd', marginRight: '5px' }} title="Inteligência Artificial (Gemini 2.5 Pro)">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(2, 132, 199, 0.1)', padding: '2px 5px', borderRadius: '6px', border: '1px solid rgba(2, 132, 199, 0.3)', marginRight: '5px' }} title="Inteligência Artificial (Gemini 2.5 Pro)">
         <Sparkles size={14} color="#0284c7" />
-        <select onChange={(e) => { if (e.target.value) { handleAITransform(e.target.value); e.target.value = ''; } }} style={{ fontSize: '11px', padding: '2px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#0369a1', fontWeight: 'bold', outline: 'none' }} disabled={isGeneratingAI}>
+        <select onChange={(e) => { if (e.target.value) { handleAITransform(e.target.value); e.target.value = ''; } }} style={{ fontSize: '11px', padding: '2px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#0284c7', fontWeight: 'bold', outline: 'none' }} disabled={isGeneratingAI}>
           <option value="">{isGeneratingAI ? 'Processando...' : 'IA: Aprimorar Texto'}</option><option value="grammar">Corrigir Gramática</option><option value="summarize">Resumir Seleção</option><option value="expand">Expandir Conteúdo</option><option value="formal">Tornar Formal</option>
         </select>
       </div>
 
       <div style={styles.toolbarDivider}></div>
-      <button type="button" title="Negrito" onClick={() => editor.chain().focus().toggleBold().run()} style={{...styles.toolbarBtn, background: editor.isActive('bold') ? '#ddd' : '#fff'}}><Bold size={14} /></button>
-      <button type="button" title="Itálico" onClick={() => editor.chain().focus().toggleItalic().run()} style={{...styles.toolbarBtn, background: editor.isActive('italic') ? '#ddd' : '#fff'}}><Italic size={14} /></button>
-      <button type="button" title="Sublinhado" onClick={() => editor.chain().focus().toggleUnderline().run()} style={{...styles.toolbarBtn, background: editor.isActive('underline') ? '#ddd' : '#fff'}}><UnderlineIcon size={14} /></button>
-      <button type="button" title="Tachado" onClick={() => editor.chain().focus().toggleStrike().run()} style={{...styles.toolbarBtn, background: editor.isActive('strike') ? '#ddd' : '#fff'}}><Strikethrough size={14} /></button>
-      <button type="button" title="Marca-texto" onClick={() => editor.chain().focus().toggleHighlight().run()} style={{...styles.toolbarBtn, background: editor.isActive('highlight') ? '#ffcc00' : '#fff'}}><Highlighter size={14} /></button>
+      <button type="button" title="Negrito" onClick={() => editor.chain().focus().toggleBold().run()} style={getActiveStyle(editor.isActive('bold'))}><Bold size={14} /></button>
+      <button type="button" title="Itálico" onClick={() => editor.chain().focus().toggleItalic().run()} style={getActiveStyle(editor.isActive('italic'))}><Italic size={14} /></button>
+      <button type="button" title="Sublinhado" onClick={() => editor.chain().focus().toggleUnderline().run()} style={getActiveStyle(editor.isActive('underline'))}><UnderlineIcon size={14} /></button>
+      <button type="button" title="Tachado" onClick={() => editor.chain().focus().toggleStrike().run()} style={getActiveStyle(editor.isActive('strike'))}><Strikethrough size={14} /></button>
+      <button type="button" title="Marca-texto" onClick={() => editor.chain().focus().toggleHighlight().run()} style={{...styles.toolbarBtn, background: editor.isActive('highlight') ? 'rgba(255, 204, 0, 0.5)' : 'transparent'}}><Highlighter size={14} /></button>
       
       <div style={styles.toolbarDivider}></div>
-      <button type="button" title="Subscrito" onClick={() => editor.chain().focus().toggleSubscript().run()} style={{...styles.toolbarBtn, background: editor.isActive('subscript') ? '#ddd' : '#fff'}}><SubIcon size={14} /></button>
-      <button type="button" title="Sobrescrito" onClick={() => editor.chain().focus().toggleSuperscript().run()} style={{...styles.toolbarBtn, background: editor.isActive('superscript') ? '#ddd' : '#fff'}}><SuperIcon size={14} /></button>
-      <button type="button" title="Bloco de Código" onClick={() => editor.chain().focus().toggleCodeBlock().run()} style={{...styles.toolbarBtn, background: editor.isActive('codeBlock') ? '#ddd' : '#fff'}}><Code size={14} /></button>
-      <button type="button" title="Citação em Bloco" onClick={() => editor.chain().focus().toggleBlockquote().run()} style={{...styles.toolbarBtn, background: editor.isActive('blockquote') ? '#ddd' : '#fff'}}><Quote size={14} /></button>
+      <button type="button" title="Subscrito" onClick={() => editor.chain().focus().toggleSubscript().run()} style={getActiveStyle(editor.isActive('subscript'))}><SubIcon size={14} /></button>
+      <button type="button" title="Sobrescrito" onClick={() => editor.chain().focus().toggleSuperscript().run()} style={getActiveStyle(editor.isActive('superscript'))}><SuperIcon size={14} /></button>
+      <button type="button" title="Bloco de Código" onClick={() => editor.chain().focus().toggleCodeBlock().run()} style={getActiveStyle(editor.isActive('codeBlock'))}><Code size={14} /></button>
+      <button type="button" title="Citação em Bloco" onClick={() => editor.chain().focus().toggleBlockquote().run()} style={getActiveStyle(editor.isActive('blockquote'))}><Quote size={14} /></button>
       
       <div style={styles.toolbarDivider}></div>
-      <button type="button" title="Esquerda" onClick={() => editor.chain().focus().setTextAlign('left').run()} style={{...styles.toolbarBtn, background: editor.isActive({ textAlign: 'left' }) ? '#ddd' : '#fff'}}><AlignLeft size={14} /></button>
-      <button type="button" title="Centralizar" onClick={() => editor.chain().focus().setTextAlign('center').run()} style={{...styles.toolbarBtn, background: editor.isActive({ textAlign: 'center' }) ? '#ddd' : '#fff'}}><AlignCenter size={14} /></button>
-      <button type="button" title="Direita" onClick={() => editor.chain().focus().setTextAlign('right').run()} style={{...styles.toolbarBtn, background: editor.isActive({ textAlign: 'right' }) ? '#ddd' : '#fff'}}><AlignRight size={14} /></button>
-      <button type="button" title="Justificar" onClick={() => editor.chain().focus().setTextAlign('justify').run()} style={{...styles.toolbarBtn, background: editor.isActive({ textAlign: 'justify' }) ? '#ddd' : '#fff'}}><AlignJustify size={14} /></button>
+      <button type="button" title="Esquerda" onClick={() => editor.chain().focus().setTextAlign('left').run()} style={getActiveStyle(editor.isActive({ textAlign: 'left' }))}><AlignLeft size={14} /></button>
+      <button type="button" title="Centralizar" onClick={() => editor.chain().focus().setTextAlign('center').run()} style={getActiveStyle(editor.isActive({ textAlign: 'center' }))}><AlignCenter size={14} /></button>
+      <button type="button" title="Direita" onClick={() => editor.chain().focus().setTextAlign('right').run()} style={getActiveStyle(editor.isActive({ textAlign: 'right' }))}><AlignRight size={14} /></button>
+      <button type="button" title="Justificar" onClick={() => editor.chain().focus().setTextAlign('justify').run()} style={getActiveStyle(editor.isActive({ textAlign: 'justify' }))}><AlignJustify size={14} /></button>
 
       <div style={styles.toolbarDivider}></div>
-      <button type="button" title="Título 1" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} style={{...styles.toolbarBtn, background: editor.isActive('heading', { level: 1 }) ? '#ddd' : '#fff'}}><Heading1 size={14} /></button>
-      <button type="button" title="Título 2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} style={{...styles.toolbarBtn, background: editor.isActive('heading', { level: 2 }) ? '#ddd' : '#fff'}}><Heading2 size={14} /></button>
-      <button type="button" title="Marcadores" onClick={() => editor.chain().focus().toggleBulletList().run()} style={{...styles.toolbarBtn, background: editor.isActive('bulletList') ? '#ddd' : '#fff'}}><List size={14} /></button>
-      <button type="button" title="Numeração" onClick={() => editor.chain().focus().toggleOrderedList().run()} style={{...styles.toolbarBtn, background: editor.isActive('orderedList') ? '#ddd' : '#fff'}}><ListOrdered size={14} /></button>
-      <button type="button" title="Tarefas" onClick={() => editor.chain().focus().toggleTaskList().run()} style={{...styles.toolbarBtn, background: editor.isActive('taskList') ? '#ddd' : '#fff'}}><CheckSquare size={14} /></button>
+      <button type="button" title="Título 1" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} style={getActiveStyle(editor.isActive('heading', { level: 1 }))}><Heading1 size={14} /></button>
+      <button type="button" title="Título 2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} style={getActiveStyle(editor.isActive('heading', { level: 2 }))}><Heading2 size={14} /></button>
+      <button type="button" title="Marcadores" onClick={() => editor.chain().focus().toggleBulletList().run()} style={getActiveStyle(editor.isActive('bulletList'))}><List size={14} /></button>
+      <button type="button" title="Numeração" onClick={() => editor.chain().focus().toggleOrderedList().run()} style={getActiveStyle(editor.isActive('orderedList'))}><ListOrdered size={14} /></button>
+      <button type="button" title="Tarefas" onClick={() => editor.chain().focus().toggleTaskList().run()} style={getActiveStyle(editor.isActive('taskList'))}><CheckSquare size={14} /></button>
       <button type="button" title="Linha" onClick={() => editor.chain().focus().setHorizontalRule().run()} style={styles.toolbarBtn}><Minus size={14} /></button>
       <button type="button" title="Tabela" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} style={styles.toolbarBtn}><TableIcon size={14} /></button>
       <button type="button" title="Quebra" onClick={() => editor.chain().focus().setHardBreak().run()} style={styles.toolbarBtn}><WrapText size={14} /></button>
 
       <div style={styles.toolbarDivider}></div>
-      <button type="button" title="Link" onClick={addLink} style={{...styles.toolbarBtn, background: editor.isActive('link') ? '#ddd' : '#fff'}}><LinkIcon size={14} /></button>
+      <button type="button" title="Link" onClick={addLink} style={getActiveStyle(editor.isActive('link'))}><LinkIcon size={14} /></button>
       <button type="button" title="Remover Link" onClick={() => editor.chain().focus().unsetLink().run()} disabled={!editor.isActive('link')} style={{...styles.toolbarBtn, opacity: editor.isActive('link') ? 1 : 0.5}}><Unlink size={14} /></button>
       
       <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{ display: 'none' }} />
@@ -192,13 +197,13 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
 
       <div style={styles.toolbarDivider}></div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-        <Palette size={14} /><input type="color" onInput={event => editor.chain().focus().setColor(event.target.value).run()} value={editor.getAttributes('textStyle').color || '#000000'} style={{ cursor: 'pointer', padding: 0, border: 'none', width: '25px', height: '25px' }}/>
+        <Palette size={14} /><input type="color" onInput={event => editor.chain().focus().setColor(event.target.value).run()} value={editor.getAttributes('textStyle').color || '#000000'} style={{ cursor: 'pointer', padding: 0, border: 'none', width: '25px', height: '25px', background: 'transparent' }}/>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-        <Type size={14} /><select onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()} value={editor.getAttributes('textStyle').fontFamily || 'inherit'} style={{ fontSize: '11px', padding: '2px' }}><option value="inherit">Padrão</option><option value="monospace">Monospace</option><option value="Arial">Arial</option><option value="'Times New Roman', Times, serif">Times</option></select>
+        <Type size={14} /><select onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()} value={editor.getAttributes('textStyle').fontFamily || 'inherit'} style={{ fontSize: '11px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', outline: 'none' }}><option value="inherit">Padrão</option><option value="monospace">Monospace</option><option value="Arial">Arial</option><option value="'Times New Roman', Times, serif">Times</option></select>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-        <select onChange={e => editor.chain().focus().setFontSize(e.target.value).run()} value={editor.getAttributes('textStyle').fontSize || ''} style={{ fontSize: '11px', padding: '2px' }}><option value="">Tam.</option><option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="20px">20px</option><option value="24px">24px</option><option value="30px">30px</option></select>
+        <select onChange={e => editor.chain().focus().setFontSize(e.target.value).run()} value={editor.getAttributes('textStyle').fontSize || ''} style={{ fontSize: '11px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', outline: 'none' }}><option value="">Tam.</option><option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="20px">20px</option><option value="24px">24px</option><option value="30px">30px</option></select>
       </div>
     </div>
   );
@@ -220,8 +225,6 @@ const STATIC_EXTENSIONS = [
 const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotification, styles, API_URL }) => {
   const [title, setTitle] = useState(post ? post.title : '');
 
-  // Engenharia de Resiliência: Interceptor de Telemetria
-  // Suprime o falso-positivo crônico do Tiptap no React 18 (Strict Mode) + Vite (HMR)
   React.useEffect(() => {
     const originalWarn = console.warn;
     console.warn = (...args) => {

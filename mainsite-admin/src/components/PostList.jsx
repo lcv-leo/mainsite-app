@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/components/PostList.jsx
-// Versão: v1.0.1
-// Descrição: Componente isolado para renderização, ordenação (Drag and Drop) e ações dos fragmentos de texto.
+// Versão: v1.1.0
+// Descrição: Componente isolado. Lógica de Drag and Drop preservada, com refatoração visual para suportar Glassmorphism e Multi-Tema dinâmico.
 
 import React from 'react';
 import { Pin, Edit3, Trash2, GripVertical } from 'lucide-react';
@@ -34,10 +34,10 @@ const PostList = ({
           onDragEnd={onDragEnd} 
           onDragOver={onDragOver} 
           onDrop={(e) => onDrop(e, index)} 
-          style={{ ...styles.postCard, borderLeft: post.is_pinned ? '4px solid #000' : '1px solid #eee' }}
+          style={{ ...styles.postCard, borderLeft: post.is_pinned ? '4px solid #4da6ff' : `1px solid rgba(128,128,128,0.1)` }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <div style={{ cursor: 'grab', color: '#ccc' }} title="Reordenar">
+            <div style={{ cursor: 'grab', opacity: 0.4 }} title="Reordenar">
               <GripVertical size={20} />
             </div>
             <div>
@@ -49,7 +49,11 @@ const PostList = ({
             </div>
           </div>
           <div style={styles.actions}>
-            <button onClick={() => onPin(post.id)} style={{ ...styles.actionBtnPin, backgroundColor: post.is_pinned ? '#000' : '#f0f0f0', color: post.is_pinned ? '#fff' : '#333' }} title="Fixar/Desafixar">
+            <button 
+              onClick={() => onPin(post.id)} 
+              style={{ ...styles.actionBtnPin, background: post.is_pinned ? 'rgba(128,128,128,0.3)' : 'transparent' }} 
+              title="Fixar/Desafixar"
+            >
               <Pin size={16} />
             </button>
             <button onClick={() => onEdit(post)} style={styles.actionBtnEdit} title="Editar">
