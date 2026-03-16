@@ -1,9 +1,9 @@
 // Módulo: mainsite-frontend/src/components/ShareOverlay.jsx
-// Versão: v1.2.0
-// Descrição: Modal de compartilhamento por e-mail padronizado sob métricas estritas de Glassmorphism.
+// Versão: v1.3.0
+// Descrição: Casca visual em Glassmorphism fundida com motor funcional validado (required, type="email", autoFocus).
 
 import React, { useState, useEffect } from 'react';
-import { X, Send, Mail } from 'lucide-react';
+import { Mail, Send, X } from 'lucide-react';
 
 const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -20,7 +20,7 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
 
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
 
-  // Métrica Glassmorphism: Fundo da tela
+  // Métrica Glassmorphism
   const overlayStyle = {
     position: 'fixed',
     top: 0, left: 0, right: 0, bottom: 0,
@@ -30,13 +30,12 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 9999,
+    zIndex: 11000,
     opacity: modalState.show ? 1 : 0,
     transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
     padding: '20px'
   };
 
-  // Métrica Glassmorphism: Container do Modal
   const modalStyle = {
     backgroundColor: activePalette.bgColor,
     color: activePalette.fontColor,
@@ -94,10 +93,9 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
     <div style={overlayStyle}>
       <div style={modalStyle}>
         <button 
+          type="button"
           onClick={() => setModalState({ show: false, email: '' })} 
           style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.6 }}
-          onMouseOver={(e) => e.currentTarget.style.opacity = 1}
-          onMouseOut={(e) => e.currentTarget.style.opacity = 0.6}
         >
           <X size={20} />
         </button>
@@ -116,21 +114,15 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
         <form onSubmit={onSubmit} style={{ width: '100%' }}>
           <input 
             type="email" 
+            required 
+            autoFocus 
             placeholder="destinatario@exemplo.com" 
             value={modalState.email} 
             onChange={(e) => setModalState({ ...modalState, email: e.target.value })} 
             style={inputStyle} 
-            required 
-            autoFocus
           />
 
-          <button 
-            type="submit" 
-            style={buttonStyle}
-            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
-            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-            onMouseDown={(e) => e.currentTarget.style.transform = 'translateY(1px)'}
-          >
+          <button type="submit" style={buttonStyle}>
             <Send size={18} />
             ENVIAR E-MAIL
           </button>
