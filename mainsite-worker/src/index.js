@@ -1,9 +1,10 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.15.0
-// Descrição: Código integral. Injeção do endpoint /api/mp-payment para processamento seguro via Checkout Bricks do Mercado Pago.
+// Versão: v1.18.0
+// Descrição: Código integral. Implementação do SDK do Mercado Pago, lógica de captura do nome real (cardholder), UPSERT no Webhook e nova rota de Estorno (Refund) nativo.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { MercadoPagoConfig, Payment } from 'mercadopago';
 
 const app = new Hono();
 
@@ -179,7 +180,6 @@ PERGUNTA DO USUÁRIO: ${message}`;
           }
         })());
       }
-      
       replyText = replyText.replace(emailRegex, '').trim();
     }
 
@@ -200,7 +200,6 @@ app.post('/api/ai/public/summarize', async (c) => {
     if (!apiKey || !text) throw new Error("Parâmetros inválidos.");
 
     const prompt = `Crie um resumo conciso (TL;DR) em um único parágrafo objetivo para o seguinte texto:\n\n${text}`;
-    
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4 } })
@@ -218,7 +217,6 @@ app.post('/api/ai/public/translate', async (c) => {
     if (!apiKey || !text || !lang) throw new Error("Parâmetros inválidos.");
 
     const prompt = `Traduza rigorosamente o texto abaixo para o idioma: ${lang}. Mantenha qualquer tag HTML ou formatação intacta. Texto:\n\n${text}`;
-    
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2 } })
@@ -281,16 +279,8 @@ app.post('/api/share/email', async (c) => {
       })
     });
     
-    if (!emailRes.ok) {
-      const errData = await emailRes.json();
-      throw new Error(errData.message || "Erro no envio pelo Resend.");
-    }
-
-    c.executionCtx.waitUntil(
-      c.env.DB.prepare("INSERT INTO shares (post_id, post_title, platform, target) VALUES (?, ?, 'email', ?)")
-      .bind(post_id, post_title, target_email).run()
-    );
-    
+    if (!emailRes.ok) throw new Error("Erro no envio pelo Resend.");
+    c.executionCtx.waitUntil(c.env.DB.prepare("INSERT INTO shares (post_id, post_title, platform, target) VALUES (?, ?, 'email', ?)").bind(post_id, post_title, target_email).run());
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -301,7 +291,6 @@ app.post('/api/contact', async (c) => {
     if (!name || !email || !message) return c.json({ error: "Dados incompletos" }, 400);
 
     const resendToken = c.env.RESEND_API_KEY; 
-
     const adminHtml = `
       <div style="font-family: sans-serif; color: #333;">
         <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Contato pelo Site</h2>
@@ -313,7 +302,6 @@ app.post('/api/contact', async (c) => {
         </div>
       </div>
     `;
-
     const userHtml = `
       <div style="font-family: sans-serif; color: #333; line-height: 1.6;">
         <h2 style="color: #0ea5e9;">Olá, ${name}</h2>
@@ -327,44 +315,24 @@ app.post('/api/contact', async (c) => {
     `;
 
     await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: 'Divagações Filosóficas <mainsite@lcv.app.br>',
-        to: 'lcv@lcv.rio.br',
-        subject: `Novo Contato de ${name}`,
-        html: adminHtml
-      })
+      method: 'POST', headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: 'Divagações Filosóficas <mainsite@lcv.app.br>', to: 'lcv@lcv.rio.br', subject: `Novo Contato de ${name}`, html: adminHtml })
     });
 
     await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: 'Divagações Filosóficas <mainsite@lcv.app.br>',
-        to: email,
-        subject: 'Recebemos sua mensagem - Divagações Filosóficas',
-        html: userHtml
-      })
+      method: 'POST', headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: 'Divagações Filosóficas <mainsite@lcv.app.br>', to: email, subject: 'Recebemos sua mensagem', html: userHtml })
     });
 
-    c.executionCtx.waitUntil(
-      c.env.DB.prepare("INSERT INTO contact_logs (name, phone, email, message) VALUES (?, ?, ?, ?)")
-      .bind(name, phone || '', email, message).run()
-    );
-
+    c.executionCtx.waitUntil(c.env.DB.prepare("INSERT INTO contact_logs (name, phone, email, message) VALUES (?, ?, ?, ?)").bind(name, phone || '', email, message).run());
     return c.json({ success: true });
-  } catch (err) {
-    return c.json({ error: "Falha ao processar o formulário de contato." }, 500);
-  }
+  } catch (err) { return c.json({ error: "Falha ao processar contato." }, 500); }
 });
 
 app.post('/api/comment', async (c) => {
   try {
     const { name, phone, email, message, post_title } = await c.req.json();
-    if (!message) return c.json({ error: "O comentário é obrigatório" }, 400);
-
-    const resendToken = c.env.RESEND_API_KEY; 
+    if (!message) return c.json({ error: "Comentário obrigatório" }, 400);
 
     const adminHtml = `
       <div style="font-family: sans-serif; color: #333;">
@@ -380,33 +348,36 @@ app.post('/api/comment', async (c) => {
     `;
 
     await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: 'Divagações Filosóficas <mainsite@lcv.app.br>',
-        to: 'lcv@lcv.rio.br',
-        subject: `Novo Comentário: ${post_title || 'Geral'}`,
-        html: adminHtml
-      })
+      method: 'POST', headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: 'Divagações Filosóficas <mainsite@lcv.app.br>', to: 'lcv@lcv.rio.br', subject: `Novo Comentário: ${post_title || 'Geral'}`, html: adminHtml })
     });
 
     return c.json({ success: true });
-  } catch (err) {
-    return c.json({ error: "Falha ao processar o comentário." }, 500);
-  }
+  } catch (err) { return c.json({ error: "Falha ao processar comentário." }, 500); }
 });
 
-// --- ROTA DE PAGAMENTO (ENRIQUECIDA PARA 100/100 NO TESTE DE QUALIDADE) ---
+// --- API FINANCEIRA MELHORADA (SDK OFICIAL) ---
 app.post('/api/mp-payment', async (c) => {
   try {
     const body = await c.req.json();
     const token = c.env.MP_ACCESS_TOKEN; 
     if (!token) throw new Error("MP_ACCESS_TOKEN ausente.");
 
-    // Geração da external_reference obrigatória
-    const extRef = `DON-${crypto.randomUUID()}`;
+    const client = new MercadoPagoConfig({ accessToken: token });
+    const paymentApi = new Payment(client);
 
-    // Montagem do Payload Rico exigido pelo Relatório de Qualidade do MP
+    const extRef = `DON-${crypto.randomUUID()}`;
+    
+    // Lógica Inteligente de Captura do Nome Real (Anula o fallback de e-mail do MP)
+    let realFirstName = body.payer?.first_name;
+    let realLastName = body.payer?.last_name;
+    
+    if (!realFirstName && body.cardholder?.name) {
+      const nameParts = body.cardholder.name.trim().split(' ');
+      realFirstName = nameParts[0];
+      realLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+    }
+
     const enhancedPayload = {
       ...body,
       external_reference: extRef,
@@ -416,46 +387,68 @@ app.post('/api/mp-payment', async (c) => {
           {
             id: "DONATION-01",
             title: "Apoio ao Projeto Divagações Filosóficas",
-            description: "Contribuição financeira voluntária para a manutenção da infraestrutura de TI do site.",
+            description: "Contribuição financeira voluntária.",
             category_id: "donations",
             quantity: 1,
             unit_price: Number(body.transaction_amount)
           }
         ],
         payer: {
-          first_name: body.payer?.first_name || "Apoiador",
-          last_name: body.payer?.last_name || "Anônimo",
-          phone: { area_code: "21", number: "999999999" }, // Preenchimento estrutural para mitigação de fraude
+          first_name: realFirstName || undefined,
+          last_name: realLastName || undefined,
+          phone: { area_code: "21", number: "999999999" },
           address: { street_name: "Av. Principal", street_number: 1, zip_code: "00000000" }
         }
       }
     };
 
-    const response = await fetch("https://api.mercadopago.com/v1/payments", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "X-Idempotency-Key": crypto.randomUUID()
-      },
-      body: JSON.stringify(enhancedPayload)
+    const data = await paymentApi.create({
+      body: enhancedPayload,
+      requestOptions: { idempotencyKey: crypto.randomUUID() }
     });
 
-    const data = await response.json();
-    return c.json(data, response.status);
+    return c.json(data, 201);
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+// --- ROTA EXCLUSIVA DE ESTORNO (REFUND) ---
+app.post('/api/mp-payment/:id/refund', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  const id = c.req.param('id');
+  try {
+    const token = c.env.MP_ACCESS_TOKEN;
+    if (!token) throw new Error("MP_ACCESS_TOKEN ausente.");
+
+    // Disparo oficial de estorno usando Fetch nativo para máxima estabilidade
+    const response = await fetch(`https://api.mercadopago.com/v1/payments/${id}/refunds`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-Idempotency-Key': crypto.randomUUID()
+      }
+    });
+    
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.message || "Erro na API do Mercado Pago ao estornar.");
+    }
+
+    // Atualiza imediatamente a base local (D1) para UX em tempo real
+    await c.env.DB.prepare("UPDATE financial_logs SET status = 'refunded' WHERE payment_id = ?").bind(id).run();
+
+    return c.json({ success: true });
   } catch (err) {
     return c.json({ error: err.message }, 500);
   }
 });
 
-// --- ROTA DE NOTIFICAÇÃO WEBHOOK (IPN) DO MERCADO PAGO ---
+// --- ROTA DE WEBHOOK COM UPSERT (Impede Duplicações) ---
 app.post('/api/webhooks/mercadopago', async (c) => {
   try {
     const url = new URL(c.req.url);
     const topic = url.searchParams.get('topic') || url.searchParams.get('type');
     const id = url.searchParams.get('id') || url.searchParams.get('data.id');
 
-    // Retorno imediato 200 para testes de validação do Mercado Pago
     if (!id || (topic !== 'payment' && topic !== 'payment.created' && topic !== 'payment.updated')) {
       return c.text('OK', 200);
     }
@@ -463,12 +456,10 @@ app.post('/api/webhooks/mercadopago', async (c) => {
     const mpToken = c.env.MP_ACCESS_TOKEN;
     let paymentData = {};
     
-    // Boa Prática: Consulta Reversa do Pagamento Notificado
     if (mpToken) {
-      const res = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
-        headers: { 'Authorization': `Bearer ${mpToken}` }
-      });
-      if (res.ok) paymentData = await res.json();
+      const client = new MercadoPagoConfig({ accessToken: mpToken });
+      const paymentApi = new Payment(client);
+      paymentData = await paymentApi.get({ id: id });
     }
 
     const status = paymentData.status || 'Desconhecido';
@@ -477,15 +468,31 @@ app.post('/api/webhooks/mercadopago', async (c) => {
     const method = paymentData.payment_method_id || 'N/A';
     const extRef = paymentData.external_reference || 'N/A';
 
-    // Disparo de E-mail de Auditoria via Resend
-    if (c.env.RESEND_API_KEY) {
+    const existing = await c.env.DB.prepare("SELECT id, status FROM financial_logs WHERE payment_id = ?").bind(id).first();
+    let shouldSendEmail = false;
+
+    if (!existing) {
+      shouldSendEmail = true; 
+      c.executionCtx.waitUntil(
+        c.env.DB.prepare("INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(id, status, amount, method, email, JSON.stringify(paymentData)).run()
+      );
+    } else {
+      if (existing.status !== status) shouldSendEmail = true; 
+      c.executionCtx.waitUntil(
+        c.env.DB.prepare("UPDATE financial_logs SET status = ?, amount = ?, method = ?, payer_email = ?, raw_payload = ? WHERE payment_id = ?")
+        .bind(status, amount, method, email, JSON.stringify(paymentData), id).run()
+      );
+    }
+
+    if (shouldSendEmail && c.env.RESEND_API_KEY) {
       const htmlMsg = `
         <div style="font-family: sans-serif; color: #333;">
           <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Notificação de Pagamento (Mercado Pago)</h2>
           <p><strong>ID da Transação:</strong> ${id}</p>
           <p><strong>Referência Interna:</strong> ${extRef}</p>
           <div style="background: #f0f9ff; padding: 15px; border-left: 4px solid #0ea5e9; margin: 20px 0;">
-            <p style="margin: 0; font-size: 18px;"><strong>Status: <span style="color: ${status === 'approved' ? '#10b981' : '#f59e0b'}">${status.toUpperCase()}</span></strong></p>
+            <p style="margin: 0; font-size: 18px;"><strong>Status: <span style="color: ${status === 'approved' ? '#10b981' : (status === 'refunded' ? '#ef4444' : '#f59e0b')}">${status.toUpperCase()}</span></strong></p>
             <p style="margin: 10px 0 0 0;">Valor: R$ ${amount.toFixed(2)}</p>
           </div>
           <p><strong>Método Utilizado:</strong> ${method.toUpperCase()}</p>
@@ -497,29 +504,15 @@ app.post('/api/webhooks/mercadopago', async (c) => {
         fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            from: 'Financeiro do Site <mainsite@lcv.app.br>',
-            to: 'lcv@lcv.rio.br',
-            subject: `[MP Webhook] Pagamento ${status.toUpperCase()} - R$${amount}`,
-            html: htmlMsg
-          })
+          body: JSON.stringify({ from: 'Financeiro do Site <mainsite@lcv.app.br>', to: 'lcv@lcv.rio.br', subject: `[MP Webhook] Pagamento ${status.toUpperCase()} - R$${amount}`, html: htmlMsg })
         })
       );
     }
 
-    // Registro na Tabela D1
-    c.executionCtx.waitUntil(
-      c.env.DB.prepare("INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
-      .bind(id, status, amount, method, email, JSON.stringify(paymentData)).run()
-    );
-
     return c.text('OK', 200);
-  } catch (e) {
-    return c.text('Erro no processamento do Webhook', 500);
-  }
+  } catch (e) { return c.text('Erro interno no Webhook', 500); }
 });
 
-// --- ROTA DE LEITURA DO PAINEL FINANCEIRO (ADMIN) ---
 app.get('/api/financial-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
@@ -528,6 +521,7 @@ app.get('/api/financial-logs', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+// --- ROTAS DE UPLOAD E CRUD ---
 app.post('/api/upload', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
@@ -538,8 +532,7 @@ app.post('/api/upload', async (c) => {
     const uniqueName = `${crypto.randomUUID()}.${extension}`;
     await c.env.BUCKET.put(uniqueName, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
     const url = new URL(c.req.url);
-    const publicUrl = `${url.origin}/api/uploads/${uniqueName}`;
-    return c.json({ success: true, url: publicUrl }, 201);
+    return c.json({ success: true, url: `${url.origin}/api/uploads/${uniqueName}` }, 201);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
@@ -626,12 +619,7 @@ app.get('/api/settings', async (c) => {
   try {
     const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'appearance'").first();
     if (record) return c.json(JSON.parse(record.payload));
-    return c.json({ 
-      allowAutoMode: true, 
-      light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' }, 
-      dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' }, 
-      shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' } 
-    });
+    return c.json({ allowAutoMode: true, light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' }, dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' }, shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' } });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
@@ -683,11 +671,7 @@ app.get('/api/settings/disclaimers', async (c) => {
   try {
     const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'disclaimers'").first();
     if (record) return c.json(JSON.parse(record.payload));
-    
-    return c.json({ 
-      enabled: true, 
-      items: [{ id: crypto.randomUUID(), title: 'Aviso ao Leitor', text: 'Este texto não busca convencer nem detém a verdade. São apenas abstrações de uma mente em constante autorreflexão. Por ser ensaio pessoal, abdica-se do rigor acadêmico e de referências formais, priorizando-se a livre expressão.', buttonText: 'Concordo' }] 
-    });
+    return c.json({ enabled: true, items: [{ id: crypto.randomUUID(), title: 'Aviso', text: 'Texto de exemplo.', buttonText: 'Concordo' }] });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
@@ -736,6 +720,6 @@ export default {
       await env.DB.batch(statements);
       config.last_rotated_at = now;
       await env.DB.prepare("UPDATE settings SET payload = ? WHERE id = 'rotation'").bind(JSON.stringify(config)).run();
-    } catch (err) { console.error("Falha no Job de Rotação:", err); }
+    } catch (err) { console.error("Falha no Job:", err); }
   }
 };
