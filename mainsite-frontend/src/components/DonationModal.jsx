@@ -14,7 +14,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     const [isCopied, setIsCopied] = useState(false);
   
   // Variável de configuração do Mercado Pago (deve ser passada via variável de ambiente)
-  const mpPublicKey = "APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794"";
+  const mpPublicKey = "APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794";
 
   useEffect(() => {
     if (mpPublicKey) {
