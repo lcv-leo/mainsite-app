@@ -1,10 +1,14 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.2.0
-// Descrição: Integração oficial do Mercado Pago Checkout Bricks (SDK React). Correção do payload (param.formData) e tratamento de erros aprimorado.
+// Versão: v1.2.1
+// Descrição: Inicialização global do SDK do Mercado Pago para resolver corrida de ciclo de vida do React (Erro "Expected the PUBLIC_KEY").
 
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone } from 'lucide-react';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
+
+// INICIALIZAÇÃO GLOBAL (FORA DO CICLO DE VIDA DO COMPONENTE)
+// Garante que o SDK está pronto antes do React tentar desenhar o iframe
+initMercadoPago("APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794", { locale: 'pt-BR' });
 
 const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -12,15 +16,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [amountDisplay, setAmountDisplay] = useState('');
   const [pixPayload, setPixPayload] = useState('');
   const [isCopied, setIsCopied] = useState(false);
-  
-  // Chave inserida diretamente (Opção B)
-  const mpPublicKey = "APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794"; // <-- Certifique-se de que a sua chave real está aqui!
-
-  useEffect(() => {
-    if (mpPublicKey && mpPublicKey !== "APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794") {
-      initMercadoPago(mpPublicKey, { locale: 'pt-BR' });
-    }
-  }, [mpPublicKey]);
 
   useEffect(() => {
     if (show) {
@@ -99,10 +94,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
   const handleConfirmMercadoPago = (e) => {
     e.preventDefault();
-    if (!mpPublicKey || mpPublicKey === "APP_USR-sua-chave-publica-real-aqui") {
-      alert("A chave pública do Mercado Pago não está configurada no código.");
-      return;
-    }
     setStep(4);
   };
 
@@ -222,7 +213,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 visual: { style: { theme: isDarkBase ? 'dark' : 'default' } }
               }}
               onSubmit={async (param) => {
-                // CORREÇÃO CRÍTICA: Enviar param.formData em vez de param
                 const res = await fetch(`${API_URL}/mp-payment`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
