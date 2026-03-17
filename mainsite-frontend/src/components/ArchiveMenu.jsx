@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/components/ArchiveMenu.jsx
-// Versão: v1.1.0
-// Descrição: Componente isolado para a listagem, busca e navegação no histórico de fragmentos. Atualizado 100% para métricas de Glassmorphism.
+// Versão: v1.1.1
+// Descrição: Componente isolado para a listagem, busca e navegação no histórico de fragmentos. Atualizado 100% para métricas de Glassmorphism e com data cravada no timezone 'America/Sao_Paulo'.
 
 import React, { useState } from 'react';
 import { ChevronUp, Search } from 'lucide-react';
@@ -11,10 +11,8 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
 
   if (!activePalette) return null;
 
-  // Cálculo de contraste isolado para manter a estética
   const isDarkBase = activePalette.bgColor && (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1'));
 
-  // Motor de Busca Semântica Simples isolado do App principal
   const filteredArchive = posts.filter(post => {
     const safeTitle = post.title || '';
     const safeContent = post.content || '';
@@ -79,7 +77,9 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
                   boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
                 }}
               >
-                <div style={styles.cardDate}>{new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR')}</div>
+                {/* CORREÇÃO DE TIMEZONE APLICADA */}
+                <div style={styles.cardDate}>{new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</div>
+                
                 <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 'bold', color: activePalette.titleColor, transition: 'color 0.5s ease' }}>{post.title}</div>
               </div>
             ))

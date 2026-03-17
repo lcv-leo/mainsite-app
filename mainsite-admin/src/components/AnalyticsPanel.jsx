@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/components/AnalyticsPanel.jsx
-// Versão: v1.2.0
-// Descrição: Dashboard consolidado. Envelopamento Glassmorphism, motor de Long Polling (10s) e formatação nativa de datas SQLite.
+// Versão: v1.2.1
+// Descrição: Dashboard consolidado. Envelopamento Glassmorphism, motor de Long Polling (10s) e formatação nativa de datas SQLite forçada para o fuso oficial de Brasília (America/Sao_Paulo).
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, MessageSquare, Share2, Bot, Loader2, Calendar, RefreshCw } from 'lucide-react';
@@ -40,12 +40,10 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
     }
   }, [API_URL, secret]);
 
-  // Ciclo de Vida: Montagem Inicial
   useEffect(() => {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  // Ciclo de Vida: Motor de Telemetria Contínua (Long Polling)
   useEffect(() => {
     const pollInterval = setInterval(() => {
       fetchAnalytics(true);
@@ -53,7 +51,6 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
     return () => clearInterval(pollInterval);
   }, [fetchAnalytics]);
 
-  // Métricas de Envelopamento Glassmorphism (Agnóstico a Tema)
   const blockStyle = { 
     background: 'rgba(0, 0, 0, 0.15)', 
     border: '1px solid rgba(128, 128, 128, 0.15)', 
@@ -98,9 +95,10 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
     opacity: 0.9
   };
 
+  // CORREÇÃO: Fuso horário de Brasília forçado
   const formatDate = (dateString) => {
     try {
-      return new Date(dateString.replace(' ', 'T') + 'Z').toLocaleString('pt-BR');
+      return new Date(dateString.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     } catch (e) {
       return dateString;
     }
@@ -129,7 +127,6 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
         </div>
       ) : (
         <>
-          {/* BLOCO 1: FORMULÁRIOS DE CONTATO */}
           <div style={blockStyle}>
             <h2 style={titleStyle}><MessageSquare size={18} /> Formulários de Contato Recebidos</h2>
             {data.contacts.length === 0 ? <div style={{opacity: 0.5, fontSize: '13px'}}>Nenhum contato registrado.</div> : 
@@ -146,7 +143,6 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
             }
           </div>
 
-          {/* BLOCO 2: COMPARTILHAMENTOS */}
           <div style={blockStyle}>
             <h2 style={titleStyle}><Share2 size={18} /> Métricas de Compartilhamento</h2>
             {data.shares.length === 0 ? <div style={{opacity: 0.5, fontSize: '13px'}}>Nenhum compartilhamento registrado.</div> : 
@@ -167,7 +163,6 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
             }
           </div>
 
-          {/* BLOCO 3: TELEMETRIA DA IA */}
           <div style={blockStyle}>
             <h2 style={titleStyle}><Bot size={18} /> Logs da Consciência Auxiliar (IA)</h2>
             {data.chatLogs.length === 0 ? <div style={{opacity: 0.5, fontSize: '13px'}}>Nenhum log de IA registrado.</div> : 

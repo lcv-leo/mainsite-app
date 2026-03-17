@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/components/TelemetryPanel.jsx
-// Versão: v1.0.0
-// Descrição: Componente isolado para renderização de auditoria de IA (Chat) e Engajamento (Shares).
+// Versão: v1.0.1
+// Descrição: Componente isolado para renderização de auditoria de IA (Chat) e Engajamento (Shares). Inclui correção de fuso horário (America/Sao_Paulo).
 
 import React from 'react';
 import { ArrowLeft, MessageSquare, Share2, RefreshCw, Loader2 } from 'lucide-react';
@@ -44,7 +44,9 @@ const TelemetryPanel = ({
           <div key={i} className="log-card" style={{ background: '#f8fafc', borderLeft: `4px solid ${isChat ? (log.role === 'user' ? '#94a3b8' : '#4ade80') : (log.platform === 'whatsapp' ? '#22c55e' : log.platform === 'email' ? '#38bdf8' : '#94a3b8')}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '10px', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase' }}>
               <span>{isChat ? (log.role === 'user' ? '👤 Pergunta (Usuário)' : '🤖 Resposta (IA)') : `Plataforma: ${log.platform}`}</span>
-              <span>{new Date(log.created_at).toLocaleString('pt-BR')}</span>
+              
+              {/* CORREÇÃO DE TIMEZONE APLICADA */}
+              <span>{new Date(log.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
             </div>
             
             <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#0f172a', whiteSpace: 'pre-wrap', fontWeight: isChat ? 'normal' : 'bold' }}>

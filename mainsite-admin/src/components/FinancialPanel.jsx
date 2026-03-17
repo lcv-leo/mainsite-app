@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/components/FinancialPanel.jsx
-// Versão: v1.6.0
-// Descrição: Injeção do botão e modal de exclusão (Trash2) para expurgo de logs e testes duplicados. Agrupamento das ações da tabela para melhor alinhamento visual. Adaptação do executeAction para invocar o método DELETE.
+// Versão: v1.8.0
+// Descrição: Blindagem de Timezone para Auditoria (Compliance). Renderização da data de transação travada estritamente no fuso 'America/Sao_Paulo' (UTC-3), ignorando o relógio local do sistema operacional do cliente para evitar inconsistências globais de log. Manutenção da lixeira de expurgo e short-polling.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet, Trash2 } from 'lucide-react';
@@ -73,7 +73,6 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
   }, [API_URL, secret, logCount, fetchFinanceData]);
 
   const executeAction = async () => {
-    // Agora extraímos o dbId (Primary Key do banco) além do id (Payment ID do MP)
     const { id, dbId } = activeTx; 
     const isRefund = modalType === 'refund';
     const isDelete = modalType === 'delete';
@@ -86,13 +85,11 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       let options;
 
       if (isDelete) {
-        // Rota de exclusão no próprio banco
         url = `${API_URL}/financial-logs/${dbId}`;
         options = { method: 'DELETE', headers: { 'Authorization': `Bearer ${secret}` } };
       } else {
-        // Rotas de comunicação com o Mercado Pago
         url = `${API_URL}/mp-payment/${id}/${isRefund ? 'refund' : 'cancel'}`;
-        options = { method: isRefund ? 'POST' : 'PUT', headers: { 'Authorization': `Bearer ${secret}`, 'Content-Type': 'application/json' } };
+        options = { method: isRefund ? 'POST', headers: { 'Authorization': `Bearer ${secret}`, 'Content-Type': 'application/json' } };
         
         if (isRefund && refundAmount) {
           const amt = parseFloat(refundAmount.replace(',', '.'));
@@ -184,7 +181,12 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                   const isApproved = log.status === 'approved';
                   return (
                   <tr key={log.id} style={{ borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
-                    <td style={{ padding: '12px', opacity: 0.8 }}>{new Date(log.created_at).toLocaleString('pt-BR')}</td>
+                    
+                    {/* IMPLEMENTAÇÃO ESTRITA: Trava a renderização no horário oficial de Brasília */}
+                    <td style={{ padding: '12px', opacity: 0.8 }}>
+                      {new Date(log.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                    </td>
+                    
                     <td style={{ padding: '12px', fontFamily: 'monospace' }}>{log.payment_id}</td>
                     <td style={{ padding: '12px' }}>
                       <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: isApproved ? 'rgba(16, 185, 129, 0.2)' : (log.status.includes('refund') || log.status === 'cancelled' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'), color: isApproved ? '#10b981' : (log.status.includes('refund') || log.status === 'cancelled' ? '#ef4444' : '#f59e0b') }}>{log.status.toUpperCase()}</span>
@@ -193,12 +195,10 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                     <td style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                       <span style={{ opacity: 0.8 }}>{log.payer_email}</span>
                       
-                      {/* AGRUPAMENTO DE BOTÕES DE AÇÃO */}
                       <div style={{ display: 'flex', gap: '6px' }}>
                         {isApproved && ( <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('refund'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('234, 67, 53')}> <RotateCcw size={14} /> Estornar</button> )}
                         {isPending && ( <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('cancel'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('245, 158, 11')}> <Ban size={14} /> Cancelar</button> )}
                         
-                        {/* NOVO BOTÃO DE EXCLUSÃO DE LOG (Vermelho Suave) */}
                         <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('delete'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('156, 163, 175')} title="Excluir este registro"> 
                           <Trash2 size={14} />
                         </button>

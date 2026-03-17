@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/components/PostList.jsx
-// Versão: v1.1.0
-// Descrição: Componente isolado. Lógica de Drag and Drop preservada, com refatoração visual para suportar Glassmorphism e Multi-Tema dinâmico.
+// Versão: v1.1.1
+// Descrição: Componente isolado. Lógica de Drag and Drop preservada, com refatoração visual e correção de timezone para renderização de datas em formato pt-BR (America/Sao_Paulo).
 
 import React from 'react';
 import { Pin, Edit3, Trash2, GripVertical } from 'lucide-react';
@@ -42,7 +42,8 @@ const PostList = ({
             </div>
             <div>
               <div style={styles.cardDate}>
-                {new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR')} 
+                {/* CORREÇÃO DE TIMEZONE APLICADA */}
+                {new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} 
                 {post.is_pinned && <span style={styles.pinnedBadge}>FIXADO</span>}
               </div>
               <h2 style={styles.cardTitle}>{post.title}</h2>
