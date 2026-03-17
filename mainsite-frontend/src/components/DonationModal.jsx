@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.9.1
-// Descrição: Correção definitiva. Prevenção do erro 'removeChild on Node' (Lifecycle do React vs Vanilla JS) através da estabilização da prop 'key'. Resolução de Freeze através de Promise controlada. Coleta legítima de Nome/Sobrenome em obediência ao PCI-DSS e injeção do sistema nativo de Toasts (sem alertas de navegador).
+// Versão: v1.9.2
+// Descrição: Resolução do TypeError letal ('reading payer' of undefined) no onSubmit. O CardPayment do SDK do Mercado Pago envia o formData diretamente como argumento (diferente do Payment genérico). Assinatura ajustada para evitar undefined e garantir a injeção do first_name e last_name.
 
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone, AlertTriangle } from 'lucide-react';
@@ -256,17 +256,18 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
             </div>
             <CardPayment
-              key="mp-card-brick" // CORREÇÃO: Estabiliza o lifecycle do componente no React
+              key="mp-card-brick" 
               initialization={{ amount: getNumericAmount() }}
               customization={{ visual: { style: { theme: isDarkBase ? 'dark' : 'default' } } }}
               
-              onSubmit={(param) => {
+              // CORREÇÃO CRÍTICA APLICADA: O CardPayment envia o objeto formData diretamente. 
+              onSubmit={(formData) => {
                 return new Promise(async (resolve, reject) => {
                   try {
                     const payload = {
-                      ...param.formData,
+                      ...formData,
                       payer: {
-                        ...(param.formData.payer || {}),
+                        ...(formData.payer || {}),
                         first_name: firstName.trim(),
                         last_name: lastName.trim()
                       }
