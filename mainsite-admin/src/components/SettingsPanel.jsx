@@ -3,7 +3,7 @@
 // Descrição: Componente isolado. Resolução de quebra visual no Dark Mode com a implementação padronizada da malha de Glassmorphism.
 
 import React from 'react';
-import { ArrowLeft, ShieldAlert, Loader2, Upload, Save } from 'lucide-react';
+import { X, Save, Image as ImageIcon, Loader2, Activity, CheckCircle } from 'lucide-react';
 
 const SettingsPanel = ({
   settings, setSettings,
@@ -162,6 +162,35 @@ const SettingsPanel = ({
             </div>
           )}
         </div>
+
+        {/* INÍCIO DO BLOCO DO MERCADO PAGO MOVIDO */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop: '40px', marginBottom: '20px' }}>
+          
+          <div style={{ background: 'transparent', border: '1px solid rgba(128,128,128,0.2)', borderRadius: '16px', padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', color: '#1a73e8' }}>
+              <Activity size={20} /> <h2 style={{ fontSize: '16px', margin: 0, color: 'inherit' }}>Endpoint de Webhook Configurado</h2>
+            </div>
+            <p style={{ fontSize: '13px', opacity: 0.8, marginBottom: '10px' }}>Copie a URL abaixo e cole no painel do Mercado Pago (Aba: Notificações Webhooks) para ativar a sincronização em tempo real:</p>
+            <div style={{ background: 'rgba(128,128,128,0.1)', padding: '12px', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace', wordBreak: 'break-all', border: '1px dashed rgba(128,128,128,0.3)' }}>
+              https://mainsite-app.lcv.rio.br/api/webhooks/mercadopago
+            </div>
+          </div>
+
+          <div style={{ background: 'transparent', border: '1px solid rgba(128,128,128,0.2)', borderRadius: '16px', padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', color: '#10b981' }}>
+              <CheckCircle size={20} /> <h2 style={{ fontSize: '16px', margin: 0, color: 'inherit' }}>Auditoria de Qualidade (100/100)</h2>
+            </div>
+            <ul style={{ fontSize: '12px', margin: 0, paddingLeft: '20px', lineHeight: '1.8', opacity: 0.8 }}>
+              <li>✓ <strong>Ação Obrigatória:</strong> Notificações Webhook Ativas</li>
+              <li>✓ <strong>Ação Obrigatória:</strong> Referência Externa (UUID) Mapeada</li>
+              <li>✓ <strong>Ação Recomendada:</strong> Payer Email, First Name e Last Name processados</li>
+              <li>✓ <strong>Ação Recomendada:</strong> Objeto Items (id, title, price, qty) injetado</li>
+              <li>✓ <strong>Boa Prática:</strong> Consulta Reversa Ativa na API de Pagamentos</li>
+            </ul>
+          </div>
+
+        </div>
+        {/* FIM DO BLOCO DO MERCADO PAGO MOVIDO */}
         
         <button type="submit" disabled={isSaving} style={styles.adminButton}>
           {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} 

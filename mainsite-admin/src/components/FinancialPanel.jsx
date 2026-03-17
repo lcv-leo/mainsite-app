@@ -1,29 +1,42 @@
 // Módulo: mainsite-admin/src/components/FinancialPanel.jsx
-// Versão: v1.0.0
-// Descrição: Painel de gestão financeira e logs de Webhooks do Mercado Pago.
+// Versão: v1.1.0
+// Descrição: Painel financeiro com auto-refresh (polling de 15s), botão de atualização manual e remoção dos cards informativos (movidos para Settings).
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, DollarSign, Activity, CheckCircle, Loader2 } from 'lucide-react';
+import { X, DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchLogs = useCallback(async () => {
+  // Função isolada de busca, com flag para mostrar o spinner no botão manual
+  const fetchLogs = useCallback(async (isManual = false) => {
+    if (isManual) setIsRefreshing(true);
     try {
       const res = await fetch(`${API_URL}/financial-logs`, {
         headers: { 'Authorization': `Bearer ${secret}` }
       });
       if (res.ok) setLogs(await res.json());
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao buscar logs financeiros", err);
     } finally {
       setLoading(false);
+      if (isManual) setIsRefreshing(false);
     }
   }, [API_URL, secret]);
 
+  // Efeito 1: Busca inicial
   useEffect(() => {
     fetchLogs();
+  }, [fetchLogs]);
+
+  // Efeito 2: Motor de Auto-Refresh (Polling) a cada 15 segundos
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchLogs(false); // Falso para não piscar o botão durante a atualização invisível
+    }, 15000);
+    return () => clearInterval(intervalId); // Limpa o motor quando o painel for fechado
   }, [fetchLogs]);
 
   const glassCard = {
@@ -34,43 +47,44 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     marginBottom: '24px'
   };
 
+  const refreshBtnStyle = {
+    background: 'transparent',
+    border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+    color: activePalette.fontColor,
+    padding: '6px 14px',
+    borderRadius: '8px',
+    fontSize: '11px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    transition: 'all 0.2s',
+    textTransform: 'uppercase'
+  };
+
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <button onClick={onClose} style={styles.backButton}>
         <X size={18} /> FECHAR PAINEL FINANCEIRO
       </button>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-        
-        <div style={glassCard}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', color: activePalette.titleColor }}>
-            <Activity size={20} /> <h2 style={{ fontSize: '16px', margin: 0 }}>Endpoint de Webhook Configurado</h2>
-          </div>
-          <p style={{ fontSize: '13px', opacity: 0.8, marginBottom: '10px' }}>Copie a URL abaixo e cole no painel do Mercado Pago (Aba: Notificações Webhooks) para ativar a sincronização em tempo real:</p>
-          <div style={{ background: isDarkBase ? 'rgba(0,0,0,0.4)' : '#fff', padding: '12px', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace', wordBreak: 'break-all', border: '1px dashed rgba(128,128,128,0.3)' }}>
-            https://mainsite-app.lcv.rio.br/api/webhooks/mercadopago
-          </div>
-        </div>
-
-        <div style={glassCard}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', color: '#10b981' }}>
-            <CheckCircle size={20} /> <h2 style={{ fontSize: '16px', margin: 0, color: activePalette.titleColor }}>Auditoria de Qualidade (100/100)</h2>
-          </div>
-          <ul style={{ fontSize: '12px', margin: 0, paddingLeft: '20px', lineHeight: '1.8', opacity: 0.8 }}>
-            <li>✓ <strong>Ação Obrigatória:</strong> Notificações Webhook Ativas</li>
-            <li>✓ <strong>Ação Obrigatória:</strong> Referência Externa (UUID) Mapeada</li>
-            <li>✓ <strong>Ação Recomendada:</strong> Payer Email, First Name e Last Name processados</li>
-            <li>✓ <strong>Ação Recomendada:</strong> Objeto Items (id, title, price, qty) injetado</li>
-            <li>✓ <strong>Boa Prática:</strong> Consulta Reversa Ativa na API de Pagamentos</li>
-          </ul>
-        </div>
-
-      </div>
-
       <div style={glassCard}>
-        <h2 style={{ fontSize: '16px', margin: '0 0 20px 0', color: activePalette.titleColor, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <DollarSign size={20} /> Histórico de Transações e Logs (D1)
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
+          <h2 style={{ fontSize: '16px', margin: 0, color: activePalette.titleColor, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <DollarSign size={20} /> Histórico de Transações e Logs (D1)
+          </h2>
+          
+          <button 
+            onClick={() => fetchLogs(true)} 
+            style={refreshBtnStyle}
+            onMouseOver={(e) => e.currentTarget.style.background = isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} /> 
+            {isRefreshing ? 'ATUALIZANDO...' : 'ATUALIZAR AGORA'}
+          </button>
+        </div>
         
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '30px' }}><Loader2 className="animate-spin" size={24} /></div>
