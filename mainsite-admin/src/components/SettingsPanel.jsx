@@ -1,9 +1,9 @@
 // Módulo: mainsite-admin/src/components/SettingsPanel.jsx
-// Versão: v1.2.0
-// Descrição: Componente isolado. Resolução de quebra visual no Dark Mode com a implementação padronizada da malha de Glassmorphism.
+// Versão: v1.3.0
+// Descrição: Componente isolado. Resolução de erro ReferenceError importando ícones ausentes (ArrowLeft, ShieldAlert, Upload) do lucide-react.
 
 import React from 'react';
-import { X, Save, Image as ImageIcon, Loader2, Activity, CheckCircle } from 'lucide-react';
+import { X, Save, Image as ImageIcon, Loader2, Activity, CheckCircle, ArrowLeft, ShieldAlert, Upload } from 'lucide-react';
 
 const SettingsPanel = ({
   settings, setSettings,
