@@ -1,10 +1,10 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.26.0
-// Descrição: Monólito consolidado. Funcionalidades integrais restauradas (incluindo .replace), ciclo de vida React blindado com useMemo e Motor de Temas Glassmorphism.
+// Versão: v3.27.0
+// Descrição: Monólito consolidado. Painel Financeiro integrado e exclusão mútua de abas ajustada.
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
-  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2, Moon, Sun
+  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2, Moon, Sun, DollarSign
 } from 'lucide-react';
 
 import PostList from './components/PostList';
@@ -12,10 +12,11 @@ import PostList from './components/PostList';
 const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
 const EditorPanel = lazy(() => import('./components/EditorPanel'));
 const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel'));
+const FinancialPanel = lazy(() => import('./components/FinancialPanel')); // NOVA INJEÇÃO
 
 // URL Oficial da API
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.26.0'; // Restaurado para 'APP' para o .replace() funcionar
+const APP_VERSION = 'APP v3.27.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -24,7 +25,6 @@ const DEFAULT_SETTINGS = {
   shared: { fontSize: '1rem', titleFontSize: '1.5rem', fontFamily: 'system-ui, -apple-system, sans-serif' }
 };
 
-// FÁBRICA DE ESTILOS BLINDADA (Fora do ciclo de renderização para evitar re-renders destrutivos)
 const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse) => ({
   center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: activePalette.bgColor },
   adminBody: { 
@@ -41,7 +41,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   modalBtnConfirm: { backgroundColor: '#ea4335', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
   modalBtnCancel: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
   adminContainer: { maxWidth: '1000px', margin: '0 auto', backgroundColor: glassBg, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: '24px', border: `1px solid ${glassBorder}`, padding: '40px', boxShadow: '0 20px 40px rgba(0,0,0,0.08)' },
-  adminHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: `1px solid ${glassBorder}`, paddingBottom: '24px' },
+  adminHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: `1px solid ${glassBorder}`, paddingBottom: '24px', flexWrap: 'wrap', gap: '15px' },
   adminTitle: { fontSize: '18px', fontWeight: '600', color: activePalette.titleColor, letterSpacing: '-0.5px' },
   plusButton: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none', borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', transition: 'opacity 0.2s' },
   headerBtn: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', transition: 'background 0.2s' },
@@ -79,6 +79,7 @@ const App = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [isFinancialOpen, setIsFinancialOpen] = useState(false); // CONTROLE DE PAINEL ADICIONADO
   
   const [editingPost, setEditingPost] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -231,11 +232,11 @@ const App = () => {
   const openEditor = (post = null) => {
     setIsSettingsOpen(false); 
     setIsAnalyticsOpen(false);
+    setIsFinancialOpen(false);
     setEditingPost(post);
     setIsEditorOpen(true);
   };
 
-  // BASE DINÂMICA DO GLASSMORPHISM
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
   const glassBg = isDarkBase ? 'rgba(30, 30, 32, 0.7)' : 'rgba(255, 255, 255, 0.75)';
   const glassBorder = isDarkBase ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
@@ -248,7 +249,6 @@ const App = () => {
     ? (isDarkBase ? `url("${activePalette.bgImage}")` : `linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url("${activePalette.bgImage}")`) 
     : defaultCSSPattern;
 
-  // BLINDAGEM DE RENDERIZAÇÃO: Os estilos só são recriados se a paleta ou base mudarem
   const styles = useMemo(() => 
     getStyles(activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse), 
   [activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse]);
@@ -271,7 +271,6 @@ const App = () => {
         button:hover { opacity: 0.9; }
       `}</style>
       
-      {/* RESTAURAÇÃO FUNCIONAL: Lógica dinâmica do toast inline restaurada do seu código original */}
       <div style={{ ...styles.toast, transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor }}>
         {toast.type === 'error' ? <AlertCircle size={18} /> : <Check size={18} />} <span>{toast.message}</span>
       </div>
@@ -295,25 +294,29 @@ const App = () => {
         <header style={styles.adminHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <Database size={24} color={activePalette.titleColor} />
-            {/* RESTAURAÇÃO DA FUNÇÃO .replace() PARA MANTER A LÓGICA DE NOMECLATURA INTACTA */}
             <h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'Console')}</h1>
-            {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && (
+            {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && !isFinancialOpen && (
               <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={18} /> NOVO</button>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <button onClick={cycleTheme} style={styles.headerBtn} title="Alternar Tema">
               {userTheme === 'auto' ? <Settings size={16}/> : userTheme === 'dark' ? <Moon size={16}/> : <Sun size={16}/>}
             </button>
-            <button onClick={() => fetchData()} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={16} /></button>
-            <button onClick={() => setIsAnalyticsOpen(true)} style={styles.headerBtn}><BarChart2 size={16} /> Auditoria</button>
-            <button onClick={() => setIsSettingsOpen(true)} style={styles.headerBtn}><Settings size={16} /> Sistema</button>
+            <button onClick={() => { setIsAnalyticsOpen(false); setIsSettingsOpen(false); setIsFinancialOpen(false); fetchData(); }} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={16} /></button>
+            
+            {/* LÓGICA DE EXCLUSÃO MÚTUA PARA MANTER UM PAINEL ABERTO POR VEZ */}
+            <button onClick={() => { setIsAnalyticsOpen(true); setIsSettingsOpen(false); setIsFinancialOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><BarChart2 size={16} /> Auditoria</button>
+            <button onClick={() => { setIsFinancialOpen(true); setIsAnalyticsOpen(false); setIsSettingsOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><DollarSign size={16} /> Financeiro</button>
+            <button onClick={() => { setIsSettingsOpen(true); setIsAnalyticsOpen(false); setIsFinancialOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><Settings size={16} /> Sistema</button>
           </div>
         </header>
 
         <Suspense fallback={<div style={{ padding: '50px', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" color={activePalette.fontColor} size={32} /></div>}>
           {isAnalyticsOpen ? (
             <AnalyticsPanel onClose={() => { setIsAnalyticsOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} />
+          ) : isFinancialOpen ? (
+            <FinancialPanel onClose={() => { setIsFinancialOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} activePalette={activePalette} isDarkBase={isDarkBase} />
           ) : isSettingsOpen ? (
             <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} rotation={rotation} setRotation={setRotation} disclaimers={disclaimers} setDisclaimers={setDisclaimers} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
           ) : isEditorOpen ? (
