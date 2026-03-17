@@ -1,19 +1,22 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.5.0
-// Descrição: Evolução de UX. Substituição do Payment Brick genérico pelo CardPayment Brick especializado. Isso elimina o clique redundante e exibe o formulário de dados do cartão de crédito imediatamente após a seleção do doador. Preservação total da lógica do PIX nativo.
+// Versão: v1.6.0
+// Descrição: Injeção de campos reais de Nome e Sobrenome no Passo 1 para garantir a integridade dos dados enviados ao scanner antifraude do Mercado Pago. Transmissão estrita das variáveis firstName e lastName no payload do CardPayment.
 
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone } from 'lucide-react';
-// ALTERAÇÃO: Importação do CardPayment em vez do Payment genérico
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 
-// INICIALIZAÇÃO GLOBAL (FORA DO CICLO DE VIDA DO COMPONENTE)
 initMercadoPago("APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794", { locale: 'pt-BR' });
 
 const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [step, setStep] = useState(1); 
+  
+  // NOVOS ESTADOS: Captura real de dados do doador
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [amountDisplay, setAmountDisplay] = useState('');
+  
   const [pixPayload, setPixPayload] = useState('');
   const [isCopied, setIsCopied] = useState(false);
 
@@ -22,6 +25,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       setIsVisible(true);
       setStep(1);
       setAmountDisplay('');
+      setFirstName('');
+      setLastName('');
       setIsCopied(false);
     } else {
       setTimeout(() => setIsVisible(false), 400);
@@ -85,8 +90,21 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     return payload + calcCRC16(payload);
   };
 
+  const validateBaseForm = () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      alert("Por favor, preencha seu nome e sobrenome reais.");
+      return false;
+    }
+    if (getNumericAmount() <= 0) {
+      alert("Por favor, insira um valor válido.");
+      return false;
+    }
+    return true;
+  };
+
   const handleConfirmNativePix = (e) => {
     e.preventDefault();
+    if (!validateBaseForm()) return;
     const finalAmount = amountDisplay === '' ? '0,00' : amountDisplay;
     setPixPayload(generatePix(finalAmount));
     setStep(2);
@@ -94,6 +112,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
   const handleConfirmMercadoPago = (e) => {
     e.preventDefault();
+    if (!validateBaseForm()) return;
     setStep(4);
   };
 
@@ -134,6 +153,14 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     letterSpacing: '1px', textTransform: 'uppercase'
   };
 
+  const inputStyle = {
+    width: '100%', padding: '12px 16px', 
+    backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', 
+    border: '1px solid rgba(128, 128, 128, 0.2)', 
+    borderRadius: '8px', color: activePalette.fontColor, 
+    fontSize: '14px', outline: 'none', boxSizing: 'border-box'
+  };
+
   return (
     <div style={overlayStyle}>
       <div style={modalStyle}>
@@ -148,9 +175,24 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             </div>
             <h2 style={{ margin: '0 0 15px 0', fontSize: '20px', fontWeight: '600', color: activePalette.titleColor }}>Apoie este Espaço</h2>
             <p style={{ fontSize: '14px', opacity: 0.8, lineHeight: '1.6', marginBottom: '25px' }}>
-              A manutenção da infraestrutura, dos bancos de dados e da Inteligência Artificial que alimentam este site possui custos. Insira o valor desejado e escolha a plataforma.
+              Insira seus dados reais, o valor desejado e escolha a plataforma.
             </p>
             <form>
+              
+              {/* BLOCO NOVO: Coleta de Nome e Sobrenome reais */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <input 
+                  type="text" required placeholder="Nome" 
+                  value={firstName} onChange={(e) => setFirstName(e.target.value)} 
+                  style={inputStyle} 
+                />
+                <input 
+                  type="text" required placeholder="Sobrenome" 
+                  value={lastName} onChange={(e) => setLastName(e.target.value)} 
+                  style={inputStyle} 
+                />
+              </div>
+
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
                 <span style={{ position: 'absolute', left: '20px', fontSize: '18px', fontWeight: 'bold', opacity: 0.5 }}>R$</span>
                 <input 
@@ -206,18 +248,25 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
             </div>
-            
-            {/* ALTERAÇÃO: Renderização direta do CardPayment sem passar pela tela de seleção */}
             <CardPayment
               initialization={{ amount: getNumericAmount() }}
-              customization={{
-                visual: { style: { theme: isDarkBase ? 'dark' : 'default' } }
-              }}
+              customization={{ visual: { style: { theme: isDarkBase ? 'dark' : 'default' } } }}
               onSubmit={async (param) => {
+                
+                // INJEÇÃO: Acoplamento dos nomes reais capturados no Passo 1 ao payload oficial do MP
+                const payload = {
+                  ...param.formData,
+                  payer: {
+                    ...param.formData.payer,
+                    first_name: firstName.trim(),
+                    last_name: lastName.trim()
+                  }
+                };
+
                 const res = await fetch(`${API_URL}/mp-payment`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(param.formData)
+                  body: JSON.stringify(payload)
                 });
                 
                 if (res.ok) {
@@ -225,13 +274,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 } else {
                   const errorData = await res.json();
                   console.error("Falha detalhada Mercado Pago:", errorData);
-                  alert(`Não foi possível aprovar. Verifique os dados ou tente outra forma.`);
+                  alert(`Não foi possível aprovar: ${errorData.error || 'Verifique os dados.'}`);
                   setStep(1);
                 }
               }}
-              onError={(error) => {
-                console.error("Erro no Mercado Pago:", error);
-              }}
+              onError={(error) => { console.error("Erro no Mercado Pago:", error); }}
             />
           </div>
         )}

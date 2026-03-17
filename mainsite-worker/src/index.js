@@ -1,12 +1,11 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.23.0
-// Descrição: Código integral. Injeção da Diretiva de Sustentabilidade (C-Commerce) na rota de chat. A IA agora é capaz de processar a flag 'askForDonation' e emitir a tag [[PEDIR_DOACAO]] para renderização nativa do modal no frontend.
+// Versão: v1.24.0
+// Descrição: Código integral. Remoção de dados fictícios no payload financeiro. A API agora impõe validação estrita (HTTP 400) exigindo first_name e last_name reais advindos do frontend.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { MercadoPagoConfig, Payment, PaymentRefund } from 'mercadopago';
 
-// --- POLYFILL CRÍTICO PARA COMPATIBILIDADE NODE.JS NO EDGE (V8) ---
 if (typeof Headers !== 'undefined' && !Headers.prototype.raw) {
   Headers.prototype.raw = function() {
     const raw = {};
@@ -31,7 +30,6 @@ app.use('/api/*', cors({
   maxAge: 86400,
 }));
 
-// --- ENGINE DE RATE LIMITING (ISOLATE MEMORY) ---
 const ipCache = new Map();
 let cachedRlConfig = null;
 let rlConfigLastFetched = 0;
@@ -74,7 +72,6 @@ const rateLimiterMiddleware = async (c, next) => {
 
 app.use('/api/ai/public/*', rateLimiterMiddleware);
 
-// --- ROTAS DE INTELIGÊNCIA ARTIFICIAL (GEMINI 2.5 PRO) ---
 app.post('/api/ai/transform', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
@@ -104,7 +101,6 @@ app.post('/api/ai/transform', async (c) => {
 
 app.post('/api/ai/public/chat', async (c) => {
   try {
-    // NOVA FLAG INJETADA: askForDonation
     const { message, currentContext, askForDonation } = await c.req.json();
     const apiKey = c.env.GEMINI_API_KEY;
     if (!apiKey || !message) throw new Error("Parâmetros inválidos.");
@@ -119,7 +115,6 @@ app.post('/api/ai/public/chat', async (c) => {
       activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${currentContext.title}\n[CONTEÚDO DO TEXTO NA TELA]: ${currentContext.content}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
     }
 
-    // DIRETIVA DE SUSTENTABILIDADE (C-Commerce)
     let donationPrompt = "";
     if (askForDonation) {
       donationPrompt = `\n\nDIRETIVA DE SUSTENTABILIDADE: O usuário atingiu um nível de engajamento profundo. Ao final da sua resposta, faça um convite muito sutil, elegante e filosófico para que ele apoie financeiramente a infraestrutura e a continuidade deste espaço. Imediatamente após o convite, você DEVE INSERIR a seguinte tag exata e isolada para que o sistema renderize o botão de pagamento: [[PEDIR_DOACAO]]\n`;
@@ -160,7 +155,6 @@ PERGUNTA DO USUÁRIO: ${message}`;
     
     let replyText = data.candidates[0].content.parts[0].text;
 
-    // Processamento de e-mails para o autor
     const emailRegex = /\[\[ENVIAR_EMAIL\]\](.*?)\[\[\/ENVIAR_EMAIL\]\]/is;
     const emailMatch = replyText.match(emailRegex);
 
@@ -373,7 +367,7 @@ app.post('/api/comment', async (c) => {
   } catch (err) { return c.json({ error: "Falha ao processar comentário." }, 500); }
 });
 
-// --- API FINANCEIRA (SDK OFICIAL) COM POLYFILL ATIVO ---
+// --- API FINANCEIRA (SDK OFICIAL) COM VALIDAÇÃO ESTRITA ---
 app.post('/api/mp-payment', async (c) => {
   try {
     const body = await c.req.json();
@@ -385,18 +379,13 @@ app.post('/api/mp-payment', async (c) => {
 
     const extRef = `DON-${crypto.randomUUID()}`;
     
-    let realFirstName = body.payer?.first_name;
-    let realLastName = body.payer?.last_name;
+    // VALIDAÇÃO ESTRITA: O frontend agora garante firstName e lastName no array payer do payload
+    const realFirstName = body.payer?.first_name;
+    const realLastName = body.payer?.last_name;
     
-    if (!realFirstName && body.cardholder?.name) {
-      const nameParts = body.cardholder.name.trim().split(' ');
-      realFirstName = nameParts[0];
-      realLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Anônimo';
-    }
-
-    if (!realFirstName) {
-      realFirstName = "Apoiador";
-      realLastName = "Voluntário";
+    // Interrompe a requisição se os dados não forem genuínos
+    if (!realFirstName || !realLastName) {
+      return c.json({ error: "Nome e sobrenome reais são obrigatórios para validação antifraude." }, 400);
     }
 
     const enhancedPayload = {
@@ -503,7 +492,6 @@ app.put('/api/mp-payment/:id/cancel', async (c) => {
   }
 });
 
-// --- ROTA DE WEBHOOK (Utilizando SDK Oficial para Consulta Reversa) ---
 app.post('/api/webhooks/mercadopago', async (c) => {
   try {
     const url = new URL(c.req.url);
@@ -582,7 +570,6 @@ app.get('/api/financial-logs', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- ROTAS DE UPLOAD E CRUD RESTANTES (Inalteradas) ---
 app.post('/api/upload', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
