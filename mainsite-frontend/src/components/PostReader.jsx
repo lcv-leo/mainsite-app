@@ -1,11 +1,11 @@
 // Módulo: mainsite-frontend/src/components/PostReader.jsx
-// Versão: v1.0.5
+// Versão: v1.0.6
 // Descrição: Componente isolado para renderização do fragmento, muralha anti-cópia e requisições de Inteligência Artificial.
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home } from 'lucide-react';
+import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3 } from 'lucide-react';
 
-const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, isSendingEmail, isNotHomePage }) => {
+const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, onComment, isSendingEmail, isNotHomePage }) => {
   const [postSummary, setPostSummary] = useState(null);
   const [translatedContent, setTranslatedContent] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -129,6 +129,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         .html-content a { color: #4da6ff; text-decoration: underline; text-underline-offset: 4px; font-weight: bold; }
         
         /* Painel de Compartilhamento */
+        .share-comment { background: #f59e0b; } .share-comment:hover { background: #d97706; transform: translateY(-2px); }
         .share-bar { display: flex; justify-content: center; gap: 15px; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(128,128,128, 0.2); }
         .share-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 11px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; border: none; transition: all 0.2s; color: #fff; }
         .share-whatsapp { background: #25D366; } .share-whatsapp:hover { background: #128C7E; transform: translateY(-2px); }
@@ -216,6 +217,9 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       </div>
 
       {/* Painel de Compartilhamento Integrado */}
+      <button onClick={onComment} className="share-btn share-comment" title="Deixar um Comentário">
+          <Edit3 size={16} /> Comentários
+      </button>
       <div className="share-bar">
         <button onClick={() => onShare('whatsapp')} className="share-btn share-whatsapp" title="Compartilhar no WhatsApp">
           <MessageCircle size={16} /> WhatsApp

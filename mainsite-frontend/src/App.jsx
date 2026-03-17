@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.21.0
+// Versão: v3.22.0
 // Descrição: Baseline consolidado. Motor de Temas e implementação da trava de Opt-Out (localStorage) para o DisclaimerModal.
 
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
@@ -13,6 +13,7 @@ const DisclaimerModal = lazy(() => import('./components/DisclaimerModal'));
 const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
 const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const ContactModal = lazy(() => import('./components/ContactModal'));
+const CommentModal = lazy(() => import('./components/CommentModal'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
 const APP_VERSION = 'APP v3.21.0';
@@ -38,9 +39,30 @@ const App = () => {
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
   const [emailModal, setEmailModal] = useState({ show: false, email: '' });
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const [isCommentOpen, setIsCommentOpen] = useState(false);
+  const [isSendingComment, setIsSendingComment] = useState(false);
   const [isSendingContact, setIsSendingContact] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [disclaimersConfig, setDisclaimersConfig] = useState({ enabled: false, items: [] });
+
+  const submitCommentForm = async (formData, resetFormCb) => {
+  setIsSendingComment(true);
+  try {
+    const res = await fetch(`${API_URL}/comment`, { 
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify(formData) 
+    });
+    if (res.ok) {
+      showNotification("Comentário enviado com sucesso para o autor!", "success");
+      resetFormCb();
+      setIsCommentOpen(false);
+    } else throw new Error();
+  } catch (err) { 
+    showNotification("Falha ao enviar comentário. Tente novamente.", "error"); 
+  } finally { 
+    setIsSendingComment(false); 
+  }
+};
 
   const showNotification = useCallback((message, type = 'info') => {
     setToast({ show: true, message, type });
@@ -220,6 +242,15 @@ const App = () => {
           activePalette={activePalette} 
           isSubmitting={isSendingContact} 
         />
+
+        <CommentModal 
+        show={isCommentOpen} 
+        onClose={() => setIsCommentOpen(false)} 
+        onSubmit={submitCommentForm} 
+        activePalette={activePalette} 
+        isSubmitting={isSendingComment}
+        currentPost={currentPost} 
+       />
         
         <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} activePalette={activePalette} API_URL={API_URL} />
       </Suspense>
@@ -247,6 +278,7 @@ const App = () => {
               API_URL={API_URL} 
               onShare={handleShare} 
               onContact={() => setIsContactOpen(true)}
+              onComment={() => setIsCommentOpen(true)}
               isSendingEmail={isSendingEmail} 
               isNotHomePage={posts.length > 0 && currentPost.id !== posts[0].id}
             />

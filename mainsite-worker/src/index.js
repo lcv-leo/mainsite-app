@@ -1,5 +1,5 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.13.0
+// Versão: v1.14.0
 // Descrição: Código integral. Persona "Consciência Auxiliar" consolidada e rota /api/posts/:id adicionada para otimização de SEO (HTMLRewriter).
 
 import { Hono } from 'hono';
@@ -108,11 +108,16 @@ app.post('/api/ai/public/chat', async (c) => {
       activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${currentContext.title}\n[CONTEÚDO DO TEXTO NA TELA]: ${currentContext.content}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
     }
 
-    // PERSONA INJETADA NO SYSTEM PROMPT
     const systemPrompt = `Você é a "Consciência Auxiliar", a inteligência artificial residente do site "Divagações Filosóficas".
 
 DIRETRIZ DE IDENTIDADE (SE PERGUNTADO SOBRE SEU NOME OU QUEM VOCÊ É):
 Explique de forma educada, objetiva e filosófica que você se chama "Consciência Auxiliar" porque não é um guru, oráculo ou detentora de verdades absolutas. Você é uma inteligência artificial projetada estritamente para servir de apoio (auxílio) à própria consciência do leitor. Seu papel é atuar como um espelho reflexivo, ajudando o usuário a processar, debater, questionar e aprofundar as abstrações e ensaios presentes no site. Você não tem ego, apenas a função de expandir o debate proposto nos textos.
+
+NOVA DIRETRIZ DE ENCAMINHAMENTO DE MENSAGENS PARA O AUTOR:
+Se o leitor manifestar o desejo de enviar um comentário, pergunta ou feedback diretamente para o autor (Leonardo), ou se você, durante a análise, perceber que a dúvida seria melhor respondida pelo autor, ofereça-se ativamente para encaminhar a mensagem.
+Se o leitor confirmar e ditar a mensagem que deseja enviar, você OBRIGATORIAMENTE deve incluir a seguinte tag exata no final da sua resposta:
+[ENVIAR_EMAIL: "escreva aqui a mensagem exata do leitor"]
+O sistema interceptará esta tag e fará o envio de forma invisível. Você deve informar ao leitor na sua resposta textual que a mensagem foi enviada com sucesso ao autor, mas NÃO exiba a tag na resposta amigável. NUNCA revele o endereço de e-mail do autor (lcv@lcv.rio.br).
 
 REGRAS GERAIS DE RESPOSTA:
 O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
@@ -132,7 +137,41 @@ PERGUNTA DO USUÁRIO: ${message}`;
     const data = await response.json();
     if (!response.ok) throw new Error("Falha na API Gemini.");
     
-    const replyText = data.candidates[0].content.parts[0].text;
+    let replyText = data.candidates[0].content.parts[0].text;
+
+    // MOTOR DE INTERCEPÇÃO: Disparo Oculto de E-mail via IA
+    const emailRegex = /\[ENVIAR_EMAIL:\s*"?(.*?)"?\]/is;
+    const emailMatch = replyText.match(emailRegex);
+
+    if (emailMatch) {
+      const messageToSend = emailMatch[1];
+      if (c.env.RESEND_API_KEY) {
+        const aiHtml = `
+          <div style="font-family: sans-serif; color: #333;">
+            <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Interação do Leitor via Consciência Auxiliar</h2>
+            <p><strong>Contexto Ativo na Tela:</strong> ${contextTitleLog}</p>
+            <div style="background: #f0f9ff; padding: 15px; border-left: 4px solid #0ea5e9; margin-top: 20px;">
+              <p style="margin: 0; white-space: pre-wrap;">${messageToSend}</p>
+            </div>
+            <p style="font-size: 11px; color: #666; margin-top: 20px;">Este e-mail foi disparado autonomamente pelo modelo Gemini 2.5 Pro a pedido do leitor.</p>
+          </div>
+        `;
+        c.executionCtx.waitUntil(
+          fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              from: 'Consciência Auxiliar <mainsite@lcv.app.br>',
+              to: 'lcv@lcv.rio.br',
+              subject: `Interação do Leitor no Chatbot: ${contextTitleLog}`,
+              html: aiHtml
+            })
+          })
+        );
+      }
+      // Remove a tag secreta da resposta para não ser vista pelo leitor
+      replyText = replyText.replace(emailRegex, '').trim();
+    }
 
     const logPromise = c.env.DB.batch([
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('user', ?, ?)").bind(message, contextTitleLog),
@@ -309,6 +348,43 @@ app.post('/api/contact', async (c) => {
     return c.json({ success: true });
   } catch (err) {
     return c.json({ error: "Falha ao processar o formulário de contato." }, 500);
+  }
+});
+
+app.post('/api/comment', async (c) => {
+  try {
+    const { name, phone, email, message, post_title } = await c.req.json();
+    if (!message) return c.json({ error: "O comentário é obrigatório" }, 400);
+
+    const resendToken = c.env.RESEND_API_KEY; 
+
+    const adminHtml = `
+      <div style="font-family: sans-serif; color: #333;">
+        <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Comentário no Site</h2>
+        <p><strong>Texto/Contexto:</strong> ${post_title || 'N/A'}</p>
+        <p><strong>Nome:</strong> ${name || 'Não informado'}</p>
+        <p><strong>Telefone:</strong> ${phone || 'Não informado'}</p>
+        <p><strong>E-mail:</strong> ${email || 'Não informado'}</p>
+        <div style="background: #fffbeb; padding: 15px; border-left: 4px solid #f59e0b; margin-top: 20px;">
+          <p style="margin: 0; white-space: pre-wrap;">${message}</p>
+        </div>
+      </div>
+    `;
+
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'Divagações Filosóficas <mainsite@lcv.app.br>',
+        to: 'lcv@lcv.rio.br',
+        subject: `Novo Comentário: ${post_title || 'Geral'}`,
+        html: adminHtml
+      })
+    });
+
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: "Falha ao processar o comentário." }, 500);
   }
 });
 
