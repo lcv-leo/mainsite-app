@@ -217,10 +217,10 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       </div>
 
       {/* Painel de Compartilhamento Integrado */}
-      <button onClick={onComment} className="share-btn share-comment" title="Deixar um Comentário">
+      <div className="share-bar">
+        <button onClick={onComment} className="share-btn share-comment" title="Deixar um Comentário">
           <Edit3 size={16} /> Comentários
       </button>
-      <div className="share-bar">
         <button onClick={() => onShare('whatsapp')} className="share-btn share-whatsapp" title="Compartilhar no WhatsApp">
           <MessageCircle size={16} /> WhatsApp
         </button>
