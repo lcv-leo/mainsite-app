@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/components/FinancialPanel.jsx
-// Versão: v1.8.0
-// Descrição: Blindagem de Timezone para Auditoria (Compliance). Renderização da data de transação travada estritamente no fuso 'America/Sao_Paulo' (UTC-3), ignorando o relógio local do sistema operacional do cliente para evitar inconsistências globais de log. Manutenção da lixeira de expurgo e short-polling.
+// Versão: v1.8.1
+// Descrição: Hotfix de sintaxe no compilador Vite (Operador Ternário restaurado na definição de método HTTP). Blindagem de Timezone (America/Sao_Paulo) e Lixeira preservadas.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet, Trash2 } from 'lucide-react';
@@ -89,7 +89,8 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         options = { method: 'DELETE', headers: { 'Authorization': `Bearer ${secret}` } };
       } else {
         url = `${API_URL}/mp-payment/${id}/${isRefund ? 'refund' : 'cancel'}`;
-        options = { method: isRefund ? 'POST', headers: { 'Authorization': `Bearer ${secret}`, 'Content-Type': 'application/json' } };
+        // CORREÇÃO: Operador ternário restaurado (isRefund ? 'POST' : 'PUT')
+        options = { method: isRefund ? 'POST' : 'PUT', headers: { 'Authorization': `Bearer ${secret}`, 'Content-Type': 'application/json' } };
         
         if (isRefund && refundAmount) {
           const amt = parseFloat(refundAmount.replace(',', '.'));
@@ -182,7 +183,6 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                   return (
                   <tr key={log.id} style={{ borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
                     
-                    {/* IMPLEMENTAÇÃO ESTRITA: Trava a renderização no horário oficial de Brasília */}
                     <td style={{ padding: '12px', opacity: 0.8 }}>
                       {new Date(log.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                     </td>
