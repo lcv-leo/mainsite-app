@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
 // Versão: v1.14.0
-// Descrição: Código integral. Persona "Consciência Auxiliar" consolidada e rota /api/posts/:id adicionada para otimização de SEO (HTMLRewriter).
+// Descrição: Código integral. Refatoração do motor de intercepção de e-mail da IA (sintaxe multiline robusta e blindagem do fetch em background), com rotas de SEO e Comentários integradas.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -108,6 +108,7 @@ app.post('/api/ai/public/chat', async (c) => {
       activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${currentContext.title}\n[CONTEÚDO DO TEXTO NA TELA]: ${currentContext.content}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
     }
 
+    // PERSONA BLINDADA COM SINTAXE DE BLOCO (XML-LIKE)
     const systemPrompt = `Você é a "Consciência Auxiliar", a inteligência artificial residente do site "Divagações Filosóficas".
 
 DIRETRIZ DE IDENTIDADE (SE PERGUNTADO SOBRE SEU NOME OU QUEM VOCÊ É):
@@ -115,9 +116,21 @@ Explique de forma educada, objetiva e filosófica que você se chama "Consciênc
 
 NOVA DIRETRIZ DE ENCAMINHAMENTO DE MENSAGENS PARA O AUTOR:
 Se o leitor manifestar o desejo de enviar um comentário, pergunta ou feedback diretamente para o autor (Leonardo), ou se você, durante a análise, perceber que a dúvida seria melhor respondida pelo autor, ofereça-se ativamente para encaminhar a mensagem.
-Se o leitor confirmar e ditar a mensagem que deseja enviar, você OBRIGATORIAMENTE deve incluir a seguinte tag exata no final da sua resposta:
-[ENVIAR_EMAIL: "escreva aqui a mensagem exata do leitor"]
-O sistema interceptará esta tag e fará o envio de forma invisível. Você deve informar ao leitor na sua resposta textual que a mensagem foi enviada com sucesso ao autor, mas NÃO exiba a tag na resposta amigável. NUNCA revele o endereço de e-mail do autor (lcv@lcv.rio.br).
+Se o leitor confirmar a intenção de envio e ditar a mensagem, você OBRIGATORIAMENTE deve adicionar o seguinte bloco delimitador no final da sua resposta:
+
+[[ENVIAR_EMAIL]]
+[TRANSCREVA AQUI A MENSAGEM EXATA E REAL DO LEITOR]
+[[/ENVIAR_EMAIL]]
+
+ATENÇÃO CRÍTICA: Substitua o texto entre colchetes pela mensagem VERDADEIRA do usuário. NÃO invente textos e NÃO use exemplos genéricos. O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor (lcv@lcv.rio.br).
+
+Exemplo de resposta correta da sua parte:
+"Sua mensagem foi encaminhada com sucesso para o autor. Ele retornará assim que possível.
+[[ENVIAR_EMAIL]]
+Gostaria de aprofundar o debate sobre o texto do estoicismo.
+[[/ENVIAR_EMAIL]]"
+
+O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta ao leitor, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor (lcv@lcv.rio.br).
 
 REGRAS GERAIS DE RESPOSTA:
 O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
@@ -139,13 +152,15 @@ PERGUNTA DO USUÁRIO: ${message}`;
     
     let replyText = data.candidates[0].content.parts[0].text;
 
-    // MOTOR DE INTERCEPÇÃO: Disparo Oculto de E-mail via IA
-    const emailRegex = /\[ENVIAR_EMAIL:\s*"?(.*?)"?\]/is;
+    // MOTOR DE INTERCEPÇÃO ROBUSTO (MULTILINE)
+    const emailRegex = /\[\[ENVIAR_EMAIL\]\](.*?)\[\[\/ENVIAR_EMAIL\]\]/is;
     const emailMatch = replyText.match(emailRegex);
 
     if (emailMatch) {
-      const messageToSend = emailMatch[1];
-      if (c.env.RESEND_API_KEY) {
+      const messageToSend = emailMatch[1].trim();
+      const resendToken = c.env.RESEND_API_KEY;
+      
+      if (resendToken) {
         const aiHtml = `
           <div style="font-family: sans-serif; color: #333;">
             <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Interação do Leitor via Consciência Auxiliar</h2>
@@ -156,20 +171,27 @@ PERGUNTA DO USUÁRIO: ${message}`;
             <p style="font-size: 11px; color: #666; margin-top: 20px;">Este e-mail foi disparado autonomamente pelo modelo Gemini 2.5 Pro a pedido do leitor.</p>
           </div>
         `;
-        c.executionCtx.waitUntil(
-          fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              from: 'Consciência Auxiliar <mainsite@lcv.app.br>',
-              to: 'lcv@lcv.rio.br',
-              subject: `Interação do Leitor no Chatbot: ${contextTitleLog}`,
-              html: aiHtml
-            })
-          })
-        );
+        
+        // Blindagem do ciclo de vida assíncrono para evitar queda prematura do Worker
+        c.executionCtx.waitUntil((async () => {
+          try {
+            await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                from: 'Consciência Auxiliar <mainsite@lcv.app.br>',
+                to: 'lcv@lcv.rio.br',
+                subject: `Interação do Leitor no Chatbot: ${contextTitleLog}`,
+                html: aiHtml
+              })
+            });
+          } catch (e) {
+            console.error("Falha no disparo do e-mail da IA:", e);
+          }
+        })());
       }
-      // Remove a tag secreta da resposta para não ser vista pelo leitor
+      
+      // Elimina o bloco inteiro para não sujar o chat do leitor
       replyText = replyText.replace(emailRegex, '').trim();
     }
 
@@ -351,6 +373,7 @@ app.post('/api/contact', async (c) => {
   }
 });
 
+// --- ROTA DE COMENTÁRIOS DIRETOS ---
 app.post('/api/comment', async (c) => {
   try {
     const { name, phone, email, message, post_title } = await c.req.json();
@@ -425,7 +448,6 @@ app.get('/api/posts', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// ROTA NOVA: BUSCA DE POST ÚNICO (Essencial para o SEO Dinâmico e HTMLRewriter)
 app.get('/api/posts/:id', async (c) => {
   try {
     const id = c.req.param('id');

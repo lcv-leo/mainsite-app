@@ -16,7 +16,7 @@ const ContactModal = lazy(() => import('./components/ContactModal'));
 const CommentModal = lazy(() => import('./components/CommentModal'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.21.0';
+const APP_VERSION = 'APP v3.22.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
