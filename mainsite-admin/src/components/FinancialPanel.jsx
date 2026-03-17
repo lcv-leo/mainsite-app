@@ -1,18 +1,22 @@
 // Módulo: mainsite-admin/src/components/FinancialPanel.jsx
-// Versão: v1.3.0
-// Descrição: Remoção das APIs nativas do navegador (confirm/alert). Implementação de Modal de Confirmação e Toast de notificação 100% customizados, herdando o Glassmorphism do objeto styles.
+// Versão: v1.4.0
+// Descrição: UI avançada do Painel Financeiro. Adição do visor de Saldo (Balance), Cancelamento de Pagamentos Pendentes e Estorno Parcial Dinâmico via Modais Customizados.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check } from 'lucide-react';
+import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet } from 'lucide-react';
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);
+  const [balance, setBalance] = useState({ available: 0, unavailable: 0 });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refundingId, setRefundingId] = useState(null); 
+  const [processingId, setProcessingId] = useState(null); 
   
-  // Estados para UI Customizada (Substituindo confirm e alert do navegador)
-  const [confirmModal, setConfirmModal] = useState({ show: false, paymentId: null });
+  // Modais Avançados
+  const [modalType, setModalType] = useState(null); // 'refund' ou 'cancel'
+  const [activeTx, setActiveTx] = useState(null); // { id, amount }
+  const [refundAmount, setRefundAmount] = useState('');
+  
   const [panelToast, setPanelToast] = useState({ show: false, message: '', type: 'info' });
 
   const showPanelToast = (message, type = 'info') => {
@@ -20,15 +24,24 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     setTimeout(() => setPanelToast(prev => ({ ...prev, show: false })), 4000);
   };
 
-  const fetchLogs = useCallback(async (isManual = false) => {
+  const fetchFinanceData = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
     try {
-      const res = await fetch(`${API_URL}/financial-logs`, {
-        headers: { 'Authorization': `Bearer ${secret}` }
-      });
-      if (res.ok) setLogs(await res.json());
+      // Busca Logs
+      const resLogs = await fetch(`${API_URL}/financial-logs`, { headers: { 'Authorization': `Bearer ${secret}` } });
+      if (resLogs.ok) setLogs(await resLogs.json());
+
+      // Busca Saldo
+      const resBalance = await fetch(`${API_URL}/mp-balance`, { headers: { 'Authorization': `Bearer ${secret}` } });
+      if (resBalance.ok) {
+        const balData = await resBalance.json();
+        setBalance({
+          available: balData.available_balance || 0,
+          unavailable: balData.unavailable_balance || 0
+        });
+      }
     } catch (err) {
-      console.error("Erro ao buscar logs financeiros", err);
+      console.error("Erro ao sincronizar dados financeiros", err);
     } finally {
       setLoading(false);
       if (isManual) setIsRefreshing(false);
@@ -36,83 +49,96 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
   }, [API_URL, secret]);
 
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    fetchFinanceData();
+  }, [fetchFinanceData]);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      fetchLogs(false); 
-    }, 15000);
+    const intervalId = setInterval(() => fetchFinanceData(false), 15000);
     return () => clearInterval(intervalId); 
-  }, [fetchLogs]);
+  }, [fetchFinanceData]);
 
-  // Função que executa o estorno de fato após a confirmação no Modal
-  const executeRefund = async () => {
-    const paymentId = confirmModal.paymentId;
-    setConfirmModal({ show: false, paymentId: null });
-    setRefundingId(paymentId);
+  // Ação Combinada (Estorno ou Cancelamento)
+  const executeAction = async () => {
+    const { id, type } = activeTx;
+    const isRefund = modalType === 'refund';
+    setProcessingId(id);
+    setModalType(null); // Fecha o modal
     
     try {
-      const res = await fetch(`${API_URL}/mp-payment/${paymentId}/refund`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${secret}` }
-      });
+      let url = `${API_URL}/mp-payment/${id}/${isRefund ? 'refund' : 'cancel'}`;
+      let options = { method: isRefund ? 'POST' : 'PUT', headers: { 'Authorization': `Bearer ${secret}`, 'Content-Type': 'application/json' } };
+      
+      // Anexa o valor fracionado se for um estorno parcial
+      if (isRefund && refundAmount) {
+        const amt = parseFloat(refundAmount.replace(',', '.'));
+        if (amt > 0 && amt <= activeTx.amount) {
+          options.body = JSON.stringify({ amount: amt });
+        }
+      }
+
+      const res = await fetch(url, options);
       
       if (res.ok) {
-        showPanelToast(`Estorno do pagamento ${paymentId} realizado com sucesso!`, 'success');
-        fetchLogs(true);
+        showPanelToast(`Ação concluída com sucesso no Mercado Pago!`, 'success');
+        fetchFinanceData(true);
       } else {
         const errData = await res.json();
-        showPanelToast(`Falha ao estornar: ${errData.error}`, 'error');
+        showPanelToast(`Falha: ${errData.error}`, 'error');
       }
     } catch (e) {
-      showPanelToast('Ocorreu um erro de rede ao tentar processar o estorno.', 'error');
+      showPanelToast('Ocorreu um erro de rede ao contactar o servidor.', 'error');
     } finally {
-      setRefundingId(null);
+      setProcessingId(null);
+      setRefundAmount('');
     }
   };
 
   const glassCard = {
     background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)',
     border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-    borderRadius: '16px',
-    padding: '24px',
-    marginBottom: '24px'
+    borderRadius: '16px', padding: '24px', marginBottom: '24px'
   };
 
-  const refreshBtnStyle = {
-    background: 'transparent',
-    border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-    color: activePalette.fontColor,
-    padding: '6px 14px',
-    borderRadius: '8px',
-    fontSize: '11px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    transition: 'all 0.2s',
-    textTransform: 'uppercase'
-  };
+  const actionBtnStyle = (colorBase) => ({
+    background: isDarkBase ? `rgba(${colorBase}, 0.15)` : `rgba(${colorBase}, 0.1)`,
+    color: `rgb(${colorBase})`, border: `1px solid rgba(${colorBase}, 0.3)`,
+    borderRadius: '6px', padding: '6px 10px', fontSize: '11px', fontWeight: 'bold',
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s',
+  });
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       
-      {/* TOAST CUSTOMIZADO DO PAINEL */}
+      {/* TOAST E MODAIS DE AÇÃO */}
       <div style={{ ...styles.toast, transform: panelToast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: panelToast.show ? 1 : 0, backgroundColor: panelToast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: panelToast.type === 'error' ? '#fff' : activePalette.fontColor, zIndex: 10005 }}>
         {panelToast.type === 'error' ? <AlertCircle size={18} /> : <Check size={18} />} <span>{panelToast.message}</span>
       </div>
 
-      {/* MODAL CUSTOMIZADO DE CONFIRMAÇÃO DE ESTORNO */}
-      {confirmModal.show && (
+      {modalType && (
         <div style={{ ...styles.modalOverlay, zIndex: 10000 }}>
           <div style={styles.modalContent}>
-            <AlertCircle size={48} color="#ea4335" style={{ marginBottom: '20px', margin: '0 auto' }} />
-            <p style={styles.modalText}>Tem certeza de que deseja DEVOLVER integralmente o pagamento <strong>{confirmModal.paymentId}</strong>? O dinheiro retornará para o doador e a ação é irreversível.</p>
+            <AlertCircle size={48} color={modalType === 'cancel' ? '#f59e0b' : '#ea4335'} style={{ marginBottom: '20px', margin: '0 auto' }} />
+            
+            {modalType === 'cancel' ? (
+              <p style={styles.modalText}>Tem certeza de que deseja <strong>CANCELAR</strong> o pagamento pendente {activeTx.id}? Ele será invalidado no Mercado Pago.</p>
+            ) : (
+              <div>
+                <p style={styles.modalText}>Estorno do pagamento <strong>{activeTx.id}</strong>. Deixe em branco para estornar o valor total (R$ {activeTx.amount.toFixed(2)}).</p>
+                <input 
+                  type="text" 
+                  placeholder={`R$ Máximo: ${activeTx.amount.toFixed(2)}`} 
+                  value={refundAmount} 
+                  onChange={(e) => setRefundAmount(e.target.value.replace(/[^0-9.,]/g, ''))}
+                  style={{ ...styles.textInput, width: '100%', marginBottom: '20px', textAlign: 'center', fontSize: '16px' }} 
+                />
+              </div>
+            )}
+
             <div style={styles.modalActions}>
-              <button onClick={() => setConfirmModal({ show: false, paymentId: null })} style={styles.modalBtnCancel}>CANCELAR</button>
-              <button onClick={executeRefund} style={styles.modalBtnConfirm}>ESTORNAR</button>
+              <button onClick={() => { setModalType(null); setRefundAmount(''); }} style={styles.modalBtnCancel}>VOLTAR</button>
+              <button onClick={executeAction} style={{...styles.modalBtnConfirm, background: modalType === 'cancel' ? '#f59e0b' : '#ea4335'}}>
+                {modalType === 'cancel' ? 'CONFIRMAR CANCELAMENTO' : 'CONFIRMAR ESTORNO'}
+              </button>
             </div>
           </div>
         </div>
@@ -122,20 +148,29 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         <X size={18} /> FECHAR PAINEL FINANCEIRO
       </button>
 
+      {/* BLOCO NOVO: SALDO DA CONTA */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+        <div style={{ ...glassCard, marginBottom: 0, borderLeft: '4px solid #10b981' }}>
+          <div style={{ fontSize: '13px', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}><Wallet size={16} /> Saldo Disponível</div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: activePalette.titleColor }}>R$ {balance.available.toFixed(2)}</div>
+        </div>
+        <div style={{ ...glassCard, marginBottom: 0, borderLeft: '4px solid #f59e0b' }}>
+          <div style={{ fontSize: '13px', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}><RefreshCw size={16} /> Saldo a Liberar (Prazos)</div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: activePalette.titleColor }}>R$ {balance.unavailable.toFixed(2)}</div>
+        </div>
+      </div>
+
       <div style={glassCard}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
           <h2 style={{ fontSize: '16px', margin: 0, color: activePalette.titleColor, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <DollarSign size={20} /> Histórico de Transações e Logs (D1)
+            <DollarSign size={20} /> Histórico de Transações e Logs
           </h2>
           
           <button 
-            onClick={() => fetchLogs(true)} 
-            style={refreshBtnStyle}
-            onMouseOver={(e) => e.currentTarget.style.background = isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}
-            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+            onClick={() => fetchFinanceData(true)} 
+            style={{ background: 'transparent', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: activePalette.fontColor, padding: '6px 14px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', textTransform: 'uppercase' }}
           >
-            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} /> 
-            {isRefreshing ? 'ATUALIZANDO...' : 'ATUALIZAR AGORA'}
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} /> {isRefreshing ? 'ATUALIZANDO...' : 'ATUALIZAR AGORA'}
           </button>
         </div>
         
@@ -157,12 +192,15 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                 </tr>
               </thead>
               <tbody>
-                {logs.map(log => (
+                {logs.map(log => {
+                  const isPending = log.status === 'pending' || log.status === 'in_process';
+                  const isApproved = log.status === 'approved';
+                  return (
                   <tr key={log.id} style={{ borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
                     <td style={{ padding: '12px', opacity: 0.8 }}>{new Date(log.created_at).toLocaleString('pt-BR')}</td>
                     <td style={{ padding: '12px', fontFamily: 'monospace' }}>{log.payment_id}</td>
                     <td style={{ padding: '12px' }}>
-                      <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: log.status === 'approved' ? 'rgba(16, 185, 129, 0.2)' : (log.status === 'refunded' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'), color: log.status === 'approved' ? '#10b981' : (log.status === 'refunded' ? '#ef4444' : '#f59e0b') }}>
+                      <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: isApproved ? 'rgba(16, 185, 129, 0.2)' : (log.status.includes('refund') || log.status === 'cancelled' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'), color: isApproved ? '#10b981' : (log.status.includes('refund') || log.status === 'cancelled' ? '#ef4444' : '#f59e0b') }}>
                         {log.status.toUpperCase()}
                       </span>
                     </td>
@@ -171,35 +209,20 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                     <td style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                       <span style={{ opacity: 0.8 }}>{log.payer_email}</span>
                       
-                      {log.status === 'approved' && (
-                        <button
-                          onClick={() => setConfirmModal({ show: true, paymentId: log.payment_id })}
-                          disabled={refundingId === log.payment_id}
-                          title="Devolver / Estornar Pagamento"
-                          style={{
-                            background: isDarkBase ? 'rgba(234, 67, 53, 0.15)' : 'rgba(234, 67, 53, 0.1)',
-                            color: '#ea4335',
-                            border: '1px solid rgba(234, 67, 53, 0.3)',
-                            borderRadius: '6px',
-                            padding: '6px 10px',
-                            fontSize: '11px',
-                            fontWeight: 'bold',
-                            cursor: refundingId === log.payment_id ? 'wait' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            transition: 'all 0.2s',
-                          }}
-                          onMouseOver={(e) => { if (refundingId !== log.payment_id) { e.currentTarget.style.background = '#ea4335'; e.currentTarget.style.color = '#fff'; } }}
-                          onMouseOut={(e) => { if (refundingId !== log.payment_id) { e.currentTarget.style.background = isDarkBase ? 'rgba(234, 67, 53, 0.15)' : 'rgba(234, 67, 53, 0.1)'; e.currentTarget.style.color = '#ea4335'; } }}
-                        >
-                          {refundingId === log.payment_id ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-                          Estornar
+                      {isApproved && (
+                        <button onClick={() => { setActiveTx({ id: log.payment_id, amount: log.amount }); setModalType('refund'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('234, 67, 53')}>
+                          {processingId === log.payment_id ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Estornar
+                        </button>
+                      )}
+
+                      {isPending && (
+                        <button onClick={() => { setActiveTx({ id: log.payment_id, amount: log.amount }); setModalType('cancel'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('245, 158, 11')}>
+                          {processingId === log.payment_id ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />} Cancelar
                         </button>
                       )}
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
