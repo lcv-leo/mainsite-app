@@ -156,17 +156,19 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     backgroundColor: '#ec4899', 
     color: '#fff', 
     border: 'none', 
-    padding: '10px 16px', 
-    fontSize: '12px', 
+    padding: '14px 16px', // Padding vertical levemente aumentado para melhor toque
+    fontSize: '13px', // Fonte ligeiramente maior para combinar com o botão largo
     fontWeight: 'bold', 
     borderRadius: '8px', 
     cursor: 'pointer', 
-    marginTop: '10px', 
+    marginTop: '20px', // Pulo de linha em relação ao texto da IA
+    width: '100%', // O botão agora ocupa toda a largura disponível
     display: 'flex', 
+    justifyContent: 'center', // Centraliza o texto e o ícone
     alignItems: 'center', 
     gap: '8px', 
     boxShadow: '0 4px 14px 0 rgba(236, 72, 153, 0.3)', 
-    transition: 'transform 0.2s',
+    transition: 'transform 0.2s, box-shadow 0.2s',
     letterSpacing: '0.5px'
   };
 
