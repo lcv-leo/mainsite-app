@@ -1,15 +1,24 @@
 // Módulo: mainsite-admin/src/components/FinancialPanel.jsx
-// Versão: v1.2.0
-// Descrição: Painel financeiro com auto-refresh (polling de 15s) e injeção do botão nativo de Devolução (Estorno/Refund) restrito a transações aprovadas.
+// Versão: v1.3.0
+// Descrição: Remoção das APIs nativas do navegador (confirm/alert). Implementação de Modal de Confirmação e Toast de notificação 100% customizados, herdando o Glassmorphism do objeto styles.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, DollarSign, RefreshCw, Loader2, RotateCcw } from 'lucide-react';
+import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check } from 'lucide-react';
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refundingId, setRefundingId] = useState(null); // Controle de estado do botão individual de estorno
+  const [refundingId, setRefundingId] = useState(null); 
+  
+  // Estados para UI Customizada (Substituindo confirm e alert do navegador)
+  const [confirmModal, setConfirmModal] = useState({ show: false, paymentId: null });
+  const [panelToast, setPanelToast] = useState({ show: false, message: '', type: 'info' });
+
+  const showPanelToast = (message, type = 'info') => {
+    setPanelToast({ show: true, message, type });
+    setTimeout(() => setPanelToast(prev => ({ ...prev, show: false })), 4000);
+  };
 
   const fetchLogs = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
@@ -37,12 +46,12 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     return () => clearInterval(intervalId); 
   }, [fetchLogs]);
 
-  // Função disparadora de estorno
-  const handleRefund = async (paymentId) => {
-    // Blindagem JS de segurança (confirmação da devolução)
-    if (!window.confirm(`Tem certeza absoluta de que deseja DEVOLVER integralmente o pagamento ${paymentId}? O dinheiro retornará para a conta/cartão do doador e a ação é irreversível.`)) return;
-    
+  // Função que executa o estorno de fato após a confirmação no Modal
+  const executeRefund = async () => {
+    const paymentId = confirmModal.paymentId;
+    setConfirmModal({ show: false, paymentId: null });
     setRefundingId(paymentId);
+    
     try {
       const res = await fetch(`${API_URL}/mp-payment/${paymentId}/refund`, {
         method: 'POST',
@@ -50,14 +59,14 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       });
       
       if (res.ok) {
-        alert(`Estorno do pagamento ${paymentId} realizado com sucesso! O sistema foi atualizado.`);
-        fetchLogs(true); // Atualiza a tabela imediatamente após o sucesso
+        showPanelToast(`Estorno do pagamento ${paymentId} realizado com sucesso!`, 'success');
+        fetchLogs(true);
       } else {
         const errData = await res.json();
-        alert(`Falha ao tentar estornar: ${errData.error}`);
+        showPanelToast(`Falha ao estornar: ${errData.error}`, 'error');
       }
     } catch (e) {
-      alert('Ocorreu um erro de rede ao tentar processar o estorno.');
+      showPanelToast('Ocorreu um erro de rede ao tentar processar o estorno.', 'error');
     } finally {
       setRefundingId(null);
     }
@@ -89,6 +98,26 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
+      
+      {/* TOAST CUSTOMIZADO DO PAINEL */}
+      <div style={{ ...styles.toast, transform: panelToast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: panelToast.show ? 1 : 0, backgroundColor: panelToast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: panelToast.type === 'error' ? '#fff' : activePalette.fontColor, zIndex: 10005 }}>
+        {panelToast.type === 'error' ? <AlertCircle size={18} /> : <Check size={18} />} <span>{panelToast.message}</span>
+      </div>
+
+      {/* MODAL CUSTOMIZADO DE CONFIRMAÇÃO DE ESTORNO */}
+      {confirmModal.show && (
+        <div style={{ ...styles.modalOverlay, zIndex: 10000 }}>
+          <div style={styles.modalContent}>
+            <AlertCircle size={48} color="#ea4335" style={{ marginBottom: '20px', margin: '0 auto' }} />
+            <p style={styles.modalText}>Tem certeza de que deseja DEVOLVER integralmente o pagamento <strong>{confirmModal.paymentId}</strong>? O dinheiro retornará para o doador e a ação é irreversível.</p>
+            <div style={styles.modalActions}>
+              <button onClick={() => setConfirmModal({ show: false, paymentId: null })} style={styles.modalBtnCancel}>CANCELAR</button>
+              <button onClick={executeRefund} style={styles.modalBtnConfirm}>ESTORNAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <button onClick={onClose} style={styles.backButton}>
         <X size={18} /> FECHAR PAINEL FINANCEIRO
       </button>
@@ -142,10 +171,9 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                     <td style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                       <span style={{ opacity: 0.8 }}>{log.payer_email}</span>
                       
-                      {/* O Botão Mágico de Estorno: Só aparece se a transação estiver limpa e aprovada */}
                       {log.status === 'approved' && (
                         <button
-                          onClick={() => handleRefund(log.payment_id)}
+                          onClick={() => setConfirmModal({ show: true, paymentId: log.payment_id })}
                           disabled={refundingId === log.payment_id}
                           title="Devolver / Estornar Pagamento"
                           style={{
