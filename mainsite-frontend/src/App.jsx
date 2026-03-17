@@ -261,7 +261,14 @@ const App = () => {
         API_URL={API_URL} 
       />
         
-        <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} activePalette={activePalette} API_URL={API_URL} />
+        <ChatWidget 
+          isOpen={isChatOpen} 
+          onClose={() => setIsChatOpen(false)} 
+          currentPost={activePost} 
+          activePalette={activePalette} 
+          API_URL={API_URL} 
+          triggerDonation={() => setShowDonationModal(true)}
+        />
       </Suspense>
 
       <style>{`

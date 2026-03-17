@@ -1,13 +1,12 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.22.0
-// Descrição: Código integral. Resolução da exigência do scanner de qualidade do MP injetando explicitamente payer.first_name e payer.last_name no objeto raiz com fallback inteligente para transações PIX, garantindo pontuação 100/100.
+// Versão: v1.23.0
+// Descrição: Código integral. Injeção da Diretiva de Sustentabilidade (C-Commerce) na rota de chat. A IA agora é capaz de processar a flag 'askForDonation' e emitir a tag [[PEDIR_DOACAO]] para renderização nativa do modal no frontend.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { MercadoPagoConfig, Payment, PaymentRefund } from 'mercadopago';
 
 // --- POLYFILL CRÍTICO PARA COMPATIBILIDADE NODE.JS NO EDGE (V8) ---
-// Resolve o erro "response.headers.raw is not a function" exigido pelo SDK do Mercado Pago
 if (typeof Headers !== 'undefined' && !Headers.prototype.raw) {
   Headers.prototype.raw = function() {
     const raw = {};
@@ -105,7 +104,8 @@ app.post('/api/ai/transform', async (c) => {
 
 app.post('/api/ai/public/chat', async (c) => {
   try {
-    const { message, currentContext } = await c.req.json();
+    // NOVA FLAG INJETADA: askForDonation
+    const { message, currentContext, askForDonation } = await c.req.json();
     const apiKey = c.env.GEMINI_API_KEY;
     if (!apiKey || !message) throw new Error("Parâmetros inválidos.");
 
@@ -117,6 +117,12 @@ app.post('/api/ai/public/chat', async (c) => {
     
     if (currentContext && currentContext.title) {
       activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${currentContext.title}\n[CONTEÚDO DO TEXTO NA TELA]: ${currentContext.content}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
+    }
+
+    // DIRETIVA DE SUSTENTABILIDADE (C-Commerce)
+    let donationPrompt = "";
+    if (askForDonation) {
+      donationPrompt = `\n\nDIRETIVA DE SUSTENTABILIDADE: O usuário atingiu um nível de engajamento profundo. Ao final da sua resposta, faça um convite muito sutil, elegante e filosófico para que ele apoie financeiramente a infraestrutura e a continuidade deste espaço. Imediatamente após o convite, você DEVE INSERIR a seguinte tag exata e isolada para que o sistema renderize o botão de pagamento: [[PEDIR_DOACAO]]\n`;
     }
 
     const systemPrompt = `Você é a "Consciência Auxiliar", a inteligência artificial residente do site "Divagações Filosóficas".
@@ -132,7 +138,7 @@ Se o leitor confirmar a intenção de envio e ditar a mensagem, você OBRIGATORI
 [TRANSCREVA AQUI A MENSAGEM EXATA E REAL DO LEITOR]
 [[/ENVIAR_EMAIL]]
 
-ATENÇÃO CRÍTICA: Substitua o texto entre colchetes pela mensagem VERDADEIRA do usuário. NÃO invente textos e NÃO use exemplos genéricos. O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor (lcv@lcv.rio.br).
+ATENÇÃO CRÍTICA: Substitua o texto entre colchetes pela mensagem VERDADEIRA do usuário. NÃO invente textos e NÃO use exemplos genéricos. O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor (lcv@lcv.rio.br).${donationPrompt}
 
 REGRAS GERAIS DE RESPOSTA:
 O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
@@ -154,6 +160,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
     
     let replyText = data.candidates[0].content.parts[0].text;
 
+    // Processamento de e-mails para o autor
     const emailRegex = /\[\[ENVIAR_EMAIL\]\](.*?)\[\[\/ENVIAR_EMAIL\]\]/is;
     const emailMatch = replyText.match(emailRegex);
 
@@ -367,8 +374,6 @@ app.post('/api/comment', async (c) => {
 });
 
 // --- API FINANCEIRA (SDK OFICIAL) COM POLYFILL ATIVO ---
-
-// 1. Criação do Pagamento (O endpoint que atesta os 100/100 na Qualidade)
 app.post('/api/mp-payment', async (c) => {
   try {
     const body = await c.req.json();
@@ -380,7 +385,6 @@ app.post('/api/mp-payment', async (c) => {
 
     const extRef = `DON-${crypto.randomUUID()}`;
     
-    // Lógica de captura do nome real para suprimir o fallback de e-mail do MP e garantir os pontos no scanner
     let realFirstName = body.payer?.first_name;
     let realLastName = body.payer?.last_name;
     
@@ -390,7 +394,6 @@ app.post('/api/mp-payment', async (c) => {
       realLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Anônimo';
     }
 
-    // Se não houver cardholder (ex: transação via PIX), fornece um fallback explícito para não perder pontuação no scanner
     if (!realFirstName) {
       realFirstName = "Apoiador";
       realLastName = "Voluntário";
@@ -400,7 +403,6 @@ app.post('/api/mp-payment', async (c) => {
       ...body,
       external_reference: extRef,
       notification_url: "https://mainsite-app.lcv.rio.br/api/webhooks/mercadopago",
-      // Injeção explícita no objeto raiz 'payer' exigida pelo scanner antifraude do MP
       payer: {
         ...(body.payer || {}),
         first_name: realFirstName,
@@ -435,14 +437,12 @@ app.post('/api/mp-payment', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// 2. Consulta de Saldo em Tempo Real
 app.get('/api/mp-balance', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const token = c.env.MP_ACCESS_TOKEN;
     if (!token) throw new Error("MP_ACCESS_TOKEN ausente.");
 
-    // A API de Balance não possui classe dedicada no SDK V2, utiliza-se a requisição autenticada padrão
     const response = await fetch("https://api.mercadopago.com/v1/balance", {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
@@ -456,7 +456,6 @@ app.get('/api/mp-balance', async (c) => {
   }
 });
 
-// 3. Estorno Parcial ou Total (Utilizando a Classe Oficial)
 app.post('/api/mp-payment/:id/refund', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   const id = c.req.param('id');
@@ -472,7 +471,7 @@ app.post('/api/mp-payment/:id/refund', async (c) => {
     try {
       const body = await c.req.json();
       if (body.amount) refundBody.body = { amount: Number(body.amount) };
-    } catch(e) {} // Permanece como estorno total se não houver body numérico
+    } catch(e) {} 
 
     await refundApi.create(refundBody);
 
@@ -485,7 +484,6 @@ app.post('/api/mp-payment/:id/refund', async (c) => {
   }
 });
 
-// 4. Cancelamento de Pagamentos Pendentes (Utilizando a Classe Oficial)
 app.put('/api/mp-payment/:id/cancel', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   const id = c.req.param('id');

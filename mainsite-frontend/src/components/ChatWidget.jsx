@@ -1,16 +1,17 @@
 // Módulo: mainsite-frontend/src/components/ChatWidget.jsx
-// Versão: v1.3.0
-// Descrição: Painel flutuante de IA padronizado em Glassmorphism. Adoção do ícone Sparkles e correção de flex-shrink no cabeçalho.
+// Versão: v1.4.0
+// Descrição: Integração C-Commerce (Conversational Commerce). O Chat intercepta interações, aciona a flag de sustentabilidade (askForDonation) após 3 turnos, apaga a tag [[PEDIR_DOACAO]] e renderiza um botão nativo de doação. Preservado o Glassmorphism e o ícone Sparkles.
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Loader2, Sparkles, User } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Sparkles, Heart } from 'lucide-react';
 
-const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) => {
+const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, triggerDonation }) => {
   const [messages, setMessages] = useState([
-    { role: 'bot', text: 'Olá. Como posso guiar sua reflexão sobre os textos hoje?' }
+    { role: 'bot', text: 'Olá. Como posso guiar sua reflexão sobre os textos hoje?', hasDonationButton: false }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [interactionCount, setInteractionCount] = useState(0); // Contador C-Commerce
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -30,10 +31,16 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) =>
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);
 
+    // Incrementa a contagem de interações do usuário
+    const currentCount = interactionCount + 1;
+    setInteractionCount(currentCount);
+
     try {
+      // Flag de gatilho C-Commerce enviada ao backend na 3ª iteração
       const payload = { 
         message: userMsg, 
-        currentContext: currentPost ? { title: currentPost.title, content: currentPost.content } : null 
+        currentContext: currentPost ? { title: currentPost.title, content: currentPost.content } : null,
+        askForDonation: currentCount === 3
       };
 
       const res = await fetch(`${API_URL}/ai/public/chat`, {
@@ -45,9 +52,18 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) =>
       if (!res.ok) throw new Error('Falha de comunicação neural.');
       const data = await res.json();
       
-      setMessages(prev => [...prev, { role: 'bot', text: data.reply || data.text || 'Processamento concluído.' }]);
+      let rawText = data.reply || data.text || 'Processamento concluído.';
+      let showDonationButton = false;
+
+      // Interceptação C-Commerce: Localiza a tag, remove-a e ativa o botão
+      if (rawText.includes('[[PEDIR_DOACAO]]')) {
+        showDonationButton = true;
+        rawText = rawText.replace('[[PEDIR_DOACAO]]', '').trim();
+      }
+      
+      setMessages(prev => [...prev, { role: 'bot', text: rawText, hasDonationButton: showDonationButton }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'bot', text: 'Sinal interrompido. Tente novamente em instantes.' }]);
+      setMessages(prev => [...prev, { role: 'bot', text: 'Sinal interrompido. Tente novamente em instantes.', hasDonationButton: false }]);
     } finally {
       setIsLoading(false);
     }
@@ -135,6 +151,25 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) =>
     transition: 'transform 0.2s'
   };
 
+  // Botão Injetado via C-Commerce
+  const donationCCommerceBtnStyle = {
+    backgroundColor: '#ec4899', 
+    color: '#fff', 
+    border: 'none', 
+    padding: '10px 16px', 
+    fontSize: '12px', 
+    fontWeight: 'bold', 
+    borderRadius: '8px', 
+    cursor: 'pointer', 
+    marginTop: '10px', 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '8px', 
+    boxShadow: '0 4px 14px 0 rgba(236, 72, 153, 0.3)', 
+    transition: 'transform 0.2s',
+    letterSpacing: '0.5px'
+  };
+
   return (
     <>
       <style>{`
@@ -144,7 +179,6 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) =>
       <div style={panelStyle}>
         <div style={headerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {/* CORREÇÃO APLICADA: Dimensões fixas e flexShrink a 0 para impedir o esmagamento do ícone */}
             <div style={{ 
               backgroundColor: activePalette.titleColor, 
               color: isDarkBase ? '#000' : '#fff', 
@@ -167,7 +201,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) =>
 
         <div style={messageAreaStyle}>
           {messages.map((msg, idx) => (
-            <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
               <div style={{ 
                 maxWidth: '85%', 
                 padding: '12px 16px', 
@@ -182,6 +216,18 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL }) =>
               }}>
                 {msg.text}
               </div>
+              
+              {/* RENDERIZAÇÃO DO GATILHO C-COMMERCE */}
+              {msg.hasDonationButton && (
+                <button 
+                  onClick={() => triggerDonation && triggerDonation()} 
+                  style={donationCCommerceBtnStyle}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <Heart size={14} fill="#fff" /> Apoiar o Projeto
+                </button>
+              )}
             </div>
           ))}
           {isLoading && (
