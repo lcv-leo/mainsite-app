@@ -206,10 +206,16 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
             </div>
-            <Payment
+ <Payment
               initialization={{ amount: getNumericAmount() }}
               customization={{
-                paymentMethods: { ticket: "all", creditCard: "all", debitCard: "all", mercadoPago: "all" },
+                paymentMethods: { 
+                  ticket: "all", 
+                  bankTransfer: "all", // <-- Habilita PIX do MP
+                  creditCard: "all", 
+                  debitCard: "all" 
+                  // Removido: mercadoPago: "all" (Evita o erro do preferenceId)
+                },
                 visual: { style: { theme: isDarkBase ? 'dark' : 'default' } }
               }}
               onSubmit={async (param) => {
