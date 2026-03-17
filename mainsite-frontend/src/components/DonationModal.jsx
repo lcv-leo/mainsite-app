@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.4.0
+// Versão: v1.4.1
 // Descrição: Código unificado e auditado. Restrição do Payment Brick exclusivamente para 'creditCard' (redução de taxas), botão renomeado, preservando a inicialização global e a segurança antifraude.
 
 import React, { useState, useEffect } from 'react';
@@ -160,7 +160,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <button type="button" onClick={handleConfirmNativePix} style={{...buttonStyle, background: '#10b981', color: '#fff'}}>
-                  <Smartphone size={16} /> PIX Direto (Sem Taxas)
+                  <Smartphone size={16} /> PIX
                 </button>
                 <button type="button" onClick={handleConfirmMercadoPago} style={{...buttonStyle, background: '#009ee3', color: '#fff'}}>
                   <CreditCard size={16} /> Cartão de Crédito
