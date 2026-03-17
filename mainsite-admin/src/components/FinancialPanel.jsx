@@ -1,9 +1,9 @@
 // Módulo: mainsite-admin/src/components/FinancialPanel.jsx
-// Versão: v1.5.0
-// Descrição: Alteração na física de comunicação HTTP. Atualização pesada configurada para 10 minutos (600.000ms). Implementação do Short-Polling (15s) na rota /check para acionar o Auto-Refresh imediato em caso de Webhook de pagamento recebido.
+// Versão: v1.6.0
+// Descrição: Injeção do botão e modal de exclusão (Trash2) para expurgo de logs e testes duplicados. Agrupamento das ações da tabela para melhor alinhamento visual. Adaptação do executeAction para invocar o método DELETE.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet } from 'lucide-react';
+import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet, Trash2 } from 'lucide-react';
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);
@@ -17,7 +17,6 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
   const [refundAmount, setRefundAmount] = useState('');
   const [panelToast, setPanelToast] = useState({ show: false, message: '', type: 'info' });
   
-  // Controle para detectar webhooks
   const [logCount, setLogCount] = useState(0);
 
   const showPanelToast = (message, type = 'info') => {
@@ -32,7 +31,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       if (resLogs.ok) {
         const data = await resLogs.json();
         setLogs(data);
-        setLogCount(data.length); // Sincroniza a contagem base
+        setLogCount(data.length);
       }
 
       const resBalance = await fetch(`${API_URL}/mp-balance`, { headers: { 'Authorization': `Bearer ${secret}` } });
@@ -50,20 +49,17 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
   useEffect(() => { fetchFinanceData(); }, [fetchFinanceData]);
 
-  // TEMPORIZADOR 1: Atualização Completa a cada 10 MINUTOS (600.000 ms)
   useEffect(() => {
     const intervalId = setInterval(() => fetchFinanceData(false), 600000);
     return () => clearInterval(intervalId); 
   }, [fetchFinanceData]);
 
-  // TEMPORIZADOR 2: Ping Leve (Short-Polling) a cada 15 segundos para ouvir webhooks
   useEffect(() => {
     const checkWebhook = async () => {
        try {
           const res = await fetch(`${API_URL}/financial-logs/check`, { headers: { 'Authorization': `Bearer ${secret}` } });
           if (res.ok) {
              const data = await res.json();
-             // Se a contagem do banco for maior que a tela atual, atualiza a tela
              if (logCount !== 0 && data.count > logCount) {
                 showPanelToast("Novo registro processado via Webhook! Atualizando...", "success");
                 fetchFinanceData(true);
@@ -77,23 +73,36 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
   }, [API_URL, secret, logCount, fetchFinanceData]);
 
   const executeAction = async () => {
-    const { id, type } = activeTx;
+    // Agora extraímos o dbId (Primary Key do banco) além do id (Payment ID do MP)
+    const { id, dbId } = activeTx; 
     const isRefund = modalType === 'refund';
+    const isDelete = modalType === 'delete';
+    
     setProcessingId(id);
     setModalType(null); 
     
     try {
-      let url = `${API_URL}/mp-payment/${id}/${isRefund ? 'refund' : 'cancel'}`;
-      let options = { method: isRefund ? 'POST' : 'PUT', headers: { 'Authorization': `Bearer ${secret}`, 'Content-Type': 'application/json' } };
-      
-      if (isRefund && refundAmount) {
-        const amt = parseFloat(refundAmount.replace(',', '.'));
-        if (amt > 0 && amt <= activeTx.amount) options.body = JSON.stringify({ amount: amt });
+      let url;
+      let options;
+
+      if (isDelete) {
+        // Rota de exclusão no próprio banco
+        url = `${API_URL}/financial-logs/${dbId}`;
+        options = { method: 'DELETE', headers: { 'Authorization': `Bearer ${secret}` } };
+      } else {
+        // Rotas de comunicação com o Mercado Pago
+        url = `${API_URL}/mp-payment/${id}/${isRefund ? 'refund' : 'cancel'}`;
+        options = { method: isRefund ? 'POST' : 'PUT', headers: { 'Authorization': `Bearer ${secret}`, 'Content-Type': 'application/json' } };
+        
+        if (isRefund && refundAmount) {
+          const amt = parseFloat(refundAmount.replace(',', '.'));
+          if (amt > 0 && amt <= activeTx.amount) options.body = JSON.stringify({ amount: amt });
+        }
       }
 
       const res = await fetch(url, options);
       if (res.ok) {
-        showPanelToast(`Ação concluída com sucesso!`, 'success');
+        showPanelToast(isDelete ? 'Registro excluído do banco com sucesso!' : 'Ação concluída com sucesso!', 'success');
         fetchFinanceData(true);
       } else {
         const errData = await res.json();
@@ -115,16 +124,24 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       {modalType && (
         <div style={{ ...styles.modalOverlay, zIndex: 10000 }}>
           <div style={styles.modalContent}>
-            <AlertCircle size={48} color={modalType === 'cancel' ? '#f59e0b' : '#ea4335'} style={{ marginBottom: '20px', margin: '0 auto' }} />
-            {modalType === 'cancel' ? ( <p style={styles.modalText}>Tem certeza de que deseja <strong>CANCELAR</strong> o pagamento pendente {activeTx.id}?</p> ) : (
+            <AlertCircle size={48} color={modalType === 'delete' ? '#ef4444' : (modalType === 'cancel' ? '#f59e0b' : '#ea4335')} style={{ marginBottom: '20px', margin: '0 auto' }} />
+            
+            {modalType === 'delete' ? ( 
+              <p style={styles.modalText}>Tem certeza de que deseja <strong>EXCLUIR</strong> este registro de log permanentemente do banco de dados?</p> 
+            ) : modalType === 'cancel' ? ( 
+              <p style={styles.modalText}>Tem certeza de que deseja <strong>CANCELAR</strong> o pagamento pendente {activeTx.id} no Mercado Pago?</p> 
+            ) : (
               <div>
                 <p style={styles.modalText}>Estorno do pagamento <strong>{activeTx.id}</strong>.</p>
                 <input type="text" placeholder={`R$ Máximo: ${activeTx.amount.toFixed(2)}`} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value.replace(/[^0-9.,]/g, ''))} style={{ ...styles.textInput, width: '100%', marginBottom: '20px', textAlign: 'center', fontSize: '16px' }} />
               </div>
             )}
+
             <div style={styles.modalActions}>
               <button onClick={() => { setModalType(null); setRefundAmount(''); }} style={styles.modalBtnCancel}>VOLTAR</button>
-              <button onClick={executeAction} style={{...styles.modalBtnConfirm, background: modalType === 'cancel' ? '#f59e0b' : '#ea4335'}}>{modalType === 'cancel' ? 'CONFIRMAR CANCELAMENTO' : 'CONFIRMAR ESTORNO'}</button>
+              <button onClick={executeAction} style={{...styles.modalBtnConfirm, background: modalType === 'delete' ? '#ef4444' : (modalType === 'cancel' ? '#f59e0b' : '#ea4335')}}>
+                {modalType === 'delete' ? 'EXCLUIR REGISTRO' : (modalType === 'cancel' ? 'CONFIRMAR CANCELAMENTO' : 'CONFIRMAR ESTORNO')}
+              </button>
             </div>
           </div>
         </div>
@@ -158,7 +175,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>
-                  <th style={{ padding: '12px' }}>Data</th><th style={{ padding: '12px' }}>ID MP</th><th style={{ padding: '12px' }}>Status</th><th style={{ padding: '12px' }}>Valor (R$)</th><th style={{ padding: '12px' }}>E-mail / Ação</th>
+                  <th style={{ padding: '12px' }}>Data</th><th style={{ padding: '12px' }}>ID MP</th><th style={{ padding: '12px' }}>Status</th><th style={{ padding: '12px' }}>Valor (R$)</th><th style={{ padding: '12px' }}>E-mail / Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,8 +192,18 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                     <td style={{ padding: '12px', fontWeight: 'bold' }}>{log.amount.toFixed(2)}</td>
                     <td style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                       <span style={{ opacity: 0.8 }}>{log.payer_email}</span>
-                      {isApproved && ( <button onClick={() => { setActiveTx({ id: log.payment_id, amount: log.amount }); setModalType('refund'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('234, 67, 53')}> <RotateCcw size={14} /> Estornar</button> )}
-                      {isPending && ( <button onClick={() => { setActiveTx({ id: log.payment_id, amount: log.amount }); setModalType('cancel'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('245, 158, 11')}> <Ban size={14} /> Cancelar</button> )}
+                      
+                      {/* AGRUPAMENTO DE BOTÕES DE AÇÃO */}
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {isApproved && ( <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('refund'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('234, 67, 53')}> <RotateCcw size={14} /> Estornar</button> )}
+                        {isPending && ( <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('cancel'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('245, 158, 11')}> <Ban size={14} /> Cancelar</button> )}
+                        
+                        {/* NOVO BOTÃO DE EXCLUSÃO DE LOG (Vermelho Suave) */}
+                        <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('delete'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('156, 163, 175')} title="Excluir este registro"> 
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+
                     </td>
                   </tr>
                 )})}

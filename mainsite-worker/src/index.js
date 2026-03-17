@@ -580,6 +580,19 @@ app.get('/api/financial-logs/check', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+// --- ROTA DE EXCLUSÃO DE LOG FINANCEIRO (Expurgo Manual) ---
+app.delete('/api/financial-logs/:id', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  const id = c.req.param('id');
+  try {
+    // Exclui a linha do banco D1 baseada na Chave Primária (id do banco, não o id do MP)
+    await c.env.DB.prepare("DELETE FROM financial_logs WHERE id = ?").bind(id).run();
+    return c.json({ success: true });
+  } catch (err) { 
+    return c.json({ error: err.message }, 500); 
+  }
+});
+
 app.post('/api/upload', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
