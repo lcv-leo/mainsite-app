@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.8.0
-// Descrição: Remoção das APIs nativas (alert) e injeção de Toasts customizados. Interceptação estrita do campo de nome do Iframe do Mercado Pago: o frontend exige que o usuário digite Nome e Sobrenome (separados por espaço) para validar a transação antifraude (Zero Trust) e evitar congelamento da Promise.
+// Versão: v1.9.1
+// Descrição: Correção definitiva. Prevenção do erro 'removeChild on Node' (Lifecycle do React vs Vanilla JS) através da estabilização da prop 'key'. Resolução de Freeze através de Promise controlada. Coleta legítima de Nome/Sobrenome em obediência ao PCI-DSS e injeção do sistema nativo de Toasts (sem alertas de navegador).
 
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone, AlertTriangle } from 'lucide-react';
@@ -12,11 +12,12 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [step, setStep] = useState(1); 
   
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [amountDisplay, setAmountDisplay] = useState('');
+  
   const [pixPayload, setPixPayload] = useState('');
   const [isCopied, setIsCopied] = useState(false);
-
-  // NOVO: Sistema de Notificações Nativo do Site
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
 
   const showToast = (message, type = 'error') => {
@@ -29,6 +30,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       setIsVisible(true);
       setStep(1);
       setAmountDisplay('');
+      setFirstName('');
+      setLastName('');
       setIsCopied(false);
     } else {
       setTimeout(() => setIsVisible(false), 400);
@@ -93,8 +96,12 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   };
 
   const validateBaseForm = () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      showToast("Preencha seu Nome e Sobrenome reais.", "error");
+      return false;
+    }
     if (getNumericAmount() <= 0) {
-      showToast("Por favor, insira um valor de doação antes de continuar.", "error");
+      showToast("Por favor, insira um valor de doação válido.", "error");
       return false;
     }
     return true;
@@ -151,9 +158,16 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     letterSpacing: '1px', textTransform: 'uppercase'
   };
 
+  const inputStyle = {
+    width: '100%', padding: '12px 16px', 
+    backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', 
+    border: '1px solid rgba(128, 128, 128, 0.2)', 
+    borderRadius: '8px', color: activePalette.fontColor, 
+    fontSize: '14px', outline: 'none', boxSizing: 'border-box'
+  };
+
   return (
     <div style={overlayStyle}>
-      {/* RENDERIZAÇÃO DO TOAST NATIVO */}
       <div style={{ position: 'fixed', top: '20px', left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : '#10b981', color: '#fff', padding: '12px 20px', borderRadius: '8px', zIndex: 10005, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)', fontWeight: 'bold', fontSize: '13px' }}>
         {toast.type === 'error' ? <AlertTriangle size={16} /> : <CheckCircle size={16} />} {toast.message}
       </div>
@@ -170,9 +184,22 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             </div>
             <h2 style={{ margin: '0 0 15px 0', fontSize: '20px', fontWeight: '600', color: activePalette.titleColor }}>Apoie este Espaço</h2>
             <p style={{ fontSize: '14px', opacity: 0.8, lineHeight: '1.6', marginBottom: '25px' }}>
-              Insira o valor desejado e escolha a plataforma de apoio.
+              Insira seus dados reais, o valor desejado e escolha a plataforma.
             </p>
             <form>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <input 
+                  type="text" required placeholder="Nome" 
+                  value={firstName} onChange={(e) => setFirstName(e.target.value)} 
+                  style={inputStyle} 
+                />
+                <input 
+                  type="text" required placeholder="Sobrenome" 
+                  value={lastName} onChange={(e) => setLastName(e.target.value)} 
+                  style={inputStyle} 
+                />
+              </div>
+
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
                 <span style={{ position: 'absolute', left: '20px', fontSize: '18px', fontWeight: 'bold', opacity: 0.5 }}>R$</span>
                 <input 
@@ -229,32 +256,19 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
             </div>
             <CardPayment
+              key="mp-card-brick" // CORREÇÃO: Estabiliza o lifecycle do componente no React
               initialization={{ amount: getNumericAmount() }}
               customization={{ visual: { style: { theme: isDarkBase ? 'dark' : 'default' } } }}
               
               onSubmit={(param) => {
                 return new Promise(async (resolve, reject) => {
                   try {
-                    // VALIDAÇÃO EXTREMA: Intercepta o campo "Nome do Titular" do Iframe.
-                    const fullName = param.formData.cardholder?.name?.trim() || "";
-                    const nameParts = fullName.split(' ').filter(part => part.length > 0);
-                    
-                    // Impede a continuidade se o usuário digitar apenas uma palavra
-                    if (nameParts.length < 2) {
-                      showToast("O Mercado Pago exige Nome e Sobrenome reais no titular do cartão.", "error");
-                      reject(); // Rejeitar a Promise destrava o spinner azul do Mercado Pago!
-                      return;
-                    }
-
-                    const extFirstName = nameParts[0];
-                    const extLastName = nameParts.slice(1).join(' ');
-
                     const payload = {
                       ...param.formData,
                       payer: {
                         ...(param.formData.payer || {}),
-                        first_name: extFirstName,
-                        last_name: extLastName
+                        first_name: firstName.trim(),
+                        last_name: lastName.trim()
                       }
                     };
 
@@ -269,16 +283,20 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                       setStep(3);
                     } else {
                       const errorData = await res.json();
-                      showToast(`Não aprovado: ${errorData.error || 'Revise os dados informados.'}`, "error");
+                      console.error("🔴 MP Backend Rejeitou:", errorData);
+                      showToast(`Não aprovado: ${errorData.error || 'Verifique os dados.'}`, "error");
                       reject(); 
                     }
                   } catch (error) {
+                    console.error("🔴 Falha Crítica no Frontend (Fetch):", error);
                     showToast("Falha de conexão. Verifique sua rede e tente novamente.", "error");
                     reject(); 
                   }
                 });
               }}
-              onError={(error) => { showToast("Falha ao carregar o módulo de segurança do Mercado Pago.", "error"); }}
+              onError={(error) => { 
+                console.error("🔴 Erro de Inicialização do SDK MP:", error); 
+              }}
             />
           </div>
         )}
