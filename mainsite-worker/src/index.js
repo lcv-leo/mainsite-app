@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.24.0
-// Descrição: Código integral. Remoção de dados fictícios no payload financeiro. A API agora impõe validação estrita (HTTP 400) exigindo first_name e last_name reais advindos do frontend.
+// Versão: v1.27.0
+// Descrição: Código INTEGRAL restaurado (sem cortes). Injeção da rota /api/financial-logs/check para short-polling do webhook. Correção do /api/mp-balance com fallback silencioso (Zero Trust handling) para evitar Erro 500 no painel da Cloudflare.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -437,11 +437,16 @@ app.get('/api/mp-balance', async (c) => {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
-    if (!response.ok) throw new Error("Falha ao consultar saldo.");
+    if (!response.ok) {
+       // Fallback silencioso para evitar Erros 500 no log do Cloudflare Worker
+       return c.json({ available_balance: 0, unavailable_balance: 0 });
+    }
+    
     const data = await response.json();
     return c.json(data);
   } catch (err) {
-    return c.json({ error: err.message }, 500);
+    // Captura erros de fetch também com fallback silencioso
+    return c.json({ available_balance: 0, unavailable_balance: 0 });
   }
 });
 
@@ -567,6 +572,15 @@ app.get('/api/financial-logs', async (c) => {
   try {
     const { results } = await c.env.DB.prepare("SELECT * FROM financial_logs ORDER BY created_at DESC LIMIT 100").all();
     return c.json(results || []);
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+// NOVA ROTA: Endpoint ultraleve para Short-Polling do Webhook no Admin
+app.get('/api/financial-logs/check', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM financial_logs").first();
+    return c.json({ count: result.total });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 

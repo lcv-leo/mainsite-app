@@ -1,9 +1,9 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.6.0
-// Descrição: Injeção de campos reais de Nome e Sobrenome no Passo 1 para garantir a integridade dos dados enviados ao scanner antifraude do Mercado Pago. Transmissão estrita das variáveis firstName e lastName no payload do CardPayment.
+// Versão: v1.8.0
+// Descrição: Remoção das APIs nativas (alert) e injeção de Toasts customizados. Interceptação estrita do campo de nome do Iframe do Mercado Pago: o frontend exige que o usuário digite Nome e Sobrenome (separados por espaço) para validar a transação antifraude (Zero Trust) e evitar congelamento da Promise.
 
 import React, { useState, useEffect } from 'react';
-import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone } from 'lucide-react';
+import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone, AlertTriangle } from 'lucide-react';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 
 initMercadoPago("APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794", { locale: 'pt-BR' });
@@ -12,21 +12,23 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [step, setStep] = useState(1); 
   
-  // NOVOS ESTADOS: Captura real de dados do doador
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [amountDisplay, setAmountDisplay] = useState('');
-  
   const [pixPayload, setPixPayload] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+
+  // NOVO: Sistema de Notificações Nativo do Site
+  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+
+  const showToast = (message, type = 'error') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+  };
 
   useEffect(() => {
     if (show) {
       setIsVisible(true);
       setStep(1);
       setAmountDisplay('');
-      setFirstName('');
-      setLastName('');
       setIsCopied(false);
     } else {
       setTimeout(() => setIsVisible(false), 400);
@@ -91,12 +93,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   };
 
   const validateBaseForm = () => {
-    if (!firstName.trim() || !lastName.trim()) {
-      alert("Por favor, preencha seu nome e sobrenome reais.");
-      return false;
-    }
     if (getNumericAmount() <= 0) {
-      alert("Por favor, insira um valor válido.");
+      showToast("Por favor, insira um valor de doação antes de continuar.", "error");
       return false;
     }
     return true;
@@ -153,16 +151,13 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     letterSpacing: '1px', textTransform: 'uppercase'
   };
 
-  const inputStyle = {
-    width: '100%', padding: '12px 16px', 
-    backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', 
-    border: '1px solid rgba(128, 128, 128, 0.2)', 
-    borderRadius: '8px', color: activePalette.fontColor, 
-    fontSize: '14px', outline: 'none', boxSizing: 'border-box'
-  };
-
   return (
     <div style={overlayStyle}>
+      {/* RENDERIZAÇÃO DO TOAST NATIVO */}
+      <div style={{ position: 'fixed', top: '20px', left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : '#10b981', color: '#fff', padding: '12px 20px', borderRadius: '8px', zIndex: 10005, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)', fontWeight: 'bold', fontSize: '13px' }}>
+        {toast.type === 'error' ? <AlertTriangle size={16} /> : <CheckCircle size={16} />} {toast.message}
+      </div>
+
       <div style={modalStyle}>
         <button onClick={onClose} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.6 }} onMouseOver={(e) => e.currentTarget.style.opacity = 1} onMouseOut={(e) => e.currentTarget.style.opacity = 0.6}>
           <X size={24} />
@@ -175,24 +170,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             </div>
             <h2 style={{ margin: '0 0 15px 0', fontSize: '20px', fontWeight: '600', color: activePalette.titleColor }}>Apoie este Espaço</h2>
             <p style={{ fontSize: '14px', opacity: 0.8, lineHeight: '1.6', marginBottom: '25px' }}>
-              Insira seus dados reais, o valor desejado e escolha a plataforma.
+              Insira o valor desejado e escolha a plataforma de apoio.
             </p>
             <form>
-              
-              {/* BLOCO NOVO: Coleta de Nome e Sobrenome reais */}
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                <input 
-                  type="text" required placeholder="Nome" 
-                  value={firstName} onChange={(e) => setFirstName(e.target.value)} 
-                  style={inputStyle} 
-                />
-                <input 
-                  type="text" required placeholder="Sobrenome" 
-                  value={lastName} onChange={(e) => setLastName(e.target.value)} 
-                  style={inputStyle} 
-                />
-              </div>
-
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
                 <span style={{ position: 'absolute', left: '20px', fontSize: '18px', fontWeight: 'bold', opacity: 0.5 }}>R$</span>
                 <input 
@@ -251,34 +231,54 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <CardPayment
               initialization={{ amount: getNumericAmount() }}
               customization={{ visual: { style: { theme: isDarkBase ? 'dark' : 'default' } } }}
-              onSubmit={async (param) => {
-                
-                // INJEÇÃO: Acoplamento dos nomes reais capturados no Passo 1 ao payload oficial do MP
-                const payload = {
-                  ...param.formData,
-                  payer: {
-                    ...param.formData.payer,
-                    first_name: firstName.trim(),
-                    last_name: lastName.trim()
-                  }
-                };
+              
+              onSubmit={(param) => {
+                return new Promise(async (resolve, reject) => {
+                  try {
+                    // VALIDAÇÃO EXTREMA: Intercepta o campo "Nome do Titular" do Iframe.
+                    const fullName = param.formData.cardholder?.name?.trim() || "";
+                    const nameParts = fullName.split(' ').filter(part => part.length > 0);
+                    
+                    // Impede a continuidade se o usuário digitar apenas uma palavra
+                    if (nameParts.length < 2) {
+                      showToast("O Mercado Pago exige Nome e Sobrenome reais no titular do cartão.", "error");
+                      reject(); // Rejeitar a Promise destrava o spinner azul do Mercado Pago!
+                      return;
+                    }
 
-                const res = await fetch(`${API_URL}/mp-payment`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(payload)
+                    const extFirstName = nameParts[0];
+                    const extLastName = nameParts.slice(1).join(' ');
+
+                    const payload = {
+                      ...param.formData,
+                      payer: {
+                        ...(param.formData.payer || {}),
+                        first_name: extFirstName,
+                        last_name: extLastName
+                      }
+                    };
+
+                    const res = await fetch(`${API_URL}/mp-payment`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(payload)
+                    });
+                    
+                    if (res.ok) {
+                      resolve(); 
+                      setStep(3);
+                    } else {
+                      const errorData = await res.json();
+                      showToast(`Não aprovado: ${errorData.error || 'Revise os dados informados.'}`, "error");
+                      reject(); 
+                    }
+                  } catch (error) {
+                    showToast("Falha de conexão. Verifique sua rede e tente novamente.", "error");
+                    reject(); 
+                  }
                 });
-                
-                if (res.ok) {
-                  setStep(3);
-                } else {
-                  const errorData = await res.json();
-                  console.error("Falha detalhada Mercado Pago:", errorData);
-                  alert(`Não foi possível aprovar: ${errorData.error || 'Verifique os dados.'}`);
-                  setStep(1);
-                }
               }}
-              onError={(error) => { console.error("Erro no Mercado Pago:", error); }}
+              onError={(error) => { showToast("Falha ao carregar o módulo de segurança do Mercado Pago.", "error"); }}
             />
           </div>
         )}
