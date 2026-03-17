@@ -1,16 +1,26 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.0.0
-// Descrição: Casca visual em Glassmorphism com gerador de payload PIX EMV (CRC16) nativo, máscara de Reais (R$) e fluxo de 3 etapas.
+// Versão: v1.1.0
+// Descrição: Integração oficial do Mercado Pago Checkout Bricks (SDK React) em harmonia com o gerador PIX EMV nativo.
 
 import React, { useState, useEffect } from 'react';
-import { X, Heart, QrCode, Copy, CheckCircle, Coffee } from 'lucide-react';
+import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone } from 'lucide-react';
+import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 
-const DonationModal = ({ show, onClose, activePalette }) => {
+const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isVisible, setIsVisible] = useState(false);
-  const [step, setStep] = useState(1); // 1: Input, 2: PIX, 3: Agradecimento
+  const [step, setStep] = useState(1); // 1: Input, 2: PIX Nativo, 3: Agradecimento, 4: Checkout Mercado Pago
   const [amountDisplay, setAmountDisplay] = useState('');
   const [pixPayload, setPixPayload] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  
+  // Variável de configuração do Mercado Pago (deve ser passada via variável de ambiente)
+  const mpPublicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
+
+  useEffect(() => {
+    if (mpPublicKey) {
+      initMercadoPago(mpPublicKey, { locale: 'pt-BR' });
+    }
+  }, [mpPublicKey]);
 
   useEffect(() => {
     if (show) {
@@ -27,7 +37,6 @@ const DonationModal = ({ show, onClose, activePalette }) => {
 
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
 
-  // Máscara Financeira (BRL)
   const handleAmountChange = (e) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value === '') { setAmountDisplay(''); return; }
@@ -37,12 +46,16 @@ const DonationModal = ({ show, onClose, activePalette }) => {
     setAmountDisplay(value);
   };
 
-  // Motor de Geração PIX EMV Padrão BACEN
+  const getNumericAmount = () => {
+    if (amountDisplay === '') return 0;
+    return parseFloat(amountDisplay.replace(/\./g, '').replace(',', '.'));
+  };
+
   const generatePix = (amountStr) => {
     const key = "c9328705-fa51-44c0-b972-bca71e2d06bd";
     const name = "LEONARDO VARGAS";
     const city = "RIO DE JANEIRO";
-    const amount = amountStr.replace(/\./g, '').replace(',', '.'); // Converte 1.000,50 para 1000.50
+    const amount = amountStr.replace(/\./g, '').replace(',', '.');
 
     const formatField = (id, value) => {
       const len = value.length.toString().padStart(2, '0');
@@ -50,21 +63,18 @@ const DonationModal = ({ show, onClose, activePalette }) => {
     };
 
     let payload = "";
-    payload += formatField("00", "01"); // Formato do Payload
+    payload += formatField("00", "01"); 
     const merchantAccountInfo = formatField("00", "BR.GOV.BCB.PIX") + formatField("01", key);
-    payload += formatField("26", merchantAccountInfo); // Conta do Recebedor
-    payload += formatField("52", "0000"); // Código da Categoria
-    payload += formatField("53", "986");  // Moeda (BRL = 986)
-    if (parseFloat(amount) > 0) {
-      payload += formatField("54", amount); // Valor da Transação
-    }
-    payload += formatField("58", "BR"); // País
-    payload += formatField("59", name); // Nome
-    payload += formatField("60", city); // Cidade
-    payload += formatField("62", formatField("05", "***")); // Dados Adicionais (Identificador)
-    payload += "6304"; // Prefixo do CRC16
+    payload += formatField("26", merchantAccountInfo);
+    payload += formatField("52", "0000");
+    payload += formatField("53", "986"); 
+    if (parseFloat(amount) > 0) payload += formatField("54", amount);
+    payload += formatField("58", "BR");
+    payload += formatField("59", name);
+    payload += formatField("60", city);
+    payload += formatField("62", formatField("05", "***"));
+    payload += "6304";
 
-    // Cálculo de Checksum CRC16-CCITT
     const calcCRC16 = (str) => {
       let crc = 0xFFFF;
       for (let i = 0; i < str.length; i++) {
@@ -80,11 +90,20 @@ const DonationModal = ({ show, onClose, activePalette }) => {
     return payload + calcCRC16(payload);
   };
 
-  const handleConfirm = (e) => {
+  const handleConfirmNativePix = (e) => {
     e.preventDefault();
     const finalAmount = amountDisplay === '' ? '0,00' : amountDisplay;
     setPixPayload(generatePix(finalAmount));
     setStep(2);
+  };
+
+  const handleConfirmMercadoPago = (e) => {
+    e.preventDefault();
+    if (!mpPublicKey) {
+      alert("A chave pública do Mercado Pago não foi configurada (VITE_MP_PUBLIC_KEY).");
+      return;
+    }
+    setStep(4);
   };
 
   const handleCopy = async () => {
@@ -97,13 +116,13 @@ const DonationModal = ({ show, onClose, activePalette }) => {
     }
   };
 
-  // Estilos Vídricos (Glassmorphism)
   const overlayStyle = {
     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: isDarkBase ? 'rgba(0, 0, 0, 0.65)' : 'rgba(255, 255, 255, 0.45)',
     backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-    opacity: show ? 1 : 0, transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', padding: '20px'
+    opacity: show ? 1 : 0, transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', padding: '20px',
+    overflowY: 'auto'
   };
 
   const modalStyle = {
@@ -112,14 +131,15 @@ const DonationModal = ({ show, onClose, activePalette }) => {
     border: '1px solid rgba(128, 128, 128, 0.15)', textAlign: 'center',
     boxShadow: isDarkBase ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
     transform: show ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(15px)',
-    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)', position: 'relative'
+    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)', position: 'relative',
+    margin: 'auto'
   };
 
   const buttonStyle = {
     backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none',
-    padding: '14px', fontSize: '15px', fontWeight: '900', borderRadius: '8px', cursor: 'pointer',
-    width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px',
-    boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)', marginTop: '20px', transition: 'transform 0.2s',
+    padding: '14px', fontSize: '13px', fontWeight: '900', borderRadius: '8px', cursor: 'pointer',
+    width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px',
+    boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)', transition: 'transform 0.2s',
     letterSpacing: '1px', textTransform: 'uppercase'
   };
 
@@ -137,17 +157,24 @@ const DonationModal = ({ show, onClose, activePalette }) => {
             </div>
             <h2 style={{ margin: '0 0 15px 0', fontSize: '20px', fontWeight: '600', color: activePalette.titleColor }}>Apoie este Espaço</h2>
             <p style={{ fontSize: '14px', opacity: 0.8, lineHeight: '1.6', marginBottom: '25px' }}>
-              A manutenção da infraestrutura, dos bancos de dados e da Inteligência Artificial que alimentam este site possui custos. Sua contribuição voluntária é essencial para mantermos as engrenagens tecnológicas a funcionar.
+              A manutenção da infraestrutura, dos bancos de dados e da Inteligência Artificial que alimentam este site possui custos. Insira o valor desejado e escolha a plataforma.
             </p>
-            <form onSubmit={handleConfirm}>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <form>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
                 <span style={{ position: 'absolute', left: '20px', fontSize: '18px', fontWeight: 'bold', opacity: 0.5 }}>R$</span>
                 <input 
                   type="text" required value={amountDisplay} onChange={handleAmountChange} placeholder="0,00"
                   style={{ width: '100%', padding: '15px 15px 15px 50px', backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: '8px', color: activePalette.fontColor, fontSize: '22px', fontWeight: 'bold', outline: 'none', boxSizing: 'border-box' }} 
                 />
               </div>
-              <button type="submit" style={buttonStyle}>Gerar PIX</button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button type="button" onClick={handleConfirmNativePix} style={{...buttonStyle, background: '#10b981', color: '#fff'}}>
+                  <Smartphone size={16} /> PIX Direto (Sem Taxas)
+                </button>
+                <button type="button" onClick={handleConfirmMercadoPago} style={{...buttonStyle, background: '#009ee3', color: '#fff'}}>
+                  <CreditCard size={16} /> Cartões / Mercado Pago
+                </button>
+              </div>
             </form>
           </div>
         )}
@@ -180,6 +207,49 @@ const DonationModal = ({ show, onClose, activePalette }) => {
               Sua contribuição aquece os servidores e incentiva a continuidade destas divagações. Agradeço imensamente pelo apoio ao meu trabalho.
             </p>
             <button type="button" onClick={onClose} style={buttonStyle}>Fechar</button>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div style={{ animation: 'fadeIn 0.3s', textAlign: 'left', minHeight: '300px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
+            </div>
+            {/* INJEÇÃO DO MERCADO PAGO CHECKOUT BRICKS */}
+            <Payment
+              initialization={{
+                amount: getNumericAmount(),
+              }}
+              customization={{
+                paymentMethods: {
+                  ticket: "all",
+                  creditCard: "all",
+                  debitCard: "all",
+                  mercadoPago: "all",
+                },
+                visual: {
+                  style: {
+                    theme: isDarkBase ? 'dark' : 'default',
+                  }
+                }
+              }}
+              onSubmit={async (param) => {
+                const res = await fetch(`${API_URL}/mp-payment`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(param)
+                });
+                if (res.ok) {
+                  setStep(3);
+                } else {
+                  alert("Ocorreu uma falha no processamento. Tente novamente.");
+                  setStep(1);
+                }
+              }}
+              onError={(error) => {
+                console.error("Erro no Mercado Pago:", error);
+              }}
+            />
           </div>
         )}
       </div>

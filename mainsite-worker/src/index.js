@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.14.0
-// Descrição: Código integral. Refatoração do motor de intercepção de e-mail da IA (sintaxe multiline robusta e blindagem do fetch em background), com rotas de SEO e Comentários integradas.
+// Versão: v1.15.0
+// Descrição: Código integral. Injeção do endpoint /api/mp-payment para processamento seguro via Checkout Bricks do Mercado Pago.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -108,7 +108,6 @@ app.post('/api/ai/public/chat', async (c) => {
       activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${currentContext.title}\n[CONTEÚDO DO TEXTO NA TELA]: ${currentContext.content}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
     }
 
-    // PERSONA BLINDADA COM SINTAXE DE BLOCO (XML-LIKE)
     const systemPrompt = `Você é a "Consciência Auxiliar", a inteligência artificial residente do site "Divagações Filosóficas".
 
 DIRETRIZ DE IDENTIDADE (SE PERGUNTADO SOBRE SEU NOME OU QUEM VOCÊ É):
@@ -123,14 +122,6 @@ Se o leitor confirmar a intenção de envio e ditar a mensagem, você OBRIGATORI
 [[/ENVIAR_EMAIL]]
 
 ATENÇÃO CRÍTICA: Substitua o texto entre colchetes pela mensagem VERDADEIRA do usuário. NÃO invente textos e NÃO use exemplos genéricos. O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor (lcv@lcv.rio.br).
-
-Exemplo de resposta correta da sua parte:
-"Sua mensagem foi encaminhada com sucesso para o autor. Ele retornará assim que possível.
-[[ENVIAR_EMAIL]]
-Gostaria de aprofundar o debate sobre o texto do estoicismo.
-[[/ENVIAR_EMAIL]]"
-
-O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta ao leitor, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor (lcv@lcv.rio.br).
 
 REGRAS GERAIS DE RESPOSTA:
 O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
@@ -152,7 +143,6 @@ PERGUNTA DO USUÁRIO: ${message}`;
     
     let replyText = data.candidates[0].content.parts[0].text;
 
-    // MOTOR DE INTERCEPÇÃO ROBUSTO (MULTILINE)
     const emailRegex = /\[\[ENVIAR_EMAIL\]\](.*?)\[\[\/ENVIAR_EMAIL\]\]/is;
     const emailMatch = replyText.match(emailRegex);
 
@@ -172,7 +162,6 @@ PERGUNTA DO USUÁRIO: ${message}`;
           </div>
         `;
         
-        // Blindagem do ciclo de vida assíncrono para evitar queda prematura do Worker
         c.executionCtx.waitUntil((async () => {
           try {
             await fetch('https://api.resend.com/emails', {
@@ -191,7 +180,6 @@ PERGUNTA DO USUÁRIO: ${message}`;
         })());
       }
       
-      // Elimina o bloco inteiro para não sujar o chat do leitor
       replyText = replyText.replace(emailRegex, '').trim();
     }
 
@@ -241,7 +229,6 @@ app.post('/api/ai/public/translate', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- ROTA DE AUDITORIA DE TELEMETRIA (ADMIN) ---
 app.get('/api/chat-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
@@ -258,7 +245,6 @@ app.get('/api/contact-logs', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- ROTAS DE AUDITORIA E REGISTRO DE COMPARTILHAMENTOS ---
 app.get('/api/shares', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
@@ -373,7 +359,6 @@ app.post('/api/contact', async (c) => {
   }
 });
 
-// --- ROTA DE COMENTÁRIOS DIRETOS ---
 app.post('/api/comment', async (c) => {
   try {
     const { name, phone, email, message, post_title } = await c.req.json();
@@ -411,7 +396,33 @@ app.post('/api/comment', async (c) => {
   }
 });
 
-// --- ROTAS DE UPLOAD E MÍDIA (R2) ---
+// NOVA ROTA: PONTE SEGURA PARA A API DO MERCADO PAGO
+app.post('/api/mp-payment', async (c) => {
+  try {
+    const body = await c.req.json();
+    const token = c.env.MP_ACCESS_TOKEN; // Necessário configurar no Cloudflare
+    
+    if (!token) {
+      throw new Error("Mercado Pago Access Token ausente na configuração do servidor.");
+    }
+
+    const response = await fetch("https://api.mercadopago.com/v1/payments", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": crypto.randomUUID()
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await response.json();
+    return c.json(data, response.status);
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
 app.post('/api/upload', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
@@ -440,7 +451,6 @@ app.get('/api/uploads/:filename', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- ROTAS DE POSTAGENS (D1) ---
 app.get('/api/posts', async (c) => {
   try {
     const { results } = await c.env.DB.prepare("SELECT * FROM posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC").all();
@@ -507,7 +517,6 @@ app.delete('/api/posts/:id', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- ROTAS DE CONFIGURAÇÃO DE SISTEMA ---
 app.get('/api/settings', async (c) => {
   try {
     const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'appearance'").first();
@@ -586,20 +595,15 @@ app.put('/api/settings/disclaimers', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- ROTA DE SITEMAP PARA MOTORES DE BUSCA ---
 app.get('/api/sitemap.xml', async (c) => {
   try {
     const { results } = await c.env.DB.prepare("SELECT id, created_at FROM posts ORDER BY created_at DESC").all();
-    
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
-    
     xml += `\n  <url>\n    <loc>https://www.lcv.rio.br/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`;
-    
     results.forEach(post => {
       const dateIso = new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString().split('T')[0];
       xml += `\n  <url>\n    <loc>https://www.lcv.rio.br/?p=${post.id}</loc>\n    <lastmod>${dateIso}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
     });
-    
     xml += `\n</urlset>`;
     return new Response(xml, { headers: { 'Content-Type': 'application/xml', 'Cache-Control': 'public, max-age=3600' } });
   } catch (err) { return c.text('Erro ao gerar sitemap', 500); }
@@ -607,32 +611,24 @@ app.get('/api/sitemap.xml', async (c) => {
 
 export default {
   fetch: app.fetch,
-  
   async scheduled(event, env, ctx) {
     try {
       const record = await env.DB.prepare("SELECT payload FROM settings WHERE id = 'rotation'").first();
       if (!record) return;
       const config = JSON.parse(record.payload);
       if (!config.enabled) return;
-      
       const pinnedCheck = await env.DB.prepare("SELECT id FROM posts WHERE is_pinned = 1 LIMIT 1").first();
       if (pinnedCheck) return;
-      
       const now = Date.now();
       const lastRotated = config.last_rotated_at || 0;
       const intervalMs = (config.interval || 60) * 60 * 1000;
-      
       if (now - lastRotated < intervalMs) return;
-      
       const { results: posts } = await env.DB.prepare("SELECT id FROM posts ORDER BY display_order ASC, created_at DESC").all();
       if (!posts || posts.length <= 1) return;
-      
       const topPost = posts.shift();
       posts.push(topPost);
-      
       const statements = posts.map((post, index) => env.DB.prepare("UPDATE posts SET display_order = ? WHERE id = ?").bind(index, post.id));
       await env.DB.batch(statements);
-      
       config.last_rotated_at = now;
       await env.DB.prepare("UPDATE settings SET payload = ? WHERE id = 'rotation'").bind(JSON.stringify(config)).run();
     } catch (err) { console.error("Falha no Job de Rotação:", err); }
