@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.23.0
-// Descrição: Baseline consolidado. Motor de Temas, trava de Opt-Out (localStorage) e integração segura do gatilho C-Commerce no ChatWidget (correção de ReferenceError).
+// Versão: v3.24.0
+// Descrição: Alteração profunda no motor de Opt-Out. O bloqueio global hide_df_disclaimer foi substituído pela checagem individual de ID na fila, além de preparar o DisclaimerModal para disparar a janela de doação nativa através da propriedade onDonationTrigger.
 
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Loader2, AlertTriangle, Check } from 'lucide-react';
@@ -17,7 +17,7 @@ const CommentModal = lazy(() => import('./components/CommentModal'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.23.0';
+const APP_VERSION = 'APP v3.24.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -44,8 +44,11 @@ const App = () => {
   const [isDonationOpen, setIsDonationOpen] = useState(false);
   const [isSendingComment, setIsSendingComment] = useState(false);
   const [isSendingContact, setIsSendingContact] = useState(false);
+  
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [disclaimersConfig, setDisclaimersConfig] = useState({ enabled: false, items: [] });
+  // Novo Estado Filtrado de Avisos
+  const [filteredDisclaimers, setFilteredDisclaimers] = useState({ enabled: false, items: [] });
 
   const submitCommentForm = async (formData, resetFormCb) => {
   setIsSendingComment(true);
@@ -85,14 +88,20 @@ const App = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // INJEÇÃO DA REGRA DE OPT-OUT NO MOTOR DE ROTEAMENTO/SEO
+  // INJEÇÃO DA REGRA DE OPT-OUT INDIVIDUAL NO MOTOR DE ROTEAMENTO
   useEffect(() => {
     if (currentPost) {
-      // Verifica no navegador se o usuário já marcou a opção "Não mostrar novamente"
-      const userOptedOut = localStorage.getItem('hide_df_disclaimer');
       
-      if (userOptedOut !== 'true') {
-        setShowDisclaimer(true);
+      // Filtra o array de avisos retendo apenas os que não constam no localStorage do usuário
+      if (disclaimersConfig.enabled && disclaimersConfig.items.length > 0) {
+        const visibleItems = disclaimersConfig.items.filter(item => {
+           return localStorage.getItem(`hide_disclaimer_${item.id}`) !== 'true';
+        });
+        
+        if (visibleItems.length > 0) {
+           setFilteredDisclaimers({ enabled: true, items: visibleItems });
+           setShowDisclaimer(true);
+        }
       }
       
       document.title = `${currentPost.title} | Divagações Filosóficas`;
@@ -108,7 +117,7 @@ const App = () => {
     } else {
       document.title = "Divagações Filosóficas";
     }
-  }, [currentPost]);
+  }, [currentPost, disclaimersConfig]); // Reavalia caso as configs mudem
 
   const fetchData = async () => {
     try {
@@ -135,7 +144,10 @@ const App = () => {
         }
       }
       const resDisc = await fetch(`${API_URL}/settings/disclaimers`);
-      if (resDisc.ok) setDisclaimersConfig(await resDisc.json());
+      if (resDisc.ok) {
+         const dConfig = await resDisc.json();
+         setDisclaimersConfig(dConfig);
+      }
     } catch (err) { console.error("Falha na API."); } finally { setLoading(false); }
   };
 
@@ -230,11 +242,13 @@ const App = () => {
       <Suspense fallback={null}>
         <ShareOverlay modalState={emailModal} setModalState={setEmailModal} onSubmit={submitEmailShare} activePalette={activePalette} />
         
+        {/* MODAL AGORA USA OS ITEMS FILTRADOS E RECEBE A ACTION DOACION */}
         <DisclaimerModal 
           show={showDisclaimer} 
           onClose={() => setShowDisclaimer(false)} 
           activePalette={activePalette} 
-          config={disclaimersConfig}
+          config={filteredDisclaimers}
+          onDonationTrigger={() => setIsDonationOpen(true)}
         />
 
         <ContactModal 
@@ -261,7 +275,6 @@ const App = () => {
         API_URL={API_URL} 
       />
         
-        {/* CORREÇÃO CRÍTICA APLICADA: currentPost e setIsDonationOpen com as nomenclaturas exatas */}
         <ChatWidget 
           isOpen={isChatOpen} 
           onClose={() => setIsChatOpen(false)} 

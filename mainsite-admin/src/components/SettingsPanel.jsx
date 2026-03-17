@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/components/SettingsPanel.jsx
-// Versão: v1.3.0
-// Descrição: Componente isolado. Resolução de erro ReferenceError importando ícones ausentes (ArrowLeft, ShieldAlert, Upload) do lucide-react.
+// Versão: v1.4.0
+// Descrição: Alteração no Bloco de Disclaimers. Injeção do input 'isDonationTrigger' para permitir a criação de avisos híbridos que invocam o painel financeiro (DonationModal) quando engajados.
 
 import React from 'react';
 import { X, Save, Image as ImageIcon, Loader2, Activity, CheckCircle, ArrowLeft, ShieldAlert, Upload } from 'lucide-react';
@@ -15,7 +15,6 @@ const SettingsPanel = ({
   styles
 }) => {
   
-  // Classe vídrica neutra unificada para garantir suporte total ao Dark/Light Mode
   const glassBlock = {
     padding: '24px',
     background: 'rgba(128, 128, 128, 0.05)',
@@ -153,10 +152,16 @@ const SettingsPanel = ({
                   </div>
                   <input type="text" placeholder="Título (Ex: Termos de Leitura)" value={item.title} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].title = e.target.value; setDisclaimers({...disclaimers, items: newItems}); }} style={{...styles.textInput, width: '100%', marginBottom: '10px', boxSizing: 'border-box'}} />
                   <textarea placeholder="Texto do aviso..." value={item.text} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].text = e.target.value; setDisclaimers({...disclaimers, items: newItems}); }} style={{...styles.textInput, width: '100%', marginBottom: '10px', minHeight: '80px', boxSizing: 'border-box', resize: 'vertical'}} />
-                  <input type="text" placeholder="Texto do Botão (Ex: Concordo)" value={item.buttonText} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].buttonText = e.target.value; setDisclaimers({...disclaimers, items: newItems}); }} style={{...styles.textInput, width: '100%', boxSizing: 'border-box'}} />
+                  <input type="text" placeholder="Texto do Botão (Ex: Concordo)" value={item.buttonText} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].buttonText = e.target.value; setDisclaimers({...disclaimers, items: newItems}); }} style={{...styles.textInput, width: '100%', boxSizing: 'border-box', marginBottom: '15px'}} />
+                  
+                  {/* INJEÇÃO: Checkbox de doação */}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#ec4899', fontWeight: 'bold', cursor: 'pointer' }}>
+                     <input type="checkbox" checked={item.isDonationTrigger || false} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].isDonationTrigger = e.target.checked; setDisclaimers({...disclaimers, items: newItems}); }} style={{ cursor: 'pointer' }} />
+                     Este aviso funciona como um Gatilho de Doação (Abre o Painel do Mercado Pago)
+                  </label>
                 </div>
               ))}
-              <button type="button" onClick={() => setDisclaimers({...disclaimers, items: [...disclaimers.items, { id: crypto.randomUUID(), title: '', text: '', buttonText: 'Concordo' }]})} style={{ padding: '12px', background: 'transparent', color: 'inherit', border: '1px dashed rgba(128,128,128,0.5)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = 'rgba(128,128,128,0.1)'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
+              <button type="button" onClick={() => setDisclaimers({...disclaimers, items: [...disclaimers.items, { id: crypto.randomUUID(), title: '', text: '', buttonText: 'Concordo', isDonationTrigger: false }]})} style={{ padding: '12px', background: 'transparent', color: 'inherit', border: '1px dashed rgba(128,128,128,0.5)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = 'rgba(128,128,128,0.1)'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
                 + ADICIONAR NOVO AVISO
               </button>
             </div>
@@ -190,7 +195,6 @@ const SettingsPanel = ({
           </div>
 
         </div>
-        {/* FIM DO BLOCO DO MERCADO PAGO MOVIDO */}
         
         <button type="submit" disabled={isSaving} style={styles.adminButton}>
           {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} 
