@@ -14,6 +14,7 @@ const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
 const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const ContactModal = lazy(() => import('./components/ContactModal'));
 const CommentModal = lazy(() => import('./components/CommentModal'));
+const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
 const APP_VERSION = 'APP v3.22.0';
@@ -40,6 +41,7 @@ const App = () => {
   const [emailModal, setEmailModal] = useState({ show: false, email: '' });
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
+  const [isDonationOpen, setIsDonationOpen] = useState(false);
   const [isSendingComment, setIsSendingComment] = useState(false);
   const [isSendingContact, setIsSendingContact] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
@@ -251,6 +253,12 @@ const App = () => {
         isSubmitting={isSendingComment}
         currentPost={currentPost} 
        />
+
+       <DonationModal
+      show={isDonationOpen}
+      onClose={() => setIsDonationOpen(false)}
+      activePalette={activePalette}
+      />
         
         <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} activePalette={activePalette} API_URL={API_URL} />
       </Suspense>
@@ -279,6 +287,7 @@ const App = () => {
               onShare={handleShare} 
               onContact={() => setIsContactOpen(true)}
               onComment={() => setIsCommentOpen(true)}
+              onDonation={() => setIsDonationOpen(true)}
               isSendingEmail={isSendingEmail} 
               isNotHomePage={posts.length > 0 && currentPost.id !== posts[0].id}
             />

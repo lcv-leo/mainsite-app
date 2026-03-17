@@ -1,11 +1,11 @@
 // Módulo: mainsite-frontend/src/components/PostReader.jsx
-// Versão: v1.0.6
-// Descrição: Componente isolado para renderização do fragmento, muralha anti-cópia e requisições de Inteligência Artificial.
+// Versão: v1.2.0
+// Descrição: Geometria de botões rigorosamente equalizada (IA e Compartilhamento) + Botão de Doação inserido na barra inferior.
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3 } from 'lucide-react';
+import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart } from 'lucide-react';
 
-const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, onComment, isSendingEmail, isNotHomePage }) => {
+const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage }) => {
   const [postSummary, setPostSummary] = useState(null);
   const [translatedContent, setTranslatedContent] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -14,11 +14,8 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
 
   const isAILoading = isSummarizing || isTranslating;
 
-  // Reseta os estados da IA quando o leitor muda de texto
   useEffect(() => {
-    setPostSummary(null);
-    setTranslatedContent(null);
-    setAiError(null);
+    setPostSummary(null); setTranslatedContent(null); setAiError(null);
   }, [post.id]);
 
   const handleSummarize = async () => {
@@ -74,7 +71,6 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     });
   };
 
-  // Schema de SEO Dinâmico (JSON-LD) para o Google Indexer
   const schemaOrgJSONLD = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -85,39 +81,34 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     "mainEntityOfPage": { "@type": "WebPage", "@id": `https://www.lcv.rio.br/?p=${post.id}` }
   };
 
+  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
+
   return (
     <div>
       <style>{`
-        @keyframes pulseGlow { 
-          0% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } 
-          50% { box-shadow: 0 0 20px rgba(77, 166, 255, 0.8); border-color: rgba(77, 166, 255, 1); } 
-          100% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } 
-        }
+        @keyframes pulseGlow { 0% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } 50% { box-shadow: 0 0 20px rgba(77, 166, 255, 0.8); border-color: rgba(77, 166, 255, 1); } 100% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } }
         .processing-active { animation: pulseGlow 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; color: #4da6ff !important; }
         
         .h1-title { text-align: center; font-size: ${settings.shared.titleFontSize}; letter-spacing: 0.3em; margin-bottom: 2rem; color: ${activePalette.titleColor}; text-transform: uppercase; font-weight: bold; transition: color 0.5s ease;}
         
         .ai-actions-container { margin-bottom: 3rem; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; }
-        .ai-actions-bar { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        .ai-actions-bar { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; width: 100%; }
         
-        .ai-btn { background: rgba(128,128,128,0.05); border: 1px solid rgba(128,128,128,0.2); color: ${activePalette.fontColor}; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-family: inherit; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1.5px; transition: all 0.3s ease; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); font-weight: bold; }
+        /* A SUA EXIGÊNCIA DE EQUALIZAÇÃO (BOTÕES DA IA): TODOS DA MESMA LARGURA (280px) */
+        .ai-btn { width: 280px; max-width: 100%; box-sizing: border-box; background: rgba(128,128,128,0.05); border: 1px solid rgba(128,128,128,0.2); color: ${activePalette.fontColor}; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: inherit; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1.5px; transition: all 0.3s ease; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); font-weight: bold; }
         .ai-btn:hover:not(:disabled) { background: rgba(128,128,128,0.1); border-color: #4da6ff; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(77, 166, 255, 0.2); }
         .ai-btn:disabled { opacity: 1; cursor: wait; background: ${activePalette.bgColor}; }
         .ai-btn.revert-btn { border-color: rgba(255, 77, 77, 0.5); color: #ff4d4d; }
         .ai-btn.revert-btn:hover { border-color: #ff4d4d; box-shadow: 0 6px 20px rgba(255, 77, 77, 0.2); }
         
-        .ai-select { background: transparent; color: inherit; border: none; outline: none; cursor: pointer; font-family: inherit; appearance: none; padding-right: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .ai-select { width: 100%; text-align: center; text-align-last: center; background: transparent; color: inherit; border: none; outline: none; cursor: pointer; font-family: inherit; appearance: none; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
         .ai-select:disabled { cursor: wait; color: inherit; }
-        .ai-select option { background: ${activePalette.bgColor}; color: ${activePalette.fontColor}; text-transform: none; }
+        .ai-select option { background: ${activePalette.bgColor}; color: ${activePalette.fontColor}; text-transform: none; text-align: left; }
         
         .ai-error-msg { display: flex; align-items: center; gap: 8px; color: #ff4d4d; font-size: 13px; font-weight: bold; background: rgba(255, 77, 77, 0.1); padding: 8px 16px; border-radius: 4px; border: 1px solid rgba(255, 77, 77, 0.3); animation: fadeIn 0.3s ease-out; }
-        
         .ai-summary-box { background: linear-gradient(to right, rgba(0, 150, 255, 0.05), transparent); border-left: 4px solid #4da6ff; padding: 25px; margin-bottom: 3rem; font-style: italic; line-height: 1.6; border-radius: 0 8px 8px 0; }
         
-        /* Muralha Anti-Cópia */
         .protected-content { user-select: none; -webkit-user-select: none; -ms-user-select: none; }
-
-        /* Tipografia Dinâmica */
         .p-content, .html-content p, .html-content ul, .html-content ol { font-size: ${settings.shared.fontSize}; color: ${activePalette.fontColor}; transition: color 0.5s ease; }
         .html-content h1 { color: ${activePalette.titleColor}; margin: 2rem 0 1rem 0; font-weight: bold; font-size: ${settings.shared.titleFontSize}; transition: color 0.5s ease; }
         .html-content h2 { color: ${activePalette.titleColor}; margin: 2rem 0 1rem 0; font-weight: bold; font-size: calc(${settings.shared.titleFontSize} * 0.85); transition: color 0.5s ease; }
@@ -128,36 +119,23 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         .html-content li { margin-bottom: 0.5rem; }
         .html-content a { color: #4da6ff; text-decoration: underline; text-underline-offset: 4px; font-weight: bold; }
         
-        /* Painel de Compartilhamento */
-        .share-comment { background: #f59e0b; } .share-comment:hover { background: #d97706; transform: translateY(-2px); }
-        .share-bar { display: flex; justify-content: center; gap: 15px; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(128,128,128, 0.2); }
-        .share-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 11px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; border: none; transition: all 0.2s; color: #fff; }
+        /* EQUALIZAÇÃO GEOMÉTRICA DOS 6 BOTÕES INFERIORES: TODOS COM A MESMA LARGURA BASE */
+        .share-bar { display: flex; justify-content: center; gap: 15px; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(128,128,128, 0.2); flex-wrap: wrap; }
+        .share-btn { flex: 1 1 150px; max-width: 200px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 15px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 11px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; border: none; transition: all 0.2s; color: #fff; }
+        
         .share-whatsapp { background: #25D366; } .share-whatsapp:hover { background: #128C7E; transform: translateY(-2px); }
         .share-link { background: #64748b; } .share-link:hover { background: #475569; transform: translateY(-2px); }
         .share-email { background: #0ea5e9; } .share-email:hover:not(:disabled) { background: #0284c7; transform: translateY(-2px); }
         .share-email:disabled { background: #94a3b8; cursor: wait; }
         .share-contact { background: #8b5cf6; } .share-contact:hover { background: #7c3aed; transform: translateY(-2px); }
+        .share-comment { background: #f59e0b; } .share-comment:hover { background: #d97706; transform: translateY(-2px); }
+        .share-donate { background: #ec4899; } .share-donate:hover { background: #d946ef; transform: translateY(-2px); }
       `}</style>
 
-      {/* Botão Dinâmico de Retorno à Home Page (Só aparece em textos antigos) */}
       {isNotHomePage && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px', animation: 'fadeIn 0.5s ease-out' }}>
-          <button
-            onClick={() => window.location.href = '/'}
-            style={{
-              background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column',
-              alignItems: 'center', gap: '12px', color: activePalette.titleColor, opacity: 0.7, transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-            }}
-            onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.08)'; }}
-            onMouseOut={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.transform = 'scale(1)'; }}
-            title="Voltar para a postagem principal"
-          >
-            <div style={{ 
-              padding: '18px', borderRadius: '50%', 
-              background: `rgba(${activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? '255,255,255' : '0,0,0'}, 0.05)`, 
-              border: `1px solid rgba(${activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? '255,255,255' : '0,0,0'}, 0.1)`,
-              boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
-            }}>
+          <button onClick={() => window.location.href = '/'} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: activePalette.titleColor, opacity: 0.7, transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }} onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.08)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.transform = 'scale(1)'; }} title="Voltar para a postagem principal" >
+            <div style={{ padding: '18px', borderRadius: '50%', background: `rgba(${activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? '255,255,255' : '0,0,0'}, 0.05)`, border: `1px solid rgba(${activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? '255,255,255' : '0,0,0'}, 0.1)`, boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
               <Home size={32} />
             </div>
             <span style={{ fontSize: '11px', fontWeight: '900', letterSpacing: '3px', textTransform: 'uppercase' }}>Home Page</span>
@@ -167,6 +145,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
 
       <h1 className="h1-title">{post.title}</h1>
       
+      {/* Botões de IA Equalizados a 280px de largura */}
       <div className="ai-actions-container">
         <div className="ai-actions-bar">
           <button onClick={handleSummarize} disabled={isAILoading} className={`ai-btn ${isSummarizing ? 'processing-active' : ''}`}>
@@ -178,7 +157,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
             <div style={{ padding: '12px 0 12px 20px', display: 'flex', alignItems: 'center' }}>
               {isTranslating ? <Loader2 size={16} className="animate-spin"/> : <Languages size={16}/>}
             </div>
-            <select onChange={handleTranslate} className="ai-select" disabled={isAILoading} style={{ padding: '12px 20px' }}>
+            <select onChange={handleTranslate} className="ai-select" disabled={isAILoading} style={{ padding: '12px 0', marginLeft: '-16px' }}>
               <option value="">{isTranslating ? 'TRADUZINDO...' : 'TRADUZIR PARA...'}</option>
               <option value="Inglês">English</option>
               <option value="Espanhol">Español</option>
@@ -188,7 +167,9 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
           </div>
           
           {translatedContent && (
-            <button onClick={() => setTranslatedContent(null)} className="ai-btn revert-btn"><X size={16}/> REVERTER TRADUÇÃO</button>
+            <button onClick={() => setTranslatedContent(null)} className="ai-btn revert-btn">
+              <X size={16}/> REVERTER TRADUÇÃO
+            </button>
           )}
         </div>
         {aiError && (
@@ -205,22 +186,13 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         </div>
       )}
 
-      {/* Muralha Anti-Cópia Ativa */}
-      <div 
-        className="protected-content" 
-        onCopy={(e) => { e.preventDefault(); return false; }} 
-        onContextMenu={(e) => { e.preventDefault(); return false; }} 
-        onDragStart={(e) => { e.preventDefault(); return false; }}
-      >
+      <div className="protected-content" onCopy={(e) => { e.preventDefault(); return false; }} onContextMenu={(e) => { e.preventDefault(); return false; }} onDragStart={(e) => { e.preventDefault(); return false; }}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrgJSONLD) }} />
         {renderContent(post.content)}
       </div>
 
-      {/* Painel de Compartilhamento Integrado */}
+      {/* 6 Botões de Ação Inferiores - Agora todos com larguras equalizadas pelo flex-grow / max-width */}
       <div className="share-bar">
-        <button onClick={onComment} className="share-btn share-comment" title="Deixar um Comentário">
-          <Edit3 size={16} /> Comentários
-      </button>
         <button onClick={() => onShare('whatsapp')} className="share-btn share-whatsapp" title="Compartilhar no WhatsApp">
           <MessageCircle size={16} /> WhatsApp
         </button>
@@ -232,6 +204,12 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         </button>
         <button onClick={onContact} className="share-btn share-contact" title="Falar com o Autor">
           <MessageSquare size={16} /> Contato
+        </button>
+        <button onClick={onComment} className="share-btn share-comment" title="Deixar um Comentário">
+          <Edit3 size={16} /> Comentários
+        </button>
+        <button onClick={onDonation} className="share-btn share-donate" title="Apoiar este Espaço">
+          <Heart size={16} /> Doação
         </button>
       </div>
 
