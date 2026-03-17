@@ -1,13 +1,13 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.4.1
-// Descrição: Código unificado e auditado. Restrição do Payment Brick exclusivamente para 'creditCard' (redução de taxas), botão renomeado, preservando a inicialização global e a segurança antifraude.
+// Versão: v1.5.0
+// Descrição: Evolução de UX. Substituição do Payment Brick genérico pelo CardPayment Brick especializado. Isso elimina o clique redundante e exibe o formulário de dados do cartão de crédito imediatamente após a seleção do doador. Preservação total da lógica do PIX nativo.
 
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone } from 'lucide-react';
-import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
+// ALTERAÇÃO: Importação do CardPayment em vez do Payment genérico
+import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 
 // INICIALIZAÇÃO GLOBAL (FORA DO CICLO DE VIDA DO COMPONENTE)
-// Garante que o SDK está pronto antes do React tentar desenhar o iframe
 initMercadoPago("APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794", { locale: 'pt-BR' });
 
 const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
@@ -206,13 +206,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
             </div>
-            <Payment
+            
+            {/* ALTERAÇÃO: Renderização direta do CardPayment sem passar pela tela de seleção */}
+            <CardPayment
               initialization={{ amount: getNumericAmount() }}
               customization={{
-                paymentMethods: { 
-                  // Exclusão deliberada de ticket, bankTransfer e debitCard para evitar taxas desnecessárias
-                  creditCard: "all" 
-                },
                 visual: { style: { theme: isDarkBase ? 'dark' : 'default' } }
               }}
               onSubmit={async (param) => {
