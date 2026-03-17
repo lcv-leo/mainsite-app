@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.22.0
-// Descrição: Baseline consolidado. Motor de Temas e implementação da trava de Opt-Out (localStorage) para o DisclaimerModal.
+// Versão: v3.23.0
+// Descrição: Baseline consolidado. Motor de Temas, trava de Opt-Out (localStorage) e integração segura do gatilho C-Commerce no ChatWidget (correção de ReferenceError).
 
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Loader2, AlertTriangle, Check } from 'lucide-react';
@@ -17,7 +17,7 @@ const CommentModal = lazy(() => import('./components/CommentModal'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.22.0';
+const APP_VERSION = 'APP v3.23.0';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -246,13 +246,13 @@ const App = () => {
         />
 
         <CommentModal 
-        show={isCommentOpen} 
-        onClose={() => setIsCommentOpen(false)} 
-        onSubmit={submitCommentForm} 
-        activePalette={activePalette} 
-        isSubmitting={isSendingComment}
-        currentPost={currentPost} 
-       />
+         show={isCommentOpen} 
+         onClose={() => setIsCommentOpen(false)} 
+         onSubmit={submitCommentForm} 
+         activePalette={activePalette} 
+         isSubmitting={isSendingComment}
+         currentPost={currentPost} 
+        />
 
        <DonationModal
         show={isDonationOpen}
@@ -261,13 +261,14 @@ const App = () => {
         API_URL={API_URL} 
       />
         
+        {/* CORREÇÃO CRÍTICA APLICADA: currentPost e setIsDonationOpen com as nomenclaturas exatas */}
         <ChatWidget 
           isOpen={isChatOpen} 
           onClose={() => setIsChatOpen(false)} 
-          currentPost={activePost} 
+          currentPost={currentPost} 
           activePalette={activePalette} 
           API_URL={API_URL} 
-          triggerDonation={() => setShowDonationModal(true)}
+          triggerDonation={() => setIsDonationOpen(true)}
         />
       </Suspense>
 
