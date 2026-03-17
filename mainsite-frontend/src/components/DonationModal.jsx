@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.3.0
-// Descrição: Código unificado e auditado. Contém a inicialização global do SDK, submissão via param.formData e a supressão do checkout via wallet (mercadoPago: "all") em favor do bankTransfer para mitigar o erro de preferenceId.
+// Versão: v1.4.0
+// Descrição: Código unificado e auditado. Restrição do Payment Brick exclusivamente para 'creditCard' (redução de taxas), botão renomeado, preservando a inicialização global e a segurança antifraude.
 
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone } from 'lucide-react';
@@ -163,7 +163,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                   <Smartphone size={16} /> PIX Direto (Sem Taxas)
                 </button>
                 <button type="button" onClick={handleConfirmMercadoPago} style={{...buttonStyle, background: '#009ee3', color: '#fff'}}>
-                  <CreditCard size={16} /> Cartões / Mercado Pago
+                  <CreditCard size={16} /> Cartão de Crédito
                 </button>
               </div>
             </form>
@@ -210,10 +210,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               initialization={{ amount: getNumericAmount() }}
               customization={{
                 paymentMethods: { 
-                  ticket: "all", 
-                  bankTransfer: "all", 
-                  creditCard: "all", 
-                  debitCard: "all" 
+                  // Exclusão deliberada de ticket, bankTransfer e debitCard para evitar taxas desnecessárias
+                  creditCard: "all" 
                 },
                 visual: { style: { theme: isDarkBase ? 'dark' : 'default' } }
               }}
