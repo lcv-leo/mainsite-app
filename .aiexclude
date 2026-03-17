@@ -1,0 +1,16 @@
+# Ignorar variáveis de ambiente e chaves secretas
+.env
+.env.*
+*.pem
+*.key
+
+# Ignorar o banco de dados local do Cloudflare D1
+.wrangler/
+*.sqlite
+*.sqlite3
+*.db
+
+# Ignorar módulos pesados de terceiros
+node_modules/
+dist/
+build/

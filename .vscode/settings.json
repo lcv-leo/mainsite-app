@@ -1,4 +1,43 @@
 {
+  // --- OTIMIZAÇÃO DE PAIR PROGRAMMING (IA) ---
+  
+  // Habilita as sugestões em texto fantasma (Ghost Text)
+  "editor.inlineSuggest.enabled": true,
+  
+  // Reduz o atraso para a IA sugerir código (de 10ms para 50ms evita que a IA tente adivinhar enquanto você ainda está digitando rápido)
+  "editor.quickSuggestionsDelay": 50,
+  
+  // Impede que a caixa de sugestões normal esconda o texto fantasma da IA
+  "editor.suggest.showInlineDetails": true,
+  
+  // Ativa a interface de comando de Chat no topo da janela do VS Code
+  "chat.commandCenter.enabled": true,
+
+  // --- CONFIGURAÇÕES ESPECÍFICAS DO GEMINI (CLOUD CODE) ---
+  
+  // Garante que o Gemini vai sugerir blocos inteiros de código
+  "cloudcode.duetAI.inlineSuggestions.enable": true,
+  
+  // Permite que o Gemini analise o contexto completo do Workspace (lendo outros arquivos para entender a arquitetura)
+  "cloudcode.duetAI.projectContext.enable": true,
+
+  // --- CONTROLE DE CONFLITOS (COPILOT VS GEMINI) ---
+  
+  // Desativa as sugestões em linha do Copilot apenas para arquivos de texto puro (deixando para o Gemini ou para você)
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false,
+    "markdown": false
+  },
+
+  // --- FORMATAÇÃO AO ACEITAR A SUGESTÃO ---
+  
+  // Auto-formata o código assim que você aperta 'Tab' para aceitar a sugestão da IA
+  "editor.formatOnType": true,
+  "editor.formatOnPaste": true
+}
+
+{
   "github.copilot.chat.mcp.servers": {
     "github": {
       "command": "npx",
