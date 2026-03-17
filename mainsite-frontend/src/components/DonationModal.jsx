@@ -11,10 +11,10 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [step, setStep] = useState(1); // 1: Input, 2: PIX Nativo, 3: Agradecimento, 4: Checkout Mercado Pago
   const [amountDisplay, setAmountDisplay] = useState('');
   const [pixPayload, setPixPayload] = useState('');
-  const [isCopied, setIsCopied] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
   
   // Variável de configuração do Mercado Pago (deve ser passada via variável de ambiente)
-  const mpPublicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
+  const mpPublicKey = "APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794"";
 
   useEffect(() => {
     if (mpPublicKey) {
