@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.27.0
-// Descrição: Código INTEGRAL restaurado (sem cortes). Injeção da rota /api/financial-logs/check para short-polling do webhook. Correção do /api/mp-balance com fallback silencioso (Zero Trust handling) para evitar Erro 500 no painel da Cloudflare.
+// Versão: v1.28.0
+// Descrição: Código INTEGRAL. Injeção crítica do parâmetro 'statement_descriptor' no payload do Mercado Pago. Correção obrigatória de Compliance para restaurar a nota 100/100 de qualidade, evitar contestações (Chargebacks) e impedir recusas automáticas pelos motores antifraude dos bancos emissores.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -367,7 +367,7 @@ app.post('/api/comment', async (c) => {
   } catch (err) { return c.json({ error: "Falha ao processar comentário." }, 500); }
 });
 
-// --- API FINANCEIRA (SDK OFICIAL) COM VALIDAÇÃO ESTRITA ---
+// --- API FINANCEIRA (SDK OFICIAL) COM VALIDAÇÃO ESTRITA E STATEMENT_DESCRIPTOR ---
 app.post('/api/mp-payment', async (c) => {
   try {
     const body = await c.req.json();
@@ -379,11 +379,9 @@ app.post('/api/mp-payment', async (c) => {
 
     const extRef = `DON-${crypto.randomUUID()}`;
     
-    // VALIDAÇÃO ESTRITA: O frontend agora garante firstName e lastName no array payer do payload
     const realFirstName = body.payer?.first_name;
     const realLastName = body.payer?.last_name;
     
-    // Interrompe a requisição se os dados não forem genuínos
     if (!realFirstName || !realLastName) {
       return c.json({ error: "Nome e sobrenome reais são obrigatórios para validação antifraude." }, 400);
     }
@@ -391,6 +389,7 @@ app.post('/api/mp-payment', async (c) => {
     const enhancedPayload = {
       ...body,
       external_reference: extRef,
+      statement_descriptor: "DIVAGAC FILOSOF", // <--- INJEÇÃO EXIGIDA PELO MERCADO PAGO
       notification_url: "https://mainsite-app.lcv.rio.br/api/webhooks/mercadopago",
       payer: {
         ...(body.payer || {}),
@@ -438,14 +437,12 @@ app.get('/api/mp-balance', async (c) => {
     });
     
     if (!response.ok) {
-       // Fallback silencioso para evitar Erros 500 no log do Cloudflare Worker
        return c.json({ available_balance: 0, unavailable_balance: 0 });
     }
     
     const data = await response.json();
     return c.json(data);
   } catch (err) {
-    // Captura erros de fetch também com fallback silencioso
     return c.json({ available_balance: 0, unavailable_balance: 0 });
   }
 });
@@ -575,7 +572,6 @@ app.get('/api/financial-logs', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// NOVA ROTA: Endpoint ultraleve para Short-Polling do Webhook no Admin
 app.get('/api/financial-logs/check', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
