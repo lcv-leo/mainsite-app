@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.1.0
-// Descrição: Integração oficial do Mercado Pago Checkout Bricks (SDK React) em harmonia com o gerador PIX EMV nativo.
+// Versão: v1.2.0
+// Descrição: Integração oficial do Mercado Pago Checkout Bricks (SDK React). Correção do payload (param.formData) e tratamento de erros aprimorado.
 
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone } from 'lucide-react';
@@ -8,16 +8,16 @@ import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 
 const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isVisible, setIsVisible] = useState(false);
-  const [step, setStep] = useState(1); // 1: Input, 2: PIX Nativo, 3: Agradecimento, 4: Checkout Mercado Pago
+  const [step, setStep] = useState(1); 
   const [amountDisplay, setAmountDisplay] = useState('');
   const [pixPayload, setPixPayload] = useState('');
-    const [isCopied, setIsCopied] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   
-  // Variável de configuração do Mercado Pago (deve ser passada via variável de ambiente)
-  const mpPublicKey = "APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794";
+  // Chave inserida diretamente (Opção B)
+  const mpPublicKey = "APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794"; // <-- Certifique-se de que a sua chave real está aqui!
 
   useEffect(() => {
-    if (mpPublicKey) {
+    if (mpPublicKey && mpPublicKey !== "APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794") {
       initMercadoPago(mpPublicKey, { locale: 'pt-BR' });
     }
   }, [mpPublicKey]);
@@ -99,8 +99,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
   const handleConfirmMercadoPago = (e) => {
     e.preventDefault();
-    if (!mpPublicKey) {
-      alert("A chave pública do Mercado Pago não foi configurada (VITE_MP_PUBLIC_KEY).");
+    if (!mpPublicKey || mpPublicKey === "APP_USR-sua-chave-publica-real-aqui") {
+      alert("A chave pública do Mercado Pago não está configurada no código.");
       return;
     }
     setStep(4);
@@ -215,34 +215,26 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
             </div>
-            {/* INJEÇÃO DO MERCADO PAGO CHECKOUT BRICKS */}
             <Payment
-              initialization={{
-                amount: getNumericAmount(),
-              }}
+              initialization={{ amount: getNumericAmount() }}
               customization={{
-                paymentMethods: {
-                  ticket: "all",
-                  creditCard: "all",
-                  debitCard: "all",
-                  mercadoPago: "all",
-                },
-                visual: {
-                  style: {
-                    theme: isDarkBase ? 'dark' : 'default',
-                  }
-                }
+                paymentMethods: { ticket: "all", creditCard: "all", debitCard: "all", mercadoPago: "all" },
+                visual: { style: { theme: isDarkBase ? 'dark' : 'default' } }
               }}
               onSubmit={async (param) => {
+                // CORREÇÃO CRÍTICA: Enviar param.formData em vez de param
                 const res = await fetch(`${API_URL}/mp-payment`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(param)
+                  body: JSON.stringify(param.formData)
                 });
+                
                 if (res.ok) {
                   setStep(3);
                 } else {
-                  alert("Ocorreu uma falha no processamento. Tente novamente.");
+                  const errorData = await res.json();
+                  console.error("Falha detalhada Mercado Pago:", errorData);
+                  alert(`Não foi possível aprovar. Verifique os dados ou tente outra forma.`);
                   setStep(1);
                 }
               }}
