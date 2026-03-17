@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.30.0
+// Versão: v3.27.0
 // Descrição: Monólito consolidado. Painel Financeiro integrado e exclusão mútua de abas ajustada.
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
@@ -16,7 +16,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel')); // NOV
 
 // URL Oficial da API
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.30.0';
+const APP_VERSION = 'APP v3.27.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,

@@ -1,6 +1,6 @@
 // Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.2.1
-// Descrição: Inicialização global do SDK do Mercado Pago para resolver corrida de ciclo de vida do React (Erro "Expected the PUBLIC_KEY").
+// Versão: v1.3.0
+// Descrição: Código unificado e auditado. Contém a inicialização global do SDK, submissão via param.formData e a supressão do checkout via wallet (mercadoPago: "all") em favor do bankTransfer para mitigar o erro de preferenceId.
 
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone } from 'lucide-react';
@@ -206,15 +206,14 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
             </div>
- <Payment
+            <Payment
               initialization={{ amount: getNumericAmount() }}
               customization={{
                 paymentMethods: { 
                   ticket: "all", 
-                  bankTransfer: "all", // <-- Habilita PIX do MP
+                  bankTransfer: "all", 
                   creditCard: "all", 
                   debitCard: "all" 
-                  // Removido: mercadoPago: "all" (Evita o erro do preferenceId)
                 },
                 visual: { style: { theme: isDarkBase ? 'dark' : 'default' } }
               }}
