@@ -74,14 +74,6 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
   useEffect(() => { fetchFinanceData(); }, [fetchFinanceData]);
 
-  // Quando a aba SumUp é ativada, sincroniza automaticamente com a API
-  // para garantir que transações recusadas ou expiradas apareçam corretamente.
-  useEffect(() => {
-    if (paymentProvider === 'sumup') {
-      syncSumupCheckouts();
-    }
-  }, [paymentProvider, syncSumupCheckouts]);
-
   useEffect(() => {
     const intervalId = setInterval(() => fetchFinanceData(false), 600000);
     return () => clearInterval(intervalId);
@@ -169,6 +161,14 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       setIsSyncing(false);
     }
   }, [API_URL, secret, fetchFinanceData, showPanelToast]);
+
+  // Quando a aba SumUp é ativada, sincroniza automaticamente com a API
+  // para garantir que transações recusadas ou expiradas apareçam corretamente.
+  useEffect(() => {
+    if (paymentProvider === 'sumup') {
+      syncSumupCheckouts();
+    }
+  }, [paymentProvider, syncSumupCheckouts]);
 
   const closeAndResetModal = () => {
     setModalType(null);
