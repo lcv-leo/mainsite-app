@@ -3,6 +3,7 @@
 // Description: Home Page button reduced by 30% to minimize visual impact on the reading flow.
 
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart } from 'lucide-react';
 
 const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage }) => {
@@ -50,7 +51,14 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
   const renderContent = (content) => {
     const activeContent = translatedContent || content || '';
     const isHtml = /<\/?[a-z][\s\S]*>/i.test(activeContent);
-    if (isHtml) return <div className="html-content" dangerouslySetInnerHTML={{ __html: activeContent }} />;
+    if (isHtml) {
+      const safeHtml = DOMPurify.sanitize(activeContent, {
+        USE_PROFILES: { html: true },
+        ADD_TAGS: ['iframe'],
+        ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling']
+      });
+      return <div className="html-content" dangerouslySetInnerHTML={{ __html: safeHtml }} />;
+    }
 
     return activeContent.split('\n').filter(p => p.trim() !== '').map((text, index) => {
       const ytMatch = text.match(/^\[YT:(.+?)(\|(.*?))?\]$/);

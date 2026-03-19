@@ -20,11 +20,16 @@ const app = new Hono();
 // Configuração estrita de CORS
 app.use('/api/*', cors({
   origin: (origin) => {
-    if (!origin) return '*';
-    const allowedSuffixes = ['.pages.dev', '.com', '.br'];
-    const isAllowed = allowedSuffixes.some(suffix => origin.endsWith(suffix));
-    if (isAllowed || origin.includes('localhost')) return origin;
-    return 'https://mainsite-frontend.pages.dev';
+    if (!origin) return null;
+    try {
+      const hostname = new URL(origin).hostname.toLowerCase();
+      if (hostname === 'lcv.rio.br' || hostname.endsWith('.lcv.rio.br')) {
+        return origin;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],

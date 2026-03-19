@@ -2,6 +2,8 @@
 // Descrição: Middleware nativo do Cloudflare Pages (HTMLRewriter).
 // Intercepta a resposta do HTML estático e injeta dinamicamente as Open Graph Tags para SEO (WhatsApp, Facebook, etc.)
 
+/* global HTMLRewriter */
+
 export async function onRequest(context) {
   // 1. Pega a resposta original (o seu index.html estático do React)
   const response = await context.next();
@@ -32,7 +34,7 @@ export async function onRequest(context) {
       .on('meta[name="description"]', { element(e) { e.setAttribute('content', cleanText); } })
       .on('meta[property="og:url"]', { element(e) { e.setAttribute('content', url.toString()); } })
       .transform(response);
-  } catch (e) {
+  } catch {
     // Em caso de falha silenciosa, a página carrega normalmente sem interromper o site.
     return response;
   }

@@ -9,8 +9,11 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        if (modalState.show) setIsVisible(true);
-        else setTimeout(() => setIsVisible(false), 400);
+        if (modalState.show) {
+            setTimeout(() => setIsVisible(true), 0);
+        } else {
+            setTimeout(() => setIsVisible(false), 400);
+        }
     }, [modalState.show]);
 
     if (!isVisible && !modalState.show) return null;

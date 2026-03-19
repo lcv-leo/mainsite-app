@@ -66,6 +66,6 @@ Crie um arquivo `.dev.vars` na raiz do `mainsite-worker` com o seguinte conteúd
 
 ```env
 
-API_SECRET="Unrobed9-Unable4-Emoticon2-Spud1-Retrial0-Fidgeting0-Clustered0-Body8-Chemicals0-Android4"
+API_SECRET="__REPLACE_ME__"
 
-GEMINI_API_KEY="__GOOGLE_API_KEY__"
+GEMINI_API_KEY="__REPLACE_ME__"
