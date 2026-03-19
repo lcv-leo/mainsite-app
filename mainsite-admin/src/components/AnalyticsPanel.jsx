@@ -1,6 +1,6 @@
-// Módulo: mainsite-admin/src/components/AnalyticsPanel.jsx
-// Versão: v1.3.0
-// Descrição: Painel de Auditoria com Glassmorphism/MD3. Implementada exclusão de registros com Notificação Modal nativa, Lixeira vermelha ao extremo direito e Data/Hora completos no fuso horário de Brasília (UTC-3) à esquerda do ícone.
+// Module: mainsite-admin/src/components/AnalyticsPanel.jsx
+// Version: v1.5.0
+// Description: Dynamic Y-axis positioning for the deletion modal based on mouse click coordinates (e.clientY). Horizontal centering preserved. 
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, MessageSquare, Share2, Bot, Loader2, Calendar, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
@@ -11,8 +11,8 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  // Estado do Modal de Confirmação MD3
-  const [deleteModal, setDeleteModal] = useState({ show: false, type: '', id: null });
+  // State for the MD3 Confirmation Modal with dynamic Y positioning
+  const [deleteModal, setDeleteModal] = useState({ show: false, type: '', id: null, posY: 0 });
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchAnalytics = useCallback(async (isSilent = false) => {
@@ -39,6 +39,7 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
   }, [API_URL, secret]);
 
   useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
+
   useEffect(() => {
     const pollInterval = setInterval(() => fetchAnalytics(true), 15000);
     return () => clearInterval(pollInterval);
@@ -57,7 +58,8 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
       const res = await fetch(`${API_URL}${endpoint}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${secret}` } });
       if (res.ok) {
         await fetchAnalytics(true);
-        setDeleteModal({ show: false, type: '', id: null });
+        // Reset state and clear Y coordinate
+        setDeleteModal({ show: false, type: '', id: null, posY: 0 });
       } else {
         throw new Error("Falha ao excluir o registro.");
       }
@@ -68,6 +70,7 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
     }
   };
 
+  // Local MD3 styles
   const blockStyle = {
     background: 'rgba(0, 0, 0, 0.1)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
     border: '1px solid rgba(128, 128, 128, 0.15)', borderRadius: '24px', padding: '30px', marginBottom: '30px',
@@ -79,8 +82,8 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
     display: 'flex', alignItems: 'center', gap: '10px', margin: '0 0 10px 0', fontWeight: '700'
   };
 
-  const cardStyle = { 
-    background: 'rgba(242, 242, 242, 0.95)', border: '1px solid rgba(128, 128, 128, 0.2)', padding: '24px', 
+  const cardStyle = {
+    background: 'rgba(242, 242, 242, 0.95)', border: '1px solid rgba(128, 128, 128, 0.2)', padding: '24px',
     borderRadius: '20px', fontSize: '14px', lineHeight: '1.6', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
     backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', gap: '12px'
   };
@@ -93,9 +96,9 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
 
   const actionContainerStyle = { display: 'flex', alignItems: 'center', gap: '15px' };
 
-  const trashBtnStyle = { 
-    background: 'rgba(179, 0, 0, 0.1)', border: '1px solid rgba(179, 0, 0, 0.3)', padding: '10px', 
-    borderRadius: '12px', color: '#b30000', cursor: 'pointer', display: 'flex', alignItems: 'center', 
+  const trashBtnStyle = {
+    background: 'rgba(179, 0, 0, 0.1)', border: '1px solid rgba(179, 0, 0, 0.3)', padding: '10px',
+    borderRadius: '12px', color: '#b30000', cursor: 'pointer', display: 'flex', alignItems: 'center',
     justifyContent: 'center', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(179,0,0,0.15)'
   };
 
@@ -108,14 +111,24 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
   return (
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
 
+      {/* MD3 CONFIRMATION MODAL WITH DYNAMIC Y POSITIONING */}
       {deleteModal.show && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
-            <AlertCircle size={56} color="#ea4335" style={{ margin: '0 auto 20px auto' }} />
+          <div style={{
+            ...styles.modalContent,
+            position: 'fixed',
+            // Mathematical clamp: ensures modal doesn't clip off the top (min 200px) or bottom
+            top: `${Math.min(Math.max(deleteModal.posY, 200), window.innerHeight - 200)}px`,
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            margin: 0,
+            zIndex: 100000
+          }}>
+            <AlertCircle size={56} color="#b30000" style={{ margin: '0 auto 20px auto' }} />
             <p style={styles.modalText}>Tem certeza de que deseja <strong>EXCLUIR</strong> este registro de auditoria? Esta ação é irreversível.</p>
             <div style={styles.modalActions}>
-              <button onClick={() => setDeleteModal({ show: false, type: '', id: null })} disabled={isDeleting} style={styles.modalBtnCancel}>CANCELAR</button>
-              <button onClick={confirmDelete} disabled={isDeleting} style={styles.modalBtnConfirm}>
+              <button onClick={() => setDeleteModal({ show: false, type: '', id: null, posY: 0 })} disabled={isDeleting} style={styles.modalBtnCancel}>CANCELAR</button>
+              <button onClick={confirmDelete} disabled={isDeleting} style={{ ...styles.modalBtnConfirm, backgroundColor: '#b30000', boxShadow: '0 4px 12px rgba(179,0,0,0.3)' }}>
                 {isDeleting ? <Loader2 size={18} className="animate-spin" /> : 'EXCLUIR'}
               </button>
             </div>
@@ -149,7 +162,8 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
                     </div>
                     <div style={actionContainerStyle}>
                       <div style={dateBadge}><Calendar size={14} /> {formatDate(item.created_at)}</div>
-                      <button onClick={() => setDeleteModal({ show: true, type: 'contact', id: item.id })} style={trashBtnStyle} title="Excluir Registro"><Trash2 size={16} /></button>
+                      {/* Capture e.clientY on click */}
+                      <button onClick={(e) => setDeleteModal({ show: true, type: 'contact', id: item.id, posY: e.clientY })} style={trashBtnStyle} title="Excluir Registro"><Trash2 size={16} /></button>
                     </div>
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '16px', fontStyle: 'italic', whiteSpace: 'pre-wrap', border: '1px solid rgba(128,128,128,0.1)' }}>"{item.message}"</div>
@@ -173,7 +187,8 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
                     </div>
                     <div style={actionContainerStyle}>
                       <div style={dateBadge}><Calendar size={14} /> {formatDate(item.created_at)}</div>
-                      <button onClick={() => setDeleteModal({ show: true, type: 'share', id: item.id })} style={trashBtnStyle} title="Excluir Registro"><Trash2 size={16} /></button>
+                      {/* Capture e.clientY on click */}
+                      <button onClick={(e) => setDeleteModal({ show: true, type: 'share', id: item.id, posY: e.clientY })} style={trashBtnStyle} title="Excluir Registro"><Trash2 size={16} /></button>
                     </div>
                   </div>
                 </div>
@@ -195,7 +210,8 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
                     </div>
                     <div style={actionContainerStyle}>
                       <div style={dateBadge}><Calendar size={14} /> {formatDate(item.created_at)}</div>
-                      <button onClick={() => setDeleteModal({ show: true, type: 'chat', id: item.id })} style={trashBtnStyle} title="Excluir Registro"><Trash2 size={16} /></button>
+                      {/* Capture e.clientY on click */}
+                      <button onClick={(e) => setDeleteModal({ show: true, type: 'chat', id: item.id, posY: e.clientY })} style={trashBtnStyle} title="Excluir Registro"><Trash2 size={16} /></button>
                     </div>
                   </div>
                   <div style={{ whiteSpace: 'pre-wrap', fontSize: '15px', background: 'rgba(0,0,0,0.1)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(128,128,128,0.05)' }}>{item.message}</div>

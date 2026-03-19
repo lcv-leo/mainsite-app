@@ -1,6 +1,6 @@
-// Módulo: mainsite-frontend/src/components/PostReader.jsx
-// Versão: v1.3.0
-// Descrição: MD3 + Glassmorphism nos Botões e Container da IA.
+// Module: mainsite-frontend/src/components/PostReader.jsx
+// Version: v1.4.0
+// Description: Home Page button reduced by 30% to minimize visual impact on the reading flow.
 
 import React, { useState, useEffect } from 'react';
 import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart } from 'lucide-react';
@@ -28,7 +28,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       ]);
       const data = await res.json();
       if (res.ok) setPostSummary(data.summary);
-      else throw new Error(data.error || "Falha na resposta do servidor.");
+      else throw new Error(data.error || "Server response failed.");
     } catch (err) { setAiError("Não foi possível gerar o resumo no momento."); } finally { setIsSummarizing(false); }
   };
 
@@ -43,7 +43,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       ]);
       const data = await res.json();
       if (res.ok) setTranslatedContent(data.translation);
-      else throw new Error(data.error || "Falha na resposta do servidor.");
+      else throw new Error(data.error || "Server response failed.");
     } catch (err) { setAiError(`Falha ao traduzir para ${lang}.`); } finally { setIsTranslating(false); e.target.value = ''; }
   };
 
@@ -131,13 +131,14 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         .share-donate { background: #ec4899; } .share-donate:hover { background: #d946ef; transform: translateY(-3px); box-shadow: 0 12px 32px rgba(236, 72, 153, 0.3); }
       `}</style>
 
+      {/* UPDATED HOME BUTTON: Size and padding reduced by 30% */}
       {isNotHomePage && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px', animation: 'fadeIn 0.5s ease-out' }}>
-          <button onClick={() => window.location.href = '/'} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: activePalette.titleColor, opacity: 0.7, transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }} onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.08)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.transform = 'scale(1)'; }} title="Voltar para a postagem principal" >
-            <div style={{ padding: '14px', borderRadius: '100px', background: `rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.05)`, border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.1)`, boxShadow: '0 12px 32px rgba(0,0,0,0.1)', backdropFilter: 'blur(12px)' }}>
-              <Home size={22} />
+          <button onClick={() => window.location.href = '/'} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: activePalette.titleColor, opacity: 0.7, transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }} onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.08)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.transform = 'scale(1)'; }} title="Voltar para a postagem principal" >
+            <div style={{ padding: '10px', borderRadius: '100px', background: `rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.05)`, border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.1)`, boxShadow: '0 12px 32px rgba(0,0,0,0.1)', backdropFilter: 'blur(12px)' }}>
+              <Home size={16} />
             </div>
-            <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '2px', textTransform: 'uppercase' }}>Home Page</span>
+            <span style={{ fontSize: '7px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>Home Page</span>
           </button>
         </div>
       )}

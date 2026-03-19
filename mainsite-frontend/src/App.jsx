@@ -1,6 +1,6 @@
-// Módulo: mainsite-frontend/src/App.jsx
-// Versão: v2.5.0
-// Descrição: Orquestrador do Leitor. Suporta Glassmorphism, Material Design 3 e lógica completa de Disclaimers/Modais. Integração perfeita com os painéis MD3 recém-atualizados.
+// Module: mainsite-frontend/src/App.jsx
+// Version: v2.6.0
+// Description: Frontend Orchestrator. Expanded reading frame to 960px for widescreen displays and reduced lateral padding. English comments enabled for Copilot Plus+.
 
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
@@ -17,7 +17,7 @@ const DisclaimerModal = lazy(() => import('./components/DisclaimerModal'));
 const ChatWidget = lazy(() => import('./components/ChatWidget'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'FRONTEND v2.5.0';
+const APP_VERSION = 'FRONTEND v2.6.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -57,6 +57,7 @@ const App = () => {
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
   };
 
+  // Sync theme with OS
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e) => setSystemIsDark(e.matches);
@@ -64,11 +65,12 @@ const App = () => {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  // Initial Data Fetch
   useEffect(() => {
     const fetchData = async () => {
       try {
         const resPosts = await fetch(`${API_URL}/posts`);
-        if (!resPosts.ok) throw new Error("Falha ao carregar os fragmentos.");
+        if (!resPosts.ok) throw new Error("Failed to fetch posts.");
         const dataPosts = await resPosts.json();
         setPosts(dataPosts);
 
@@ -99,12 +101,13 @@ const App = () => {
             }
           }
         }
-      } catch (err) { setError("Sinal perdido. Conexão com o servidor interrompida."); }
+      } catch (err) { setError("Signal lost. Server connection interrupted."); }
       finally { setLoading(false); }
     };
     fetchData();
   }, []);
 
+  // Back to top visibility trigger
   useEffect(() => {
     const handleScroll = () => setShowBackToTop(window.scrollY > 400);
     window.addEventListener('scroll', handleScroll);
@@ -149,10 +152,11 @@ const App = () => {
     paddingTop: '60px'
   };
 
+  // UPDATED CONTAINER STYLE: Expanded to 960px and 20px padding
   const containerStyle = {
     width: '100%',
-    maxWidth: '890px', // Aumentado em 40px (20px de cada lado / ~5mm)
-    padding: '0 24px',
+    maxWidth: '960px',
+    padding: '0 20px',
     flex: 1,
     boxSizing: 'border-box'
   };
@@ -184,7 +188,7 @@ const App = () => {
         body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, link: url, target_email: showShareModal.email })
       });
       if (res.ok) { showNotification("E-mail enviado com sucesso.", "success"); setShowShareModal({ show: false, email: '' }); }
-      else throw new Error("Falha ao enviar.");
+      else throw new Error("Failed to send.");
     } catch (err) { showNotification("Erro ao enviar o e-mail.", "error"); } finally { setIsSendingEmail(false); }
   };
 

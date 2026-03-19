@@ -1,9 +1,9 @@
-// Módulo: mainsite-admin/src/components/FinancialPanel.jsx
-// Versão: v1.8.1
-// Descrição: Hotfix de sintaxe no compilador Vite (Operador Ternário restaurado na definição de método HTTP). Blindagem de Timezone (America/Sao_Paulo) e Lixeira preservadas.
+// Module: mainsite-admin/src/components/FinancialPanel.jsx
+// Version: v1.11.0
+// Description: Dynamic Y-axis positioning for all modals (Refund, Cancel, Delete) based on mouse click coordinates (e.clientY). Status colors swapped as requested (Refunded = Red, Cancelled/Rejected = Orange). Blood-red trash icon preserved.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet, Trash2 } from 'lucide-react';
+import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet, Trash2, ArrowLeft } from 'lucide-react';
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);
@@ -14,9 +14,11 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
   const [modalType, setModalType] = useState(null);
   const [activeTx, setActiveTx] = useState(null);
+  // New state to hold the Y coordinate of the mouse click
+  const [modalPos, setModalPos] = useState(0);
+
   const [refundAmount, setRefundAmount] = useState('');
   const [panelToast, setPanelToast] = useState({ show: false, message: '', type: 'info' });
-
   const [logCount, setLogCount] = useState(0);
 
   const showPanelToast = (message, type = 'info') => {
@@ -78,7 +80,10 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     const isDelete = modalType === 'delete';
 
     setProcessingId(id);
+
+    // Reset modal states
     setModalType(null);
+    setModalPos(0);
 
     try {
       let url;
@@ -109,19 +114,38 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     finally { setProcessingId(null); setRefundAmount(''); }
   };
 
-  const glassCard = { background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, borderRadius: '16px', padding: '24px', marginBottom: '24px' };
-  const actionBtnStyle = (colorBase) => ({ background: isDarkBase ? `rgba(${colorBase}, 0.15)` : `rgba(${colorBase}, 0.1)`, color: `rgb(${colorBase})`, border: `1px solid rgba(${colorBase}, 0.3)`, borderRadius: '6px', padding: '6px 10px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', });
+  const closeAndResetModal = () => {
+    setModalType(null);
+    setRefundAmount('');
+    setModalPos(0);
+  };
+
+  // Glassmorphism local styles
+  const glassCard = { background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, borderRadius: '24px', padding: '30px', marginBottom: '24px', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' };
+  const actionBtnStyle = (colorBase) => ({ background: isDarkBase ? `rgba(${colorBase}, 0.15)` : `rgba(${colorBase}, 0.1)`, color: `rgb(${colorBase})`, border: `1px solid rgba(${colorBase}, 0.3)`, borderRadius: '12px', padding: '8px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', boxShadow: `0 4px 12px rgba(${colorBase}, 0.15)` });
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
+
+      {/* Toast Notification */}
       <div style={{ ...styles.toast, transform: panelToast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: panelToast.show ? 1 : 0, backgroundColor: panelToast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: panelToast.type === 'error' ? '#fff' : activePalette.fontColor, zIndex: 10005 }}>
         {panelToast.type === 'error' ? <AlertCircle size={18} /> : <Check size={18} />} <span>{panelToast.message}</span>
       </div>
 
+      {/* Dynamic Modal tied to Mouse Y Coordinate */}
       {modalType && (
-        <div style={{ ...styles.modalOverlay, zIndex: 10000 }}>
-          <div style={styles.modalContent}>
-            <AlertCircle size={48} color={modalType === 'delete' ? '#ef4444' : (modalType === 'cancel' ? '#f59e0b' : '#ea4335')} style={{ marginBottom: '20px', margin: '0 auto' }} />
+        <div style={styles.modalOverlay}>
+          <div style={{
+            ...styles.modalContent,
+            position: 'fixed',
+            // Mathematical clamp: prevents modal from clipping off screen bounds
+            top: `${Math.min(Math.max(modalPos, 220), window.innerHeight - 220)}px`,
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            margin: 0,
+            zIndex: 100000
+          }}>
+            <AlertCircle size={48} color={modalType === 'delete' ? '#b30000' : (modalType === 'cancel' ? '#f59e0b' : '#ea4335')} style={{ marginBottom: '20px', margin: '0 auto' }} />
 
             {modalType === 'delete' ? (
               <p style={styles.modalText}>Tem certeza de que deseja <strong>EXCLUIR</strong> este registro de log permanentemente do banco de dados?</p>
@@ -135,8 +159,8 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             )}
 
             <div style={styles.modalActions}>
-              <button onClick={() => { setModalType(null); setRefundAmount(''); }} style={styles.modalBtnCancel}>VOLTAR</button>
-              <button onClick={executeAction} style={{ ...styles.modalBtnConfirm, background: modalType === 'delete' ? '#ef4444' : (modalType === 'cancel' ? '#f59e0b' : '#ea4335') }}>
+              <button onClick={closeAndResetModal} style={styles.modalBtnCancel}>VOLTAR</button>
+              <button onClick={executeAction} style={{ ...styles.modalBtnConfirm, background: modalType === 'delete' ? '#b30000' : (modalType === 'cancel' ? '#f59e0b' : '#ea4335') }}>
                 {modalType === 'delete' ? 'EXCLUIR REGISTRO' : (modalType === 'cancel' ? 'CONFIRMAR CANCELAMENTO' : 'CONFIRMAR ESTORNO')}
               </button>
             </div>
@@ -144,6 +168,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         </div>
       )}
 
+      {/* Standardized Back Button */}
       <button onClick={onClose} style={styles.backButton}>
         <ArrowLeft size={16} /> Voltar ao Console
       </button>
@@ -181,40 +206,44 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                 {logs.map(log => {
                   const isPending = log.status === 'pending' || log.status === 'in_process';
                   const isApproved = log.status === 'approved';
+                  // Swapped Status Colors: Refunded = Red, Cancelled/Rejected = Orange
                   const isRefunded = log.status.includes('refund');
-                  const isCancelled = log.status === 'cancelled' || log.status === 'rejected'; // eslint-disable-line no-unused-vars
+                  const isCancelled = log.status === 'cancelled' || log.status === 'rejected';
 
-                  const statusBg = isApproved ? 'rgba(16, 185, 129, 0.2)' : (isRefunded ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)');
-                  const statusColor = isApproved ? '#10b981' : (isRefunded ? '#f59e0b' : '#ef4444');
+                  const statusBg = isApproved ? 'rgba(16, 185, 129, 0.2)' : (isRefunded ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)');
+                  const statusColor = isApproved ? '#10b981' : (isRefunded ? '#ef4444' : '#f59e0b');
 
                   return (
-                  <tr key={log.id} style={{ borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
-                    
-                    <td style={{ padding: '12px', opacity: 0.8 }}>
-                      {new Date(log.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-                    </td>
-                    
-                    <td style={{ padding: '12px', fontFamily: 'monospace' }}>{log.payment_id}</td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: statusBg, color: statusColor }}>
-                        {log.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{log.amount.toFixed(2)}</td>
-                    <td style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                      <span style={{ opacity: 0.8 }}>{log.payer_email}</span>
-                      
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        {isApproved && ( <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('refund'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('245, 158, 11')}> <RotateCcw size={14} /> Estornar</button> )}
-                        {isPending && ( <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('cancel'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('239, 68, 68')}> <Ban size={14} /> Cancelar</button> )}
-                        
-                        <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('delete'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('179, 0, 0')} title="Excluir este registro"> 
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )})}
+                    <tr key={log.id} style={{ borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+
+                      <td style={{ padding: '12px', opacity: 0.8 }}>
+                        {new Date(log.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                      </td>
+
+                      <td style={{ padding: '12px', fontFamily: 'monospace' }}>{log.payment_id}</td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: statusBg, color: statusColor }}>
+                          {log.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', fontWeight: 'bold' }}>{log.amount.toFixed(2)}</td>
+                      <td style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                        <span style={{ opacity: 0.8 }}>{log.payer_email}</span>
+
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {/* Capturing e.clientY on click for dynamic modal positioning */}
+                          {isApproved && (<button onClick={(e) => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('refund'); setModalPos(e.clientY); }} disabled={processingId === log.payment_id} style={actionBtnStyle('245, 158, 11')}> <RotateCcw size={14} /> Estornar</button>)}
+                          {isPending && (<button onClick={(e) => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('cancel'); setModalPos(e.clientY); }} disabled={processingId === log.payment_id} style={actionBtnStyle('239, 68, 68')}> <Ban size={14} /> Cancelar</button>)}
+
+                          {/* Blood Red Trash Icon (#b30000) */}
+                          <button onClick={(e) => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('delete'); setModalPos(e.clientY); }} disabled={processingId === log.payment_id} style={actionBtnStyle('179, 0, 0')} title="Excluir este registro">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
