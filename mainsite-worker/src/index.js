@@ -92,8 +92,8 @@ app.post('/api/ai/transform', async (c) => {
   try {
     const { action, text } = await c.req.json();
     const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("GEMINI_API_KEY ausente.");
-    if (!text) throw new Error("Texto ausente.");
+    if (!apiKey) return c.json({ error: "GEMINI_API_KEY não configurada no Worker." }, 503);
+    if (!text) return c.json({ error: "Texto ausente." }, 400);
 
     let promptContext = "";
     switch (action) {
@@ -118,7 +118,8 @@ app.post('/api/ai/public/chat', async (c) => {
   try {
     const { message, currentContext, askForDonation } = await c.req.json();
     const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey || !message) throw new Error("Parâmetros inválidos.");
+    if (!apiKey) return c.json({ error: "GEMINI_API_KEY não configurada no Worker." }, 503);
+    if (!message) return c.json({ error: "Mensagem ausente." }, 400);
 
     const { results } = await c.env.DB.prepare("SELECT title, content FROM posts ORDER BY is_pinned DESC, created_at DESC LIMIT 30").all();
     const dbContext = results.map(p => `TÍTULO: ${p.title}\nCONTEÚDO: ${p.content}`).join('\n\n---\n\n');
@@ -224,7 +225,8 @@ app.post('/api/ai/public/summarize', async (c) => {
   try {
     const { text } = await c.req.json();
     const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey || !text) throw new Error("Parâmetros inválidos.");
+    if (!apiKey) return c.json({ error: "GEMINI_API_KEY não configurada no Worker." }, 503);
+    if (!text) return c.json({ error: "Texto ausente." }, 400);
 
     const prompt = `Crie um resumo conciso (TL;DR) em um único parágrafo objetivo para o seguinte texto:\n\n${text}`;
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
@@ -241,7 +243,8 @@ app.post('/api/ai/public/translate', async (c) => {
   try {
     const { text, lang } = await c.req.json();
     const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey || !text || !lang) throw new Error("Parâmetros inválidos.");
+    if (!apiKey) return c.json({ error: "GEMINI_API_KEY não configurada no Worker." }, 503);
+    if (!text || !lang) return c.json({ error: "Parâmetros inválidos." }, 400);
 
     const prompt = `Traduza rigorosamente o texto abaixo para o idioma: ${lang}. Mantenha qualquer tag HTML ou formatação intacta. Texto:\n\n${text}`;
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {

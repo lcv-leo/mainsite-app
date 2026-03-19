@@ -123,6 +123,10 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const handleConfirmMercadoPago = (e) => {
     e.preventDefault();
     if (!validateBaseForm()) return;
+    if (!mpPublicKey) {
+      showToast("Chave pública do Mercado Pago não configurada. Defina VITE_MERCADOPAGO_PUBLIC_KEY.", "error");
+      return;
+    }
     setStep(4);
   };
 
@@ -260,6 +264,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
             </div>
+            {!mpPublicKey ? (
+              <div style={{ padding: '16px', borderRadius: '8px', background: isDarkBase ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', color: isDarkBase ? '#fecaca' : '#991b1b', fontSize: '13px', lineHeight: '1.5' }}>
+                Chave pública do Mercado Pago ausente. Configure <strong>VITE_MERCADOPAGO_PUBLIC_KEY</strong> no ambiente do frontend para habilitar pagamento com cartão.
+              </div>
+            ) : (
             <CardPayment
               key="mp-card-brick"
               initialization={{ amount: getNumericAmount() }}
@@ -306,6 +315,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 console.error("🔴 Erro de Inicialização do SDK MP:", error);
               }}
             />
+            )}
           </div>
         )}
       </div>
