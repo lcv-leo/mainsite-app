@@ -812,53 +812,86 @@ app.post('/api/mp/sync', async (c) => {
     const token = c.env.MP_ACCESS_TOKEN;
     if (!token) throw new Error('MP_ACCESS_TOKEN ausente.');
 
-    const response = await fetch('https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&range=date_created&limit=100', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!response.ok) throw new Error('Falha ao listar pagamentos no Mercado Pago.');
+    const client = new MercadoPagoConfig({ accessToken: token });
+    const paymentApi = new Payment(client);
 
-    const payload = await response.json();
-    const payments = Array.isArray(payload?.results) ? payload.results : [];
+    // 1) Atualiza primeiro tudo o que já existe no banco local.
+    const { results: localLogs = [] } = await c.env.DB.prepare(
+      "SELECT payment_id FROM financial_logs WHERE payment_id IS NOT NULL AND (method IS NULL OR method != 'sumup_card') ORDER BY created_at DESC LIMIT 100"
+    ).all();
 
     let inserted = 0;
     let updated = 0;
     let tracked = 0;
 
-    for (const paymentData of payments) {
-      const paymentId = String(paymentData.id || '').trim();
+    for (const log of localLogs) {
+      const paymentId = String(log.payment_id || '').trim();
       if (!paymentId) continue;
 
-      const externalRef = String(paymentData.external_reference || '').trim();
-      const description = String(paymentData.description || '').toLowerCase();
-      const looksLikeSiteDonation = externalRef.startsWith('DON-') || description.includes('divagações filosóficas') || description.includes('divagacoes filosoficas');
+      try {
+        const paymentData = await paymentApi.get({ id: paymentId });
+        const status = (paymentData.status || 'unknown').toLowerCase();
+        const amount = Number(paymentData.transaction_amount || 0);
+        const email = paymentData.payer?.email || 'N/A';
+        const method = paymentData.payment_method_id || 'N/A';
+        const raw = JSON.stringify(paymentData);
 
-      const existing = await c.env.DB.prepare(
-        "SELECT id FROM financial_logs WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card') LIMIT 1"
-      ).bind(paymentId).first();
-
-      if (!looksLikeSiteDonation && !existing) continue;
-
-      tracked++;
-      const status = (paymentData.status || 'unknown').toLowerCase();
-      const amount = Number(paymentData.transaction_amount || 0);
-      const email = paymentData.payer?.email || 'N/A';
-      const method = paymentData.payment_method_id || 'N/A';
-      const raw = JSON.stringify(paymentData);
-
-      if (existing) {
         await c.env.DB.prepare(
           "UPDATE financial_logs SET status = ?, amount = ?, method = ?, payer_email = ?, raw_payload = ? WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card')"
         ).bind(status, amount, method, email, raw, paymentId).run();
+
+        tracked++;
         updated++;
-      } else {
-        await c.env.DB.prepare(
-          "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
-        ).bind(paymentId, status, amount, method, email, raw).run();
-        inserted++;
+      } catch {
+        // Segue sincronização dos demais registros mesmo se um pagamento falhar.
       }
     }
 
-    return c.json({ success: true, inserted, updated, total: tracked, scanned: payments.length });
+    // 2) Busca ampla no MP é opcional: se der erro, não bloqueia o painel.
+    let scanned = localLogs.length;
+    try {
+      const response = await fetch('https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&range=date_created&limit=100', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const payload = await response.json();
+        const payments = Array.isArray(payload?.results) ? payload.results : [];
+        scanned = payments.length;
+
+        for (const paymentData of payments) {
+          const paymentId = String(paymentData.id || '').trim();
+          if (!paymentId) continue;
+
+          const externalRef = String(paymentData.external_reference || '').trim();
+          const description = String(paymentData.description || '').toLowerCase();
+          const looksLikeSiteDonation = externalRef.startsWith('DON-') || description.includes('divagações filosóficas') || description.includes('divagacoes filosoficas');
+          if (!looksLikeSiteDonation) continue;
+
+          const existing = await c.env.DB.prepare(
+            "SELECT id FROM financial_logs WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card') LIMIT 1"
+          ).bind(paymentId).first();
+
+          if (existing) continue;
+
+          const status = (paymentData.status || 'unknown').toLowerCase();
+          const amount = Number(paymentData.transaction_amount || 0);
+          const email = paymentData.payer?.email || 'N/A';
+          const method = paymentData.payment_method_id || 'N/A';
+          const raw = JSON.stringify(paymentData);
+
+          await c.env.DB.prepare(
+            "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
+          ).bind(paymentId, status, amount, method, email, raw).run();
+
+          inserted++;
+        }
+      }
+    } catch {
+      // Busca ampla é melhor esforço; a sincronização local já atende o painel.
+    }
+
+    return c.json({ success: true, inserted, updated, total: tracked + inserted, scanned });
   } catch (err) {
     return c.json({ error: err.message }, 500);
   }

@@ -177,7 +177,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         throw new Error(raw || 'Resposta inválida da sincronização do Mercado Pago.');
       }
       if (!res.ok) throw new Error(data.error || 'Falha na sincronização.');
-      showPanelToast(`Sincronizado: ${data.inserted} novo(s), ${data.updated} atualizado(s) de ${data.total} transação(ões).`, 'success');
+      showPanelToast(`Sincronizado: ${data.inserted} novo(s), ${data.updated} atualizado(s), ${data.scanned} verificada(s).`, 'success');
       fetchFinanceData(true);
     } catch (err) {
       showPanelToast(`Erro ao sincronizar: ${err.message}`, 'error');
