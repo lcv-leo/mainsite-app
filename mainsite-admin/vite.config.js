@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
+    // Remove o polyfill inline de modulepreload para evitar bloqueio por CSP
+    modulePreload: { polyfill: false },
     // Aumenta o limite do aviso levemente para acomodar o ecossistema React padrão
     chunkSizeWarningLimit: 600,
     rollupOptions: {

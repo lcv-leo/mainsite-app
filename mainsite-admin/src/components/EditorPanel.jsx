@@ -400,7 +400,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(2, 132, 199, 0.1)', padding: '6px 12px', borderRadius: '100px', border: '1px solid rgba(2, 132, 199, 0.3)', marginRight: '10px' }} title="Inteligência Artificial (Gemini 2.5 Pro)">
         <Sparkles size={16} color="#0284c7" />
-        <select onChange={(e) => { if (e.target.value) { handleAITransform(e.target.value); e.target.value = ''; } }} style={{ fontSize: '12px', padding: '2px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#0284c7', fontWeight: '800' }} disabled={isGeneratingAI}>
+        <select name="ai-action" onChange={(e) => { if (e.target.value) { handleAITransform(e.target.value); e.target.value = ''; } }} style={{ fontSize: '12px', padding: '2px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#0284c7', fontWeight: '800' }} disabled={isGeneratingAI}>
           <option value="">{isGeneratingAI ? 'Processando...' : 'IA: Aprimorar Texto'}</option><option value="grammar">Corrigir Gramática</option><option value="summarize">Resumir Seleção</option><option value="expand">Expandir Conteúdo</option><option value="formal">Tornar Formal</option>
         </select>
       </div>
@@ -447,13 +447,13 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
 
       <div style={styles.toolbarDivider}></div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
-        <Palette size={16} /><input type="color" onInput={event => editor.chain().focus().setColor(event.target.value).run()} value={editor.getAttributes('textStyle').color || '#000000'} style={{ cursor: 'pointer', padding: 0, border: 'none', width: '28px', height: '28px', background: 'transparent', borderRadius: '10px' }} />
+        <Palette size={16} /><input name="text-color" type="color" onInput={event => editor.chain().focus().setColor(event.target.value).run()} value={editor.getAttributes('textStyle').color || '#000000'} style={{ cursor: 'pointer', padding: 0, border: 'none', width: '28px', height: '28px', background: 'transparent', borderRadius: '10px' }} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
-        <Type size={16} /><select onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()} value={editor.getAttributes('textStyle').fontFamily || 'inherit'} style={{ fontSize: '13px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', fontWeight: '600' }}><option value="inherit">Padrão</option><option value="monospace">Monospace</option><option value="Arial">Arial</option><option value="'Times New Roman', Times, serif">Times</option></select>
+        <Type size={16} /><select name="font-family" onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()} value={editor.getAttributes('textStyle').fontFamily || 'inherit'} style={{ fontSize: '13px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', fontWeight: '600' }}><option value="inherit">Padrão</option><option value="monospace">Monospace</option><option value="Arial">Arial</option><option value="'Times New Roman', Times, serif">Times</option></select>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
-        <select onChange={e => editor.chain().focus().setFontSize(e.target.value).run()} value={editor.getAttributes('textStyle').fontSize || ''} style={{ fontSize: '13px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', fontWeight: '600' }}><option value="">Tam.</option><option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="20px">20px</option><option value="24px">24px</option><option value="30px">30px</option></select>
+        <select name="font-size" onChange={e => editor.chain().focus().setFontSize(e.target.value).run()} value={editor.getAttributes('textStyle').fontSize || ''} style={{ fontSize: '13px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', fontWeight: '600' }}><option value="">Tam.</option><option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="20px">20px</option><option value="24px">24px</option><option value="30px">30px</option></select>
       </div>
     </div>
   );
