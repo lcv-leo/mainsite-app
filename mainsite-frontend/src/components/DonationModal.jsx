@@ -13,7 +13,14 @@ const mpPublicKey = (import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || MP_PUBLIC_KE
 if (mpPublicKey) {
   initMercadoPago(mpPublicKey, { locale: 'pt-BR' });
 }
+// Taxas de processamento por provedor (cartão de crédito online)
+const MP_FEE_RATE = 0.0499;   // 4,99% Mercado Pago
+const MP_FEE_FIXED = 0.40;    // R$ 0,40 fixo
+const SUMUP_FEE_RATE = 0.0267; // 2,67% SumUp
+const SUMUP_FEE_FIXED = 0;
 
+const formatBRL = (num) =>
+  num.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
 const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [step, setStep] = useState(1);
@@ -22,6 +29,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isProcessingCard, setIsProcessingCard] = useState(false);
   const [sumupCard, setSumupCard] = useState({ holder: '', number: '', expiry: '', cvv: '' });
   const [sumupEmail, setSumupEmail] = useState('');
+  const [coverFees, setCoverFees] = useState(false);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -52,6 +60,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         setIsCopied(false);
         setSumupCard({ holder: '', number: '', expiry: '', cvv: '' });
         setSumupEmail('');
+        setCoverFees(false);
         setIsProcessingCard(false);
       }, 0);
     } else {
@@ -85,6 +94,20 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const getNumericAmount = () => {
     if (amountDisplay === '') return 0;
     return parseFloat(amountDisplay.replace(/\./g, '').replace(',', '.'));
+  };
+
+  // Calcula o valor bruto que cobre a taxa do provedor escolhido,
+  // garantindo que o criador receba o valor base integralmente.
+  const getGrossAmount = (provider) => {
+    const base = getNumericAmount();
+    if (!coverFees || base <= 0) return base;
+    if (provider === 'mercadopago') {
+      return parseFloat(((base + MP_FEE_FIXED) / (1 - MP_FEE_RATE)).toFixed(2));
+    }
+    if (provider === 'sumup') {
+      return parseFloat(((base + SUMUP_FEE_FIXED) / (1 - SUMUP_FEE_RATE)).toFixed(2));
+    }
+    return base;
   };
 
   const handleSumupCardChange = (field, value) => {
@@ -131,12 +154,13 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
     setIsProcessingCard(true);
     try {
-      const amount = getNumericAmount();
       const createRes = await fetch(`${API_URL}/sumup/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount,
+          amount: getGrossAmount('sumup'),
+          baseAmount: getNumericAmount(),
+          coverFees,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: sumupEmail.trim(),
@@ -145,11 +169,12 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.error || 'Falha ao iniciar checkout SumUp.');
 
+      const grossAmount = getGrossAmount('sumup');
       const payRes = await fetch(`${API_URL}/sumup/checkout/${createData.checkoutId}/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount,
+          amount: grossAmount,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: sumupEmail.trim(),
@@ -318,13 +343,37 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 />
               </div>
 
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
                 <span style={{ position: 'absolute', left: '20px', fontSize: '18px', fontWeight: 'bold', opacity: 0.5 }}>R$</span>
                 <input
                   type="text" required value={amountDisplay} onChange={handleAmountChange} placeholder="0,00"
                   style={{ width: '100%', padding: '15px 15px 15px 50px', backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: '8px', color: activePalette.fontColor, fontSize: '22px', fontWeight: 'bold', outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
+
+              {/* Checkbox de repasse de taxa (apenas para cartão de crédito) */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', cursor: 'pointer', fontSize: '13px', opacity: 0.85, textAlign: 'left', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={coverFees}
+                  onChange={(e) => setCoverFees(e.target.checked)}
+                  style={{ width: '16px', height: '16px', accentColor: activePalette.titleColor, cursor: 'pointer', flexShrink: 0 }}
+                />
+                Cobrir as taxas de processamento do cartão
+              </label>
+
+              {coverFees && getNumericAmount() > 0 && (() => {
+                const base = getNumericAmount();
+                const grossMP  = parseFloat(((base + MP_FEE_FIXED) / (1 - MP_FEE_RATE)).toFixed(2));
+                const grossSU  = parseFloat(((base + SUMUP_FEE_FIXED) / (1 - SUMUP_FEE_RATE)).toFixed(2));
+                return (
+                  <div style={{ fontSize: '12px', opacity: 0.65, marginBottom: '12px', textAlign: 'left', lineHeight: '1.7', padding: '8px 12px', borderRadius: '6px', background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}>
+                    <strong>Valores com taxa incluída:</strong><br />
+                    Mercado Pago: R$ {formatBRL(grossMP)} (+R$ {formatBRL(grossMP - base)})<br />
+                    SumUp: R$ {formatBRL(grossSU)} (+R$ {formatBRL(grossSU - base)})
+                  </div>
+                );
+              })()}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <button type="button" onClick={handleConfirmNativePix} style={{ ...buttonStyle, background: '#10b981', color: '#fff' }}>
                   <Smartphone size={16} /> PIX
@@ -420,7 +469,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             ) : (
             <CardPayment
               key={`mp-card-brick-${brickKey}`}
-              initialization={{ amount: getNumericAmount() }}
+              initialization={{ amount: getGrossAmount('mercadopago') }}
               customization={{ visual: { style: { theme: isDarkBase ? 'dark' : 'default' } } }}
 
               onSubmit={(formData) => {
