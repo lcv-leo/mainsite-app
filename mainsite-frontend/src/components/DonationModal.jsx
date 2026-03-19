@@ -21,6 +21,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const visibilityTimeoutRef = useRef(null);
   const [isProcessingCard, setIsProcessingCard] = useState(false);
   const [sumupCard, setSumupCard] = useState({ holder: '', number: '', expiry: '', cvv: '' });
+  const [sumupEmail, setSumupEmail] = useState('');
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -50,6 +51,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         setLastName('');
         setIsCopied(false);
         setSumupCard({ holder: '', number: '', expiry: '', cvv: '' });
+        setSumupEmail('');
         setIsProcessingCard(false);
       }, 0);
     } else {
@@ -116,7 +118,13 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     const [expiryMonth, expiryYearShort] = sumupCard.expiry.split('/');
     const expiryYear = expiryYearShort ? `20${expiryYearShort}` : '';
 
-    if (!sumupCard.holder.trim() || cardNumber.length < 13 || !expiryMonth || !expiryYear || sumupCard.cvv.length < 3) {
+    const expMonthNum = Number(expiryMonth);
+    const expYearNum = Number(expiryYear);
+    const currentYear = new Date().getFullYear();
+    const validMonth = Number.isInteger(expMonthNum) && expMonthNum >= 1 && expMonthNum <= 12;
+    const validYear = Number.isInteger(expYearNum) && expYearNum >= currentYear;
+
+    if (!sumupCard.holder.trim() || cardNumber.length < 13 || !validMonth || !validYear || sumupCard.cvv.length < 3 || !sumupEmail.trim()) {
       showToast('Preencha corretamente os dados do cartão SumUp.', 'error');
       return;
     }
@@ -131,6 +139,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
           amount,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          email: sumupEmail.trim(),
         })
       });
       const createData = await createRes.json();
@@ -141,6 +150,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: sumupEmail.trim(),
           card: {
             name: sumupCard.holder.trim(),
             number: cardNumber,
@@ -382,6 +394,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
             <h3 style={{ margin: '0 0 12px 0', color: activePalette.titleColor, fontSize: '18px' }}>Pagamento com cartão via SumUp</h3>
             <form onSubmit={handleSubmitSumupCard} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <input type="email" placeholder="E-mail do titular" value={sumupEmail} onChange={(e) => setSumupEmail(e.target.value)} style={inputStyle} required />
               <input type="text" placeholder="Nome no cartão" value={sumupCard.holder} onChange={(e) => handleSumupCardChange('holder', e.target.value)} style={inputStyle} required />
               <input type="text" placeholder="Número do cartão" value={sumupCard.number} onChange={(e) => handleSumupCardChange('number', e.target.value)} style={inputStyle} required />
               <div style={{ display: 'flex', gap: '10px' }}>
