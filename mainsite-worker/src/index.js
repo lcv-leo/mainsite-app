@@ -416,6 +416,92 @@ app.post('/api/comment', async (c) => {
 
 // --- ROTAS FINANCEIRAS / MERCADO PAGO (ZERO TRUST) ---
 
+app.post('/api/sumup/checkout', async (c) => {
+  try {
+    const { amount, firstName, lastName } = await c.req.json();
+    if (!amount || Number(amount) <= 0) return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
+
+    const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
+    const merchantCode = c.env.SUMUP_MERCHANT_CODE;
+    if (!sumupToken || !merchantCode) return c.json({ error: 'SUMUP_API_KEY_PRIVATE ou SUMUP_MERCHANT_CODE não configurados.' }, 503);
+
+    const checkoutReference = `SUMUP-DON-${crypto.randomUUID()}`;
+    const fullName = `${(firstName || '').trim()} ${(lastName || '').trim()}`.trim() || 'Doador';
+
+    const response = await fetch('https://api.sumup.com/v0.1/checkouts', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sumupToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        checkout_reference: checkoutReference,
+        amount: Number(amount),
+        currency: 'BRL',
+        pay_to_email: merchantCode,
+        description: `Doação de ${fullName} - Divagações Filosóficas`,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) return c.json({ error: data.message || 'Falha ao criar checkout SumUp.' }, 502);
+
+    return c.json({
+      checkoutId: data.id,
+      checkoutReference,
+    }, 201);
+  } catch (err) {
+    return c.json({ error: err.message || 'Falha ao iniciar checkout SumUp.' }, 500);
+  }
+});
+
+app.post('/api/sumup/checkout/:id/pay', async (c) => {
+  try {
+    const checkoutId = c.req.param('id');
+    const { amount, card } = await c.req.json();
+
+    if (!checkoutId) return c.json({ error: 'Checkout inválido.' }, 400);
+    if (!amount || Number(amount) <= 0) return c.json({ error: 'Valor inválido para pagamento SumUp.' }, 400);
+    if (!card?.name || !card?.number || !card?.expiryMonth || !card?.expiryYear || !card?.cvv) {
+      return c.json({ error: 'Dados de cartão incompletos.' }, 400);
+    }
+
+    const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
+    if (!sumupToken) return c.json({ error: 'SUMUP_API_KEY_PRIVATE não configurada.' }, 503);
+
+    const response = await fetch(`https://api.sumup.com/v0.1/checkouts/${checkoutId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${sumupToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        payment_type: 'card',
+        amount: Number(amount),
+        card: {
+          name: card.name,
+          number: card.number,
+          expiry_month: card.expiryMonth,
+          expiry_year: card.expiryYear,
+          cvv: card.cvv,
+        },
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) return c.json({ error: data.message || 'Pagamento SumUp recusado.' }, 402);
+
+    c.executionCtx.waitUntil(
+      c.env.DB.prepare("INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(data.id || checkoutId, data.status || 'paid', Number(amount), 'sumup_card', 'N/A', JSON.stringify(data)).run()
+    );
+
+    return c.json({ success: true, id: data.id || checkoutId, status: data.status || 'paid' });
+  } catch (err) {
+    return c.json({ error: err.message || 'Falha no pagamento SumUp.' }, 500);
+  }
+});
+
 app.post('/api/mp-payment', async (c) => {
   try {
     const body = await c.req.json();

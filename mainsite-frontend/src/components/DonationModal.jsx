@@ -3,10 +3,13 @@
 // Descrição: Resolução do TypeError letal ('reading payer' of undefined) no onSubmit. O CardPayment do SDK do Mercado Pago envia o formData diretamente como argumento (diferente do Payment genérico). Assinatura ajustada para evitar undefined e garantir a injeção do first_name e last_name.
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone, AlertTriangle } from 'lucide-react';
+import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone, AlertTriangle, Loader2 } from 'lucide-react';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 
-const mpPublicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+const MP_PUBLIC_KEY_FALLBACK = 'APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794';
+const mpPublicKey = (import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || MP_PUBLIC_KEY_FALLBACK)
+  .trim()
+  .replace(/^['"]|['"]$/g, '');
 if (mpPublicKey) {
   initMercadoPago(mpPublicKey, { locale: 'pt-BR' });
 }
@@ -16,6 +19,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [step, setStep] = useState(1);
   const [brickKey, setBrickKey] = useState(0);
   const visibilityTimeoutRef = useRef(null);
+  const [isProcessingCard, setIsProcessingCard] = useState(false);
+  const [sumupCard, setSumupCard] = useState({ holder: '', number: '', expiry: '', cvv: '' });
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -44,6 +49,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         setFirstName('');
         setLastName('');
         setIsCopied(false);
+        setSumupCard({ holder: '', number: '', expiry: '', cvv: '' });
+        setIsProcessingCard(false);
       }, 0);
     } else {
       setTimeout(() => setStep(1), 0);
@@ -76,6 +83,83 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const getNumericAmount = () => {
     if (amountDisplay === '') return 0;
     return parseFloat(amountDisplay.replace(/\./g, '').replace(',', '.'));
+  };
+
+  const handleSumupCardChange = (field, value) => {
+    let normalized = value;
+    if (field === 'number') normalized = value.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    if (field === 'expiry') normalized = value.replace(/\D/g, '').slice(0, 4).replace(/(\d{2})(\d)/, '$1/$2');
+    if (field === 'cvv') normalized = value.replace(/\D/g, '').slice(0, 4);
+    setSumupCard(prev => ({ ...prev, [field]: normalized }));
+  };
+
+  const handleChooseCardProvider = (provider) => {
+    if (provider === 'sumup') {
+      setStep(5);
+      return;
+    }
+    if (provider === 'mercadopago') {
+      if (!mpPublicKey) {
+        showToast("Chave pública do Mercado Pago não configurada. Defina VITE_MERCADOPAGO_PUBLIC_KEY.", "error");
+        return;
+      }
+      setBrickKey(prev => prev + 1);
+      setStep(6);
+    }
+  };
+
+  const handleSubmitSumupCard = async (e) => {
+    e.preventDefault();
+    if (!validateBaseForm()) return;
+
+    const cardNumber = sumupCard.number.replace(/\s/g, '');
+    const [expiryMonth, expiryYearShort] = sumupCard.expiry.split('/');
+    const expiryYear = expiryYearShort ? `20${expiryYearShort}` : '';
+
+    if (!sumupCard.holder.trim() || cardNumber.length < 13 || !expiryMonth || !expiryYear || sumupCard.cvv.length < 3) {
+      showToast('Preencha corretamente os dados do cartão SumUp.', 'error');
+      return;
+    }
+
+    setIsProcessingCard(true);
+    try {
+      const amount = getNumericAmount();
+      const createRes = await fetch(`${API_URL}/sumup/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+        })
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.error || 'Falha ao iniciar checkout SumUp.');
+
+      const payRes = await fetch(`${API_URL}/sumup/checkout/${createData.checkoutId}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          card: {
+            name: sumupCard.holder.trim(),
+            number: cardNumber,
+            expiryMonth,
+            expiryYear,
+            cvv: sumupCard.cvv,
+          }
+        })
+      });
+      const payData = await payRes.json();
+      if (!payRes.ok) throw new Error(payData.error || 'Pagamento SumUp não aprovado.');
+
+      setStep(3);
+      showToast('Pagamento via SumUp confirmado com sucesso!', 'success');
+    } catch (error) {
+      showToast(error.message || 'Falha no pagamento com SumUp.', 'error');
+    } finally {
+      setIsProcessingCard(false);
+    }
   };
 
   const generatePix = (amountStr) => {
@@ -137,14 +221,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     setStep(2);
   };
 
-  const handleConfirmMercadoPago = (e) => {
+  const handleConfirmCreditCard = (e) => {
     e.preventDefault();
     if (!validateBaseForm()) return;
-    if (!mpPublicKey) {
-      showToast("Chave pública do Mercado Pago não configurada. Defina VITE_MERCADOPAGO_PUBLIC_KEY.", "error");
-      return;
-    }
-    setBrickKey(prev => prev + 1);
     setStep(4);
   };
 
@@ -238,11 +317,29 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 <button type="button" onClick={handleConfirmNativePix} style={{ ...buttonStyle, background: '#10b981', color: '#fff' }}>
                   <Smartphone size={16} /> PIX
                 </button>
-                <button type="button" onClick={handleConfirmMercadoPago} style={{ ...buttonStyle, background: '#009ee3', color: '#fff' }}>
+                <button type="button" onClick={handleConfirmCreditCard} style={{ ...buttonStyle, background: '#009ee3', color: '#fff' }}>
                   <CreditCard size={16} /> Cartão de Crédito
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div style={{ animation: 'fadeIn 0.3s' }}>
+            <h2 style={{ margin: '0 0 12px 0', fontSize: '20px', fontWeight: '600', color: activePalette.titleColor }}>Escolha o gateway do cartão</h2>
+            <p style={{ fontSize: '13px', opacity: 0.7, marginBottom: '20px' }}>Você pode concluir com Mercado Pago ou SumUp.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button type="button" onClick={() => handleChooseCardProvider('mercadopago')} style={{ ...buttonStyle, background: '#009ee3', color: '#fff' }}>
+                <CreditCard size={16} /> Mercado Pago
+              </button>
+              <button type="button" onClick={() => handleChooseCardProvider('sumup')} style={{ ...buttonStyle, background: '#111827', color: '#fff' }}>
+                <CreditCard size={16} /> SumUp (formulário próprio)
+              </button>
+              <button type="button" onClick={() => setStep(1)} style={{ ...buttonStyle, background: isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', color: activePalette.fontColor }}>
+                Voltar
+              </button>
+            </div>
           </div>
         )}
 
@@ -277,10 +374,31 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
+          <div style={{ animation: 'fadeIn 0.3s', textAlign: 'left' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <button type="button" onClick={() => setStep(4)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
+            </div>
+
+            <h3 style={{ margin: '0 0 12px 0', color: activePalette.titleColor, fontSize: '18px' }}>Pagamento com cartão via SumUp</h3>
+            <form onSubmit={handleSubmitSumupCard} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <input type="text" placeholder="Nome no cartão" value={sumupCard.holder} onChange={(e) => handleSumupCardChange('holder', e.target.value)} style={inputStyle} required />
+              <input type="text" placeholder="Número do cartão" value={sumupCard.number} onChange={(e) => handleSumupCardChange('number', e.target.value)} style={inputStyle} required />
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input type="text" placeholder="MM/AA" value={sumupCard.expiry} onChange={(e) => handleSumupCardChange('expiry', e.target.value)} style={inputStyle} required />
+                <input type="text" placeholder="CVV" value={sumupCard.cvv} onChange={(e) => handleSumupCardChange('cvv', e.target.value)} style={inputStyle} required />
+              </div>
+              <button type="submit" disabled={isProcessingCard} style={{ ...buttonStyle, background: '#111827', color: '#fff' }}>
+                {isProcessingCard ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />} {isProcessingCard ? 'PROCESSANDO...' : 'PAGAR COM SUMUP'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {step === 6 && (
           <div style={{ animation: 'fadeIn 0.3s', textAlign: 'left', minHeight: '300px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
+              <button type="button" onClick={() => setStep(4)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
             </div>
             {!mpPublicKey ? (
               <div style={{ padding: '16px', borderRadius: '8px', background: isDarkBase ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', color: isDarkBase ? '#fecaca' : '#991b1b', fontSize: '13px', lineHeight: '1.5' }}>
