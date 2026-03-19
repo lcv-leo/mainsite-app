@@ -1,12 +1,11 @@
 # Módulo: mainsite-admin/public/_headers
-# Descrição: Headers de segurança para o painel admin, incluindo CSP explícita para evitar report-only herdada com script-src 'none'.
+# Descrição: Headers de segurança para o painel admin (sem CSP — acesso restrito via Cloudflare Access).
 
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=()
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self' data:; connect-src 'self' https://mainsite-app.lcv.rio.br https://cloudflareinsights.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com;
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
