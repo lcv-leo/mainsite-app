@@ -51,6 +51,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   backButton: { background: 'none', border: 'none', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px', color: activePalette.fontColor, opacity: 0.8 },
   form: { display: 'flex', flexDirection: 'column', gap: '24px' },
   settingsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: 'rgba(0,0,0,0.02)', padding: '20px', border: `1px solid ${glassBorder}`, borderRadius: '16px', backdropFilter: 'blur(5px)' },
+  settingsPageGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' },
   label: { display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor },
   colorInput: { height: '40px', width: '100%', cursor: 'pointer', border: 'none', borderRadius: '8px', background: 'transparent' },
   textInput: { padding: '12px', border: `1px solid ${glassBorder}`, backgroundColor: glassBg, backdropFilter: 'blur(5px)', color: activePalette.fontColor, outline: 'none', fontSize: '14px', borderRadius: '8px', transition: 'border 0.2s' },
@@ -341,30 +342,36 @@ const App = () => {
               openDeleteModal={openDeleteModal}
             />
           ) : isSettingsOpen ? (
-            <div>
-              <FinancialPanel 
-                onClose={() => { setIsSettingsOpen(false); fetchData(); }} 
-                secret={secret} 
-                API_URL={API_URL} 
-                styles={styles}
-                activePalette={activePalette}
-                isDarkBase={isDarkBase}
-                showNotification={showNotification}
-              />
-              <div style={{ height: '24px' }} />
-              <SettingsPanel 
-                settings={settings} setSettings={setSettings} 
-                rateLimit={rateLimit} setRateLimit={setRateLimit} 
-                rotation={rotation} setRotation={setRotation} 
-                disclaimers={disclaimers} setDisclaimers={setDisclaimers} 
-                isSaving={isSaving} onSave={handleSaveSettings} 
-                onClose={() => { setIsSettingsOpen(false); fetchData(); }} 
-                triggerBgUpload={triggerBgUpload} 
-                isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} 
-                styles={styles}
-                activePalette={activePalette}
-                isDarkBase={isDarkBase}
-              />
+            <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+              <button onClick={() => { setIsSettingsOpen(false); fetchData(); }} style={{...styles.backButton, marginBottom: '20px'}}>
+                <ArrowLeft size={16} /> Voltar ao Console
+              </button>
+              <div style={styles.settingsPageGrid}>
+                <FinancialPanel 
+                  showBackButton={false}
+                  onClose={() => { setIsSettingsOpen(false); fetchData(); }} 
+                  secret={secret} 
+                  API_URL={API_URL} 
+                  styles={styles}
+                  activePalette={activePalette}
+                  isDarkBase={isDarkBase}
+                  showNotification={showNotification}
+                />
+                <SettingsPanel 
+                  showBackButton={false}
+                  settings={settings} setSettings={setSettings} 
+                  rateLimit={rateLimit} setRateLimit={setRateLimit} 
+                  rotation={rotation} setRotation={setRotation} 
+                  disclaimers={disclaimers} setDisclaimers={setDisclaimers} 
+                  isSaving={isSaving} onSave={handleSaveSettings} 
+                  onClose={() => { setIsSettingsOpen(false); fetchData(); }} 
+                  triggerBgUpload={triggerBgUpload} 
+                  isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} 
+                  styles={styles}
+                  activePalette={activePalette}
+                  isDarkBase={isDarkBase}
+                />
+              </div>
             </div>
           ) : isEditorOpen ? (
             <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />

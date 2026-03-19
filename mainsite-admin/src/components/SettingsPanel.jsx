@@ -14,7 +14,8 @@ const SettingsPanel = ({
   triggerBgUpload, isUploadingBg, uploadTarget,
   styles,
   activePalette,
-  isDarkBase
+  isDarkBase,
+  showBackButton = true
 }) => {
 
   const sectionTitle = {
@@ -43,9 +44,11 @@ const SettingsPanel = ({
 
   return (
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-      <button type="button" onClick={onClose} style={styles.backButton}>
-        <ArrowLeft size={16} /> Voltar ao Console
-      </button>
+      {showBackButton && (
+        <button type="button" onClick={onClose} style={styles.backButton}>
+          <ArrowLeft size={16} /> Voltar ao Console
+        </button>
+      )}
       
       <form onSubmit={onSave} style={styles.form}>
         {/* BLOCO 1: RATE LIMIT */}

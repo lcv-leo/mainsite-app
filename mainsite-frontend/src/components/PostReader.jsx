@@ -51,10 +51,38 @@ const PostReader = ({ post, activePalette, settings, API_URL, styles, onShare, o
   const localStyles = {
     h1: { textAlign: 'center', fontSize: settings.shared.titleFontSize, letterSpacing: '0.1em', marginBottom: '2rem', color: activePalette.titleColor, textTransform: 'uppercase', fontWeight: 'bold', transition: 'color 0.5s ease' },
     content: { userSelect: 'none', WebkitUserSelect: 'none', MsUserSelect: 'none', },
-    aiActionsContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', marginBottom: '3rem' },
-    aiActionsBar: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', flexWrap: 'wrap' },
-    aiBtn: { ...styles.headerBtn, justifyContent: 'center', fontWeight: 'bold', letterSpacing: '1px' },
-    aiErrorMsg: { ...styles.postCard, display: 'flex', alignItems: 'center', gap: '8px', color: '#ff4d4d', fontSize: '13px', fontWeight: 'bold', background: 'rgba(255, 77, 77, 0.1)', padding: '12px 18px', border: '1px solid rgba(255, 77, 77, 0.3)', animation: 'fadeIn 0.3s ease-out', width: 'auto' },
+    aiActionsContainer: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginBottom: '3rem', flexWrap: 'wrap' },
+    aiButton: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '10px 15px',
+      border: `1px solid ${activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}`,
+      borderRadius: '5px',
+      background: 'transparent',
+      color: 'inherit',
+      fontFamily: 'inherit',
+      fontSize: '11px',
+      fontWeight: 'bold',
+      textTransform: 'uppercase',
+      cursor: 'pointer',
+      position: 'relative',
+      overflow: 'hidden',
+      transition: 'all 0.2s',
+    },
+    aiButtonProgress: {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: activePalette.titleColor,
+      opacity: 0.2,
+      transformOrigin: 'left',
+      animation: 'progress-bar 1.2s ease-out forwards',
+    },
+    aiErrorMsg: { ...styles.postCard, display: 'flex', alignItems: 'center', gap: '8px', color: '#ff4d4d', fontSize: '13px', fontWeight: 'bold', background: 'rgba(255, 77, 77, 0.1)', padding: '12px 18px', border: '1px solid rgba(255, 77, 77, 0.3)', animation: 'fadeIn 0.3s ease-out', marginTop: '15px' },
     aiSummaryBox: { ...styles.postCard, borderLeft: `4px solid ${activePalette.titleColor}`, padding: '25px', margin: '1rem 0 3rem 0', fontStyle: 'italic', lineHeight: '1.7' },
     shareBar: { display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '3rem', paddingTop: '2rem', borderTop: `1px solid ${styles.glassBorder}`, flexWrap: 'wrap' },
     shareBtn: { flex: '1 1 150px', maxWidth: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 15px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '11px', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase', border: 'none', transition: 'all 0.2s', color: '#fff' }
@@ -64,6 +92,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, styles, onShare, o
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrgJSONLD) }} />
       <style>{`
+        @keyframes progress-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
         .post-content p { font-size: ${settings.shared.fontSize}; color: ${activePalette.fontColor}; text-align: justify; line-height: 1.9; text-indent: 3.5rem; font-weight: 500; margin: 0 0 1.8rem 0; }
         .post-content h1, .post-content h2, .post-content h3 { color: ${activePalette.titleColor}; margin: 2rem 0 1rem 0; font-weight: bold; line-height: 1.5; }
         .post-content h1 { font-size: ${settings.shared.titleFontSize}; }
@@ -117,22 +146,50 @@ const PostReader = ({ post, activePalette, settings, API_URL, styles, onShare, o
 
       <h1 style={localStyles.h1}>{post.title}</h1>
       
-      <div style={localStyles.aiActionsContainer}>
-        <div style={localStyles.aiActionsBar}>
-          <button onClick={handleSummarize} disabled={isAILoading} style={{...localStyles.aiBtn, ...(isSummarizing && { background: styles.glassBg, color: activePalette.titleColor, borderColor: activePalette.titleColor })}}>
-            {isSummarizing ? <Loader2 size={16} className="animate-spin"/> : <AlignLeft size={16}/>} 
-            {isSummarizing ? 'GERANDO RESUMO...' : 'RESUMO POR IA'}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={localStyles.aiActionsContainer}>
+          <button 
+            onClick={handleSummarize} 
+            disabled={isAILoading} 
+            style={localStyles.aiButton}
+            onMouseOver={(e) => { e.currentTarget.style.borderColor = activePalette.titleColor; e.currentTarget.style.background = `${activePalette.titleColor}20`; }}
+            onMouseOut={(e) => { e.currentTarget.style.borderColor = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'; e.currentTarget.style.background = 'transparent'; }}
+          >
+            {isSummarizing && <div style={localStyles.aiButtonProgress} />}
+            <span style={{ zIndex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {isSummarizing ? <Loader2 size={16} className="animate-spin" /> : <AlignLeft size={16} />}
+              {isSummarizing ? 'Gerando Resumo...' : 'Resumo por IA'}
+            </span>
           </button>
-          
-          <div style={{...localStyles.aiBtn, padding: '0 12px 0 20px', ...(isTranslating && { background: styles.glassBg, color: activePalette.titleColor, borderColor: activePalette.titleColor })}}>
-            {isTranslating ? <Loader2 size={16} className="animate-spin"/> : <Languages size={16}/>}
-            <select onChange={handleTranslate} disabled={isAILoading} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold', textTransform: 'uppercase', outline: 'none', padding: '12px 0 12px 10px' }}>
-              <option value="">{isTranslating ? 'TRADUZINDO...' : 'TRADUZIR PARA...'}</option>
-              <option value="Inglês">English</option><option value="Espanhol">Español</option><option value="Francês">Français</option><option value="Alemão">Deutsch</option>
-            </select>
+
+          <div 
+            style={{...localStyles.aiButton, padding: 0}}
+            onMouseOver={(e) => { e.currentTarget.style.borderColor = activePalette.titleColor; e.currentTarget.style.background = `${activePalette.titleColor}20`; }}
+            onMouseOut={(e) => { e.currentTarget.style.borderColor = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'; e.currentTarget.style.background = 'transparent'; }}
+          >
+            {isTranslating && <div style={localStyles.aiButtonProgress} />}
+            <span style={{ zIndex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 15px' }}>
+              <Languages size={16} />
+              <select onChange={handleTranslate} disabled={isAILoading} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold', textTransform: 'uppercase', outline: 'none' }}>
+                <option value="">{isTranslating ? 'Traduzindo...' : 'Traduzir'}</option>
+                <option value="Inglês">English</option>
+                <option value="Espanhol">Español</option>
+                <option value="Francês">Français</option>
+                <option value="Alemão">Deutsch</option>
+              </select>
+            </span>
           </div>
-          
-          {translatedContent && ( <button onClick={() => setTranslatedContent(null)} style={{...localStyles.aiBtn, color: '#ff4d4d', borderColor: 'rgba(255, 77, 77, 0.5)' }}> <X size={16}/> REVERTER TRADUÇÃO </button> )}
+
+          {translatedContent && (
+            <button 
+              onClick={() => setTranslatedContent(null)} 
+              style={{...localStyles.aiButton, borderColor: 'rgba(255, 77, 77, 0.5)', color: '#ff4d4d' }}
+              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 77, 77, 0.1)'}
+              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              <X size={16}/> Reverter Tradução
+            </button>
+          )}
         </div>
         {aiError && ( <div style={localStyles.aiErrorMsg}><AlertTriangle size={16} /> {aiError}</div> )}
       </div>

@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Ban, Wallet, Trash2 } from 'lucide-react';
 
-const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase, showNotification }) => {
+const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase, showNotification, showBackButton = true }) => {
   const [logs, setLogs] = useState([]);
   const [balance, setBalance] = useState({ available: 0, unavailable: 0 });
   const [loading, setLoading] = useState(true);
@@ -147,7 +147,9 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         </div>
       )}
 
-      <button onClick={onClose} style={styles.backButton}><X size={18} /> Voltar ao Console</button>
+      {showBackButton && (
+        <button onClick={onClose} style={styles.backButton}><X size={18} /> Voltar ao Console</button>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
         <div style={{...styles.postCard, borderLeft: '4px solid #10b981', padding: '24px' }}>
