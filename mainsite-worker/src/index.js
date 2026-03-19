@@ -804,6 +804,66 @@ app.delete('/api/financial-logs/:id', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+// Sincroniza pagamentos recentes do Mercado Pago com o banco local.
+// Útil para recuperar transações que não passaram pelo webhook ou atualizar status pendentes.
+app.post('/api/mp/sync', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: '401' }, 401);
+  try {
+    const token = c.env.MP_ACCESS_TOKEN;
+    if (!token) throw new Error('MP_ACCESS_TOKEN ausente.');
+
+    const response = await fetch('https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&range=date_created&limit=100', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Falha ao listar pagamentos no Mercado Pago.');
+
+    const payload = await response.json();
+    const payments = Array.isArray(payload?.results) ? payload.results : [];
+
+    let inserted = 0;
+    let updated = 0;
+    let tracked = 0;
+
+    for (const paymentData of payments) {
+      const paymentId = String(paymentData.id || '').trim();
+      if (!paymentId) continue;
+
+      const externalRef = String(paymentData.external_reference || '').trim();
+      const description = String(paymentData.description || '').toLowerCase();
+      const looksLikeSiteDonation = externalRef.startsWith('DON-') || description.includes('divagações filosóficas') || description.includes('divagacoes filosoficas');
+
+      const existing = await c.env.DB.prepare(
+        "SELECT id FROM financial_logs WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card') LIMIT 1"
+      ).bind(paymentId).first();
+
+      if (!looksLikeSiteDonation && !existing) continue;
+
+      tracked++;
+      const status = (paymentData.status || 'unknown').toLowerCase();
+      const amount = Number(paymentData.transaction_amount || 0);
+      const email = paymentData.payer?.email || 'N/A';
+      const method = paymentData.payment_method_id || 'N/A';
+      const raw = JSON.stringify(paymentData);
+
+      if (existing) {
+        await c.env.DB.prepare(
+          "UPDATE financial_logs SET status = ?, amount = ?, method = ?, payer_email = ?, raw_payload = ? WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card')"
+        ).bind(status, amount, method, email, raw, paymentId).run();
+        updated++;
+      } else {
+        await c.env.DB.prepare(
+          "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
+        ).bind(paymentId, status, amount, method, email, raw).run();
+        inserted++;
+      }
+    }
+
+    return c.json({ success: true, inserted, updated, total: tracked, scanned: payments.length });
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
 // --- ROTAS ADMINISTRATIVAS SUMUP (PAINEL FINANCEIRO) ---
 
 // Sincroniza checkouts históricos da SumUp com o banco local.

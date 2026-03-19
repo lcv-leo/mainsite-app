@@ -169,7 +169,13 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         method: 'POST',
         headers: { 'Authorization': `Bearer ${secret}` },
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        throw new Error(raw || 'Resposta inválida da sincronização do Mercado Pago.');
+      }
       if (!res.ok) throw new Error(data.error || 'Falha na sincronização.');
       showPanelToast(`Sincronizado: ${data.inserted} novo(s), ${data.updated} atualizado(s) de ${data.total} transação(ões).`, 'success');
       fetchFinanceData(true);
