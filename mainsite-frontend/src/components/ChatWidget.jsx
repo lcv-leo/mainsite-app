@@ -11,8 +11,10 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [aiVisualStatus, setAiVisualStatus] = useState('idle'); // idle | thinking | responding
   const [interactionCount, setInteractionCount] = useState(0);
   const messagesEndRef = useRef(null);
+  const aiStatusTimeoutRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -22,14 +24,29 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     scrollToBottom();
   }, [messages, isOpen]);
 
+  useEffect(() => {
+    return () => {
+      if (aiStatusTimeoutRef.current) {
+        clearTimeout(aiStatusTimeoutRef.current);
+        aiStatusTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   const handleSend = async (e) => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
+
+    if (aiStatusTimeoutRef.current) {
+      clearTimeout(aiStatusTimeoutRef.current);
+      aiStatusTimeoutRef.current = null;
+    }
 
     const userMsg = input.trim();
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);
+    setAiVisualStatus('thinking');
 
     const currentCount = interactionCount + 1;
     setInteractionCount(currentCount);
@@ -59,8 +76,16 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
       }
 
       setMessages(prev => [...prev, { role: 'bot', text: rawText, hasDonationButton: showDonationButton }]);
+      setAiVisualStatus('responding');
+      aiStatusTimeoutRef.current = setTimeout(() => {
+        setAiVisualStatus('idle');
+      }, 1400);
     } catch {
       setMessages(prev => [...prev, { role: 'bot', text: 'Sinal interrompido. Tente novamente em instantes.', hasDonationButton: false }]);
+      setAiVisualStatus('responding');
+      aiStatusTimeoutRef.current = setTimeout(() => {
+        setAiVisualStatus('idle');
+      }, 1400);
     } finally {
       setIsLoading(false);
     }
@@ -69,6 +94,12 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
   if (!isOpen) return null;
 
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
+  const aiStatusMeta =
+    aiVisualStatus === 'thinking'
+      ? { text: 'Analisando...', color: 'rgba(77,166,255,0.95)' }
+      : aiVisualStatus === 'responding'
+        ? { text: 'Respondendo...', color: 'rgba(46,125,50,0.95)' }
+        : { text: 'Pronta', color: isDarkBase ? 'rgba(255,255,255,0.62)' : 'rgba(0,0,0,0.48)' };
 
   const panelStyle = {
     position: 'fixed',
@@ -170,6 +201,38 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     <>
       <style>{`
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes aiIdlePulse {
+          0%, 100% { transform: scale(1); opacity: 0.9; }
+          50% { transform: scale(1.06); opacity: 1; }
+        }
+        @keyframes aiThinkingSpin {
+          0% { transform: rotate(0deg) scale(1); filter: drop-shadow(0 0 0 rgba(77,166,255,0)); }
+          50% { transform: rotate(180deg) scale(1.08); filter: drop-shadow(0 0 8px rgba(77,166,255,0.55)); }
+          100% { transform: rotate(360deg) scale(1); filter: drop-shadow(0 0 0 rgba(77,166,255,0)); }
+        }
+        @keyframes aiRespondingGlow {
+          0% { transform: scale(0.96); filter: drop-shadow(0 0 0 rgba(46,125,50,0)); opacity: 0.85; }
+          50% { transform: scale(1.12); filter: drop-shadow(0 0 12px rgba(46,125,50,0.6)); opacity: 1; }
+          100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(46,125,50,0)); opacity: 0.95; }
+        }
+        @keyframes aiOrbitIdle {
+          0% { transform: rotate(0deg); opacity: 0.38; }
+          100% { transform: rotate(360deg); opacity: 0.38; }
+        }
+        @keyframes aiOrbitThinking {
+          0% { transform: rotate(0deg) scale(1); opacity: 0.55; }
+          50% { transform: rotate(180deg) scale(1.08); opacity: 0.85; }
+          100% { transform: rotate(360deg) scale(1); opacity: 0.55; }
+        }
+        @keyframes aiOrbitResponding {
+          0% { transform: rotate(0deg) scale(0.98); opacity: 0.35; }
+          50% { transform: rotate(180deg) scale(1.12); opacity: 0.95; }
+          100% { transform: rotate(360deg) scale(1); opacity: 0.45; }
+        }
+        @keyframes aiStatusFade {
+          0%, 100% { opacity: 0.72; transform: translateY(0); }
+          50% { opacity: 1; transform: translateY(-1px); }
+        }
       `}</style>
 
       <div style={panelStyle}>
@@ -184,11 +247,56 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
               justifyContent: 'center',
               width: '36px',
               height: '36px',
-              flexShrink: 0
+              flexShrink: 0,
+              position: 'relative',
+              overflow: 'visible'
             }}>
-              <Sparkles size={18} />
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  border: `1.6px solid ${aiVisualStatus === 'responding' ? 'rgba(46,125,50,0.7)' : 'rgba(77,166,255,0.52)'}`,
+                  borderTopColor: 'transparent',
+                  borderRightColor: aiVisualStatus === 'responding' ? 'rgba(46,125,50,0.95)' : 'rgba(77,166,255,0.92)',
+                  pointerEvents: 'none',
+                  animation:
+                    aiVisualStatus === 'thinking'
+                      ? 'aiOrbitThinking 0.95s linear infinite'
+                      : aiVisualStatus === 'responding'
+                        ? 'aiOrbitResponding 0.65s cubic-bezier(0.16, 1, 0.3, 1) 2'
+                        : 'aiOrbitIdle 3.2s linear infinite'
+                }}
+              />
+              <Sparkles
+                size={18}
+                style={{
+                  animation:
+                    aiVisualStatus === 'thinking'
+                      ? 'aiThinkingSpin 1s linear infinite'
+                      : aiVisualStatus === 'responding'
+                        ? 'aiRespondingGlow 0.65s cubic-bezier(0.16, 1, 0.3, 1) 2'
+                        : 'aiIdlePulse 2.2s ease-in-out infinite'
+                }}
+              />
             </div>
-            <span style={{ fontWeight: '700', fontSize: '16px', color: activePalette.fontColor, letterSpacing: '0.5px' }}>Consciência Auxiliar</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.15 }}>
+              <span style={{ fontWeight: '700', fontSize: '16px', color: activePalette.fontColor, letterSpacing: '0.5px' }}>Consciência Auxiliar</span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  letterSpacing: '0.35px',
+                  color: aiStatusMeta.color,
+                  marginTop: '3px',
+                  animation: aiVisualStatus === 'idle' ? 'none' : 'aiStatusFade 1s ease-in-out infinite'
+                }}
+              >
+                {aiStatusMeta.text}
+              </span>
+            </div>
           </div>
           <button onClick={onClose} style={{ background: 'rgba(128,128,128,0.1)', borderRadius: '100px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
             <X size={20} />
