@@ -79,8 +79,8 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
     display: 'flex', alignItems: 'center', gap: '10px', margin: '0 0 10px 0', fontWeight: '700'
   };
 
-  const cardStyle = {
-    background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(128, 128, 128, 0.15)', padding: '24px',
+  const cardStyle = { 
+    background: 'rgba(242, 242, 242, 0.95)', border: '1px solid rgba(128, 128, 128, 0.2)', padding: '24px', 
     borderRadius: '20px', fontSize: '14px', lineHeight: '1.6', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
     backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', gap: '12px'
   };
@@ -93,10 +93,10 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
 
   const actionContainerStyle = { display: 'flex', alignItems: 'center', gap: '15px' };
 
-  const trashBtnStyle = {
-    background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '10px',
-    borderRadius: '12px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center',
-    justifyContent: 'center', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(239,68,68,0.1)'
+  const trashBtnStyle = { 
+    background: 'rgba(179, 0, 0, 0.1)', border: '1px solid rgba(179, 0, 0, 0.3)', padding: '10px', 
+    borderRadius: '12px', color: '#b30000', cursor: 'pointer', display: 'flex', alignItems: 'center', 
+    justifyContent: 'center', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(179,0,0,0.15)'
   };
 
   const formatDate = (dateString) => {

@@ -151,7 +151,7 @@ const App = () => {
 
   const containerStyle = {
     width: '100%',
-    maxWidth: '850px',
+    maxWidth: '890px', // Aumentado em 40px (20px de cada lado / ~5mm)
     padding: '0 24px',
     flex: 1,
     boxSizing: 'border-box'

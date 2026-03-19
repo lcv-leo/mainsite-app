@@ -3,7 +3,7 @@
 // Descrição: Hotfix de sintaxe no compilador Vite (Operador Ternário restaurado na definição de método HTTP). Blindagem de Timezone (America/Sao_Paulo) e Lixeira preservadas.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet, Trash2 } from 'lucide-react';
+import { ArrowLeft, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet, Trash2 } from 'lucide-react';
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);
@@ -144,7 +144,9 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         </div>
       )}
 
-      <button onClick={onClose} style={styles.backButton}><X size={18} /> FECHAR PAINEL FINANCEIRO</button>
+      <button onClick={onClose} style={styles.backButton}>
+        <ArrowLeft size={16} /> Voltar ao Console
+      </button>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '24px' }}>
         <div style={{ ...glassCard, marginBottom: 0, borderLeft: '4px solid #10b981' }}>
@@ -179,34 +181,40 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                 {logs.map(log => {
                   const isPending = log.status === 'pending' || log.status === 'in_process';
                   const isApproved = log.status === 'approved';
+                  const isRefunded = log.status.includes('refund');
+                  const isCancelled = log.status === 'cancelled' || log.status === 'rejected'; // eslint-disable-line no-unused-vars
+
+                  const statusBg = isApproved ? 'rgba(16, 185, 129, 0.2)' : (isRefunded ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)');
+                  const statusColor = isApproved ? '#10b981' : (isRefunded ? '#f59e0b' : '#ef4444');
+
                   return (
-                    <tr key={log.id} style={{ borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
-
-                      <td style={{ padding: '12px', opacity: 0.8 }}>
-                        {new Date(log.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-                      </td>
-
-                      <td style={{ padding: '12px', fontFamily: 'monospace' }}>{log.payment_id}</td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: isApproved ? 'rgba(16, 185, 129, 0.2)' : (log.status.includes('refund') || log.status === 'cancelled' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'), color: isApproved ? '#10b981' : (log.status.includes('refund') || log.status === 'cancelled' ? '#ef4444' : '#f59e0b') }}>{log.status.toUpperCase()}</span>
-                      </td>
-                      <td style={{ padding: '12px', fontWeight: 'bold' }}>{log.amount.toFixed(2)}</td>
-                      <td style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                        <span style={{ opacity: 0.8 }}>{log.payer_email}</span>
-
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          {isApproved && (<button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('refund'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('234, 67, 53')}> <RotateCcw size={14} /> Estornar</button>)}
-                          {isPending && (<button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('cancel'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('245, 158, 11')}> <Ban size={14} /> Cancelar</button>)}
-
-                          <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('delete'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('156, 163, 175')} title="Excluir este registro">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-
-                      </td>
-                    </tr>
-                  )
-                })}
+                  <tr key={log.id} style={{ borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                    
+                    <td style={{ padding: '12px', opacity: 0.8 }}>
+                      {new Date(log.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                    </td>
+                    
+                    <td style={{ padding: '12px', fontFamily: 'monospace' }}>{log.payment_id}</td>
+                    <td style={{ padding: '12px' }}>
+                      <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: statusBg, color: statusColor }}>
+                        {log.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{log.amount.toFixed(2)}</td>
+                    <td style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                      <span style={{ opacity: 0.8 }}>{log.payer_email}</span>
+                      
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {isApproved && ( <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('refund'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('245, 158, 11')}> <RotateCcw size={14} /> Estornar</button> )}
+                        {isPending && ( <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('cancel'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('239, 68, 68')}> <Ban size={14} /> Cancelar</button> )}
+                        
+                        <button onClick={() => { setActiveTx({ id: log.payment_id, dbId: log.id, amount: log.amount }); setModalType('delete'); }} disabled={processingId === log.payment_id} style={actionBtnStyle('179, 0, 0')} title="Excluir este registro"> 
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )})}
               </tbody>
             </table>
           </div>

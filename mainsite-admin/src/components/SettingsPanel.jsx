@@ -42,7 +42,7 @@ const SettingsPanel = ({
   return (
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
       <button type="button" onClick={onClose} style={styles.backButton}>
-        <ArrowLeft size={16} /> Voltar aos Registros
+        <ArrowLeft size={16} /> Voltar ao Console
       </button>
 
       <form onSubmit={onSave} style={styles.form}>

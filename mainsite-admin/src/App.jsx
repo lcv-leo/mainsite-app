@@ -32,7 +32,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
     backgroundSize: 'cover', backgroundAttachment: 'fixed', color: activePalette.fontColor, fontFamily: activePalette.fontFamily || 'system-ui, -apple-system, sans-serif', minHeight: '100vh', padding: '40px 20px', transition: 'all 0.4s ease'
   },
   toast: { position: 'fixed', top: '30px', left: '50%', padding: '16px 32px', borderRadius: '100px', zIndex: 10000, boxShadow: '0 12px 36px rgba(0,0,0,0.2)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', border: `1px solid ${glassBorder}`, display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '600', fontSize: '14px', letterSpacing: '0.5px' },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: isDarkBase ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.5)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, opacity: 1, animation: 'fadeIn 0.3s ease' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: isDarkBase ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.5)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, opacity: 1, animation: 'fadeIn 0.3s ease' },
   modalContent: { backgroundColor: isDarkBase ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.85)', padding: '40px', borderRadius: '28px', border: `1px solid ${glassBorder}`, maxWidth: '420px', width: '90%', textAlign: 'center', boxShadow: '0 32px 64px -12px rgba(0,0,0,0.3)', color: activePalette.fontColor, backdropFilter: 'blur(20px)' },
   modalText: { fontSize: '16px', fontWeight: '500', marginBottom: '30px', lineHeight: '1.6' },
   modalActions: { display: 'flex', gap: '16px', justifyContent: 'center' },
@@ -258,6 +258,8 @@ const App = () => {
   return (
     <div style={styles.adminBody}>
       <style>{`
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
         .ProseMirror { min-height: 400px; padding: 30px; outline: none; line-height: 1.6; font-size: 16px; }
         .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: ${isDarkBase ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}; pointer-events: none; height: 0; }
         .ProseMirror table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 0; overflow: hidden; }

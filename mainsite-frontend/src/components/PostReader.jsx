@@ -133,11 +133,11 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
 
       {isNotHomePage && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px', animation: 'fadeIn 0.5s ease-out' }}>
-          <button onClick={() => window.location.href = '/'} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: activePalette.titleColor, opacity: 0.7, transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }} onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.08)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.transform = 'scale(1)'; }} title="Voltar para a postagem principal" >
-            <div style={{ padding: '20px', borderRadius: '100px', background: `rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.05)`, border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.1)`, boxShadow: '0 12px 32px rgba(0,0,0,0.1)', backdropFilter: 'blur(12px)' }}>
-              <Home size={32} />
+          <button onClick={() => window.location.href = '/'} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: activePalette.titleColor, opacity: 0.7, transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }} onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.08)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.transform = 'scale(1)'; }} title="Voltar para a postagem principal" >
+            <div style={{ padding: '14px', borderRadius: '100px', background: `rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.05)`, border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.1)`, boxShadow: '0 12px 32px rgba(0,0,0,0.1)', backdropFilter: 'blur(12px)' }}>
+              <Home size={22} />
             </div>
-            <span style={{ fontSize: '11px', fontWeight: '900', letterSpacing: '3px', textTransform: 'uppercase' }}>Home Page</span>
+            <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '2px', textTransform: 'uppercase' }}>Home Page</span>
           </button>
         </div>
       )}
