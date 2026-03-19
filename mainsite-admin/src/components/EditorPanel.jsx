@@ -5,6 +5,7 @@
 import React, { useState, useRef } from 'react';
 import { Extension } from '@tiptap/core';
 import { useEditor, EditorContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
+import { NodeSelection } from 'prosemirror-state';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import YoutubeExtension from '@tiptap/extension-youtube';
@@ -87,6 +88,28 @@ const ResizableMediaHandle = ({ onStartResize }) => (
   />
 );
 
+const SelectMediaButton = ({ onSelect }) => (
+  <button
+    type="button"
+    className="media-select-btn"
+    contentEditable={false}
+    onMouseDown={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onSelect();
+    }}
+    onPointerDown={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onSelect();
+    }}
+    title="Selecionar mídia"
+    aria-label="Selecionar mídia"
+  >
+    Selecionar
+  </button>
+);
+
 const IMAGE_SNAPS = [
   { label: '25%', v: '25%' },
   { label: '50%', v: '50%' },
@@ -116,7 +139,7 @@ const YoutubeSnapBar = ({ onSnap }) => (
   </div>
 );
 
-const ResizableImageNodeView = ({ node, updateAttributes, selected }) => {
+const ResizableImageNodeView = ({ node, updateAttributes, selected, editor, getPos }) => {
   const startXRef = useRef(0);
   const startWidthRef = useRef(100);
 
@@ -147,6 +170,14 @@ const ResizableImageNodeView = ({ node, updateAttributes, selected }) => {
     window.addEventListener('touchend', onUp);
   };
 
+  const selectCurrentNode = () => {
+    const pos = getPos?.();
+    if (typeof pos !== 'number') return;
+    const tr = editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, pos));
+    editor.view.dispatch(tr);
+    editor.commands.focus();
+  };
+
   return (
     <NodeViewWrapper
       className={`resizable-media media-image ${selected ? 'is-selected' : ''}`}
@@ -154,13 +185,14 @@ const ResizableImageNodeView = ({ node, updateAttributes, selected }) => {
       style={{ width: node.attrs.width || '100%' }}
     >
       <MediaSnapBar onSnap={(size) => updateAttributes({ width: size })} />
+      <SelectMediaButton onSelect={selectCurrentNode} />
       <img src={node.attrs.src} alt={node.attrs.alt || ''} title={node.attrs.title || ''} draggable="false" />
       <ResizableMediaHandle onStartResize={onStartResize} />
     </NodeViewWrapper>
   );
 };
 
-const ResizableYoutubeNodeView = ({ node, updateAttributes, selected }) => {
+const ResizableYoutubeNodeView = ({ node, updateAttributes, selected, editor, getPos }) => {
   const startXRef = useRef(0);
   const startWidthRef = useRef(840);
   const currentW = Number(node.attrs.width) || 840;
@@ -194,9 +226,18 @@ const ResizableYoutubeNodeView = ({ node, updateAttributes, selected }) => {
     window.addEventListener('touchend', onUp);
   };
 
+  const selectCurrentNode = () => {
+    const pos = getPos?.();
+    if (typeof pos !== 'number') return;
+    const tr = editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, pos));
+    editor.view.dispatch(tr);
+    editor.commands.focus();
+  };
+
   return (
     <NodeViewWrapper className={`resizable-media media-youtube ${selected ? 'is-selected' : ''}`} contentEditable={false} style={{ width: `${currentW}px`, maxWidth: '100%' }}>
       <YoutubeSnapBar onSnap={(w, h) => updateAttributes({ width: w, height: h })} />
+      <SelectMediaButton onSelect={selectCurrentNode} />
       <div data-youtube-video>
         <iframe
           src={node.attrs.src}

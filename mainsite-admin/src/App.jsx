@@ -385,6 +385,29 @@ const App = () => {
         .ProseMirror .resizable-media .media-snap-bar button:hover {
           background: ${activePalette.titleColor}28; color: ${activePalette.titleColor};
         }
+        .ProseMirror .resizable-media .media-select-btn {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          border: 1px solid ${glassBorder};
+          background: ${isDarkBase ? 'rgba(18,18,22,0.92)' : 'rgba(255,255,255,0.92)'};
+          color: ${activePalette.fontColor};
+          border-radius: 999px;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.2px;
+          padding: 4px 8px;
+          cursor: pointer;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.16s ease;
+          z-index: 9;
+        }
+        .ProseMirror .resizable-media:hover .media-select-btn,
+        .ProseMirror .resizable-media.is-selected .media-select-btn {
+          opacity: 1;
+          pointer-events: auto;
+        }
         .ProseMirror .resizable-media.media-youtube { width: fit-content; }
         .ProseMirror .resizable-media.media-youtube > div[data-youtube-video] { border-radius: 14px; overflow: hidden; box-shadow: 0 8px 28px rgba(0,0,0,0.12); }
         .ProseMirror .resizable-media.media-youtube iframe { display: block; width: 100%; max-width: 100%; border: 0; cursor: pointer; }
