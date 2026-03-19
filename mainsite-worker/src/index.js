@@ -800,9 +800,14 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
       if (body?.amount) amount = Number(body.amount);
     } catch { }
 
-    // Resolve o transaction UUID correto. Para registros antigos que guardaram
-    // o checkout UUID, tenta extrair transactions[0].id do raw_payload.
+    // Resolve o transaction UUID correto para o endpoint POST /v0.1/me/refund/{txn_id}.
+    // Estratégia em cascata:
+    // 1. Tenta extrair transactions[0].id do raw_payload salvo no banco.
+    // 2. Se não achar, busca o checkout na SumUp API para obter o transaction ID.
+    // 3. Fallback: usa o ID armazenado diretamente (pode ser o checkout UUID).
     let txnId = id;
+
+    // Etapa 1: raw_payload local
     try {
       const record = await c.env.DB.prepare(
         "SELECT raw_payload FROM financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
@@ -814,6 +819,21 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
       }
     } catch { }
 
+    // Etapa 2: se ainda é o checkout UUID (sem transaction ID no payload),
+    // busca o checkout na SumUp para obter transactions[0].id
+    if (txnId === id) {
+      try {
+        const checkoutRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (checkoutRes.ok) {
+          const checkoutData = await checkoutRes.json();
+          const extracted = checkoutData.transactions?.[0]?.id;
+          if (extracted) txnId = extracted;
+        }
+      } catch { }
+    }
+
     // Endpoint correto: POST /v0.1/me/refund/{txn_id} (ID no path, amount opcional no body)
     const refundBody = amount ? { amount } : {};
     const response = await fetch(`https://api.sumup.com/v0.1/me/refund/${txnId}`, {
@@ -822,7 +842,7 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
       body: JSON.stringify(refundBody),
     });
 
-    // 204 No Content = sucesso sem body
+    // 204 No Content = sucesso pleno sem body
     if (response.status === 204 || response.ok) {
       const newStatus = amount ? 'partially_refunded' : 'refunded';
       await c.env.DB.prepare("UPDATE financial_logs SET status = ? WHERE payment_id = ? AND method = 'sumup_card'").bind(newStatus, id).run();
@@ -831,8 +851,8 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
 
     let data = {};
     try { data = await response.json(); } catch { }
-    const reason = data?.message || data?.detail || data?.title || 'Falha ao processar estorno SumUp.';
-    return c.json({ error: reason }, 502);
+    const reason = data?.message || data?.detail || data?.title || `HTTP ${response.status} SumUp`;
+    return c.json({ error: `Estorno SumUp falhou: ${reason} (txn: ${txnId})` }, 502);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
