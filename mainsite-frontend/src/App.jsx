@@ -101,7 +101,7 @@ const App = () => {
             }
           }
         }
-      } catch (err) { setError("Signal lost. Server connection interrupted."); }
+      } catch { setError("Signal lost. Server connection interrupted."); }
       finally { setLoading(false); }
     };
     fetchData();
@@ -152,11 +152,11 @@ const App = () => {
     paddingTop: '60px'
   };
 
-  // UPDATED CONTAINER STYLE: Expanded to 960px and 20px padding
+  // STRUCTURAL BUMP: Increased to 1024px breakpoint with fluid lateral clamping
   const containerStyle = {
     width: '100%',
-    maxWidth: '960px',
-    padding: '0 20px',
+    maxWidth: '1024px', 
+    padding: '0 clamp(12px, 3vw, 24px)', // Responsive padding: tight on mobile, max 24px on desktop
     flex: 1,
     boxSizing: 'border-box'
   };
@@ -189,7 +189,7 @@ const App = () => {
       });
       if (res.ok) { showNotification("E-mail enviado com sucesso.", "success"); setShowShareModal({ show: false, email: '' }); }
       else throw new Error("Failed to send.");
-    } catch (err) { showNotification("Erro ao enviar o e-mail.", "error"); } finally { setIsSendingEmail(false); }
+    } catch { showNotification("Erro ao enviar o e-mail.", "error"); } finally { setIsSendingEmail(false); }
   };
 
   const submitContact = async (formData, resetForm) => {
@@ -198,7 +198,7 @@ const App = () => {
       const res = await fetch(`${API_URL}/contact`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
       if (res.ok) { showNotification("Mensagem enviada com sucesso.", "success"); setShowContactModal(false); resetForm(); }
       else throw new Error();
-    } catch (err) { showNotification("Falha ao enviar contato.", "error"); } finally { setIsSubmittingContact(false); }
+    } catch { showNotification("Falha ao enviar contato.", "error"); } finally { setIsSubmittingContact(false); }
   };
 
   const submitComment = async (formData, resetForm) => {
@@ -207,7 +207,7 @@ const App = () => {
       const res = await fetch(`${API_URL}/comment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
       if (res.ok) { showNotification("Comentário recebido com sucesso.", "success"); setShowCommentModal(false); resetForm(); }
       else throw new Error();
-    } catch (err) { showNotification("Falha ao enviar comentário.", "error"); } finally { setIsSubmittingComment(false); }
+    } catch { showNotification("Falha ao enviar comentário.", "error"); } finally { setIsSubmittingComment(false); }
   };
 
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#131314', color: '#fff' }}><Loader2 size={32} className="animate-spin" /></div>;

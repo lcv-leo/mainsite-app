@@ -3,6 +3,7 @@
 // Description: Dynamic Y-axis positioning for the deletion modal based on mouse click coordinates (e.clientY). Horizontal centering preserved. 
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom'; // ADDED REACT PORTAL
 import { ArrowLeft, MessageSquare, Share2, Bot, Loader2, Calendar, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
 
 const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
@@ -105,35 +106,29 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
   const formatDate = (dateString) => {
     try {
       return new Date(dateString.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    } catch (e) { return dateString; }
+    } catch { 
+      return dateString; 
+    }
   };
 
   return (
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
 
-      {/* MD3 CONFIRMATION MODAL WITH DYNAMIC Y POSITIONING */}
-      {deleteModal.show && (
+      {/* MD3 CONFIRMATION MODAL USING REACT PORTALS (ESCAPES PARENT DOM) */}
+      {deleteModal.show && createPortal(
         <div style={styles.modalOverlay}>
-          <div style={{
-            ...styles.modalContent,
-            position: 'fixed',
-            // Mathematical clamp: ensures modal doesn't clip off the top (min 200px) or bottom
-            top: `${Math.min(Math.max(deleteModal.posY, 200), window.innerHeight - 200)}px`,
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            margin: 0,
-            zIndex: 100000
-          }}>
+          <div style={{ ...styles.modalContent, margin: 0 }}>
             <AlertCircle size={56} color="#b30000" style={{ margin: '0 auto 20px auto' }} />
             <p style={styles.modalText}>Tem certeza de que deseja <strong>EXCLUIR</strong> este registro de auditoria? Esta ação é irreversível.</p>
             <div style={styles.modalActions}>
-              <button onClick={() => setDeleteModal({ show: false, type: '', id: null, posY: 0 })} disabled={isDeleting} style={styles.modalBtnCancel}>CANCELAR</button>
-              <button onClick={confirmDelete} disabled={isDeleting} style={{ ...styles.modalBtnConfirm, backgroundColor: '#b30000', boxShadow: '0 4px 12px rgba(179,0,0,0.3)' }}>
+              <button onClick={() => setDeleteModal({ show: false, type: '', id: null })} disabled={isDeleting} style={styles.modalBtnCancel}>CANCELAR</button>
+              <button onClick={confirmDelete} disabled={isDeleting} style={{...styles.modalBtnConfirm, backgroundColor: '#b30000', boxShadow: '0 4px 12px rgba(179,0,0,0.3)'}}>
                 {isDeleting ? <Loader2 size={18} className="animate-spin" /> : 'EXCLUIR'}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body // Injects directly into the root HTML body
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>

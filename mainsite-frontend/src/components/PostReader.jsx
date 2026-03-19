@@ -29,7 +29,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       const data = await res.json();
       if (res.ok) setPostSummary(data.summary);
       else throw new Error(data.error || "Server response failed.");
-    } catch (err) { setAiError("Não foi possível gerar o resumo no momento."); } finally { setIsSummarizing(false); }
+    } catch { setAiError("Não foi possível gerar o resumo no momento."); } finally { setIsSummarizing(false); }
   };
 
   const handleTranslate = async (e) => {
@@ -44,7 +44,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       const data = await res.json();
       if (res.ok) setTranslatedContent(data.translation);
       else throw new Error(data.error || "Server response failed.");
-    } catch (err) { setAiError(`Falha ao traduzir para ${lang}.`); } finally { setIsTranslating(false); e.target.value = ''; }
+    } catch { setAiError(`Falha ao traduzir para ${lang}.`); } finally { setIsTranslating(false); e.target.value = ''; }
   };
 
   const renderContent = (content) => {

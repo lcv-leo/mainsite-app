@@ -59,7 +59,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
       }
 
       setMessages(prev => [...prev, { role: 'bot', text: rawText, hasDonationButton: showDonationButton }]);
-    } catch (err) {
+    } catch {
       setMessages(prev => [...prev, { role: 'bot', text: 'Sinal interrompido. Tente novamente em instantes.', hasDonationButton: false }]);
     } finally {
       setIsLoading(false);

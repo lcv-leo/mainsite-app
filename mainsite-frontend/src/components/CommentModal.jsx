@@ -10,8 +10,11 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (show) setIsVisible(true);
-    else setTimeout(() => setIsVisible(false), 400);
+    if (show) {
+      setTimeout(() => setIsVisible(true), 0);
+    } else {
+      setTimeout(() => setIsVisible(false), 400);
+    }
   }, [show]);
 
   if (!isVisible && !show) return null;

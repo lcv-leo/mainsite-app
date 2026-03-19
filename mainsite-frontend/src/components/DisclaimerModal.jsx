@@ -10,7 +10,7 @@ const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigg
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
   useEffect(() => {
-    if (show) setCurrentIndex(0);
+    if (show) setTimeout(() => setCurrentIndex(0), 0);
   }, [show]);
 
   if (!show || !activePalette || !config || !config.enabled || !config.items || config.items.length === 0) {

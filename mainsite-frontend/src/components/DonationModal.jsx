@@ -27,12 +27,14 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
   useEffect(() => {
     if (show) {
-      setIsVisible(true);
-      setStep(1);
-      setAmountDisplay('');
-      setFirstName('');
-      setLastName('');
-      setIsCopied(false);
+      setTimeout(() => {
+        setIsVisible(true);
+        setStep(1);
+        setAmountDisplay('');
+        setFirstName('');
+        setLastName('');
+        setIsCopied(false);
+      }, 0);
     } else {
       setTimeout(() => setIsVisible(false), 400);
     }
@@ -261,37 +263,40 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               customization={{ visual: { style: { theme: isDarkBase ? 'dark' : 'default' } } }}
 
               onSubmit={(formData) => {
-                return new Promise(async (resolve, reject) => {
-                  try {
-                    const payload = {
-                      ...formData,
-                      payer: {
-                        ...(formData.payer || {}),
-                        first_name: firstName.trim(),
-                        last_name: lastName.trim()
+                return new Promise((resolve, reject) => {
+                  const processDonation = async () => {
+                    try {
+                      const payload = {
+                        ...formData,
+                        payer: {
+                          ...(formData.payer || {}),
+                          first_name: firstName.trim(),
+                          last_name: lastName.trim()
+                        }
+                      };
+
+                      const res = await fetch(`${API_URL}/mp-payment`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                      });
+                      
+                      if (res.ok) {
+                        resolve(); 
+                        setStep(3);
+                      } else {
+                        const errorData = await res.json();
+                        console.error("🔴 MP Backend Rejeitou:", errorData);
+                        showToast(`Não aprovado: ${errorData.error || 'Verifique os dados.'}`, "error");
+                        reject(); 
                       }
-                    };
-
-                    const res = await fetch(`${API_URL}/mp-payment`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(payload)
-                    });
-
-                    if (res.ok) {
-                      resolve();
-                      setStep(3);
-                    } else {
-                      const errorData = await res.json();
-                      console.error("🔴 MP Backend Rejeitou:", errorData);
-                      showToast(`Não aprovado: ${errorData.error || 'Verifique os dados.'}`, "error");
-                      reject();
+                    } catch (error) {
+                      console.error("🔴 Falha Crítica no Frontend (Fetch):", error);
+                      showToast("Falha de conexão. Verifique sua rede e tente novamente.", "error");
+                      reject(); 
                     }
-                  } catch (error) {
-                    console.error("🔴 Falha Crítica no Frontend (Fetch):", error);
-                    showToast("Falha de conexão. Verifique sua rede e tente novamente.", "error");
-                    reject();
-                  }
+                  };
+                  processDonation(); // Execute the async function inside the standard Promise
                 });
               }}
               onError={(error) => {

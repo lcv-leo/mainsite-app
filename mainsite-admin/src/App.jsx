@@ -139,7 +139,7 @@ const App = () => {
       const resDisclaimers = await fetch(`${API_URL}/settings/disclaimers`);
       if (resDisclaimers.ok) setDisclaimers(await resDisclaimers.json());
 
-    } catch (err) { showNotification("Erro na sincronização.", "error"); } finally { setLoading(false); setIsRefreshingGlobal(false); }
+    } catch { showNotification("Erro na sincronização.", "error"); } finally { setLoading(false); setIsRefreshingGlobal(false); }
   }, [showNotification, secret]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -195,7 +195,7 @@ const App = () => {
       const resRL = await fetch(`${API_URL}/settings/ratelimit`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rateLimit) });
       const resDisc = await fetch(`${API_URL}/settings/disclaimers`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(disclaimers) });
       if (resApp.ok && resRot.ok && resRL.ok && resDisc.ok) showNotification("Configurações salvas.", "success"); else throw new Error();
-    } catch (err) { showNotification("Erro ao salvar configs.", "error"); } finally { setIsSaving(false); }
+    } catch { showNotification("Erro ao salvar configs.", "error"); } finally { setIsSaving(false); }
   };
 
   const confirmDelete = async () => {
@@ -203,14 +203,14 @@ const App = () => {
     try {
       const res = await fetch(`${API_URL}/posts/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${secret}` } });
       if (res.ok) { showNotification("Removido.", "success"); await fetchData(); }
-    } catch (err) { showNotification("Falha.", "error"); }
+    } catch { showNotification("Falha.", "error"); }
   };
 
   const handlePin = async (id) => {
     try {
       const res = await fetch(`${API_URL}/posts/${id}/pin`, { method: 'PUT', headers: { 'Authorization': `Bearer ${secret}` } });
       if (res.ok) { showNotification("Status alterado.", "success"); await fetchData(); }
-    } catch (err) { showNotification("Erro.", "error"); }
+    } catch { showNotification("Erro.", "error"); }
   };
 
   const handleDragStart = (e, index) => { setDraggedIndex(index); e.dataTransfer.effectAllowed = "move"; e.target.style.opacity = '0.5'; };
@@ -226,7 +226,7 @@ const App = () => {
       const payload = newOrder.map((post, idx) => ({ id: post.id, display_order: idx }));
       const res = await fetch(`${API_URL}/posts/reorder`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(payload) });
       if (res.ok) showNotification("Ordem sincronizada.", "success"); else throw new Error();
-    } catch (err) { showNotification("Erro de ordem.", "error"); await fetchData(); }
+    } catch { showNotification("Erro de ordem.", "error"); await fetchData(); }
   };
 
   const openEditor = (post = null) => {
