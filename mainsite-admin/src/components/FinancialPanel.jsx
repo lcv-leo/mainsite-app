@@ -149,7 +149,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
       <button onClick={onClose} style={styles.backButton}><X size={18} /> FECHAR PAINEL FINANCEIRO</button>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
         <div style={{...styles.postCard, borderLeft: '4px solid #10b981', padding: '24px' }}>
           <div style={{ fontSize: '13px', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}><Wallet size={16} /> Saldo Disponível</div>
           <div style={{ fontSize: '28px', fontWeight: 'bold', color: activePalette.titleColor }}>R$ {balance.available.toFixed(2)}</div>

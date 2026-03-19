@@ -50,7 +50,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   adminButton: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none', borderRadius: '12px', padding: '16px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', letterSpacing: '0.5px', marginTop: '20px', transition: 'opacity 0.2s' },
   appContainer: {
     maxWidth: '1200px', width: '100%', 
-    padding: ' clamp(20px, 5vw, 50px)',
+    padding: 'clamp(20px, 5vw, 50px) clamp(39px, calc(5vw + 19px), 69px)',
     backgroundColor: glassBg,
     backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
     borderRadius: '24px', border: `1px solid ${glassBorder}`,

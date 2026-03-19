@@ -171,7 +171,7 @@ const SettingsPanel = ({
         </div>
 
         {/* BLOCO Endpoint & Auditoria */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop: '25px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '25px', marginBottom: '20px' }}>
           
           <div style={{...styles.postCard, padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', color: activePalette.titleColor }}>

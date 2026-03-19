@@ -53,7 +53,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, styles, onShare, o
     content: { userSelect: 'none', WebkitUserSelect: 'none', MsUserSelect: 'none', },
     aiActionsContainer: { marginBottom: '3rem', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' },
     aiActionsBar: { display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap', width: '100%' },
-    aiBtn: { ...styles.headerBtn, width: '280px', maxWidth: '100%', justifyContent: 'center', fontWeight: 'bold', letterSpacing: '1px' },
+    aiBtn: { ...styles.headerBtn, maxWidth: '100%', justifyContent: 'center', fontWeight: 'bold', letterSpacing: '1px' },
     aiErrorMsg: { ...styles.postCard, display: 'flex', alignItems: 'center', gap: '8px', color: '#ff4d4d', fontSize: '13px', fontWeight: 'bold', background: 'rgba(255, 77, 77, 0.1)', padding: '12px 18px', border: '1px solid rgba(255, 77, 77, 0.3)', animation: 'fadeIn 0.3s ease-out' },
     aiSummaryBox: { ...styles.postCard, borderLeft: `4px solid ${activePalette.titleColor}`, padding: '25px', margin: '1rem 0 3rem 0', fontStyle: 'italic', lineHeight: '1.7' },
     shareBar: { display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '3rem', paddingTop: '2rem', borderTop: `1px solid ${styles.glassBorder}`, flexWrap: 'wrap' },
@@ -74,9 +74,45 @@ const PostReader = ({ post, activePalette, settings, API_URL, styles, onShare, o
       `}</style>
       
       {isNotHomePage && (
-         <a href="/" style={{ textDecoration: 'none', display: 'flex', justifyContent: 'center', marginBottom: '40px' }} title="Voltar para a postagem principal">
-            <div style={{...localStyles.aiBtn, width: 'auto' }}><Home size={16}/> HOME</div>
-         </a>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px' }}>
+          <a
+            href="/"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px',
+              color: activePalette.titleColor,
+              opacity: 0.7,
+              transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              textDecoration: 'none'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.08)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.transform = 'scale(1)'; }}
+            title="Voltar para a postagem principal"
+          >
+            <div style={{
+              padding: '18px',
+              borderRadius: '50%',
+              background: `rgba(${activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? '255,255,255' : '0,0,0'}, 0.05)`,
+              border: `1px solid rgba(${activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1') ? '255,255,255' : '0,0,0'}, 0.1)`,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+            }}>
+              <Home size={32} />
+            </div>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '900',
+              letterSpacing: '3px',
+              textTransform: 'uppercase'
+            }}>
+              Home Page
+            </span>
+          </a>
+        </div>
       )}
 
       <h1 style={localStyles.h1}>{post.title}</h1>
