@@ -278,8 +278,8 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
 
-      {/* Toast Notification */}
-      <div style={{ ...styles.toast, transform: panelToast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: panelToast.show ? 1 : 0, backgroundColor: panelToast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: panelToast.type === 'error' ? '#fff' : activePalette.fontColor, zIndex: 10005 }}>
+      {/* Toast Notification — posicionado na base do viewport (snackbar), sempre visível independente do scroll */}
+      <div style={{ ...styles.toast, top: 'auto', bottom: '30px', transform: panelToast.show ? 'translate(-50%, 0)' : 'translate(-50%, 120px)', opacity: panelToast.show ? 1 : 0, backgroundColor: panelToast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: panelToast.type === 'error' ? '#fff' : activePalette.fontColor, zIndex: 10005 }}>
         {panelToast.type === 'error' ? <AlertCircle size={18} /> : <Check size={18} />} <span>{panelToast.message}</span>
       </div>
 
