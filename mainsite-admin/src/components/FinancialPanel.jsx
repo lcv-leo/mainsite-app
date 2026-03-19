@@ -407,6 +407,11 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                 <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} /> {isSyncing ? 'SINCRONIZANDO...' : 'SINCRONIZAR SUMUP'}
               </button>
             )}
+            {paymentProvider === 'mercadopago' && (
+              <button onClick={syncMercadoPagoCheckouts} disabled={isSyncing} style={{ background: 'transparent', border: '1px solid rgba(0,158,85,0.35)', color: '#009e55', padding: '6px 14px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: isSyncing ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase', opacity: isSyncing ? 0.6 : 1 }}>
+                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} /> {isSyncing ? 'SINCRONIZANDO...' : 'SINCRONIZAR MERCADO PAGO'}
+              </button>
+            )}
             <button onClick={() => fetchFinanceData(true)} style={{ background: 'transparent', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: activePalette.fontColor, padding: '6px 14px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase' }}>
               <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} /> {isRefreshing ? 'ATUALIZANDO...' : 'ATUALIZAR AGORA'}
             </button>
