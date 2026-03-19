@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/components/SettingsPanel.jsx
-// Versão: v2.0.0
+// Versão: v2.0.1
 // Descrição: Refatoração completa para integração com o sistema de design (Glassmorphism/MD3) do App.jsx. Estilos locais foram removidos e o componente agora é totalmente dependente das props de tema.
 
 import React from 'react';
@@ -61,14 +61,14 @@ const SettingsPanel = ({
             Habilitar Escudo contra Robôs / Abusos
           </label>
           <p style={{ fontSize: '11px', color: '#ef4444', opacity: 0.8, margin: '10px 0 0 0' }}>* Quando ativado, bloqueia temporariamente visitantes (por IP) que dispararem requisições excessivas (Chat, Resumo, Tradução) à Inteligência Artificial.</p>
-          <div style={{ display: 'flex', gap: '20px', marginTop: '15px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '15px' }}>
             <label style={{ ...styles.label, color: '#ef4444' }}>
               Máximo de Requisições por IP:
-              <input type="number" min="1" value={rateLimit.maxRequests} onChange={e => setRateLimit({...rateLimit, maxRequests: parseInt(e.target.value) || 5})} style={{...styles.textInput, width: '150px'}} disabled={!rateLimit.enabled} />
+              <input type="number" min="1" value={rateLimit.maxRequests} onChange={e => setRateLimit({...rateLimit, maxRequests: parseInt(e.target.value) || 5})} style={{...styles.textInput, width: '100%'}} disabled={!rateLimit.enabled} />
             </label>
             <label style={{ ...styles.label, color: '#ef4444' }}>
               Na Janela de Tempo (Minutos):
-              <input type="number" min="1" value={rateLimit.windowMinutes} onChange={e => setRateLimit({...rateLimit, windowMinutes: parseInt(e.target.value) || 1})} style={{...styles.textInput, width: '150px'}} disabled={!rateLimit.enabled} />
+              <input type="number" min="1" value={rateLimit.windowMinutes} onChange={e => setRateLimit({...rateLimit, windowMinutes: parseInt(e.target.value) || 1})} style={{...styles.textInput, width: '100%'}} disabled={!rateLimit.enabled} />
             </label>
           </div>
         </div>

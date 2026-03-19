@@ -16,7 +16,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
 // URL Oficial da API
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.32.1';
+const APP_VERSION = 'APP v3.32.2';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -50,7 +50,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   settingsBtn: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' },
   backButton: { background: 'none', border: 'none', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px', color: activePalette.fontColor, opacity: 0.8 },
   form: { display: 'flex', flexDirection: 'column', gap: '24px' },
-  settingsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: 'rgba(0,0,0,0.02)', padding: '20px', border: `1px solid ${glassBorder}`, borderRadius: '16px', backdropFilter: 'blur(5px)' },
+  settingsGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: '20px', background: 'rgba(0,0,0,0.02)', padding: '20px', border: `1px solid ${glassBorder}`, borderRadius: '16px', backdropFilter: 'blur(5px)' },
   settingsPageGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: '24px', alignItems: 'start' },
   label: { display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor },
   colorInput: { height: '40px', width: '100%', cursor: 'pointer', border: 'none', borderRadius: '8px', background: 'transparent' },
