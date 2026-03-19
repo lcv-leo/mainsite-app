@@ -33,7 +33,8 @@ import {
   Save, Loader2, ArrowLeft, Bold, Italic, Strikethrough, Heading1, Heading2, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Link as LinkIcon, Unlink, Underline as UnderlineIcon,
   Highlighter, Subscript as SubIcon, Superscript as SuperIcon, Quote, Minus, Code, Table as TableIcon,
-  CheckSquare, Palette, Type, WrapText, Upload, Sparkles, Image as ImageIcon, Youtube, ZoomIn, ZoomOut
+  CheckSquare, Palette, Type, WrapText, Upload, Sparkles, Image as ImageIcon, Youtube, ZoomIn, ZoomOut,
+  MessageSquare
 } from 'lucide-react';
 
 const FontSize = Extension.create({
@@ -371,6 +372,65 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
     showNotification('Selecione uma imagem ou vídeo para redimensionar.', 'info');
   };
 
+  const editCaption = () => {
+    const isImg = editor.isActive('image');
+    const isVid = editor.isActive('youtube');
+    if (!isImg && !isVid) {
+      showNotification('Selecione uma imagem ou vídeo para adicionar/editar a legenda.', 'info');
+      return;
+    }
+
+    const { selection, doc } = editor.state;
+    const nodeSize = selection.node?.nodeSize || 1;
+    const nodeEnd = selection.from + nodeSize;
+
+    // Detecta se já existe uma legenda imediatamente após a mídia
+    let existingCaption = '';
+    let captionFrom = null;
+    let captionTo = null;
+    const nextNode = doc.nodeAt(nodeEnd);
+    if (nextNode && nextNode.type.name === 'paragraph' && nextNode.attrs?.textAlign === 'center' && nextNode.textContent) {
+      let hasItalic = false;
+      nextNode.forEach(child => {
+        if (child.isText && child.marks.some(m => m.type.name === 'italic')) hasItalic = true;
+      });
+      if (hasItalic) {
+        existingCaption = nextNode.textContent;
+        captionFrom = nodeEnd;
+        captionTo = nodeEnd + nextNode.nodeSize;
+      }
+    }
+
+    setPromptModal({
+      show: true,
+      title: existingCaption ? 'Editar legenda da mídia:' : 'Adicionar legenda à mídia:',
+      placeholder: 'Texto da legenda...',
+      value: existingCaption,
+      isLink: false,
+      linkText: '',
+      showCaption: false,
+      caption: '',
+      callback: (text) => {
+        const trimmed = (text || '').trim();
+        if (captionFrom !== null) {
+          // Substitui legenda existente
+          const tr = editor.state.tr.delete(captionFrom, captionTo);
+          editor.view.dispatch(tr);
+          if (trimmed) {
+            editor.commands.insertContentAt(captionFrom, {
+              type: 'paragraph',
+              attrs: { textAlign: 'center' },
+              content: [{ type: 'text', text: trimmed, marks: [{ type: 'italic' }] }],
+            });
+          }
+        } else if (trimmed) {
+          editor.commands.setTextSelection(nodeEnd);
+          insertCaptionBlock(trimmed);
+        }
+      },
+    });
+  };
+
   const getActiveStyle = (isActive) => ({
     ...styles.toolbarBtn,
     background: isActive ? 'rgba(128, 128, 128, 0.22)' : 'transparent',
@@ -444,6 +504,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
       <button type="button" title="YouTube" onClick={addYoutube} style={styles.toolbarBtn}><Youtube size={16} /></button>
       <button type="button" title="Reduzir mídia selecionada" onClick={() => adjustSelectedMediaSize(-1)} style={styles.toolbarBtn}><ZoomOut size={16} /></button>
       <button type="button" title="Aumentar mídia selecionada" onClick={() => adjustSelectedMediaSize(1)} style={styles.toolbarBtn}><ZoomIn size={16} /></button>
+      <button type="button" title="Adicionar/editar legenda da mídia selecionada" onClick={editCaption} style={{ ...styles.toolbarBtn, opacity: (editor.isActive('image') || editor.isActive('youtube')) ? 1 : 0.4 }}><MessageSquare size={16} /></button>
 
       <div style={styles.toolbarDivider}></div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
