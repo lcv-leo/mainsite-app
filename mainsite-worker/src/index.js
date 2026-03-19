@@ -516,12 +516,16 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
       return c.json({ error: `${reason}${param}` }, 402);
     }
 
+    // Usa o transaction_code como payment_id (necessário para estornos via /me/refunds).
+    // Se ausente, recorre ao transaction_id da transação e depois ao checkout UUID.
+    const storedId = data.transaction_code || data.transaction_id || data.id || checkoutId;
+
     c.executionCtx.waitUntil(
       c.env.DB.prepare("INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
-        .bind(data.id || checkoutId, data.status || 'paid', Number(amount), 'sumup_card', 'N/A', JSON.stringify(data)).run()
+        .bind(storedId, data.status || 'paid', Number(amount), 'sumup_card', 'N/A', JSON.stringify(data)).run()
     );
 
-    return c.json({ success: true, id: data.id || checkoutId, status: data.status || 'paid' });
+    return c.json({ success: true, id: storedId, status: data.status || 'paid' });
   } catch (err) {
     return c.json({ error: err.message || 'Falha no pagamento SumUp.' }, 500);
   }
@@ -795,14 +799,21 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
       if (body?.amount) amount = Number(body.amount);
     } catch { }
 
+    const refundBody = { transaction_code: id };
+    if (amount) refundBody.amount = amount;
+
     const response = await fetch(`https://api.sumup.com/v0.1/me/refunds`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transaction_id: id, amount: amount || undefined, currency: 'BRL' }),
+      body: JSON.stringify(refundBody),
     });
 
-    const data = await response.json();
-    if (!response.ok) return c.json({ error: data.message || 'Falha ao processar estorno SumUp.' }, 502);
+    let data = {};
+    try { data = await response.json(); } catch { }
+    if (!response.ok) {
+      const reason = data?.message || data?.detail || data?.title || 'Falha ao processar estorno SumUp.';
+      return c.json({ error: reason }, 502);
+    }
 
     const newStatus = amount ? 'partially_refunded' : 'refunded';
     await c.env.DB.prepare("UPDATE financial_logs SET status = ? WHERE payment_id = ? AND method = 'sumup_card'").bind(newStatus, id).run();
