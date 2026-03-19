@@ -6,9 +6,12 @@ name: Deploy Pipeline Cloudflare
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ] # Gatilho de escuta no GitHub (Padrão GitHub)
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 : 'true'
+  NODE_OPTIONS: "--no-deprecation"
+  
 jobs:
   deploy:
     runs-on: ubuntu-latest

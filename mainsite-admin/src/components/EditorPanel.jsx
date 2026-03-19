@@ -4,7 +4,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Extension } from '@tiptap/core';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import YoutubeExtension from '@tiptap/extension-youtube';
@@ -33,7 +33,7 @@ import {
   Save, Loader2, ArrowLeft, Bold, Italic, Strikethrough, Heading1, Heading2, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Link as LinkIcon, Unlink, Underline as UnderlineIcon,
   Highlighter, Subscript as SubIcon, Superscript as SuperIcon, Quote, Minus, Code, Table as TableIcon,
-  CheckSquare, Palette, Type, WrapText, Upload, Sparkles, Image as ImageIcon, Youtube
+  CheckSquare, Palette, Type, WrapText, Upload, Sparkles, Image as ImageIcon, Youtube, ZoomIn, ZoomOut
 } from 'lucide-react';
 
 const FontSize = Extension.create({
@@ -72,11 +72,150 @@ const formatImageUrl = (url) => {
   return url;
 };
 
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const ResizableMediaHandle = ({ onStartResize }) => (
+  <button
+    type="button"
+    className="media-resize-handle"
+    contentEditable={false}
+    onMouseDown={onStartResize}
+    onPointerDown={onStartResize}
+    title="Arraste para redimensionar"
+    aria-label="Arraste para redimensionar"
+  />
+);
+
+const ResizableImageNodeView = ({ node, updateAttributes, selected }) => {
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(100);
+
+  const onStartResize = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const point = event.touches?.[0] || event;
+    startXRef.current = point.clientX;
+    startWidthRef.current = Number(String(node.attrs.width || '100').replace('%', '')) || 100;
+
+    const onMove = (moveEvent) => {
+      const p = moveEvent.touches?.[0] || moveEvent;
+      const deltaX = p.clientX - startXRef.current;
+      const next = clamp(Math.round(startWidthRef.current + (deltaX * 0.22)), 20, 100);
+      updateAttributes({ width: `${next}%` });
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onUp);
+  };
+
+  return (
+    <NodeViewWrapper
+      className={`resizable-media media-image ${selected ? 'is-selected' : ''}`}
+      contentEditable={false}
+      style={{ width: node.attrs.width || '100%' }}
+    >
+      <img src={node.attrs.src} alt={node.attrs.alt || ''} title={node.attrs.title || ''} draggable="false" />
+      <ResizableMediaHandle onStartResize={onStartResize} />
+    </NodeViewWrapper>
+  );
+};
+
+const ResizableYoutubeNodeView = ({ node, updateAttributes, selected }) => {
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(840);
+  const currentW = Number(node.attrs.width) || 840;
+  const currentH = Number(node.attrs.height) || Math.round((currentW * 9) / 16);
+
+  const onStartResize = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const point = event.touches?.[0] || event;
+    startXRef.current = point.clientX;
+    startWidthRef.current = currentW;
+
+    const onMove = (moveEvent) => {
+      const p = moveEvent.touches?.[0] || moveEvent;
+      const deltaX = p.clientX - startXRef.current;
+      const nextW = clamp(Math.round(startWidthRef.current + (deltaX * 1.2)), 320, 1200);
+      const nextH = Math.round((nextW * 9) / 16);
+      updateAttributes({ width: nextW, height: nextH });
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onUp);
+  };
+
+  return (
+    <NodeViewWrapper className={`resizable-media media-youtube ${selected ? 'is-selected' : ''}`} contentEditable={false} style={{ width: `${currentW}px`, maxWidth: '100%' }}>
+      <div data-youtube-video>
+        <iframe
+          src={node.attrs.src}
+          width={currentW}
+          height={currentH}
+          title="YouTube video"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+      <ResizableMediaHandle onStartResize={onStartResize} />
+    </NodeViewWrapper>
+  );
+};
+
+const ResizableImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: '100%',
+        parseHTML: (element) => element.getAttribute('data-width') || element.style.width || element.getAttribute('width') || '100%',
+        renderHTML: (attributes) => {
+          if (!attributes.width) return {};
+          const normalized = String(attributes.width).endsWith('%') ? attributes.width : `${attributes.width}`;
+          return {
+            'data-width': normalized,
+            style: `width: ${normalized}; height: auto;`,
+          };
+        },
+      },
+    };
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ResizableImageNodeView);
+  },
+});
+
+const ResizableYoutube = YoutubeExtension.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(ResizableYoutubeNodeView);
+  },
+});
+
 const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [promptModal, setPromptModal] = useState({ show: false, title: '', value: '', callback: null, isLink: false, linkText: '' });
+  const [promptModal, setPromptModal] = useState({ show: false, title: '', value: '', callback: null, isLink: false, linkText: '', showCaption: false, caption: '' });
 
   if (!editor) return null;
 
@@ -101,6 +240,16 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
     finally { setIsGeneratingAI(false); }
   };
 
+  const insertCaptionBlock = (caption) => {
+    const safeCaption = (caption || '').trim();
+    if (!safeCaption) return;
+    editor.chain().focus().insertContent({
+      type: 'paragraph',
+      attrs: { textAlign: 'center' },
+      content: [{ type: 'text', text: safeCaption, marks: [{ type: 'italic' }] }],
+    }).run();
+  };
+
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -110,23 +259,74 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
       const res = await fetch(`${API_URL}/upload`, { method: 'POST', headers: { 'Authorization': `Bearer ${secret}` }, body: formData });
       if (!res.ok) throw new Error("Falha na consolidação do arquivo.");
       const data = await res.json();
-      editor.chain().focus().setImage({ src: data.url }).run();
+      editor.chain().focus().setImage({ src: data.url, width: '100%' }).run();
       showNotification("Upload concluído com sucesso.", "success");
     } catch (err) { showNotification(err.message, "error"); }
     finally { setIsUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   };
 
-  const addImageUrl = () => { setPromptModal({ show: true, title: 'URL da Imagem (Drive/Externa):', value: '', callback: (url) => { if (url) editor.chain().focus().setImage({ src: formatImageUrl(url) }).run(); } }); };
-  const addYoutube = () => { setPromptModal({ show: true, title: 'URL do vídeo (YouTube):', value: '', callback: (url) => { if (url) editor.chain().focus().setYoutubeVideo({ src: url }).run(); } }); };
+  const addImageUrl = () => {
+    setPromptModal({
+      show: true,
+      title: 'URL da Imagem (Drive/Externa):',
+      value: '',
+      showCaption: true,
+      caption: '',
+      callback: (url, _text, caption) => {
+        if (!url) return;
+        editor.chain().focus().setImage({ src: formatImageUrl(url), width: '100%' }).run();
+        insertCaptionBlock(caption);
+      }
+    });
+  };
+
+  const addYoutube = () => {
+    setPromptModal({
+      show: true,
+      title: 'URL do vídeo (YouTube):',
+      value: '',
+      showCaption: true,
+      caption: '',
+      callback: (url, _text, caption) => {
+        if (!url) return;
+        editor.chain().focus().setYoutubeVideo({ src: url, width: 840, height: 472 }).run();
+        insertCaptionBlock(caption);
+      }
+    });
+  };
+
   const addLink = () => {
     const prev = editor.getAttributes('link').href || '';
     setPromptModal({
-      show: true, title: 'Inserir Link de Hipertexto:', value: prev, isLink: true, linkText: '', callback: (url, text) => {
+      show: true, title: 'Inserir Link de Hipertexto:', value: prev, isLink: true, linkText: '', showCaption: false, caption: '', callback: (url, text) => {
         if (url === '') { editor.chain().focus().extendMarkRange('link').unsetLink().run(); return; }
         if (editor.state.selection.empty && text) { editor.chain().focus().insertContent(`<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`).run(); }
         else { editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run(); }
       }
     });
+  };
+
+  const adjustSelectedMediaSize = (direction) => {
+    if (editor.isActive('image')) {
+      const attrs = editor.getAttributes('image');
+      const current = Number(String(attrs.width || '100').replace('%', '')) || 100;
+      const next = clamp(current + (direction * 10), 20, 100);
+      editor.chain().focus().updateAttributes('image', { width: `${next}%` }).run();
+      showNotification(`Imagem redimensionada para ${next}%`, 'success');
+      return;
+    }
+
+    if (editor.isActive('youtube')) {
+      const attrs = editor.getAttributes('youtube');
+      const currentW = Number(attrs.width) || 840;
+      const nextW = clamp(currentW + (direction * 80), 320, 1200);
+      const nextH = Math.round((nextW * 9) / 16);
+      editor.chain().focus().updateAttributes('youtube', { width: nextW, height: nextH }).run();
+      showNotification(`Vídeo redimensionado para ${nextW}x${nextH}`, 'success');
+      return;
+    }
+
+    showNotification('Selecione uma imagem ou vídeo para redimensionar.', 'info');
   };
 
   const getActiveStyle = (isActive) => ({
@@ -145,9 +345,12 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
             {promptModal.isLink && editor.state.selection.empty && (
               <input type="text" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({ ...promptModal, linkText: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
             )}
+            {promptModal.showCaption && (
+              <input type="text" placeholder="Legenda (opcional)" value={promptModal.caption} onChange={e => setPromptModal({ ...promptModal, caption: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
+            )}
             <div style={{ ...styles.modalActions, marginTop: '24px' }}>
               <button type="button" onClick={() => setPromptModal({ show: false })} style={styles.modalBtnCancel}>CANCELAR</button>
-              <button type="button" onClick={() => { promptModal.callback(promptModal.value, promptModal.linkText); setPromptModal({ show: false }); }} style={styles.modalBtnConfirm}>INSERIR</button>
+              <button type="button" onClick={() => { promptModal.callback(promptModal.value, promptModal.linkText, promptModal.caption); setPromptModal({ show: false }); }} style={styles.modalBtnConfirm}>INSERIR</button>
             </div>
           </div>
         </div>
@@ -197,6 +400,8 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
       <button type="button" title="Upload" onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ ...styles.toolbarBtn, opacity: isUploading ? 0.5 : 1 }}><Upload size={16} /></button>
       <button type="button" title="Img URL" onClick={addImageUrl} style={styles.toolbarBtn}><ImageIcon size={16} /></button>
       <button type="button" title="YouTube" onClick={addYoutube} style={styles.toolbarBtn}><Youtube size={16} /></button>
+      <button type="button" title="Reduzir mídia selecionada" onClick={() => adjustSelectedMediaSize(-1)} style={styles.toolbarBtn}><ZoomOut size={16} /></button>
+      <button type="button" title="Aumentar mídia selecionada" onClick={() => adjustSelectedMediaSize(1)} style={styles.toolbarBtn}><ZoomIn size={16} /></button>
 
       <div style={styles.toolbarDivider}></div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
@@ -215,8 +420,8 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
 const STATIC_EXTENSIONS = [
   StarterKit.configure({ dropcursor: false }), Markdown, Underline, Highlight, Subscript, Superscript, TextStyle, Color, FontFamily, FontSize, Typography,
   TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'justify' }),
-  Image.configure({ inline: true }),
-  YoutubeExtension.configure({ inline: false, width: 840, height: 472.5 }),
+  ResizableImage.configure({ inline: false }),
+  ResizableYoutube.configure({ inline: false, width: 840, height: 472.5 }),
   Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
   TaskList, TaskItem.configure({ nested: true }),
   Dropcursor.configure({ color: '#ff0000', width: 2 }),

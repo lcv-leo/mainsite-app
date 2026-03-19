@@ -346,6 +346,35 @@ const App = () => {
         .animate-spin { animation: spin 1s linear infinite; }
         .ProseMirror { min-height: 400px; padding: 30px; outline: none; line-height: 1.6; font-size: 16px; }
         .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: ${isDarkBase ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}; pointer-events: none; height: 0; }
+        .ProseMirror .resizable-media { position: relative; margin: 18px auto 6px; max-width: 100%; border-radius: 14px; }
+        .ProseMirror .resizable-media img { display: block; width: 100%; height: auto; border-radius: 14px; cursor: pointer; box-shadow: 0 8px 28px rgba(0,0,0,0.12); }
+        .ProseMirror .resizable-media .media-resize-handle {
+          position: absolute;
+          right: -10px;
+          bottom: -10px;
+          width: 20px;
+          height: 20px;
+          border-radius: 999px;
+          border: 2px solid ${isDarkBase ? '#0b0b0c' : '#ffffff'};
+          background: ${activePalette.titleColor};
+          box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+          cursor: nwse-resize;
+          opacity: 0;
+          transition: opacity 0.18s ease, transform 0.18s ease;
+          z-index: 5;
+        }
+        .ProseMirror .resizable-media:hover .media-resize-handle,
+        .ProseMirror .resizable-media.is-selected .media-resize-handle { opacity: 1; }
+        .ProseMirror .resizable-media .media-resize-handle:hover { transform: scale(1.08); }
+        .ProseMirror .resizable-media.media-youtube { width: fit-content; }
+        .ProseMirror .resizable-media.media-youtube > div[data-youtube-video] { border-radius: 14px; overflow: hidden; box-shadow: 0 8px 28px rgba(0,0,0,0.12); }
+        .ProseMirror .resizable-media.media-youtube iframe { display: block; width: 100%; max-width: 100%; border: 0; cursor: pointer; }
+        .ProseMirror .resizable-media.is-selected,
+        .ProseMirror .resizable-media.ProseMirror-selectednode,
+        .ProseMirror img.ProseMirror-selectednode,
+        .ProseMirror [data-youtube-video].ProseMirror-selectednode { outline: 2px solid ${activePalette.titleColor}; outline-offset: 3px; }
+        .ProseMirror p[style*="text-align: center"] { text-indent: 0; margin: 2px 0 18px 0; opacity: 0.86; }
+        .ProseMirror p[style*="text-align: center"] em { font-size: 0.92em; }
         .ProseMirror table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 0; overflow: hidden; }
         .ProseMirror table td, .ProseMirror table th { min-width: 1em; border: 1px solid ${glassBorder}; padding: 8px; vertical-align: top; box-sizing: border-box; position: relative; }
         .ProseMirror table th { font-weight: bold; text-align: left; background-color: ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'}; }

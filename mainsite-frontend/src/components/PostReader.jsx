@@ -123,6 +123,8 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         .html-content h3 { color: ${activePalette.titleColor}; margin: 2rem 0 1rem 0; font-weight: 800; font-size: calc(${settings.shared.titleFontSize} * 0.70); transition: color 0.5s ease; }
         .p-content { text-align: justify; line-height: 1.9; text-indent: 3.5rem; font-weight: 700; margin: 0 0 1.8rem 0; }
         .html-content p { text-align: justify; line-height: 1.9; text-indent: 3.5rem; font-weight: 700; margin: 0 0 1.8rem 0; }
+        .html-content p[style*="text-align: center"] { text-align: center !important; text-indent: 0; margin: 0.35rem 0 1.2rem 0; opacity: 0.86; }
+        .html-content p[style*="text-align: center"] em { font-style: italic; font-size: 0.92em; }
         .html-content ul, .html-content ol { margin: 0 0 1.8rem 3.5rem; line-height: 1.9; font-weight: 700; }
         .html-content li { margin-bottom: 0.5rem; }
         .html-content a { color: #4da6ff; text-decoration: underline; text-underline-offset: 4px; font-weight: 800; }
