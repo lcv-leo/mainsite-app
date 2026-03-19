@@ -850,42 +850,44 @@ app.post('/api/mp/sync', async (c) => {
     // 2) Busca ampla no MP é opcional: se der erro, não bloqueia o painel.
     let scanned = localLogs.length;
     try {
-      const response = await fetch('https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&range=date_created&limit=100', {
-        headers: { 'Authorization': `Bearer ${token}` },
+      const payload = await paymentApi.search({
+        options: {
+          sort: 'date_created',
+          criteria: 'desc',
+          range: 'date_created',
+          limit: 100,
+        },
       });
 
-      if (response.ok) {
-        const payload = await response.json();
-        const payments = Array.isArray(payload?.results) ? payload.results : [];
-        scanned = payments.length;
+      const payments = Array.isArray(payload?.results) ? payload.results : [];
+      scanned = payments.length;
 
-        for (const paymentData of payments) {
-          const paymentId = String(paymentData.id || '').trim();
-          if (!paymentId) continue;
+      for (const paymentData of payments) {
+        const paymentId = String(paymentData.id || '').trim();
+        if (!paymentId) continue;
 
-          const externalRef = String(paymentData.external_reference || '').trim();
-          const description = String(paymentData.description || '').toLowerCase();
-          const looksLikeSiteDonation = externalRef.startsWith('DON-') || description.includes('divagações filosóficas') || description.includes('divagacoes filosoficas');
-          if (!looksLikeSiteDonation) continue;
+        const externalRef = String(paymentData.external_reference || '').trim();
+        const description = String(paymentData.description || '').toLowerCase();
+        const looksLikeSiteDonation = externalRef.startsWith('DON-') || description.includes('divagações filosóficas') || description.includes('divagacoes filosoficas');
+        if (!looksLikeSiteDonation) continue;
 
-          const existing = await c.env.DB.prepare(
-            "SELECT id FROM financial_logs WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card') LIMIT 1"
-          ).bind(paymentId).first();
+        const existing = await c.env.DB.prepare(
+          "SELECT id FROM financial_logs WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card') LIMIT 1"
+        ).bind(paymentId).first();
 
-          if (existing) continue;
+        if (existing) continue;
 
-          const status = (paymentData.status || 'unknown').toLowerCase();
-          const amount = Number(paymentData.transaction_amount || 0);
-          const email = paymentData.payer?.email || 'N/A';
-          const method = paymentData.payment_method_id || 'N/A';
-          const raw = JSON.stringify(paymentData);
+        const status = (paymentData.status || 'unknown').toLowerCase();
+        const amount = Number(paymentData.transaction_amount || 0);
+        const email = paymentData.payer?.email || 'N/A';
+        const method = paymentData.payment_method_id || 'N/A';
+        const raw = JSON.stringify(paymentData);
 
-          await c.env.DB.prepare(
-            "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
-          ).bind(paymentId, status, amount, method, email, raw).run();
+        await c.env.DB.prepare(
+          "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
+        ).bind(paymentId, status, amount, method, email, raw).run();
 
-          inserted++;
-        }
+        inserted++;
       }
     } catch {
       // Busca ampla é melhor esforço; a sincronização local já atende o painel.
