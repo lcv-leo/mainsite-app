@@ -28,9 +28,10 @@ const FloatingControls = ({
         .fab-btn.chat-trigger:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(51, 153, 255, 0.6); }
         .fab-btn.chat-active { background: ${activePalette.bgColor}; color: ${activePalette.titleColor}; border: 1px solid ${activePalette.titleColor}; }
 
-        .fab-bottom-cluster { display: flex; flex-direction: column; gap: 16px; align-items: center; transition: flex-direction 0s; }
-        .fab-bottom-cluster.chat-open { flex-direction: row; }
+        .fab-bottom-cluster { display: flex; flex-direction: column; align-items: center; gap: 16px; transition: gap 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .fab-bottom-cluster.chat-open { flex-direction: row; align-items: center; }
         .fab-bottom-cluster.chat-open .fab-btn:not(.chat-trigger):hover { transform: translateX(-4px); }
+        .fab-bottom-cluster.chat-open .fab-btn.chat-trigger:hover { transform: translateX(0) translateY(-4px); }
         
         @media (max-width: 768px) {
           .floating-controls { right: 20px; bottom: 20px; }
@@ -39,13 +40,13 @@ const FloatingControls = ({
       `}</style>
 
       <div className="floating-controls">
-        {showBackToTop && (
-          <button onClick={scrollToTop} className="fab-btn" title="Voltar ao Topo">
-            <ArrowUp size={24} />
-          </button>
-        )}
-
         <div className={`fab-bottom-cluster${isChatOpen ? ' chat-open' : ''}`}>
+          {showBackToTop && (
+            <button onClick={scrollToTop} className="fab-btn" title="Voltar ao Topo">
+              <ArrowUp size={24} />
+            </button>
+          )}
+
           <button onClick={cycleTheme} className="fab-btn" title={`Modo do Tema: ${userTheme.toUpperCase()}`}>
             {userTheme === 'auto' ? <Monitor size={24} /> : userTheme === 'dark' ? <Moon size={24} /> : <Sun size={24} />}
           </button>
