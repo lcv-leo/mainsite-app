@@ -6,7 +6,10 @@ import React, { useState, useEffect } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone, AlertTriangle } from 'lucide-react';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 
-initMercadoPago("APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794", { locale: 'pt-BR' });
+const mpPublicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+if (mpPublicKey) {
+  initMercadoPago(mpPublicKey, { locale: 'pt-BR' });
+}
 
 const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isVisible, setIsVisible] = useState(false);
