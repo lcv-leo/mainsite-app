@@ -25,6 +25,38 @@ const DEFAULT_SETTINGS = {
   shared: { fontSize: '1rem', titleFontSize: '1.5rem', fontFamily: 'system-ui, -apple-system, sans-serif' }
 };
 
+const DEFAULT_RATE_LIMIT = {
+  chatbot: { enabled: false, maxRequests: 5, windowMinutes: 1 },
+  email: { enabled: false, maxRequests: 3, windowMinutes: 15 }
+};
+
+const normalizeRateLimitConfig = (raw) => {
+  if (!raw || typeof raw !== 'object') return DEFAULT_RATE_LIMIT;
+  if ('enabled' in raw || 'maxRequests' in raw || 'windowMinutes' in raw) {
+    return {
+      chatbot: {
+        enabled: Boolean(raw.enabled),
+        maxRequests: Math.max(1, Number(raw.maxRequests) || DEFAULT_RATE_LIMIT.chatbot.maxRequests),
+        windowMinutes: Math.max(1, Number(raw.windowMinutes) || DEFAULT_RATE_LIMIT.chatbot.windowMinutes)
+      },
+      email: { ...DEFAULT_RATE_LIMIT.email }
+    };
+  }
+
+  return {
+    chatbot: {
+      enabled: Boolean(raw.chatbot?.enabled),
+      maxRequests: Math.max(1, Number(raw.chatbot?.maxRequests) || DEFAULT_RATE_LIMIT.chatbot.maxRequests),
+      windowMinutes: Math.max(1, Number(raw.chatbot?.windowMinutes) || DEFAULT_RATE_LIMIT.chatbot.windowMinutes)
+    },
+    email: {
+      enabled: Boolean(raw.email?.enabled),
+      maxRequests: Math.max(1, Number(raw.email?.maxRequests) || DEFAULT_RATE_LIMIT.email.maxRequests),
+      windowMinutes: Math.max(1, Number(raw.email?.windowMinutes) || DEFAULT_RATE_LIMIT.email.windowMinutes)
+    }
+  };
+};
+
 const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse) => ({
   center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: activePalette.bgColor },
   adminBody: {
@@ -91,7 +123,8 @@ const App = () => {
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [rotation, setRotation] = useState({ enabled: false, interval: 60, last_rotated_at: 0 });
-  const [rateLimit, setRateLimit] = useState({ enabled: false, maxRequests: 5, windowMinutes: 1 });
+  const [rateLimit, setRateLimit] = useState(DEFAULT_RATE_LIMIT);
+  const [rateLimitBaseline, setRateLimitBaseline] = useState(DEFAULT_RATE_LIMIT);
   const [disclaimers, setDisclaimers] = useState({ enabled: true, items: [] });
 
   const [userTheme, setUserTheme] = useState(localStorage.getItem('adminThemePref') || 'auto');
@@ -102,6 +135,23 @@ const App = () => {
   const [isUploadingBg, setIsUploadingBg] = useState(false);
 
   const secret = import.meta.env.VITE_API_SECRET;
+
+  const hasUnsavedRateLimit = useMemo(() => {
+    const normalize = (cfg) => ({
+      chatbot: {
+        enabled: Boolean(cfg?.chatbot?.enabled),
+        maxRequests: Number(cfg?.chatbot?.maxRequests) || 0,
+        windowMinutes: Number(cfg?.chatbot?.windowMinutes) || 0,
+      },
+      email: {
+        enabled: Boolean(cfg?.email?.enabled),
+        maxRequests: Number(cfg?.email?.maxRequests) || 0,
+        windowMinutes: Number(cfg?.email?.windowMinutes) || 0,
+      }
+    });
+
+    return JSON.stringify(normalize(rateLimit)) !== JSON.stringify(normalize(rateLimitBaseline));
+  }, [rateLimit, rateLimitBaseline]);
 
   const showNotification = useCallback((message, type = 'info') => {
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
@@ -149,7 +199,12 @@ const App = () => {
       if (resRotation.ok) setRotation(await resRotation.json());
 
       const resRateLimit = await fetch(`${API_URL}/settings/ratelimit`, { headers: { 'Authorization': `Bearer ${secret}` } });
-      if (resRateLimit.ok) setRateLimit(await resRateLimit.json());
+      if (resRateLimit.ok) {
+        const rawRateLimit = await resRateLimit.json();
+        const normalizedRateLimit = normalizeRateLimitConfig(rawRateLimit);
+        setRateLimit(normalizedRateLimit);
+        setRateLimitBaseline(normalizedRateLimit);
+      }
 
       const resDisclaimers = await fetch(`${API_URL}/settings/disclaimers`);
       if (resDisclaimers.ok) setDisclaimers(await resDisclaimers.json());
@@ -158,6 +213,17 @@ const App = () => {
   }, [showNotification, secret]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (!hasUnsavedRateLimit) return;
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedRateLimit]);
 
   const activePalette = useMemo(() => {
     const safeDark = settings.dark || DEFAULT_SETTINGS.dark;
@@ -209,7 +275,10 @@ const App = () => {
       const resRot = await fetch(`${API_URL}/settings/rotation`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rotation) });
       const resRL = await fetch(`${API_URL}/settings/ratelimit`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(rateLimit) });
       const resDisc = await fetch(`${API_URL}/settings/disclaimers`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` }, body: JSON.stringify(disclaimers) });
-      if (resApp.ok && resRot.ok && resRL.ok && resDisc.ok) showNotification("Configurações salvas.", "success"); else throw new Error();
+      if (resApp.ok && resRot.ok && resRL.ok && resDisc.ok) {
+        setRateLimitBaseline(normalizeRateLimitConfig(rateLimit));
+        showNotification("Configurações salvas.", "success");
+      } else throw new Error();
     } catch { showNotification("Erro ao salvar configs.", "error"); } finally { setIsSaving(false); }
   };
 
@@ -336,7 +405,7 @@ const App = () => {
           ) : isFinancialOpen ? (
             <FinancialPanel onClose={() => { setIsFinancialOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} activePalette={activePalette} isDarkBase={isDarkBase} />
           ) : isSettingsOpen ? (
-            <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} rotation={rotation} setRotation={setRotation} disclaimers={disclaimers} setDisclaimers={setDisclaimers} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
+            <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} hasUnsavedRateLimit={hasUnsavedRateLimit} rotation={rotation} setRotation={setRotation} disclaimers={disclaimers} setDisclaimers={setDisclaimers} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
           ) : isEditorOpen ? (
             <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
           ) : (

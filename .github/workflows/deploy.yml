@@ -1,6 +1,6 @@
-# Módulo: .github/workflows/deploy.yml
-# Versão: v1.6.0
-# Descrição: Injeção de VITE_API_SECRET no ambiente de compilação do painel administrativo. Garante que o frontend seja forjado com a chave de autorização correta para comunicação com o Worker.
+# Módulo: .github/workflows/deploy-mainsite.yml
+# Versão: v1.7.0
+# Descrição: Deploy unificado sequencial do Worker, Admin e Frontend em um único job. Injeção de VITE_API_SECRET preservada.
 
 name: Deploy Pipeline Cloudflare
 
@@ -10,18 +10,21 @@ on:
       - main
 
 jobs:
-  deploy-worker:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do código
         uses: actions/checkout@v5
       
-      - name: Setup Node.js com Inteligência de Cache
+      - name: Setup Node.js com Inteligência de Cache (Monorepo)
         uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: './mainsite-worker/package-lock.json'
+          cache-dependency-path: |
+            ./mainsite-worker/package-lock.json
+            ./mainsite-admin/package-lock.json
+            ./mainsite-frontend/package-lock.json
           
       - name: Instalar e Publicar Worker
         working-directory: ./mainsite-worker
@@ -32,20 +35,6 @@ jobs:
           npm install
           npx wrangler deploy
 
-  deploy-admin:
-    runs-on: ubuntu-latest
-    needs: deploy-worker
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v5
-      
-      - name: Setup Node.js com Inteligência de Cache
-        uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: './mainsite-admin/package-lock.json'
-          
       - name: Instalar, Compilar e Publicar Admin
         working-directory: ./mainsite-admin
         # INJEÇÃO CRÍTICA DE SEGURANÇA: A senha é passada para a VM para que o Vite a encontre
@@ -58,20 +47,6 @@ jobs:
           npm run build
           npx wrangler pages deploy ./dist --project-name=mainsite-admin --branch production --commit-dirty=true
 
-  deploy-frontend:
-    runs-on: ubuntu-latest
-    needs: deploy-worker
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v5
-      
-      - name: Setup Node.js com Inteligência de Cache
-        uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: './mainsite-frontend/package-lock.json'
-          
       - name: Instalar, Compilar e Publicar Frontend
         working-directory: ./mainsite-frontend
         env:

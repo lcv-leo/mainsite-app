@@ -26,7 +26,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-  const showPanelToast = (message, type = 'info') => {
+  const showPanelToast = useCallback((message, type = 'info') => {
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
     const pointerY = lastPointerYRef.current;
     const baseY = pointerY != null ? pointerY : (viewportH * 0.5);
@@ -34,7 +34,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     setToastTop(nextTop);
     setPanelToast({ show: true, message, type });
     setTimeout(() => setPanelToast(prev => ({ ...prev, show: false })), 4000);
-  };
+  }, []);
 
   // Rastreia a última posição de interação do usuário no viewport,
   // para exibir o toast próximo à região em foco.
@@ -80,8 +80,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     if (paymentProvider === 'sumup') {
       syncSumupCheckouts();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentProvider]);
+  }, [paymentProvider, syncSumupCheckouts]);
 
   useEffect(() => {
     const intervalId = setInterval(() => fetchFinanceData(false), 600000);
@@ -107,7 +106,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     };
     const pingId = setInterval(checkWebhook, 15000);
     return () => clearInterval(pingId);
-  }, [API_URL, secret, logCount, fetchFinanceData, paymentProvider]);
+  }, [API_URL, secret, logCount, fetchFinanceData, paymentProvider, showPanelToast]);
 
   const executeAction = async () => {
     const { id, dbId } = activeTx;
@@ -153,7 +152,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     }
   };
 
-  const syncSumupCheckouts = async () => {
+  const syncSumupCheckouts = useCallback(async () => {
     setIsSyncing(true);
     try {
       const res = await fetch(`${API_URL}/sumup/sync`, {
@@ -169,7 +168,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [API_URL, secret, fetchFinanceData, showPanelToast]);
 
   const closeAndResetModal = () => {
     setModalType(null);

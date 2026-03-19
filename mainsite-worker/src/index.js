@@ -42,48 +42,95 @@ const ipCache = new Map();
 let cachedRlConfig = null;
 let rlConfigLastFetched = 0;
 
-const rateLimiterMiddleware = async (c, next) => {
+const DEFAULT_RATE_LIMIT = {
+  chatbot: { enabled: false, maxRequests: 5, windowMinutes: 1 },
+  email: { enabled: false, maxRequests: 3, windowMinutes: 15 }
+};
+
+const normalizeRateLimitConfig = (raw) => {
+  if (!raw || typeof raw !== 'object') return DEFAULT_RATE_LIMIT;
+
+  // Retrocompatibilidade com configuração legada { enabled, maxRequests, windowMinutes }
+  if ('enabled' in raw || 'maxRequests' in raw || 'windowMinutes' in raw) {
+    return {
+      chatbot: {
+        enabled: Boolean(raw.enabled),
+        maxRequests: Math.max(1, Number(raw.maxRequests) || DEFAULT_RATE_LIMIT.chatbot.maxRequests),
+        windowMinutes: Math.max(1, Number(raw.windowMinutes) || DEFAULT_RATE_LIMIT.chatbot.windowMinutes)
+      },
+      email: { ...DEFAULT_RATE_LIMIT.email }
+    };
+  }
+
+  const normalizeBucket = (bucket, fallback) => ({
+    enabled: Boolean(bucket?.enabled),
+    maxRequests: Math.max(1, Number(bucket?.maxRequests) || fallback.maxRequests),
+    windowMinutes: Math.max(1, Number(bucket?.windowMinutes) || fallback.windowMinutes)
+  });
+
+  return {
+    chatbot: normalizeBucket(raw.chatbot, DEFAULT_RATE_LIMIT.chatbot),
+    email: normalizeBucket(raw.email, DEFAULT_RATE_LIMIT.email)
+  };
+};
+
+const getRateLimitConfig = async (c) => {
   const now = Date.now();
   if (!cachedRlConfig || now - rlConfigLastFetched > 60000) {
     try {
       const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'ratelimit'").first();
-      cachedRlConfig = record ? JSON.parse(record.payload) : { enabled: false, maxRequests: 5, windowMinutes: 1 };
+      const parsed = record ? JSON.parse(record.payload) : DEFAULT_RATE_LIMIT;
+      cachedRlConfig = normalizeRateLimitConfig(parsed);
       rlConfigLastFetched = now;
-    } catch (e) {
-      cachedRlConfig = { enabled: false };
+    } catch {
+      cachedRlConfig = DEFAULT_RATE_LIMIT;
     }
   }
+  return cachedRlConfig;
+};
 
-  if (!cachedRlConfig.enabled) return next();
+const createRateLimiterMiddleware = (bucketName) => async (c, next) => {
+  const now = Date.now();
+  const config = await getRateLimitConfig(c);
+  const bucket = config[bucketName] || DEFAULT_RATE_LIMIT[bucketName];
+  if (!bucket?.enabled) return next();
 
   const ip = c.req.header('cf-connecting-ip') || 'unknown';
-  const windowMs = (cachedRlConfig.windowMinutes || 1) * 60000;
-  const maxReq = cachedRlConfig.maxRequests || 5;
+  const key = `${bucketName}:${ip}`;
+  const windowMs = (bucket.windowMinutes || 1) * 60000;
+  const maxReq = bucket.maxRequests || 5;
 
-  if (!ipCache.has(ip)) {
-    ipCache.set(ip, { count: 1, firstRequest: now });
+  if (!ipCache.has(key)) {
+    ipCache.set(key, { count: 1, firstRequest: now });
   } else {
-    const data = ipCache.get(ip);
+    const data = ipCache.get(key);
     if (now - data.firstRequest > windowMs) {
-      ipCache.set(ip, { count: 1, firstRequest: now });
+      ipCache.set(key, { count: 1, firstRequest: now });
     } else {
       data.count++;
       if (data.count > maxReq) {
-        return c.json({ error: "Limite de requisições de IA excedido. Aguarde alguns instantes." }, 429);
+        const errMsg = bucketName === 'email'
+          ? 'Limite de envios de e-mail excedido. Aguarde alguns instantes.'
+          : 'Limite de requisições de IA excedido. Aguarde alguns instantes.';
+        return c.json({ error: errMsg }, 429);
       }
     }
   }
 
   // Limpeza probabilística do cache de IPs
   if (Math.random() < 0.05) {
-    for (const [key, value] of ipCache.entries()) {
-      if (now - value.firstRequest > windowMs) ipCache.delete(key);
+    for (const [cacheKey, value] of ipCache.entries()) {
+      if (!cacheKey.startsWith(`${bucketName}:`)) continue;
+      if (now - value.firstRequest > windowMs) ipCache.delete(cacheKey);
     }
   }
   await next();
 };
 
-app.use('/api/ai/public/*', rateLimiterMiddleware);
+app.use('/api/ai/public/*', createRateLimiterMiddleware('chatbot'));
+app.use('/api/share/email', createRateLimiterMiddleware('email'));
+app.use('/api/contact', createRateLimiterMiddleware('email'));
+app.use('/api/comment', createRateLimiterMiddleware('email'));
 
 // --- ROTAS DA INTELIGÊNCIA ARTIFICIAL (GEMINI) ---
 
@@ -1075,8 +1122,8 @@ app.get('/api/settings/ratelimit', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'ratelimit'").first();
-    if (record) return c.json(JSON.parse(record.payload));
-    return c.json({ enabled: false, maxRequests: 5, windowMinutes: 1 });
+    if (record) return c.json(normalizeRateLimitConfig(JSON.parse(record.payload)));
+    return c.json(DEFAULT_RATE_LIMIT);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 

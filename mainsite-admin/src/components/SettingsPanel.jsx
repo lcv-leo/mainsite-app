@@ -8,12 +8,26 @@ import { X, Save, Image as ImageIcon, Loader2, Activity, CheckCircle, ArrowLeft,
 const SettingsPanel = ({
   settings, setSettings,
   rateLimit, setRateLimit,
+  hasUnsavedRateLimit,
   rotation, setRotation,
   disclaimers, setDisclaimers,
   isSaving, onSave, onClose,
   triggerBgUpload, isUploadingBg, uploadTarget,
   styles
 }) => {
+
+  const defaultRateLimit = {
+    chatbot: { enabled: false, maxRequests: 5, windowMinutes: 1 },
+    email: { enabled: false, maxRequests: 3, windowMinutes: 15 }
+  };
+
+  const restoreRateLimitSection = (key) => {
+    setRateLimit({ ...rateLimit, [key]: { ...defaultRateLimit[key] } });
+  };
+
+  const restoreAllRateLimit = () => {
+    setRateLimit({ ...defaultRateLimit });
+  };
 
   const glassBlock = {
     padding: 'var(--spacing-xl)',
@@ -46,25 +60,102 @@ const SettingsPanel = ({
       </button>
 
       <form onSubmit={onSave} style={styles.form}>
-        <h2 style={{ ...sectionTitle, color: 'var(--semantic-error)', borderColor: 'var(--semantic-error-border)' }}>
-          <ShieldAlert size={20} /> Segurança e Custos (Limitação de API)
-        </h2>
-        <div style={{ ...glassBlock, border: '1px solid var(--semantic-error-border)', background: 'var(--semantic-error-soft)' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', color: 'var(--semantic-error)' }}>
-            <input type="checkbox" checked={rateLimit.enabled} onChange={e => setRateLimit({ ...rateLimit, enabled: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
-            Habilitar Escudo contra Robôs / Abusos (Rate Limiting)
-          </label>
-          <p style={{ fontSize: '12px', color: 'var(--semantic-error)', opacity: 0.8, margin: 0, lineHeight: '1.6' }}>* Quando ativado, bloqueia temporariamente visitantes (por IP) que dispararem requisições excessivas (Chat, Resumo, Tradução) à Inteligência Artificial.</p>
-          <div style={{ display: 'flex', gap: '20px', marginTop: '10px', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--semantic-error)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              Máximo de Requisições por IP:
-              <input type="number" min="1" value={rateLimit.maxRequests} onChange={e => setRateLimit({ ...rateLimit, maxRequests: parseInt(e.target.value) || 5 })} style={{ ...styles.textInput, width: '160px' }} disabled={!rateLimit.enabled} />
-            </label>
-            <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--semantic-error)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              Na Janela de Tempo (Minutos):
-              <input type="number" min="1" value={rateLimit.windowMinutes} onChange={e => setRateLimit({ ...rateLimit, windowMinutes: parseInt(e.target.value) || 1 })} style={{ ...styles.textInput, width: '160px' }} disabled={!rateLimit.enabled} />
-            </label>
-          </div>
+        <div style={{ ...sectionTitle, color: 'var(--semantic-error)', borderColor: 'var(--semantic-error-border)', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}><ShieldAlert size={20} /> Segurança e Custos (Limitação de API)</span>
+          {hasUnsavedRateLimit && (
+            <span style={{ border: '1px solid #facc15', background: '#fef9c3', color: '#a16207', borderRadius: '999px', padding: '6px 12px', fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              Alterações não salvas
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={restoreAllRateLimit}
+            style={{ border: '1px solid var(--semantic-error-border)', background: 'rgba(255,255,255,0.65)', color: 'var(--semantic-error)', borderRadius: '999px', padding: '8px 14px', fontSize: '11px', fontWeight: '800', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.4px' }}
+            title="Restaurar padrões para todos os blocos"
+          >
+            Restaurar padrão (todas)
+          </button>
+        </div>
+        <div style={{ ...glassBlock, border: '1px solid var(--semantic-error-border)', background: 'var(--semantic-error-soft)', gap: '14px' }}>
+          {[{
+            key: 'chatbot',
+            title: 'Uso do Chatbot (IA Pública)',
+            help: '* Quando ativado, limita o consumo por IP nas rotas públicas de IA (chat, resumo e tradução).'
+          }, {
+            key: 'email',
+            title: 'Envio de E-mails',
+            help: '* Quando ativado, limita por IP os disparos de e-mail no site (contato, comentário e compartilhamento por e-mail).'
+          }].map((section) => {
+            const cfg = rateLimit[section.key] || { enabled: false, maxRequests: 5, windowMinutes: 1 };
+            return (
+              <div key={section.key} style={{ border: '1px solid var(--semantic-error-border)', borderRadius: '20px', padding: '16px', background: 'rgba(255,255,255,0.35)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', color: 'var(--semantic-error)' }}>
+                    <input
+                      type="checkbox"
+                      checked={cfg.enabled}
+                      onChange={e => setRateLimit({
+                        ...rateLimit,
+                        [section.key]: { ...cfg, enabled: e.target.checked }
+                      })}
+                      style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                    />
+                    Habilitar Escudo ({section.title})
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => restoreRateLimitSection(section.key)}
+                    style={{ border: '1px solid var(--semantic-error-border)', background: '#fff', color: 'var(--semantic-error)', borderRadius: '999px', padding: '7px 12px', fontSize: '10px', fontWeight: '800', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.4px' }}
+                    title={`Restaurar padrão para ${section.title}`}
+                  >
+                    Restaurar padrão
+                  </button>
+                </div>
+
+                <p style={{ fontSize: '12px', color: 'var(--semantic-error)', opacity: 0.8, margin: 0, lineHeight: '1.6' }}>{section.help}</p>
+
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-start', background: 'rgba(255,255,255,0.65)', border: '1px solid var(--semantic-error-border)', borderRadius: '999px', padding: '6px 12px', fontSize: '11px', fontWeight: '800', color: 'var(--semantic-error)', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '999px', background: cfg.enabled ? '#22c55e' : '#94a3b8' }} />
+                  {cfg.enabled ? 'Ativo' : 'Inativo'} • {cfg.maxRequests} req / {cfg.windowMinutes} min
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--semantic-error)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    Máximo de Requisições por IP:
+                    <input
+                      type="number"
+                      min="1"
+                      value={cfg.maxRequests}
+                      onChange={e => setRateLimit({
+                        ...rateLimit,
+                        [section.key]: { ...cfg, maxRequests: parseInt(e.target.value, 10) || 1 }
+                      })}
+                      style={{ ...styles.textInput, width: '100%' }}
+                      disabled={!cfg.enabled}
+                      title={`Máximo de requisições por IP - ${section.title}`}
+                    />
+                  </label>
+
+                  <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--semantic-error)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    Na Janela de Tempo (Minutos):
+                    <input
+                      type="number"
+                      min="1"
+                      value={cfg.windowMinutes}
+                      onChange={e => setRateLimit({
+                        ...rateLimit,
+                        [section.key]: { ...cfg, windowMinutes: parseInt(e.target.value, 10) || 1 }
+                      })}
+                      style={{ ...styles.textInput, width: '100%' }}
+                      disabled={!cfg.enabled}
+                      title={`Janela de tempo em minutos - ${section.title}`}
+                    />
+                  </label>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <h2 style={sectionTitle}>Engenharia de Automação</h2>
