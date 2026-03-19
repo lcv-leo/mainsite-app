@@ -2,7 +2,7 @@
 // Versão: v1.9.2
 // Descrição: Resolução do TypeError letal ('reading payer' of undefined) no onSubmit. O CardPayment do SDK do Mercado Pago envia o formData diretamente como argumento (diferente do Payment genérico). Assinatura ajustada para evitar undefined e garantir a injeção do first_name e last_name.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone, AlertTriangle } from 'lucide-react';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 
@@ -14,6 +14,8 @@ if (mpPublicKey) {
 const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [step, setStep] = useState(1);
+  const [brickKey, setBrickKey] = useState(0);
+  const visibilityTimeoutRef = useRef(null);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -29,8 +31,13 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   };
 
   useEffect(() => {
+    if (visibilityTimeoutRef.current) {
+      clearTimeout(visibilityTimeoutRef.current);
+      visibilityTimeoutRef.current = null;
+    }
+
     if (show) {
-      setTimeout(() => {
+      visibilityTimeoutRef.current = setTimeout(() => {
         setIsVisible(true);
         setStep(1);
         setAmountDisplay('');
@@ -39,8 +46,18 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         setIsCopied(false);
       }, 0);
     } else {
-      setTimeout(() => setIsVisible(false), 400);
+      setTimeout(() => setStep(1), 0);
+      visibilityTimeoutRef.current = setTimeout(() => {
+        setIsVisible(false);
+      }, 400);
     }
+
+    return () => {
+      if (visibilityTimeoutRef.current) {
+        clearTimeout(visibilityTimeoutRef.current);
+        visibilityTimeoutRef.current = null;
+      }
+    };
   }, [show]);
 
   if (!isVisible && !show) return null;
@@ -127,6 +144,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       showToast("Chave pública do Mercado Pago não configurada. Defina VITE_MERCADOPAGO_PUBLIC_KEY.", "error");
       return;
     }
+    setBrickKey(prev => prev + 1);
     setStep(4);
   };
 
@@ -182,7 +200,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       </div>
 
       <div style={modalStyle}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.6 }} onMouseOver={(e) => e.currentTarget.style.opacity = 1} onMouseOut={(e) => e.currentTarget.style.opacity = 0.6}>
+        <button onClick={() => { setStep(1); onClose(); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.6 }} onMouseOver={(e) => e.currentTarget.style.opacity = 1} onMouseOut={(e) => e.currentTarget.style.opacity = 0.6}>
           <X size={24} />
         </button>
 
@@ -255,7 +273,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <p style={{ fontSize: '15px', opacity: 0.8, lineHeight: '1.6', marginBottom: '30px' }}>
               Sua contribuição aquece os servidores e incentiva a continuidade destas divagações. Agradeço imensamente pelo apoio ao meu trabalho.
             </p>
-            <button type="button" onClick={onClose} style={buttonStyle}>Fechar</button>
+            <button type="button" onClick={() => { setStep(1); onClose(); }} style={buttonStyle}>Fechar</button>
           </div>
         )}
 
@@ -270,7 +288,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               </div>
             ) : (
             <CardPayment
-              key="mp-card-brick"
+              key={`mp-card-brick-${brickKey}`}
               initialization={{ amount: getNumericAmount() }}
               customization={{ visual: { style: { theme: isDarkBase ? 'dark' : 'default' } } }}
 
