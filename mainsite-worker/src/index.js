@@ -694,7 +694,7 @@ app.post('/api/webhooks/mercadopago', async (c) => {
 app.get('/api/financial-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const { results } = await c.env.DB.prepare("SELECT * FROM financial_logs ORDER BY created_at DESC LIMIT 100").all();
+    const { results } = await c.env.DB.prepare("SELECT * FROM financial_logs WHERE method IS NULL OR method != 'sumup_card' ORDER BY created_at DESC LIMIT 100").all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -702,7 +702,7 @@ app.get('/api/financial-logs', async (c) => {
 app.get('/api/financial-logs/check', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM financial_logs").first();
+    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM financial_logs WHERE method IS NULL OR method != 'sumup_card'").first();
     return c.json({ count: result.total });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -711,7 +711,98 @@ app.delete('/api/financial-logs/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   const id = c.req.param('id');
   try {
-    await c.env.DB.prepare("DELETE FROM financial_logs WHERE id = ?").bind(id).run();
+    await c.env.DB.prepare("DELETE FROM financial_logs WHERE id = ? AND (method IS NULL OR method != 'sumup_card')").bind(id).run();
+    return c.json({ success: true });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+// --- ROTAS ADMINISTRATIVAS SUMUP (PAINEL FINANCEIRO) ---
+
+app.get('/api/sumup-financial-logs', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const { results } = await c.env.DB.prepare("SELECT * FROM financial_logs WHERE method = 'sumup_card' ORDER BY created_at DESC LIMIT 100").all();
+    return c.json(results || []);
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.get('/api/sumup-financial-logs/check', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM financial_logs WHERE method = 'sumup_card'").first();
+    return c.json({ count: result.total });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.delete('/api/sumup-financial-logs/:id', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare("DELETE FROM financial_logs WHERE id = ? AND method = 'sumup_card'").bind(id).run();
+    return c.json({ success: true });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.get('/api/sumup-balance', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    const available = await c.env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE method = 'sumup_card' AND (LOWER(status) IN ('paid', 'successful', 'approved'))").first();
+    const unavailable = await c.env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE method = 'sumup_card' AND (LOWER(status) IN ('pending', 'in_process', 'processing'))").first();
+    return c.json({
+      available_balance: Number(available?.total || 0),
+      unavailable_balance: Number(unavailable?.total || 0),
+    });
+  } catch (err) {
+    return c.json({ available_balance: 0, unavailable_balance: 0 });
+  }
+});
+
+app.post('/api/sumup-payment/:id/refund', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  const id = c.req.param('id');
+  try {
+    const token = c.env.SUMUP_API_KEY_PRIVATE;
+    if (!token) throw new Error("SUMUP_API_KEY_PRIVATE ausente.");
+
+    let amount = null;
+    try {
+      const body = await c.req.json();
+      if (body?.amount) amount = Number(body.amount);
+    } catch { }
+
+    const response = await fetch(`https://api.sumup.com/v0.1/me/refunds`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transaction_id: id, amount: amount || undefined, currency: 'BRL' }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) return c.json({ error: data.message || 'Falha ao processar estorno SumUp.' }, 502);
+
+    const newStatus = amount ? 'partially_refunded' : 'refunded';
+    await c.env.DB.prepare("UPDATE financial_logs SET status = ? WHERE payment_id = ? AND method = 'sumup_card'").bind(newStatus, id).run();
+    return c.json({ success: true, status: newStatus });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.put('/api/sumup-payment/:id/cancel', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  const id = c.req.param('id');
+  try {
+    const token = c.env.SUMUP_API_KEY_PRIVATE;
+    if (!token) throw new Error("SUMUP_API_KEY_PRIVATE ausente.");
+
+    const response = await fetch(`https://api.sumup.com/v0.1/checkouts/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      return c.json({ error: data.message || 'Falha ao cancelar pagamento SumUp.' }, 502);
+    }
+
+    await c.env.DB.prepare("UPDATE financial_logs SET status = 'cancelled' WHERE payment_id = ? AND method = 'sumup_card'").bind(id).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
