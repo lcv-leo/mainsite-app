@@ -19,6 +19,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
   const [panelToast, setPanelToast] = useState({ show: false, message: '', type: 'info' });
   const [logCount, setLogCount] = useState(0);
   const [paymentProvider, setPaymentProvider] = useState('mercadopago');
+  const [expandedRow, setExpandedRow] = useState(null);
 
   const showPanelToast = (message, type = 'info') => {
     setPanelToast({ show: true, message, type });
@@ -128,6 +129,50 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     setRefundAmount('');
   };
 
+  // Extrai campos relevantes do raw_payload da SumUp
+  const parseSumupPayload = (rawPayload) => {
+    if (!rawPayload) return {};
+    try {
+      const p = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload;
+      const tx = p.transactions?.[0] || {};
+      return {
+        checkoutStatus: p.status,
+        checkoutRef: p.checkout_reference,
+        transactionCode: tx.transaction_code || p.transaction_code || '—',
+        transactionUUID: tx.id || '—',
+        paymentType: tx.payment_type || '—',
+        authCode: tx.auth_code || '—',
+        entryMode: tx.entry_mode || '—',
+        currency: tx.currency || p.currency || 'BRL',
+        txTimestamp: tx.timestamp,
+        internalId: tx.internal_id || '—',
+        txStatus: tx.status || '—',
+      };
+    } catch { return {}; }
+  };
+
+  // Config de status para todos os estados SumUp conhecidos
+  const getSumupStatusConfig = (status) => {
+    const s = (status || '').toLowerCase();
+    if (['paid', 'successful', 'approved'].includes(s))
+      return { color: '#10b981', bg: 'rgba(16,185,129,0.15)', label: status.toUpperCase(), canRefund: true, canCancel: false };
+    if (['pending', 'in_process', 'processing'].includes(s))
+      return { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', label: status.toUpperCase(), canRefund: false, canCancel: true };
+    if (['failed', 'failure'].includes(s))
+      return { color: '#ef4444', bg: 'rgba(239,68,68,0.15)', label: 'FALHOU', canRefund: false, canCancel: false };
+    if (s === 'expired')
+      return { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', label: 'EXPIRADO', canRefund: false, canCancel: false };
+    if (s === 'refunded')
+      return { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', label: 'ESTORNADO', canRefund: false, canCancel: false };
+    if (s === 'partially_refunded')
+      return { color: '#a78bfa', bg: 'rgba(167,139,250,0.15)', label: 'EST. PARCIAL', canRefund: true, canCancel: false };
+    if (['cancelled', 'cancel', 'canceled'].includes(s))
+      return { color: '#f97316', bg: 'rgba(249,115,22,0.15)', label: 'CANCELADO', canRefund: false, canCancel: false };
+    if (s.includes('chargeback') || s.includes('charge_back'))
+      return { color: '#dc2626', bg: 'rgba(220,38,38,0.15)', label: 'CHARGEBACK', canRefund: false, canCancel: false };
+    return { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', label: status?.toUpperCase() || '?', canRefund: false, canCancel: false };
+  };
+
   // Glassmorphism local styles
   const glassCard = { background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, borderRadius: '24px', padding: '30px', marginBottom: '24px', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' };
   const actionBtnStyle = (colorBase) => ({ background: isDarkBase ? `rgba(${colorBase}, 0.15)` : `rgba(${colorBase}, 0.1)`, color: `rgb(${colorBase})`, border: `1px solid rgba(${colorBase}, 0.3)`, borderRadius: '12px', padding: '8px 12px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', boxShadow: `0 4px 12px rgba(${colorBase}, 0.15)` });
@@ -219,6 +264,26 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
           </button>
         </div>
 
+        {/* Legenda de status para SumUp */}
+        {paymentProvider === 'sumup' && !loading && logs.length > 0 && (() => {
+          const counts = {};
+          logs.forEach(log => {
+            const cfg = getSumupStatusConfig(log.status);
+            counts[cfg.label] = (counts[cfg.label] || { color: cfg.color, bg: cfg.bg, n: 0, sum: 0 });
+            counts[cfg.label].n++;
+            counts[cfg.label].sum += Number(log.amount || 0);
+          });
+          return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
+              {Object.entries(counts).map(([label, { color, bg, n, sum }]) => (
+                <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: bg, color, border: `1px solid ${color}40` }}>
+                  {label} <span style={{ opacity: 0.75 }}>× {n}</span> <span style={{ opacity: 0.6 }}>R$ {sum.toFixed(2)}</span>
+                </span>
+              ))}
+            </div>
+          );
+        })()}
+
         {loading ? (<div style={{ display: 'flex', justifyContent: 'center', padding: '30px' }}><Loader2 className="animate-spin" size={24} /></div>
         ) : logs.length === 0 ? (<p style={{ fontSize: '13px', opacity: 0.6, textAlign: 'center' }}>Nenhum log financeiro registrado ainda.</p>
         ) : (
@@ -226,53 +291,134 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` }}>
-                  <th style={{ padding: '12px' }}>Data</th><th style={{ padding: '12px' }}>ID Transação</th><th style={{ padding: '12px' }}>Status</th><th style={{ padding: '12px' }}>Valor (R$)</th><th style={{ padding: '12px' }}>E-mail / Ações</th>
+                  <th style={{ padding: '12px' }}>Data</th>
+                  <th style={{ padding: '12px' }}>ID</th>
+                  {paymentProvider === 'sumup' && <th style={{ padding: '12px' }}>Código TX</th>}
+                  {paymentProvider === 'sumup' && <th style={{ padding: '12px' }}>Tipo</th>}
+                  <th style={{ padding: '12px' }}>Status</th>
+                  <th style={{ padding: '12px' }}>Valor (R$)</th>
+                  <th style={{ padding: '12px' }}>E-mail / Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map(log => {
-                  const statusLower = (log.status || '').toLowerCase();
                   const txId = log.payment_id || log.id;
                   const amount = Number(log.amount || 0);
-                  const isPending = ['pending', 'in_process', 'processing'].includes(statusLower);
-                  const isApproved = ['approved', 'successful', 'paid'].includes(statusLower);
-                  const isRefunded = statusLower.includes('refund');
+                  const isExpanded = expandedRow === log.id;
 
-                  const statusBg = isApproved ? 'rgba(16, 185, 129, 0.2)' : (isRefunded ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)');
-                  const statusColor = isApproved ? '#10b981' : (isRefunded ? '#ef4444' : '#f59e0b');
+                  // SumUp: usa config completa; MP: compatibilidade
+                  let statusCfg, isApproved, isPending;
+                  if (paymentProvider === 'sumup') {
+                    statusCfg = getSumupStatusConfig(log.status);
+                    isApproved = statusCfg.canRefund;
+                    isPending = statusCfg.canCancel;
+                  } else {
+                    const sl = (log.status || '').toLowerCase();
+                    isApproved = ['approved', 'successful', 'paid'].includes(sl);
+                    isPending = ['pending', 'in_process', 'processing'].includes(sl);
+                    const isRefunded = sl.includes('refund');
+                    statusCfg = {
+                      color: isApproved ? '#10b981' : (isRefunded ? '#ef4444' : '#f59e0b'),
+                      bg: isApproved ? 'rgba(16,185,129,0.2)' : (isRefunded ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)'),
+                      label: (log.status || '').toUpperCase(),
+                    };
+                  }
+
+                  const sumupInfo = paymentProvider === 'sumup' ? parseSumupPayload(log.raw_payload) : {};
 
                   return (
-                    <tr key={log.id} style={{ borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                    <React.Fragment key={log.id}>
+                      <tr
+                        style={{ borderBottom: isExpanded ? 'none' : `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, cursor: paymentProvider === 'sumup' ? 'pointer' : 'default', background: isExpanded ? (isDarkBase ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent' }}
+                        onClick={paymentProvider === 'sumup' ? () => setExpandedRow(isExpanded ? null : log.id) : undefined}
+                      >
+                        <td style={{ padding: '12px', opacity: 0.8, whiteSpace: 'nowrap' }}>
+                          {new Date(log.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                        </td>
+                        <td style={{ padding: '12px', fontFamily: 'monospace', fontSize: '11px', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={txId}>
+                          {txId}
+                        </td>
+                        {paymentProvider === 'sumup' && (
+                          <td style={{ padding: '12px', fontFamily: 'monospace', fontWeight: 'bold', color: activePalette.titleColor }}>
+                            {sumupInfo.transactionCode}
+                          </td>
+                        )}
+                        {paymentProvider === 'sumup' && (
+                          <td style={{ padding: '12px', fontSize: '11px', opacity: 0.8 }}>
+                            {sumupInfo.paymentType}
+                          </td>
+                        )}
+                        <td style={{ padding: '12px' }}>
+                          <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: statusCfg.bg, color: statusCfg.color, whiteSpace: 'nowrap' }}>
+                            {statusCfg.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                          {amount.toFixed(2)}
+                        </td>
+                        <td style={{ padding: '12px' }} onClick={e => e.stopPropagation()}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                            <span style={{ opacity: 0.7, fontSize: '12px' }}>{log.payer_email !== 'N/A' ? log.payer_email : '—'}</span>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              {isApproved && (
+                                <button onClick={() => { setActiveTx({ id: txId, dbId: log.id, amount }); setModalType('refund'); }} disabled={processingId === txId} style={actionBtnStyle('245, 158, 11')} title={paymentProvider === 'sumup' ? 'Pode levar até 24h para estar disponível após a liquidação' : ''}>
+                                  <RotateCcw size={14} /> Estornar
+                                </button>
+                              )}
+                              {isPending && (
+                                <button onClick={() => { setActiveTx({ id: txId, dbId: log.id, amount }); setModalType('cancel'); }} disabled={processingId === txId} style={actionBtnStyle('239, 68, 68')}>
+                                  <Ban size={14} /> Cancelar
+                                </button>
+                              )}
+                              <button onClick={() => { setActiveTx({ id: txId, dbId: log.id, amount }); setModalType('delete'); }} disabled={processingId === txId} style={actionBtnStyle('179, 0, 0')} title="Excluir registro">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
 
-                      <td style={{ padding: '12px', opacity: 0.8 }}>
-                        {new Date(log.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-                      </td>
-
-                      <td style={{ padding: '12px', fontFamily: 'monospace' }}>{txId}</td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: statusBg, color: statusColor }}>
-                          {log.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', fontWeight: 'bold' }}>{amount.toFixed(2)}</td>
-                      <td style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                        <span style={{ opacity: 0.8 }}>{log.payer_email}</span>
-
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          {isApproved && (<button onClick={() => { setActiveTx({ id: txId, dbId: log.id, amount }); setModalType('refund'); }} disabled={processingId === txId} style={actionBtnStyle('245, 158, 11')}> <RotateCcw size={14} /> Estornar</button>)}
-                          {isPending && (<button onClick={() => { setActiveTx({ id: txId, dbId: log.id, amount }); setModalType('cancel'); }} disabled={processingId === txId} style={actionBtnStyle('239, 68, 68')}> <Ban size={14} /> Cancelar</button>)}
-
-                          {/* Blood Red Trash Icon (#b30000) */}
-                          <button onClick={() => { setActiveTx({ id: txId, dbId: log.id, amount }); setModalType('delete'); }} disabled={processingId === txId} style={actionBtnStyle('179, 0, 0')} title="Excluir este registro">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
+                      {/* Painel de detalhes expansível (apenas SumUp) */}
+                      {paymentProvider === 'sumup' && isExpanded && (
+                        <tr>
+                          <td colSpan={7} style={{ padding: '0', borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                            <div style={{ padding: '16px 20px', background: isDarkBase ? 'rgba(79,70,229,0.08)' : 'rgba(79,70,229,0.04)', borderLeft: '3px solid #4f46e5', margin: '0 12px 12px 12px', borderRadius: '0 8px 8px 0', fontSize: '12px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                                {[
+                                  ['Checkout UUID', txId],
+                                  ['Transação UUID', sumupInfo.transactionUUID],
+                                  ['Código TX', sumupInfo.transactionCode],
+                                  ['Auth Code', sumupInfo.authCode],
+                                  ['Tipo de Pagamento', sumupInfo.paymentType],
+                                  ['Entry Mode', sumupInfo.entryMode],
+                                  ['Status Checkout', sumupInfo.checkoutStatus],
+                                  ['Status Transação', sumupInfo.txStatus],
+                                  ['Moeda', sumupInfo.currency],
+                                  ['ID Interno', String(sumupInfo.internalId)],
+                                  ['Checkout Ref', sumupInfo.checkoutRef],
+                                  ['Data TX (UTC)', sumupInfo.txTimestamp ? new Date(sumupInfo.txTimestamp).toLocaleString('pt-BR') : '—'],
+                                ].map(([label, value]) => (
+                                  <div key={label}>
+                                    <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.5px', marginBottom: '2px' }}>{label}</div>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: '600', wordBreak: 'break-all', color: activePalette.titleColor }}>{value || '—'}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              {statusCfg.canRefund && (
+                                <div style={{ marginTop: '12px', padding: '8px 12px', borderRadius: '6px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <AlertCircle size={13} /> Estornos SumUp só ficam disponíveis após a liquidação da transação (geralmente em até 24h).
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
                 })}
               </tbody>
             </table>
+            {paymentProvider === 'sumup' && <p style={{ fontSize: '11px', opacity: 0.45, textAlign: 'center', marginTop: '12px' }}>Clique em uma linha para ver os detalhes completos da transação.</p>}
           </div>
         )}
       </div>
