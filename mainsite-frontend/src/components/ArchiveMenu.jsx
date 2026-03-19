@@ -64,7 +64,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
             placeholder="BUSCA EXATA POR PALAVRAS-CHAVE..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ background: 'none', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: '13px', width: '100%', outline: 'none', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700' }}
+            style={{ background: 'none', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: '13px', width: '100%', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700' }}
           />
         </div>
 

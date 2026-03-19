@@ -127,7 +127,6 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     borderRadius: '100px',
     color: activePalette.fontColor,
     fontSize: '14px',
-    outline: 'none',
     boxSizing: 'border-box'
   };
 

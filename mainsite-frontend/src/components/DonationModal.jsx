@@ -322,7 +322,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
     border: '1px solid rgba(128, 128, 128, 0.2)',
     borderRadius: 'var(--shape-md)', color: activePalette.fontColor,
-    fontSize: '14px', outline: 'none', boxSizing: 'border-box'
+    fontSize: '14px', boxSizing: 'border-box'
   };
 
   return (

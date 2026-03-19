@@ -41,7 +41,7 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
         width: '100%', padding: '16px', marginBottom: '24px',
         backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
         border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: '16px', color: activePalette.fontColor,
-        fontSize: '15px', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box', textAlign: 'center'
+        fontSize: '15px', transition: 'border-color 0.2s', boxSizing: 'border-box', textAlign: 'center'
     };
 
     const buttonStyle = {

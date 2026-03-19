@@ -229,12 +229,12 @@ const App = () => {
 
   return (
     <div style={appStyle}>
-      <div style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : (isDarkBase ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor, padding: '16px 32px', borderRadius: '100px', zIndex: 11005, boxShadow: '0 12px 36px rgba(0,0,0,0.2)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: '700', fontSize: '14px' }}>
+      <div style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : (isDarkBase ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor, padding: '16px 32px', borderRadius: '100px', zIndex: 11005, boxShadow: '0 12px 36px rgba(0,0,0,0.2)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: '700', fontSize: '14px' }}>
         {toast.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle size={18} />} {toast.message}
       </div>
 
       <main style={containerStyle}>
-        {error ? (<div style={{ textAlign: 'center', color: '#ea4335', padding: '40px', fontWeight: 'bold' }}>{error}</div>) :
+        {error ? (<div style={{ textAlign: 'center', color: 'var(--semantic-error)', padding: '40px', fontWeight: 'bold' }}>{error}</div>) :
           currentPost ? (
             <PostReader
               post={currentPost}

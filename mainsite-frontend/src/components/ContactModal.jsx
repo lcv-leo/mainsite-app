@@ -62,7 +62,7 @@ const ContactModal = ({ show, onClose, onSubmit, activePalette, isSubmitting }) 
     width: '100%', padding: '14px 16px 14px 44px',
     backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
     border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: '16px', color: activePalette.fontColor,
-    fontSize: '14px', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box'
+    fontSize: '14px', transition: 'border-color 0.2s', boxSizing: 'border-box'
   };
 
   const iconStyle = { position: 'absolute', top: '15px', left: '16px', opacity: 0.5, color: activePalette.fontColor };

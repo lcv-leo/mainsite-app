@@ -36,7 +36,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   modalContent: { backgroundColor: isDarkBase ? 'rgba(24,24,28,0.9)' : 'rgba(255,255,255,0.88)', padding: '40px', borderRadius: '28px', border: `1px solid ${glassBorder}`, maxWidth: '420px', width: '90%', textAlign: 'center', boxShadow: '0 32px 64px -12px rgba(0,0,0,0.3)', color: activePalette.fontColor, backdropFilter: 'blur(20px)', textShadow: isDarkBase ? '0 1px 3px rgba(0,0,0,0.35)' : 'none' },
   modalText: { fontSize: '16px', fontWeight: '500', marginBottom: '30px', lineHeight: '1.6' },
   modalActions: { display: 'flex', gap: '16px', justifyContent: 'center' },
-  modalBtnConfirm: { backgroundColor: '#ea4335', color: '#fff', border: 'none', borderRadius: '100px', padding: '14px 28px', fontWeight: '700', cursor: 'pointer', flex: 1, transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(234, 67, 53, 0.3)' },
+  modalBtnConfirm: { backgroundColor: 'var(--semantic-error)', color: '#fff', border: 'none', borderRadius: '100px', padding: '14px 28px', fontWeight: '700', cursor: 'pointer', flex: 1, transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(211, 47, 47, 0.3)' },
   modalBtnCancel: { backgroundColor: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '100px', padding: '14px 28px', fontWeight: '700', cursor: 'pointer', flex: 1, transition: 'all 0.2s' },
   adminContainer: { maxWidth: '1000px', margin: '0 auto', backgroundColor: glassBg, backdropFilter: 'blur(24px) saturate(150%)', WebkitBackdropFilter: 'blur(24px) saturate(150%)', borderRadius: '32px', border: `1px solid ${glassBorder}`, padding: '40px', boxShadow: '0 24px 48px rgba(0,0,0,0.1)' },
   adminHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: `1px solid ${glassBorder}`, paddingBottom: '24px', flexWrap: 'wrap', gap: '15px' },
@@ -49,8 +49,8 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   settingsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)', padding: '24px', border: `1px solid ${glassBorder}`, borderRadius: '24px' },
   label: { display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px', fontWeight: '600', color: activePalette.fontColor },
   colorInput: { height: '44px', width: '100%', cursor: 'pointer', border: 'none', borderRadius: '12px', background: 'transparent' },
-  textInput: { padding: '16px', border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)', color: activePalette.fontColor, outline: 'none', fontSize: '14px', borderRadius: '16px', transition: 'border 0.2s, box-shadow 0.2s', backdropFilter: 'blur(8px)' },
-  adminInput: { border: 'none', borderBottom: `2px solid ${activePalette.titleColor}`, backgroundColor: 'transparent', color: activePalette.titleColor, padding: '15px 0', fontSize: '28px', fontWeight: '800', outline: 'none', marginBottom: '10px' },
+  textInput: { padding: '16px', border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)', color: activePalette.fontColor, fontSize: '14px', borderRadius: '16px', transition: 'border 0.2s, box-shadow 0.2s', backdropFilter: 'blur(8px)' },
+  adminInput: { border: 'none', borderBottom: `2px solid ${activePalette.titleColor}`, backgroundColor: 'transparent', color: activePalette.titleColor, padding: '15px 0', fontSize: '28px', fontWeight: '800', marginBottom: '10px' },
   editorContainer: { border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)', borderRadius: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', backdropFilter: 'blur(12px)' },
   toolbar: { display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '16px', borderBottom: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' },
   toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: activePalette.fontColor, border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '10px', width: '36px', height: '36px', transition: 'all 0.2s' },
@@ -66,7 +66,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   actions: { display: 'flex', gap: '10px' },
   actionBtnPin: { background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: `1px solid ${glassBorder}`, padding: '10px', cursor: 'pointer', color: activePalette.fontColor, borderRadius: '12px', transition: 'all 0.2s' },
   actionBtnEdit: { background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: `1px solid ${glassBorder}`, padding: '10px', cursor: 'pointer', color: activePalette.fontColor, borderRadius: '12px', transition: 'all 0.2s' },
-  actionBtnDelete: { background: 'rgba(234, 67, 53, 0.1)', border: '1px solid rgba(234, 67, 53, 0.2)', padding: '10px', cursor: 'pointer', color: '#ea4335', borderRadius: '12px', transition: 'all 0.2s' },
+  actionBtnDelete: { background: 'var(--semantic-error-soft)', border: '1px solid var(--semantic-error-border)', padding: '10px', cursor: 'pointer', color: 'var(--semantic-error)', borderRadius: '12px', transition: 'all 0.2s' },
   versionFooterAdmin: { marginTop: '40px', textAlign: 'center', fontSize: '13px', color: activePalette.fontColor, opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }
 });
 
@@ -295,7 +295,7 @@ const App = () => {
       {modal.show && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
-            <AlertCircle size={56} color="#ea4335" style={{ marginBottom: '24px' }} />
+            <AlertCircle size={56} color="var(--semantic-error)" style={{ marginBottom: '24px' }} />
             <p style={styles.modalText}>Deseja apagar permanentemente este registro?</p>
             <div style={styles.modalActions}>
               <button onClick={() => setModal({ show: false, id: null })} style={styles.modalBtnCancel}>CANCELAR</button>
