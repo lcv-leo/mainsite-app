@@ -1,13 +1,14 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.28.0
-// Descrição: Código INTEGRAL. Injeção crítica do parâmetro 'statement_descriptor' no payload do Mercado Pago. Correção obrigatória de Compliance para restaurar a nota 100/100 de qualidade, evitar contestações (Chargebacks) e impedir recusas automáticas pelos motores antifraude dos bancos emissores.
+// Versão: v1.30.0
+// Descrição: Código INTEGRAL do backend Hono. Atualizado com as 4 rotas de exclusão (DELETE) para os logs de auditoria (financeiro, contatos, shares e chat). Preservadas as integrações do Gemini, Resend e Mercado Pago (Zero Trust).
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { MercadoPagoConfig, Payment, PaymentRefund } from 'mercadopago';
 
+// Polyfill para Headers.raw() exigido por algumas dependências
 if (typeof Headers !== 'undefined' && !Headers.prototype.raw) {
-  Headers.prototype.raw = function() {
+  Headers.prototype.raw = function () {
     const raw = {};
     this.forEach((value, key) => { raw[key] = [value]; });
     return raw;
@@ -16,6 +17,7 @@ if (typeof Headers !== 'undefined' && !Headers.prototype.raw) {
 
 const app = new Hono();
 
+// Configuração estrita de CORS
 app.use('/api/*', cors({
   origin: (origin) => {
     if (!origin) return '*';
@@ -30,6 +32,7 @@ app.use('/api/*', cors({
   maxAge: 86400,
 }));
 
+// Middleware de Rate Limiting (Escudo contra abusos da IA)
 const ipCache = new Map();
 let cachedRlConfig = null;
 let rlConfigLastFetched = 0;
@@ -45,10 +48,13 @@ const rateLimiterMiddleware = async (c, next) => {
       cachedRlConfig = { enabled: false };
     }
   }
+
   if (!cachedRlConfig.enabled) return next();
+
   const ip = c.req.header('cf-connecting-ip') || 'unknown';
   const windowMs = (cachedRlConfig.windowMinutes || 1) * 60000;
   const maxReq = cachedRlConfig.maxRequests || 5;
+
   if (!ipCache.has(ip)) {
     ipCache.set(ip, { count: 1, firstRequest: now });
   } else {
@@ -62,6 +68,8 @@ const rateLimiterMiddleware = async (c, next) => {
       }
     }
   }
+
+  // Limpeza probabilística do cache de IPs
   if (Math.random() < 0.05) {
     for (const [key, value] of ipCache.entries()) {
       if (now - value.firstRequest > windowMs) ipCache.delete(key);
@@ -72,6 +80,8 @@ const rateLimiterMiddleware = async (c, next) => {
 
 app.use('/api/ai/public/*', rateLimiterMiddleware);
 
+// --- ROTAS DA INTELIGÊNCIA ARTIFICIAL (GEMINI) ---
+
 app.post('/api/ai/transform', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
@@ -81,7 +91,7 @@ app.post('/api/ai/transform', async (c) => {
     if (!text) throw new Error("Texto ausente.");
 
     let promptContext = "";
-    switch(action) {
+    switch (action) {
       case 'summarize': promptContext = "Resuma o seguinte texto de forma concisa e direta, mantendo a formatação e o idioma original:"; break;
       case 'expand': promptContext = "Expanda o seguinte texto, adicionando mais profundidade, contexto e detalhes técnicos, mantendo o idioma original:"; break;
       case 'grammar': promptContext = "Corrija os erros gramaticais e melhore a fluidez e coesão do seguinte texto, sem alterar seu significado central:"; break;
@@ -110,7 +120,7 @@ app.post('/api/ai/public/chat', async (c) => {
 
     let activeContextPrompt = "";
     const contextTitleLog = currentContext && currentContext.title ? currentContext.title : "Contexto Geral / Busca Global";
-    
+
     if (currentContext && currentContext.title) {
       activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${currentContext.title}\n[CONTEÚDO DO TEXTO NA TELA]: ${currentContext.content}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
     }
@@ -150,18 +160,20 @@ PERGUNTA DO USUÁRIO: ${message}`;
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }], generationConfig: { temperature: 0.3 } })
     });
+
     const data = await response.json();
     if (!response.ok) throw new Error("Falha na API Gemini.");
-    
+
     let replyText = data.candidates[0].content.parts[0].text;
 
+    // Tratativa da Tag de E-mail Oculto
     const emailRegex = /\[\[ENVIAR_EMAIL\]\](.*?)\[\[\/ENVIAR_EMAIL\]\]/is;
     const emailMatch = replyText.match(emailRegex);
 
     if (emailMatch) {
       const messageToSend = emailMatch[1].trim();
       const resendToken = c.env.RESEND_API_KEY;
-      
+
       if (resendToken) {
         const aiHtml = `
           <div style="font-family: sans-serif; color: #333;">
@@ -173,7 +185,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
             <p style="font-size: 11px; color: #666; margin-top: 20px;">Este e-mail foi disparado autonomamente pelo modelo Gemini 2.5 Pro a pedido do leitor.</p>
           </div>
         `;
-        
+
         c.executionCtx.waitUntil((async () => {
           try {
             await fetch('https://api.resend.com/emails', {
@@ -186,14 +198,13 @@ PERGUNTA DO USUÁRIO: ${message}`;
                 html: aiHtml
               })
             });
-          } catch (e) {
-            console.error("Falha no disparo do e-mail da IA:", e);
-          }
+          } catch (e) { console.error("Falha no disparo do e-mail da IA:", e); }
         })());
       }
       replyText = replyText.replace(emailRegex, '').trim();
     }
 
+    // Registro na Telemetria
     const logPromise = c.env.DB.batch([
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('user', ?, ?)").bind(message, contextTitleLog),
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('bot', ?, ?)").bind(replyText, contextTitleLog)
@@ -238,6 +249,8 @@ app.post('/api/ai/public/translate', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+// --- ROTAS DE TELEMETRIA E AUDITORIA (GET / DELETE) ---
+
 app.get('/api/chat-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
@@ -248,9 +261,8 @@ app.get('/api/chat-logs', async (c) => {
 
 app.delete('/api/chat-logs/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
-  const id = c.req.param('id');
   try {
-    await c.env.DB.prepare("DELETE FROM chat_logs WHERE id = ?").bind(id).run();
+    await c.env.DB.prepare("DELETE FROM chat_logs WHERE id = ?").bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -265,9 +277,8 @@ app.get('/api/contact-logs', async (c) => {
 
 app.delete('/api/contact-logs/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
-  const id = c.req.param('id');
   try {
-    await c.env.DB.prepare("DELETE FROM contact_logs WHERE id = ?").bind(id).run();
+    await c.env.DB.prepare("DELETE FROM contact_logs WHERE id = ?").bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -282,9 +293,8 @@ app.get('/api/shares', async (c) => {
 
 app.delete('/api/shares/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
-  const id = c.req.param('id');
   try {
-    await c.env.DB.prepare("DELETE FROM shares WHERE id = ?").bind(id).run();
+    await c.env.DB.prepare("DELETE FROM shares WHERE id = ?").bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -301,7 +311,7 @@ app.post('/api/share/email', async (c) => {
   try {
     const { post_id, post_title, link, target_email } = await c.req.json();
     if (!c.env.RESEND_API_KEY) throw new Error("Chave do Resend não configurada.");
-    
+
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -316,19 +326,21 @@ app.post('/api/share/email', async (c) => {
                </div>`
       })
     });
-    
+
     if (!emailRes.ok) throw new Error("Erro no envio pelo Resend.");
     c.executionCtx.waitUntil(c.env.DB.prepare("INSERT INTO shares (post_id, post_title, platform, target) VALUES (?, ?, 'email', ?)").bind(post_id, post_title, target_email).run());
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+// --- ROTAS DE CONTATO E COMENTÁRIOS ---
+
 app.post('/api/contact', async (c) => {
   try {
     const { name, phone, email, message } = await c.req.json();
     if (!name || !email || !message) return c.json({ error: "Dados incompletos" }, 400);
 
-    const resendToken = c.env.RESEND_API_KEY; 
+    const resendToken = c.env.RESEND_API_KEY;
     const adminHtml = `
       <div style="font-family: sans-serif; color: #333;">
         <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Contato pelo Site</h2>
@@ -394,21 +406,21 @@ app.post('/api/comment', async (c) => {
   } catch (err) { return c.json({ error: "Falha ao processar comentário." }, 500); }
 });
 
-// --- API FINANCEIRA (SDK OFICIAL) COM VALIDAÇÃO ESTRITA E STATEMENT_DESCRIPTOR ---
+// --- ROTAS FINANCEIRAS / MERCADO PAGO (ZERO TRUST) ---
+
 app.post('/api/mp-payment', async (c) => {
   try {
     const body = await c.req.json();
-    const token = c.env.MP_ACCESS_TOKEN; 
+    const token = c.env.MP_ACCESS_TOKEN;
     if (!token) throw new Error("MP_ACCESS_TOKEN ausente.");
 
     const client = new MercadoPagoConfig({ accessToken: token });
     const paymentApi = new Payment(client);
 
     const extRef = `DON-${crypto.randomUUID()}`;
-    
     const realFirstName = body.payer?.first_name;
     const realLastName = body.payer?.last_name;
-    
+
     if (!realFirstName || !realLastName) {
       return c.json({ error: "Nome e sobrenome reais são obrigatórios para validação antifraude." }, 400);
     }
@@ -416,7 +428,7 @@ app.post('/api/mp-payment', async (c) => {
     const enhancedPayload = {
       ...body,
       external_reference: extRef,
-      statement_descriptor: "DIVAGAC FILOSOF", // <--- INJEÇÃO EXIGIDA PELO MERCADO PAGO
+      statement_descriptor: "DIVAGAC FILOSOF",
       notification_url: "https://mainsite-app.lcv.rio.br/api/webhooks/mercadopago",
       payer: {
         ...(body.payer || {}),
@@ -462,11 +474,9 @@ app.get('/api/mp-balance', async (c) => {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    
-    if (!response.ok) {
-       return c.json({ available_balance: 0, unavailable_balance: 0 });
-    }
-    
+
+    if (!response.ok) return c.json({ available_balance: 0, unavailable_balance: 0 });
+
     const data = await response.json();
     return c.json(data);
   } catch (err) {
@@ -485,11 +495,11 @@ app.post('/api/mp-payment/:id/refund', async (c) => {
     const refundApi = new PaymentRefund(client);
 
     let refundBody = { payment_id: id };
-    
+
     try {
       const body = await c.req.json();
       if (body.amount) refundBody.body = { amount: Number(body.amount) };
-    } catch(e) {} 
+    } catch (e) { }
 
     await refundApi.create(refundBody);
 
@@ -497,9 +507,7 @@ app.post('/api/mp-payment/:id/refund', async (c) => {
     await c.env.DB.prepare("UPDATE financial_logs SET status = ? WHERE payment_id = ?").bind(newStatus, id).run();
 
     return c.json({ success: true, status: newStatus });
-  } catch (err) {
-    return c.json({ error: err.message }, 500);
-  }
+  } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
 app.put('/api/mp-payment/:id/cancel', async (c) => {
@@ -516,9 +524,7 @@ app.put('/api/mp-payment/:id/cancel', async (c) => {
 
     await c.env.DB.prepare("UPDATE financial_logs SET status = 'cancelled' WHERE payment_id = ?").bind(id).run();
     return c.json({ success: true });
-  } catch (err) {
-    return c.json({ error: err.message }, 500);
-  }
+  } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
 app.post('/api/webhooks/mercadopago', async (c) => {
@@ -533,7 +539,7 @@ app.post('/api/webhooks/mercadopago', async (c) => {
 
     const mpToken = c.env.MP_ACCESS_TOKEN;
     let paymentData = {};
-    
+
     if (mpToken) {
       const client = new MercadoPagoConfig({ accessToken: mpToken });
       const paymentApi = new Payment(client);
@@ -550,16 +556,16 @@ app.post('/api/webhooks/mercadopago', async (c) => {
     let shouldSendEmail = false;
 
     if (!existing) {
-      shouldSendEmail = true; 
+      shouldSendEmail = true;
       c.executionCtx.waitUntil(
         c.env.DB.prepare("INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
-        .bind(id, status, amount, method, email, JSON.stringify(paymentData)).run()
+          .bind(id, status, amount, method, email, JSON.stringify(paymentData)).run()
       );
     } else {
-      if (existing.status !== status) shouldSendEmail = true; 
+      if (existing.status !== status) shouldSendEmail = true;
       c.executionCtx.waitUntil(
         c.env.DB.prepare("UPDATE financial_logs SET status = ?, amount = ?, method = ?, payer_email = ?, raw_payload = ? WHERE payment_id = ?")
-        .bind(status, amount, method, email, JSON.stringify(paymentData), id).run()
+          .bind(status, amount, method, email, JSON.stringify(paymentData), id).run()
       );
     }
 
@@ -607,18 +613,16 @@ app.get('/api/financial-logs/check', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
-// --- ROTA DE EXCLUSÃO DE LOG FINANCEIRO (Expurgo Manual) ---
 app.delete('/api/financial-logs/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   const id = c.req.param('id');
   try {
-    // Exclui a linha do banco D1 baseada na Chave Primária (id do banco, não o id do MP)
     await c.env.DB.prepare("DELETE FROM financial_logs WHERE id = ?").bind(id).run();
     return c.json({ success: true });
-  } catch (err) { 
-    return c.json({ error: err.message }, 500); 
-  }
+  } catch (err) { return c.json({ error: err.message }, 500); }
 });
+
+// --- UPLOAD PARA CLOUDFLARE R2 ---
 
 app.post('/api/upload', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
@@ -646,6 +650,8 @@ app.get('/api/uploads/:filename', async (c) => {
     return new Response(object.body, { headers });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
+
+// --- CRUD DE POSTS ---
 
 app.get('/api/posts', async (c) => {
   try {
@@ -712,6 +718,8 @@ app.delete('/api/posts/:id', async (c) => {
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
+
+// --- SETTINGS E CONFIGURAÇÕES DO SISTEMA ---
 
 app.get('/api/settings', async (c) => {
   try {
@@ -782,6 +790,8 @@ app.put('/api/settings/disclaimers', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+// --- SEO SITEMAP ---
+
 app.get('/api/sitemap.xml', async (c) => {
   try {
     const { results } = await c.env.DB.prepare("SELECT id, created_at FROM posts ORDER BY created_at DESC").all();
@@ -796,6 +806,8 @@ app.get('/api/sitemap.xml', async (c) => {
   } catch (err) { return c.text('Erro ao gerar sitemap', 500); }
 });
 
+// --- CRON JOBS (ROTAÇÃO DE TEXTOS) ---
+
 export default {
   fetch: app.fetch,
   async scheduled(event, env, ctx) {
@@ -804,18 +816,24 @@ export default {
       if (!record) return;
       const config = JSON.parse(record.payload);
       if (!config.enabled) return;
+
       const pinnedCheck = await env.DB.prepare("SELECT id FROM posts WHERE is_pinned = 1 LIMIT 1").first();
       if (pinnedCheck) return;
+
       const now = Date.now();
       const lastRotated = config.last_rotated_at || 0;
       const intervalMs = (config.interval || 60) * 60 * 1000;
       if (now - lastRotated < intervalMs) return;
+
       const { results: posts } = await env.DB.prepare("SELECT id FROM posts ORDER BY display_order ASC, created_at DESC").all();
       if (!posts || posts.length <= 1) return;
+
       const topPost = posts.shift();
       posts.push(topPost);
+
       const statements = posts.map((post, index) => env.DB.prepare("UPDATE posts SET display_order = ? WHERE id = ?").bind(index, post.id));
       await env.DB.batch(statements);
+
       config.last_rotated_at = now;
       await env.DB.prepare("UPDATE settings SET payload = ? WHERE id = 'rotation'").bind(JSON.stringify(config)).run();
     } catch (err) { console.error("Falha no Job:", err); }

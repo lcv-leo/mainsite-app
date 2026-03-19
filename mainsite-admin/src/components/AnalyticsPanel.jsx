@@ -1,15 +1,19 @@
 // Módulo: mainsite-admin/src/components/AnalyticsPanel.jsx
-// Versão: v2.0.0
-// Descrição: Refatoração visual completa para Glassmorphism/MD3. Estilos unificados com o App.jsx.
+// Versão: v1.3.0
+// Descrição: Painel de Auditoria com Glassmorphism/MD3. Implementada exclusão de registros com Notificação Modal nativa, Lixeira vermelha ao extremo direito e Data/Hora completos no fuso horário de Brasília (UTC-3) à esquerda do ícone.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, MessageSquare, Share2, Bot, Loader2, Calendar, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Share2, Bot, Loader2, Calendar, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
 
-const AnalyticsPanel = ({ onClose, secret, API_URL, styles, openDeleteModal }) => {
+const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
   const [data, setData] = useState({ contacts: [], shares: [], chatLogs: [] });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
+
+  // Estado do Modal de Confirmação MD3
+  const [deleteModal, setDeleteModal] = useState({ show: false, type: '', id: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchAnalytics = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -23,219 +27,178 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles, openDeleteModal }) =
         fetch(`${API_URL}/chat-logs`, { headers })
       ]);
 
-      if (!resContacts.ok || !resShares.ok || !resChat.ok) {
-        throw new Error("Falha ao buscar dados de telemetria na API.");
-      }
+      if (!resContacts.ok || !resShares.ok || !resChat.ok) throw new Error("Falha ao buscar dados de telemetria na API.");
 
       setData({
-        contacts: (await resContacts.json()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
-        shares: (await resShares.json()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
-        chatLogs: (await resChat.json()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        contacts: await resContacts.json(),
+        shares: await resShares.json(),
+        chatLogs: await resChat.json()
       });
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      if (!isSilent) setLoading(false);
-      else setIsRefreshing(false);
-    }
+    } catch (err) { setError(err.message); }
+    finally { if (!isSilent) setLoading(false); else setIsRefreshing(false); }
   }, [API_URL, secret]);
 
+  useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
   useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
-
-  useEffect(() => {
-    const pollInterval = setInterval(() => {
-      fetchAnalytics(true);
-    }, 10000);
+    const pollInterval = setInterval(() => fetchAnalytics(true), 15000);
     return () => clearInterval(pollInterval);
   }, [fetchAnalytics]);
 
-  const handleDelete = (id, type) => {
-    const endpointMap = {
-      contact: 'contact-logs',
-      share: 'shares',
-      chat: 'chat-logs'
-    };
-    const message = `Deseja excluir este registro de '${type}' permanentemente?`;
-    openDeleteModal(id, endpointMap[type], () => fetchAnalytics(true), message);
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    const { type, id } = deleteModal;
+    let endpoint = '';
+
+    if (type === 'contact') endpoint = `/contact-logs/${id}`;
+    if (type === 'share') endpoint = `/shares/${id}`;
+    if (type === 'chat') endpoint = `/chat-logs/${id}`;
+
+    try {
+      const res = await fetch(`${API_URL}${endpoint}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${secret}` } });
+      if (res.ok) {
+        await fetchAnalytics(true);
+        setDeleteModal({ show: false, type: '', id: null });
+      } else {
+        throw new Error("Falha ao excluir o registro.");
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
-  // Estilos locais unificados com o padrão Glassmorphism
-  const blockStyle = { 
-    backgroundColor: styles.glassBg,
-    backdropFilter: 'blur(5px)',
-    border: `1px solid ${styles.glassBorder}`, 
-    borderRadius: '16px', 
-    padding: '24px', 
-    marginBottom: '30px', 
-    display: 'flex', 
-    flexDirection: 'column', 
-    gap: '15px' 
-  };
-  
-  const titleStyle = { 
-    fontSize: '16px', 
-    borderBottom: `1px solid ${styles.glassBorder}`, 
-    paddingBottom: '12px', 
-    display: 'flex', 
-    alignItems: 'center', 
-    gap: '8px', 
-    margin: '0 0 10px 0',
-    fontWeight: '600'
-  };
-  
-  const cardStyle = { 
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    border: `1px solid ${styles.glassBorder}`,
-    padding: '20px', 
-    borderRadius: '12px', 
-    fontSize: '13px', 
-    lineHeight: '1.6',
-    transition: 'transform 0.2s, box-shadow 0.2s'
-  };
-  
-  const dateBadge = { 
-    display: 'inline-flex', 
-    alignItems: 'center', 
-    gap: '6px', 
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    backdropFilter: 'blur(5px)',
-    padding: '6px 10px', 
-    borderRadius: '6px', 
-    fontSize: '11px', 
-    fontWeight: 'bold',
-    opacity: 0.9,
-    flexShrink: 0
+  const blockStyle = {
+    background: 'rgba(0, 0, 0, 0.1)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+    border: '1px solid rgba(128, 128, 128, 0.15)', borderRadius: '24px', padding: '30px', marginBottom: '30px',
+    display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)'
   };
 
-  const deleteBtnStyle = {
-    background: 'rgba(234, 67, 53, 0.2)',
-    color: '#f5c2c2',
-    border: '1px solid rgba(234, 67, 53, 0.3)',
-    borderRadius: '8px',
-    width: '36px',
-    height: '36px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    transition: 'background 0.2s ease',
-    flexShrink: 0,
-    backdropFilter: 'blur(5px)'
+  const titleStyle = {
+    fontSize: '18px', borderBottom: '1px solid rgba(128, 128, 128, 0.2)', paddingBottom: '15px',
+    display: 'flex', alignItems: 'center', gap: '10px', margin: '0 0 10px 0', fontWeight: '700'
   };
-  
-  const errorBoxStyle = {
-    color: '#f8d7da',
-    backgroundColor: 'rgba(234, 67, 53, 0.3)',
-    backdropFilter: 'blur(5px)',
-    border: '1px solid rgba(234, 67, 53, 0.5)',
-    textAlign: 'center', 
-    padding: '20px', 
-    fontWeight: 'bold', 
-    borderRadius: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '12px'
+
+  const cardStyle = {
+    background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(128, 128, 128, 0.15)', padding: '24px',
+    borderRadius: '20px', fontSize: '14px', lineHeight: '1.6', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+    backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', gap: '12px'
+  };
+
+  const dateBadge = {
+    display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(0, 0, 0, 0.15)',
+    padding: '8px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: '700', opacity: 0.9,
+    border: '1px solid rgba(128,128,128,0.2)'
+  };
+
+  const actionContainerStyle = { display: 'flex', alignItems: 'center', gap: '15px' };
+
+  const trashBtnStyle = {
+    background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '10px',
+    borderRadius: '12px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(239,68,68,0.1)'
   };
 
   const formatDate = (dateString) => {
     try {
       return new Date(dateString.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    } catch (e) {
-      return dateString;
-    }
+    } catch (e) { return dateString; }
   };
 
   return (
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+
+      {deleteModal.show && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <AlertCircle size={56} color="#ea4335" style={{ margin: '0 auto 20px auto' }} />
+            <p style={styles.modalText}>Tem certeza de que deseja <strong>EXCLUIR</strong> este registro de auditoria? Esta ação é irreversível.</p>
+            <div style={styles.modalActions}>
+              <button onClick={() => setDeleteModal({ show: false, type: '', id: null })} disabled={isDeleting} style={styles.modalBtnCancel}>CANCELAR</button>
+              <button onClick={confirmDelete} disabled={isDeleting} style={styles.modalBtnConfirm}>
+                {isDeleting ? <Loader2 size={18} className="animate-spin" /> : 'EXCLUIR'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <button onClick={onClose} style={styles.backButton}>
           <ArrowLeft size={16} /> Voltar ao Console
         </button>
-        
-        <button onClick={() => fetchAnalytics(true)} style={{...styles.headerBtn, opacity: isRefreshing ? 0.6 : 1}}>
-          <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} /> 
-          {isRefreshing ? 'Sincronizando...' : 'Sincronizar'}
+        <button onClick={() => fetchAnalytics(true)} style={{ ...styles.headerBtn, opacity: isRefreshing ? 0.6 : 1 }}>
+          <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+          {isRefreshing ? 'Sincronizando...' : 'Sincronizar Auditoria'}
         </button>
       </div>
 
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}>
-          <Loader2 size={32} className="animate-spin" style={{ opacity: 0.5 }} />
-        </div>
-      ) : error ? (
-        <div style={errorBoxStyle}>
-          <AlertTriangle size={20} /> {error}
-        </div>
+      {loading ? (<div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><Loader2 size={32} className="animate-spin" style={{ opacity: 0.5 }} /></div>
+      ) : error ? (<div style={{ color: '#ea4335', textAlign: 'center', padding: '20px', fontWeight: 'bold', background: 'rgba(234, 67, 53, 0.1)', borderRadius: '16px' }}>{error}</div>
       ) : (
         <>
           <div style={blockStyle}>
-            <h2 style={titleStyle}><MessageSquare size={18} /> Formulários de Contato</h2>
-            {data.contacts.length === 0 ? <div style={{opacity: 0.5, fontSize: '13px'}}>Nenhum contato registrado.</div> : 
+            <h2 style={titleStyle}><MessageSquare size={20} /> Formulários de Contato Recebidos</h2>
+            {data.contacts.length === 0 ? <div style={{ opacity: 0.5, fontSize: '13px' }}>Nenhum contato registrado.</div> :
               data.contacts.map(item => (
-                <div key={item.id} style={cardStyle} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', gap: '15px' }}>
-                    <strong style={{ fontSize: '15px' }}>{item.name}</strong>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                      <div style={dateBadge}><Calendar size={12}/> {formatDate(item.created_at)}</div>
-                      <button onClick={() => handleDelete(item.id, 'contact')} style={deleteBtnStyle} title="Excluir este registro" onMouseOver={(e) => e.currentTarget.style.background = 'rgba(234, 67, 53, 0.3)'} onMouseOut={(e) => e.currentTarget.style.background = 'rgba(234, 67, 53, 0.2)'}>
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ opacity: 0.8, marginBottom: '12px' }}>{item.email} {item.phone ? `| ${item.phone}` : ''}</div>
-                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '8px', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>"{item.message}"</div>
-                </div>
-              ))
-            }
-          </div>
-
-          <div style={blockStyle}>
-            <h2 style={titleStyle}><Share2 size={18} /> Métricas de Compartilhamento</h2>
-            {data.shares.length === 0 ? <div style={{opacity: 0.5, fontSize: '13px'}}>Nenhum compartilhamento registrado.</div> : 
-              data.shares.map(item => (
-                <div key={item.id} style={cardStyle} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px' }}>
+                <div key={item.id} style={cardStyle} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.01)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
                     <div>
-                      <strong style={{ color: item.platform === 'whatsapp' ? '#25D366' : item.platform === 'email' ? '#0ea5e9' : '#a3a3a3', textTransform: 'uppercase', marginRight: '10px' }}>
-                        [{item.platform}]
-                      </strong>
-                      {item.post_title}
+                      <strong style={{ fontSize: '16px' }}>{item.name}</strong>
+                      <div style={{ opacity: 0.7, marginTop: '4px', fontSize: '13px' }}>{item.email} {item.phone ? `| ${item.phone}` : ''}</div>
                     </div>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                      <div style={dateBadge}><Calendar size={12}/> {formatDate(item.created_at)}</div>
-                      <button onClick={() => handleDelete(item.id, 'share')} style={deleteBtnStyle} title="Excluir este registro" onMouseOver={(e) => e.currentTarget.style.background = 'rgba(234, 67, 53, 0.3)'} onMouseOut={(e) => e.currentTarget.style.background = 'rgba(234, 67, 53, 0.2)'}>
-                        <Trash2 size={16} />
-                      </button>
+                    <div style={actionContainerStyle}>
+                      <div style={dateBadge}><Calendar size={14} /> {formatDate(item.created_at)}</div>
+                      <button onClick={() => setDeleteModal({ show: true, type: 'contact', id: item.id })} style={trashBtnStyle} title="Excluir Registro"><Trash2 size={16} /></button>
                     </div>
                   </div>
-                  {item.target && <div style={{ opacity: 0.6, marginTop: '8px', fontSize: '12px' }}>Destino: {item.target}</div>}
+                  <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '16px', fontStyle: 'italic', whiteSpace: 'pre-wrap', border: '1px solid rgba(128,128,128,0.1)' }}>"{item.message}"</div>
                 </div>
               ))
             }
           </div>
 
           <div style={blockStyle}>
-            <h2 style={titleStyle}><Bot size={18} /> Logs da Consciência Auxiliar (IA)</h2>
-            {data.chatLogs.length === 0 ? <div style={{opacity: 0.5, fontSize: '13px'}}>Nenhum log de IA registrado.</div> : 
-              data.chatLogs.map(item => (
-                <div key={item.id} style={{ ...cardStyle, borderLeft: `4px solid ${item.role === 'user' ? 'rgba(255,255,255,0.3)' : '#3b82f6'}` }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', gap: '15px' }}>
-                    <strong style={{ opacity: 0.9, textTransform: 'uppercase', fontSize: '12px' }}>
-                      {item.role === 'user' ? '👤 Usuário' : '🤖 Consciência Auxiliar'}
-                    </strong>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                      <div style={dateBadge}><Calendar size={12}/> {formatDate(item.created_at)}</div>
-                      <button onClick={() => handleDelete(item.id, 'chat')} style={deleteBtnStyle} title="Excluir este registro" onMouseOver={(e) => e.currentTarget.style.background = 'rgba(234, 67, 53, 0.3)'} onMouseOut={(e) => e.currentTarget.style.background = 'rgba(234, 67, 53, 0.2)'}>
-                        <Trash2 size={16} />
-                      </button>
+            <h2 style={titleStyle}><Share2 size={20} /> Métricas de Compartilhamento</h2>
+            {data.shares.length === 0 ? <div style={{ opacity: 0.5, fontSize: '13px' }}>Nenhum compartilhamento registrado.</div> :
+              data.shares.map(item => (
+                <div key={item.id} style={cardStyle} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.01)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <strong style={{ color: item.platform === 'whatsapp' ? '#25D366' : item.platform === 'email' ? '#0ea5e9' : '#a3a3a3', textTransform: 'uppercase', marginRight: '10px', fontSize: '12px', background: 'rgba(0,0,0,0.2)', padding: '4px 8px', borderRadius: '8px' }}>
+                        {item.platform}
+                      </strong>
+                      <span style={{ fontWeight: '600', fontSize: '15px' }}>{item.post_title}</span>
+                      {item.target && <div style={{ opacity: 0.6, marginTop: '8px', fontSize: '13px', fontWeight: '500' }}>Destino: {item.target}</div>}
+                    </div>
+                    <div style={actionContainerStyle}>
+                      <div style={dateBadge}><Calendar size={14} /> {formatDate(item.created_at)}</div>
+                      <button onClick={() => setDeleteModal({ show: true, type: 'share', id: item.id })} style={trashBtnStyle} title="Excluir Registro"><Trash2 size={16} /></button>
                     </div>
                   </div>
-                  <div style={{ opacity: 0.5, fontSize: '10px', marginBottom: '10px', textTransform: 'uppercase', fontWeight: 'bold' }}>Contexto Ativo: {item.context_title || 'Nenhum / Global'}</div>
-                  <div style={{ whiteSpace: 'pre-wrap', fontSize: '14px' }}>{item.message}</div>
+                </div>
+              ))
+            }
+          </div>
+
+          <div style={blockStyle}>
+            <h2 style={titleStyle}><Bot size={20} /> Logs da Consciência Auxiliar (IA)</h2>
+            {data.chatLogs.length === 0 ? <div style={{ opacity: 0.5, fontSize: '13px' }}>Nenhum log de IA registrado.</div> :
+              data.chatLogs.map(item => (
+                <div key={item.id} style={{ ...cardStyle, borderLeft: `4px solid ${item.role === 'user' ? 'rgba(255,255,255,0.3)' : '#3b82f6'}` }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.01)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <strong style={{ opacity: 0.9, textTransform: 'uppercase', fontSize: '13px', background: item.role === 'user' ? 'rgba(128,128,128,0.2)' : 'rgba(59, 130, 246, 0.2)', padding: '6px 12px', borderRadius: '100px', display: 'inline-block', marginBottom: '10px' }}>
+                        {item.role === 'user' ? '👤 Usuário' : '🤖 Consciência Auxiliar'}
+                      </strong>
+                      <div style={{ opacity: 0.6, fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.5px' }}>Contexto Ativo: {item.context_title || 'Nenhum / Global'}</div>
+                    </div>
+                    <div style={actionContainerStyle}>
+                      <div style={dateBadge}><Calendar size={14} /> {formatDate(item.created_at)}</div>
+                      <button onClick={() => setDeleteModal({ show: true, type: 'chat', id: item.id })} style={trashBtnStyle} title="Excluir Registro"><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                  <div style={{ whiteSpace: 'pre-wrap', fontSize: '15px', background: 'rgba(0,0,0,0.1)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(128,128,128,0.05)' }}>{item.message}</div>
                 </div>
               ))
             }
