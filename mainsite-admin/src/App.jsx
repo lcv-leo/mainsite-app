@@ -366,6 +366,25 @@ const App = () => {
         .ProseMirror .resizable-media:hover .media-resize-handle,
         .ProseMirror .resizable-media.is-selected .media-resize-handle { opacity: 1; }
         .ProseMirror .resizable-media .media-resize-handle:hover { transform: scale(1.08); }
+        .ProseMirror .resizable-media .media-snap-bar {
+          position: absolute; top: -42px; left: 50%; transform: translateX(-50%);
+          display: flex; gap: 2px; align-items: center;
+          background: ${isDarkBase ? 'rgba(18,18,22,0.96)' : 'rgba(255,255,255,0.96)'};
+          border-radius: 100px; padding: 4px 8px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.22); border: 1px solid ${glassBorder};
+          opacity: 0; pointer-events: none;
+          transition: opacity 0.18s ease; z-index: 10; white-space: nowrap;
+        }
+        .ProseMirror .resizable-media.is-selected .media-snap-bar { opacity: 1; pointer-events: auto; }
+        .ProseMirror .resizable-media .media-snap-bar button {
+          background: transparent; border: none; cursor: pointer;
+          padding: 3px 9px; border-radius: 100px; font-size: 11px; font-weight: 700;
+          color: ${isDarkBase ? 'rgba(255,255,255,0.72)' : 'rgba(0,0,0,0.65)'};
+          transition: background 0.14s, color 0.14s; line-height: 1.4;
+        }
+        .ProseMirror .resizable-media .media-snap-bar button:hover {
+          background: ${activePalette.titleColor}28; color: ${activePalette.titleColor};
+        }
         .ProseMirror .resizable-media.media-youtube { width: fit-content; }
         .ProseMirror .resizable-media.media-youtube > div[data-youtube-video] { border-radius: 14px; overflow: hidden; box-shadow: 0 8px 28px rgba(0,0,0,0.12); }
         .ProseMirror .resizable-media.media-youtube iframe { display: block; width: 100%; max-width: 100%; border: 0; cursor: pointer; }

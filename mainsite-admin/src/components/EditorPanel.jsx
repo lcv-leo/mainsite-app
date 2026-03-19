@@ -86,6 +86,35 @@ const ResizableMediaHandle = ({ onStartResize }) => (
   />
 );
 
+const IMAGE_SNAPS = [
+  { label: '25%', v: '25%' },
+  { label: '50%', v: '50%' },
+  { label: '75%', v: '75%' },
+  { label: '100%', v: '100%' },
+];
+
+const MediaSnapBar = ({ onSnap }) => (
+  <div className="media-snap-bar" contentEditable={false} onMouseDown={e => e.preventDefault()}>
+    {IMAGE_SNAPS.map(({ label, v }) => (
+      <button key={v} type="button" onClick={() => onSnap(v)} title={v}>{label}</button>
+    ))}
+  </div>
+);
+
+const VIDEO_SNAPS = [
+  { label: '480p', w: 853, h: 480 },
+  { label: '720p', w: 1280, h: 720 },
+  { label: '840px', w: 840, h: 472 },
+];
+
+const YoutubeSnapBar = ({ onSnap }) => (
+  <div className="media-snap-bar" contentEditable={false} onMouseDown={e => e.preventDefault()}>
+    {VIDEO_SNAPS.map(({ label, w, h }) => (
+      <button key={label} type="button" onClick={() => onSnap(w, h)} title={`${w}×${h}`}>{label}</button>
+    ))}
+  </div>
+);
+
 const ResizableImageNodeView = ({ node, updateAttributes, selected }) => {
   const startXRef = useRef(0);
   const startWidthRef = useRef(100);
@@ -123,6 +152,7 @@ const ResizableImageNodeView = ({ node, updateAttributes, selected }) => {
       contentEditable={false}
       style={{ width: node.attrs.width || '100%' }}
     >
+      <MediaSnapBar onSnap={(size) => updateAttributes({ width: size })} />
       <img src={node.attrs.src} alt={node.attrs.alt || ''} title={node.attrs.title || ''} draggable="false" />
       <ResizableMediaHandle onStartResize={onStartResize} />
     </NodeViewWrapper>
@@ -165,6 +195,7 @@ const ResizableYoutubeNodeView = ({ node, updateAttributes, selected }) => {
 
   return (
     <NodeViewWrapper className={`resizable-media media-youtube ${selected ? 'is-selected' : ''}`} contentEditable={false} style={{ width: `${currentW}px`, maxWidth: '100%' }}>
+      <YoutubeSnapBar onSnap={(w, h) => updateAttributes({ width: w, height: h })} />
       <div data-youtube-video>
         <iframe
           src={node.attrs.src}
@@ -215,7 +246,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [promptModal, setPromptModal] = useState({ show: false, title: '', value: '', callback: null, isLink: false, linkText: '', showCaption: false, caption: '' });
+  const [promptModal, setPromptModal] = useState({ show: false, title: '', placeholder: 'https://...', value: '', callback: null, isLink: false, linkText: '', showCaption: false, caption: '' });
 
   if (!editor) return null;
 
@@ -261,6 +292,17 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
       const data = await res.json();
       editor.chain().focus().setImage({ src: data.url, width: '100%' }).run();
       showNotification("Upload concluído com sucesso.", "success");
+      setPromptModal({
+        show: true,
+        title: 'Legenda da imagem (opcional):',
+        placeholder: 'Ex.: Foto tirada em março de 2026',
+        value: '',
+        isLink: false,
+        linkText: '',
+        showCaption: false,
+        caption: '',
+        callback: (captionText) => insertCaptionBlock(captionText),
+      });
     } catch (err) { showNotification(err.message, "error"); }
     finally { setIsUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   };
@@ -341,7 +383,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <h3 style={{ margin: '0 0 24px 0', fontSize: 'var(--type-label)', fontWeight: '700', textTransform: 'uppercase', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '12px', letterSpacing: '0.5px' }}>{promptModal.title}</h3>
-            <input autoFocus type="text" placeholder="https://..." value={promptModal.value} onChange={e => setPromptModal({ ...promptModal, value: e.target.value })} style={styles.textInput} />
+            <input autoFocus type="text" placeholder={promptModal.placeholder || 'https://...'} value={promptModal.value} onChange={e => setPromptModal({ ...promptModal, value: e.target.value })} style={styles.textInput} />
             {promptModal.isLink && editor.state.selection.empty && (
               <input type="text" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({ ...promptModal, linkText: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
             )}
