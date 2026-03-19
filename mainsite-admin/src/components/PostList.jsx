@@ -34,7 +34,7 @@ const PostList = ({
           onDragEnd={onDragEnd}
           onDragOver={onDragOver}
           onDrop={(e) => onDrop(e, index)}
-          style={{ ...styles.postCard, borderLeft: post.is_pinned ? '4px solid #4da6ff' : `1px solid rgba(128,128,128,0.1)` }}
+          style={{ ...styles.postCard, borderLeft: post.is_pinned ? `4px solid ${styles.pinnedBadge.backgroundColor}` : `1px solid rgba(128,128,128,0.1)` }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <div style={{ cursor: 'grab', opacity: 0.4 }} title="Reordenar">
@@ -51,7 +51,7 @@ const PostList = ({
           <div style={styles.actions}>
             <button
               onClick={() => onPin(post.id)}
-              style={{ ...styles.actionBtnPin, background: post.is_pinned ? 'rgba(128,128,128,0.3)' : 'transparent' }}
+              style={{ ...styles.actionBtnPin, background: post.is_pinned ? `${styles.pinnedBadge.backgroundColor}22` : 'transparent', borderColor: post.is_pinned ? `${styles.pinnedBadge.backgroundColor}55` : styles.actionBtnPin.border }}
               title="Fixar/Desafixar"
             >
               <Pin size={18} />

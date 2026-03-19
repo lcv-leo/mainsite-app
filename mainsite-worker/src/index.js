@@ -556,8 +556,12 @@ app.post('/api/mp-payment', async (c) => {
       return c.json({ error: "Nome e sobrenome reais são obrigatórios para validação antifraude." }, 400);
     }
 
+    const donorFullName = `${realFirstName} ${realLastName}`.trim();
+    const donationDescriptor = `Doação de ${donorFullName} - Divagações Filosóficas`;
+
     const enhancedPayload = {
       ...body,
+      description: donationDescriptor,
       external_reference: extRef,
       statement_descriptor: "DIVAGAC FILOSOF",
       notification_url: "https://mainsite-app.lcv.rio.br/api/webhooks/mercadopago",
@@ -570,8 +574,8 @@ app.post('/api/mp-payment', async (c) => {
         items: [
           {
             id: "DONATION-01",
-            title: "Apoio ao Projeto Divagações Filosóficas",
-            description: "Contribuição financeira voluntária.",
+            title: donationDescriptor,
+            description: donationDescriptor,
             category_id: "donations",
             quantity: 1,
             unit_price: Number(body.transaction_amount)

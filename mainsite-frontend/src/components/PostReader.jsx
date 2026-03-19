@@ -105,14 +105,14 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         .ai-btn { width: 280px; max-width: 100%; box-sizing: border-box; background: rgba(128,128,128,0.05); border: 1px solid rgba(128,128,128,0.2); color: ${activePalette.fontColor}; padding: 14px 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: inherit; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1.5px; transition: all 0.3s ease; border-radius: 100px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); font-weight: 800; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
         .ai-btn:hover:not(:disabled) { background: rgba(128,128,128,0.1); border-color: #4da6ff; transform: translateY(-3px); box-shadow: 0 12px 32px rgba(77, 166, 255, 0.2); }
         .ai-btn:disabled { opacity: 1; cursor: wait; background: ${activePalette.bgColor}; }
-        .ai-btn.revert-btn { border-color: rgba(255, 77, 77, 0.5); color: #ff4d4d; }
-        .ai-btn.revert-btn:hover { border-color: #ff4d4d; box-shadow: 0 12px 32px rgba(255, 77, 77, 0.2); }
+        .ai-btn.revert-btn { border-color: var(--semantic-error-border); color: var(--semantic-error); }
+        .ai-btn.revert-btn:hover { border-color: var(--semantic-error); box-shadow: 0 12px 32px rgba(211, 47, 47, 0.2); }
         
         .ai-select { width: 100%; text-align: center; text-align-last: center; background: transparent; color: inherit; border: none; outline: none; cursor: pointer; font-family: inherit; appearance: none; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
         .ai-select:disabled { cursor: wait; color: inherit; }
         .ai-select option { background: ${activePalette.bgColor}; color: ${activePalette.fontColor}; text-transform: none; text-align: left; }
         
-        .ai-error-msg { display: flex; align-items: center; gap: 8px; color: #ff4d4d; font-size: 13px; font-weight: 800; background: rgba(255, 77, 77, 0.1); padding: 10px 20px; border-radius: 100px; border: 1px solid rgba(255, 77, 77, 0.3); animation: fadeIn 0.3s ease-out; }
+        .ai-error-msg { display: flex; align-items: center; gap: 8px; color: var(--semantic-error); font-size: 13px; font-weight: 800; background: var(--semantic-error-soft); padding: 10px 20px; border-radius: 100px; border: 1px solid var(--semantic-error-border); animation: fadeIn 0.3s ease-out; }
         
         .ai-summary-box { background: ${isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)'}; border-left: 4px solid #4da6ff; padding: 30px; margin-bottom: 3.5rem; font-style: italic; line-height: 1.8; border-radius: 24px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 16px 32px rgba(0,0,0,0.05); border: 1px solid rgba(128,128,128,0.1); border-left-width: 4px; }
         

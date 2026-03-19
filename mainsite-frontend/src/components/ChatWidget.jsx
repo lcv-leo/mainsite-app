@@ -78,9 +78,9 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     height: '550px',
     maxHeight: '75vh',
     maxWidth: 'calc(100vw - 48px)',
-    backgroundColor: isDarkBase ? 'rgba(20, 20, 22, 0.75)' : 'rgba(255, 255, 255, 0.85)',
-    backdropFilter: 'blur(24px)',
-    WebkitBackdropFilter: 'blur(24px)',
+    backgroundColor: isDarkBase ? 'rgba(18, 18, 22, 0.88)' : 'rgba(255, 255, 255, 0.88)',
+    backdropFilter: 'blur(var(--glass-blur-deep))',
+    WebkitBackdropFilter: 'blur(var(--glass-blur-deep))',
     borderRadius: '28px',
     border: '1px solid rgba(128, 128, 128, 0.15)',
     boxShadow: isDarkBase ? '0 32px 64px -12px rgba(0, 0, 0, 0.6)' : '0 32px 64px -12px rgba(0, 0, 0, 0.15)',
@@ -97,7 +97,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)',
+    backgroundColor: isDarkBase ? 'rgba(8,8,12,0.34)' : 'rgba(255,255,255,0.4)',
   };
 
   const messageAreaStyle = {
@@ -114,7 +114,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
   const inputAreaStyle = {
     padding: '20px',
     borderTop: '1px solid rgba(128, 128, 128, 0.15)',
-    backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)',
+    backgroundColor: isDarkBase ? 'rgba(8,8,12,0.34)' : 'rgba(255,255,255,0.4)',
     display: 'flex',
     gap: '12px'
   };
@@ -191,7 +191,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
             </div>
             <span style={{ fontWeight: '700', fontSize: '16px', color: activePalette.fontColor, letterSpacing: '0.5px' }}>Consciência Auxiliar</span>
           </div>
-          <button onClick={onClose} style={{ background: 'rgba(128,128,128,0.1)', borderRadius: '100px', padding: '6px', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'scale(1.1)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'scale(1)'; }}>
+          <button onClick={onClose} style={{ background: 'rgba(128,128,128,0.1)', borderRadius: '100px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
             <X size={20} />
           </button>
         </div>
@@ -219,8 +219,8 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
                 <button
                   onClick={() => triggerDonation && triggerDonation()}
                   style={donationCCommerceBtnStyle}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >
                   <Heart size={16} fill="#fff" /> Apoiar o Projeto
                 </button>

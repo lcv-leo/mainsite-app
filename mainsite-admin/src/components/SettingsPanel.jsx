@@ -16,12 +16,12 @@ const SettingsPanel = ({
 }) => {
 
   const glassBlock = {
-    padding: '32px',
+    padding: 'var(--spacing-xl)',
     background: 'rgba(128, 128, 128, 0.05)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
+    backdropFilter: 'blur(var(--glass-blur-standard))',
+    WebkitBackdropFilter: 'blur(var(--glass-blur-standard))',
     border: '1px solid rgba(128, 128, 128, 0.15)',
-    borderRadius: '28px',
+    borderRadius: 'var(--shape-xl)',
     display: 'flex',
     flexDirection: 'column',
     gap: '20px',
@@ -29,7 +29,7 @@ const SettingsPanel = ({
   };
 
   const sectionTitle = {
-    fontSize: '18px',
+    fontSize: 'var(--type-title-md)',
     borderBottom: '1px solid rgba(128, 128, 128, 0.2)',
     paddingBottom: '12px',
     marginTop: '30px',
@@ -46,21 +46,21 @@ const SettingsPanel = ({
       </button>
 
       <form onSubmit={onSave} style={styles.form}>
-        <h2 style={{ ...sectionTitle, color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
+        <h2 style={{ ...sectionTitle, color: 'var(--semantic-error)', borderColor: 'var(--semantic-error-border)' }}>
           <ShieldAlert size={20} /> Segurança e Custos (Limitação de API)
         </h2>
-        <div style={{ ...glassBlock, border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.05)' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', color: '#ef4444' }}>
+        <div style={{ ...glassBlock, border: '1px solid var(--semantic-error-border)', background: 'var(--semantic-error-soft)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', color: 'var(--semantic-error)' }}>
             <input type="checkbox" checked={rateLimit.enabled} onChange={e => setRateLimit({ ...rateLimit, enabled: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
             Habilitar Escudo contra Robôs / Abusos (Rate Limiting)
           </label>
-          <p style={{ fontSize: '12px', color: '#ef4444', opacity: 0.8, margin: 0, lineHeight: '1.6' }}>* Quando ativado, bloqueia temporariamente visitantes (por IP) que dispararem requisições excessivas (Chat, Resumo, Tradução) à Inteligência Artificial.</p>
+          <p style={{ fontSize: '12px', color: 'var(--semantic-error)', opacity: 0.8, margin: 0, lineHeight: '1.6' }}>* Quando ativado, bloqueia temporariamente visitantes (por IP) que dispararem requisições excessivas (Chat, Resumo, Tradução) à Inteligência Artificial.</p>
           <div style={{ display: 'flex', gap: '20px', marginTop: '10px', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: '13px', fontWeight: '700', color: '#ef4444', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--semantic-error)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               Máximo de Requisições por IP:
               <input type="number" min="1" value={rateLimit.maxRequests} onChange={e => setRateLimit({ ...rateLimit, maxRequests: parseInt(e.target.value) || 5 })} style={{ ...styles.textInput, width: '160px' }} disabled={!rateLimit.enabled} />
             </label>
-            <label style={{ fontSize: '13px', fontWeight: '700', color: '#ef4444', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--semantic-error)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               Na Janela de Tempo (Minutos):
               <input type="number" min="1" value={rateLimit.windowMinutes} onChange={e => setRateLimit({ ...rateLimit, windowMinutes: parseInt(e.target.value) || 1 })} style={{ ...styles.textInput, width: '160px' }} disabled={!rateLimit.enabled} />
             </label>
@@ -87,7 +87,7 @@ const SettingsPanel = ({
           </label>
         </div>
 
-        <h3 style={{ fontSize: '15px', marginTop: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '8px', fontWeight: '700' }}>Configurações Globais (Ambos os Temas)</h3>
+        <h3 style={{ fontSize: 'var(--type-label)', marginTop: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '8px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Configurações Globais (Ambos os Temas)</h3>
         <div style={styles.settingsGrid}>
           <label style={styles.label}>Tamanho da Fonte Base (p): <input type="text" placeholder="Ex: 1.15rem" value={settings.shared.fontSize} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, fontSize: e.target.value } })} style={styles.textInput} /></label>
           <label style={styles.label}>Tamanho da Fonte Títulos (H1): <input type="text" placeholder="Ex: 1.8rem" value={settings.shared.titleFontSize} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, titleFontSize: e.target.value } })} style={styles.textInput} /></label>
@@ -103,7 +103,7 @@ const SettingsPanel = ({
           </label>
         </div>
 
-        <h3 style={{ fontSize: '15px', marginTop: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '8px', fontWeight: '700' }}>Paleta Tema Escuro (Dark Mode)</h3>
+        <h3 style={{ fontSize: 'var(--type-label)', marginTop: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '8px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Paleta Tema Escuro (Dark Mode)</h3>
         <div style={styles.settingsGrid}>
           <label style={styles.label}>Cor de Fundo: <input type="color" value={settings.dark.bgColor} onChange={e => setSettings({ ...settings, dark: { ...settings.dark, bgColor: e.target.value } })} style={styles.colorInput} /></label>
           <label style={styles.label}>Cor do Texto Base: <input type="color" value={settings.dark.fontColor} onChange={e => setSettings({ ...settings, dark: { ...settings.dark, fontColor: e.target.value } })} style={styles.colorInput} /></label>
@@ -118,7 +118,7 @@ const SettingsPanel = ({
           </label>
         </div>
 
-        <h3 style={{ fontSize: '15px', marginTop: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '8px', fontWeight: '700' }}>Paleta Tema Claro (Light Mode)</h3>
+        <h3 style={{ fontSize: 'var(--type-label)', marginTop: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '8px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Paleta Tema Claro (Light Mode)</h3>
         <div style={styles.settingsGrid}>
           <label style={styles.label}>Cor de Fundo: <input type="color" value={settings.light.bgColor} onChange={e => setSettings({ ...settings, light: { ...settings.light, bgColor: e.target.value } })} style={styles.colorInput} /></label>
           <label style={styles.label}>Cor do Texto Base: <input type="color" value={settings.light.fontColor} onChange={e => setSettings({ ...settings, light: { ...settings.light, fontColor: e.target.value } })} style={styles.colorInput} /></label>
@@ -148,7 +148,7 @@ const SettingsPanel = ({
                 <div key={item.id} style={{ background: 'rgba(128,128,128,0.05)', border: '1px solid rgba(128,128,128,0.2)', padding: '24px', borderRadius: '24px', position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                     <span style={{ fontSize: '12px', fontWeight: '800', opacity: 0.6, letterSpacing: '1px' }}>AVISO {index + 1}</span>
-                    <button type="button" onClick={() => { const newItems = [...disclaimers.items]; newItems.splice(index, 1); setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ background: 'rgba(234, 67, 53, 0.1)', border: 'none', color: '#ea4335', cursor: 'pointer', fontSize: '11px', fontWeight: '800', padding: '6px 12px', borderRadius: '100px', transition: 'all 0.2s' }}>REMOVER</button>
+                    <button type="button" onClick={() => { const newItems = [...disclaimers.items]; newItems.splice(index, 1); setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ background: 'var(--semantic-error-soft)', border: '1px solid var(--semantic-error-border)', color: 'var(--semantic-error)', cursor: 'pointer', fontSize: '11px', fontWeight: '800', padding: '6px 12px', borderRadius: '100px', transition: 'all 0.2s' }}>REMOVER</button>
                   </div>
                   <input type="text" placeholder="Título (Ex: Termos de Leitura)" value={item.title} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].title = e.target.value; setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ ...styles.textInput, width: '100%', marginBottom: '15px', boxSizing: 'border-box' }} />
                   <textarea placeholder="Texto do aviso..." value={item.text} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].text = e.target.value; setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ ...styles.textInput, width: '100%', marginBottom: '15px', minHeight: '100px', boxSizing: 'border-box', resize: 'vertical' }} />

@@ -29,7 +29,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
 
   const styles = {
     footer: { marginTop: '60px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '40px' },
-    archiveToggle: { background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', opacity: 0.8, transition: 'all 0.3s' },
+    archiveToggle: { background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', opacity: 0.8, transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' },
     card: { padding: '24px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', borderRadius: '24px' },
     cardDate: { fontSize: '10px', opacity: 0.7, marginBottom: '16px', fontWeight: '800', letterSpacing: '0.5px' }
   };
@@ -38,25 +38,25 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
     <footer style={styles.footer}>
       <style>{`
         .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; padding: 24px; width: 100%; box-sizing: border-box; }
-        .archive-btn:hover { opacity: 1 !important; transform: scale(1.05); }
+        .archive-btn:hover { opacity: 1 !important; transform: translateY(-2px); }
         .glass-card-md3 {
            background-color: ${isDarkBase ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)'};
            border: 1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
-           backdrop-filter: blur(16px);
-           -webkit-backdrop-filter: blur(16px);
+           backdrop-filter: blur(var(--glass-blur-standard));
+           -webkit-backdrop-filter: blur(var(--glass-blur-standard));
            box-shadow: 0 8px 24px rgba(0,0,0,0.05);
         }
         .glass-card-md3:hover { transform: translateY(-4px); box-shadow: 0 16px 32px rgba(0,0,0,0.1) !important; border-color: ${activePalette.titleColor}40; }
       `}</style>
 
       <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={styles.archiveToggle} className="archive-btn">
-        <span style={{ letterSpacing: '0.4em', color: activePalette.fontColor, transition: 'color 0.5s ease', fontWeight: '800' }}>
+        <span style={{ letterSpacing: '0.28em', color: activePalette.fontColor, transition: 'color 0.5s ease', fontWeight: '800' }}>
           FRAGMENTOS ANTERIORES
         </span>
         <ChevronUp size={20} color={activePalette.fontColor} style={{ transform: isHistoryOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }} />
       </button>
 
-      <div style={{ maxHeight: isHistoryOpen ? '2000px' : '0', opacity: isHistoryOpen ? 1 : 0, overflow: 'hidden', transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)', width: '100%', maxWidth: '1200px' }}>
+      <div style={{ maxHeight: isHistoryOpen ? '2000px' : '0', opacity: isHistoryOpen ? 1 : 0, overflow: 'hidden', transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)', width: '100%', maxWidth: '1200px' }}>
         <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)`, margin: '30px 24px 0 24px', paddingBottom: '16px' }}>
           <Search size={20} style={{ opacity: 0.6, marginRight: '16px' }} color={activePalette.fontColor} />
           <input

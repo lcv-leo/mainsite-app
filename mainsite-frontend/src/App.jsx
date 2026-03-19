@@ -2,7 +2,7 @@
 // Version: v2.6.0
 // Description: Frontend Orchestrator. Expanded reading frame to 960px for widescreen displays and reduced lateral padding. English comments enabled for Copilot Plus+.
 
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy, useRef } from 'react';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 
 import PostReader from './components/PostReader';
@@ -38,6 +38,8 @@ const App = () => {
   const [systemIsDark, setSystemIsDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+  const [toastTop, setToastTop] = useState(20);
+  const lastPointerYRef = useRef(null);
 
   const [showShareModal, setShowShareModal] = useState({ show: false, email: '' });
   const [showContactModal, setShowContactModal] = useState(false);
@@ -53,9 +55,22 @@ const App = () => {
   const [showDisclaimerFlow, setShowDisclaimerFlow] = useState(false);
 
   const showNotification = (message, type = 'info') => {
+    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const pointerY = lastPointerYRef.current;
+    const baseY = pointerY != null ? pointerY : (viewportH * 0.5);
+    const nextTop = Math.max(16, Math.min(baseY - 36, Math.max(16, viewportH - 90)));
+    setToastTop(nextTop);
     setToast({ show: true, message, type });
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
   };
+
+  useEffect(() => {
+    const trackPointer = (e) => {
+      if (typeof e?.clientY === 'number') lastPointerYRef.current = e.clientY;
+    };
+    window.addEventListener('pointerdown', trackPointer, { passive: true });
+    return () => window.removeEventListener('pointerdown', trackPointer);
+  }, []);
 
   // Sync theme with OS
   useEffect(() => {
@@ -214,7 +229,7 @@ const App = () => {
 
   return (
     <div style={appStyle}>
-      <div style={{ position: 'fixed', top: '20px', left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : (isDarkBase ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor, padding: '16px 32px', borderRadius: '100px', zIndex: 11005, boxShadow: '0 12px 36px rgba(0,0,0,0.2)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: '700', fontSize: '14px' }}>
+      <div style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : (isDarkBase ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor, padding: '16px 32px', borderRadius: '100px', zIndex: 11005, boxShadow: '0 12px 36px rgba(0,0,0,0.2)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: '700', fontSize: '14px' }}>
         {toast.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle size={18} />} {toast.message}
       </div>
 

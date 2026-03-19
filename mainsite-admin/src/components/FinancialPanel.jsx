@@ -298,7 +298,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
 
       {/* Toast Notification — posicionamento inteligente por área de interação no viewport */}
-      <div style={{ ...styles.toast, top: `${toastTop}px`, bottom: 'auto', transform: panelToast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: panelToast.show ? 1 : 0, backgroundColor: panelToast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: panelToast.type === 'error' ? '#fff' : activePalette.fontColor, zIndex: 10005 }}>
+      <div style={{ ...styles.toast, top: `${toastTop}px`, bottom: 'auto', transform: panelToast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: panelToast.show ? 1 : 0, backgroundColor: panelToast.type === 'error' ? 'var(--semantic-error)' : (isDarkBase ? '#1e1e1e' : '#fff'), color: panelToast.type === 'error' ? '#fff' : activePalette.fontColor, zIndex: 10005 }}>
         {panelToast.type === 'error' ? <AlertCircle size={18} /> : <Check size={18} />} <span>{panelToast.message}</span>
       </div>
 
@@ -306,7 +306,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       {modalType && createPortal(
         <div style={styles.modalOverlay}>
           <div style={{ ...styles.modalContent, margin: 0 }}>
-            <AlertCircle size={48} color={modalType === 'delete' ? '#b30000' : (modalType === 'cancel' ? '#f59e0b' : '#ea4335')} style={{ marginBottom: '20px', margin: '0 auto' }} />
+            <AlertCircle size={48} color={modalType === 'delete' ? 'var(--semantic-error)' : (modalType === 'cancel' ? 'var(--semantic-warning)' : 'var(--semantic-error)')} style={{ marginBottom: '20px', margin: '0 auto' }} />
             
             {modalType === 'delete' ? ( 
               <p style={styles.modalText}>Tem certeza de que deseja <strong>EXCLUIR</strong> este registro de log permanentemente do banco de dados?</p> 
@@ -321,7 +321,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
             <div style={styles.modalActions}>
               <button onClick={closeAndResetModal} style={styles.modalBtnCancel}>VOLTAR</button>
-              <button onClick={executeAction} style={{...styles.modalBtnConfirm, background: modalType === 'delete' ? '#b30000' : (modalType === 'cancel' ? '#f59e0b' : '#ea4335')}}>
+              <button onClick={executeAction} style={{...styles.modalBtnConfirm, background: modalType === 'delete' ? 'var(--semantic-error)' : (modalType === 'cancel' ? 'var(--semantic-warning)' : 'var(--semantic-error)')}}>
                 {modalType === 'delete' ? 'EXCLUIR REGISTRO' : (modalType === 'cancel' ? 'CONFIRMAR CANCELAMENTO' : 'CONFIRMAR ESTORNO')}
               </button>
             </div>

@@ -32,8 +32,8 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
     backgroundSize: 'cover', backgroundAttachment: 'fixed', color: activePalette.fontColor, fontFamily: activePalette.fontFamily || 'system-ui, -apple-system, sans-serif', minHeight: '100vh', padding: '40px 20px', transition: 'all 0.4s ease'
   },
   toast: { position: 'fixed', top: '30px', left: '50%', padding: '16px 32px', borderRadius: '100px', zIndex: 10000, boxShadow: '0 12px 36px rgba(0,0,0,0.2)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', border: `1px solid ${glassBorder}`, display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '600', fontSize: '14px', letterSpacing: '0.5px' },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: isDarkBase ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.5)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, opacity: 1, animation: 'fadeIn 0.3s ease' },
-  modalContent: { backgroundColor: isDarkBase ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.85)', padding: '40px', borderRadius: '28px', border: `1px solid ${glassBorder}`, maxWidth: '420px', width: '90%', textAlign: 'center', boxShadow: '0 32px 64px -12px rgba(0,0,0,0.3)', color: activePalette.fontColor, backdropFilter: 'blur(20px)' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: isDarkBase ? 'rgba(15,15,20,0.85)' : 'rgba(240,240,244,0.56)', backdropFilter: 'blur(var(--glass-blur-subtle))', WebkitBackdropFilter: 'blur(var(--glass-blur-subtle))', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, opacity: 1, animation: 'fadeIn 0.3s ease' },
+  modalContent: { backgroundColor: isDarkBase ? 'rgba(24,24,28,0.9)' : 'rgba(255,255,255,0.88)', padding: '40px', borderRadius: '28px', border: `1px solid ${glassBorder}`, maxWidth: '420px', width: '90%', textAlign: 'center', boxShadow: '0 32px 64px -12px rgba(0,0,0,0.3)', color: activePalette.fontColor, backdropFilter: 'blur(20px)', textShadow: isDarkBase ? '0 1px 3px rgba(0,0,0,0.35)' : 'none' },
   modalText: { fontSize: '16px', fontWeight: '500', marginBottom: '30px', lineHeight: '1.6' },
   modalActions: { display: 'flex', gap: '16px', justifyContent: 'center' },
   modalBtnConfirm: { backgroundColor: '#ea4335', color: '#fff', border: 'none', borderRadius: '100px', padding: '14px 28px', fontWeight: '700', cursor: 'pointer', flex: 1, transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(234, 67, 53, 0.3)' },
@@ -84,6 +84,8 @@ const App = () => {
   const [isRefreshingGlobal, setIsRefreshingGlobal] = useState(false); // NOVO ESTADO
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+  const [toastTop, setToastTop] = useState(30);
+  const lastPointerYRef = useRef(null);
   const [modal, setModal] = useState({ show: false, id: null });
   const [draggedIndex, setDraggedIndex] = useState(null);
 
@@ -102,8 +104,21 @@ const App = () => {
   const secret = import.meta.env.VITE_API_SECRET;
 
   const showNotification = useCallback((message, type = 'info') => {
+    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const pointerY = lastPointerYRef.current;
+    const baseY = pointerY != null ? pointerY : (viewportH * 0.5);
+    const nextTop = Math.max(16, Math.min(baseY - 36, Math.max(16, viewportH - 90)));
+    setToastTop(nextTop);
     setToast({ show: true, message, type });
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+  }, []);
+
+  useEffect(() => {
+    const trackPointer = (e) => {
+      if (typeof e?.clientY === 'number') lastPointerYRef.current = e.clientY;
+    };
+    window.addEventListener('pointerdown', trackPointer, { passive: true });
+    return () => window.removeEventListener('pointerdown', trackPointer);
   }, []);
 
   useEffect(() => {
@@ -273,7 +288,7 @@ const App = () => {
         button:hover { opacity: 0.9; }
       `}</style>
 
-      <div style={{ ...styles.toast, transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : (isDarkBase ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor }}>
+      <div style={{ ...styles.toast, top: `${toastTop}px`, transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : (isDarkBase ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor }}>
         {toast.type === 'error' ? <AlertCircle size={20} /> : <Check size={20} />} <span>{toast.message}</span>
       </div>
 

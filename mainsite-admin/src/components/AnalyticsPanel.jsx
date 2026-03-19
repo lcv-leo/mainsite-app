@@ -73,7 +73,7 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
 
   // Local MD3 styles
   const blockStyle = {
-    background: 'rgba(0, 0, 0, 0.1)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+    background: 'rgba(0, 0, 0, 0.1)', backdropFilter: 'blur(var(--glass-blur-standard))', WebkitBackdropFilter: 'blur(var(--glass-blur-standard))',
     border: '1px solid rgba(128, 128, 128, 0.15)', borderRadius: '24px', padding: '30px', marginBottom: '30px',
     display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)'
   };
@@ -86,7 +86,7 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
   const cardStyle = {
     background: 'rgba(242, 242, 242, 0.95)', border: '1px solid rgba(128, 128, 128, 0.2)', padding: '24px',
     borderRadius: '20px', fontSize: '14px', lineHeight: '1.6', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-    backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', gap: '12px'
+    backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', gap: '12px'
   };
 
   const dateBadge = {
@@ -98,9 +98,9 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
   const actionContainerStyle = { display: 'flex', alignItems: 'center', gap: '15px' };
 
   const trashBtnStyle = {
-    background: 'rgba(179, 0, 0, 0.1)', border: '1px solid rgba(179, 0, 0, 0.3)', padding: '10px',
-    borderRadius: '12px', color: '#b30000', cursor: 'pointer', display: 'flex', alignItems: 'center',
-    justifyContent: 'center', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(179,0,0,0.15)'
+    background: 'var(--semantic-error-soft)', border: '1px solid var(--semantic-error-border)', padding: '10px',
+    borderRadius: '12px', color: 'var(--semantic-error)', cursor: 'pointer', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(211,47,47,0.15)'
   };
 
   const formatDate = (dateString) => {
@@ -118,11 +118,11 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
       {deleteModal.show && createPortal(
         <div style={styles.modalOverlay}>
           <div style={{ ...styles.modalContent, margin: 0 }}>
-            <AlertCircle size={56} color="#b30000" style={{ margin: '0 auto 20px auto' }} />
+            <AlertCircle size={56} color="var(--semantic-error)" style={{ margin: '0 auto 20px auto' }} />
             <p style={styles.modalText}>Tem certeza de que deseja <strong>EXCLUIR</strong> este registro de auditoria? Esta ação é irreversível.</p>
             <div style={styles.modalActions}>
               <button onClick={() => setDeleteModal({ show: false, type: '', id: null })} disabled={isDeleting} style={styles.modalBtnCancel}>CANCELAR</button>
-              <button onClick={confirmDelete} disabled={isDeleting} style={{...styles.modalBtnConfirm, backgroundColor: '#b30000', boxShadow: '0 4px 12px rgba(179,0,0,0.3)'}}>
+              <button onClick={confirmDelete} disabled={isDeleting} style={{...styles.modalBtnConfirm, backgroundColor: 'var(--semantic-error)', boxShadow: '0 4px 12px rgba(211,47,47,0.3)'}}>
                 {isDeleting ? <Loader2 size={18} className="animate-spin" /> : 'EXCLUIR'}
               </button>
             </div>
@@ -142,7 +142,7 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
       </div>
 
       {loading ? (<div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><Loader2 size={32} className="animate-spin" style={{ opacity: 0.5 }} /></div>
-      ) : error ? (<div style={{ color: '#ea4335', textAlign: 'center', padding: '20px', fontWeight: 'bold', background: 'rgba(234, 67, 53, 0.1)', borderRadius: '16px' }}>{error}</div>
+      ) : error ? (<div style={{ color: 'var(--semantic-error)', textAlign: 'center', padding: '20px', fontWeight: 'bold', background: 'var(--semantic-error-soft)', border: '1px solid var(--semantic-error-border)', borderRadius: '16px' }}>{error}</div>
       ) : (
         <>
           <div style={blockStyle}>

@@ -43,9 +43,9 @@ const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigg
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
 
-      <div key={`bg-${currentIndex}`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: isDarkBase ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.5)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', animation: 'fadeIn 0.3s ease-out' }}></div>
+      <div key={`bg-${currentIndex}`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: isDarkBase ? 'rgba(15,15,20,0.85)' : 'rgba(240,240,244,0.56)', backdropFilter: 'blur(var(--glass-blur-subtle))', WebkitBackdropFilter: 'blur(var(--glass-blur-subtle))', animation: 'fadeIn 0.3s ease-out' }}></div>
 
-      <div key={`card-${currentIndex}`} style={{ position: 'relative', width: '90%', maxWidth: '480px', background: isDarkBase ? 'rgba(30, 30, 30, 0.85)' : 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.15)`, borderRadius: '28px', padding: '40px', boxShadow: '0 32px 64px -12px rgba(0,0,0,0.4)', color: activePalette.fontColor, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.4s ease-out' }}>
+      <div key={`card-${currentIndex}`} style={{ position: 'relative', width: '90%', maxWidth: '480px', background: isDarkBase ? 'rgba(24, 24, 28, 0.9)' : 'rgba(255, 255, 255, 0.88)', backdropFilter: 'blur(var(--glass-blur-deep))', WebkitBackdropFilter: 'blur(var(--glass-blur-deep))', border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.15)`, borderRadius: '28px', padding: '40px', boxShadow: '0 32px 64px -12px rgba(0,0,0,0.4)', color: activePalette.fontColor, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.4s ease-out', textShadow: isDarkBase ? '0 1px 3px rgba(0,0,0,0.35)' : 'none' }}>
 
         {config.items.length > 1 && (
           <div style={{ position: 'absolute', top: '20px', right: '24px', fontSize: '12px', fontWeight: '800', opacity: 0.5, letterSpacing: '1px' }}>

@@ -38,11 +38,26 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [pixPayload, setPixPayload] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+  const [toastTop, setToastTop] = useState(20);
+  const lastPointerYRef = useRef(null);
 
   const showToast = (message, type = 'error') => {
+    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const pointerY = lastPointerYRef.current;
+    const baseY = pointerY != null ? pointerY : (viewportH * 0.5);
+    const nextTop = Math.max(16, Math.min(baseY - 36, Math.max(16, viewportH - 90)));
+    setToastTop(nextTop);
     setToast({ show: true, message, type });
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
   };
+
+  useEffect(() => {
+    const trackPointer = (e) => {
+      if (typeof e?.clientY === 'number') lastPointerYRef.current = e.clientY;
+    };
+    window.addEventListener('pointerdown', trackPointer, { passive: true });
+    return () => window.removeEventListener('pointerdown', trackPointer);
+  }, []);
 
   useEffect(() => {
     if (visibilityTimeoutRef.current) {
@@ -276,26 +291,27 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
   const overlayStyle = {
     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: isDarkBase ? 'rgba(0, 0, 0, 0.65)' : 'rgba(255, 255, 255, 0.45)',
-    backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+    backgroundColor: isDarkBase ? 'rgba(15, 15, 20, 0.82)' : 'rgba(240, 240, 244, 0.52)',
+    backdropFilter: 'blur(var(--glass-blur-subtle))', WebkitBackdropFilter: 'blur(var(--glass-blur-subtle))',
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
     opacity: show ? 1 : 0, transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', padding: '20px',
     overflowY: 'auto'
   };
 
   const modalStyle = {
-    backgroundColor: activePalette.bgColor, color: activePalette.fontColor,
-    padding: '35px', maxWidth: '450px', width: '100%', borderRadius: '16px',
+    backgroundColor: isDarkBase ? 'rgba(24,24,28,0.94)' : 'rgba(255,255,255,0.92)', color: activePalette.fontColor,
+    padding: '35px', maxWidth: '450px', width: '100%', borderRadius: 'var(--shape-xl)',
     border: '1px solid rgba(128, 128, 128, 0.15)', textAlign: 'center',
     boxShadow: isDarkBase ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
     transform: show ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(15px)',
     transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)', position: 'relative',
+    backdropFilter: 'blur(var(--glass-blur-deep))', WebkitBackdropFilter: 'blur(var(--glass-blur-deep))', textShadow: isDarkBase ? '0 1px 3px rgba(0,0,0,0.35)' : 'none',
     margin: 'auto'
   };
 
   const buttonStyle = {
     backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none',
-    padding: '14px', fontSize: '13px', fontWeight: '900', borderRadius: '8px', cursor: 'pointer',
+    padding: '14px', fontSize: '13px', fontWeight: '900', borderRadius: '100px', cursor: 'pointer',
     width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px',
     boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)', transition: 'transform 0.2s',
     letterSpacing: '1px', textTransform: 'uppercase'
@@ -305,18 +321,18 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     width: '100%', padding: '12px 16px',
     backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
     border: '1px solid rgba(128, 128, 128, 0.2)',
-    borderRadius: '8px', color: activePalette.fontColor,
+    borderRadius: 'var(--shape-md)', color: activePalette.fontColor,
     fontSize: '14px', outline: 'none', boxSizing: 'border-box'
   };
 
   return (
     <div style={overlayStyle}>
-      <div style={{ position: 'fixed', top: '20px', left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : '#10b981', color: '#fff', padding: '12px 20px', borderRadius: '8px', zIndex: 10005, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)', fontWeight: 'bold', fontSize: '13px' }}>
+      <div style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : 'var(--semantic-success)', color: '#fff', padding: '12px 20px', borderRadius: '100px', zIndex: 10005, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: 'bold', fontSize: '13px' }}>
         {toast.type === 'error' ? <AlertTriangle size={16} /> : <CheckCircle size={16} />} {toast.message}
       </div>
 
       <div style={modalStyle}>
-        <button onClick={() => { setStep(1); onClose(); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.6 }} onMouseOver={(e) => e.currentTarget.style.opacity = 1} onMouseOut={(e) => e.currentTarget.style.opacity = 0.6}>
+        <button onClick={() => { setStep(1); onClose(); }} style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
           <X size={24} />
         </button>
 
@@ -325,7 +341,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <div style={{ display: 'inline-flex', padding: '15px', borderRadius: '50%', backgroundColor: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', marginBottom: '15px' }}>
               <Heart size={36} />
             </div>
-            <h2 style={{ margin: '0 0 15px 0', fontSize: '20px', fontWeight: '600', color: activePalette.titleColor }}>Apoie este Espaço</h2>
+            <h2 style={{ margin: '0 0 15px 0', fontSize: 'var(--type-title-md)', fontWeight: '700', color: activePalette.titleColor }}>Apoie este Espaço</h2>
             <p style={{ fontSize: '14px', opacity: 0.8, lineHeight: '1.6', marginBottom: '25px' }}>
               Insira seus dados reais, o valor desejado e escolha a plataforma.
             </p>
@@ -347,7 +363,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 <span style={{ position: 'absolute', left: '20px', fontSize: '18px', fontWeight: 'bold', opacity: 0.5 }}>R$</span>
                 <input
                   type="text" required value={amountDisplay} onChange={handleAmountChange} placeholder="0,00"
-                  style={{ width: '100%', padding: '15px 15px 15px 50px', backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: '8px', color: activePalette.fontColor, fontSize: '22px', fontWeight: 'bold', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '15px 15px 15px 50px', backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: 'var(--shape-md)', color: activePalette.fontColor, fontSize: '22px', fontWeight: 'bold', boxSizing: 'border-box' }}
                 />
               </div>
 
