@@ -311,7 +311,7 @@ const App = () => {
         <header style={styles.adminHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <Database size={28} color={activePalette.titleColor} />
-            <h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'Console')}</h1>
+            <h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'ADMIN')}</h1>
             {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && !isFinancialOpen && (
               <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={18} /> NOVO</button>
             )}
