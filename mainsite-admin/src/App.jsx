@@ -1,10 +1,10 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.31.0
-// Descrição: Refatoração visual completa para Glassmorphism/MD3. Lógica de estilos centralizada e modal de exclusão genérico.
+// Versão: v3.32.1
+// Descrição: Refatoração da experiência de usuário dos painéis de Sistema e Financeiro, separando-os em seções dedicadas com botões de acesso direto no cabeçalho, atendendo à solicitação de layout de coluna única.
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
-  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2, Moon, Sun, DollarSign
+  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2, Moon, Sun, DollarSign, ArrowLeft
 } from 'lucide-react';
 
 import PostList from './components/PostList';
@@ -16,7 +16,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
 // URL Oficial da API
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.31.0';
+const APP_VERSION = 'APP v3.32.1';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -51,7 +51,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   backButton: { background: 'none', border: 'none', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px', color: activePalette.fontColor, opacity: 0.8 },
   form: { display: 'flex', flexDirection: 'column', gap: '24px' },
   settingsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: 'rgba(0,0,0,0.02)', padding: '20px', border: `1px solid ${glassBorder}`, borderRadius: '16px', backdropFilter: 'blur(5px)' },
-  settingsPageGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' },
+  settingsPageGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: '24px', alignItems: 'start' },
   label: { display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor },
   colorInput: { height: '40px', width: '100%', cursor: 'pointer', border: 'none', borderRadius: '8px', background: 'transparent' },
   textInput: { padding: '12px', border: `1px solid ${glassBorder}`, backgroundColor: glassBg, backdropFilter: 'blur(5px)', color: activePalette.fontColor, outline: 'none', fontSize: '14px', borderRadius: '8px', transition: 'border 0.2s' },
@@ -82,6 +82,7 @@ const App = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [isFinancialOpen, setIsFinancialOpen] = useState(false);
   
   const [editingPost, setEditingPost] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -251,6 +252,7 @@ const App = () => {
   const openEditor = (post = null) => {
     setIsSettingsOpen(false); 
     setIsAnalyticsOpen(false);
+    setIsFinancialOpen(false);
     setEditingPost(post);
     setIsEditorOpen(true);
   };
@@ -272,6 +274,13 @@ const App = () => {
   [activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse]);
 
   if (loading) return <div style={styles.center}><Loader2 className="animate-spin" color={activePalette.fontColor} size={32} /></div>;
+
+  const handleAllPanels = (panel) => {
+    setIsAnalyticsOpen(panel === 'analytics');
+    setIsSettingsOpen(panel === 'settings');
+    setIsFinancialOpen(panel === 'financial');
+    setIsEditorOpen(panel === 'editor');
+  };
 
   return (
     <div style={styles.adminBody}>
@@ -317,7 +326,7 @@ const App = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <Database size={24} color={activePalette.titleColor} />
             <h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'Console')}</h1>
-            {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && (
+            {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && !isFinancialOpen &&(
               <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={18} /> NOVO</button>
             )}
           </div>
@@ -325,56 +334,59 @@ const App = () => {
             <button onClick={cycleTheme} style={styles.headerBtn} title="Alternar Tema">
               {userTheme === 'auto' ? <Settings size={16}/> : userTheme === 'dark' ? <Moon size={16}/> : <Sun size={16}/>}
             </button>
-            <button onClick={() => { setIsAnalyticsOpen(false); setIsSettingsOpen(false); fetchData(); }} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={16} /></button>
+            <button onClick={() => { handleAllPanels(null); fetchData(); }} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={16} /></button>
             
-            <button onClick={() => { setIsAnalyticsOpen(true); setIsSettingsOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><BarChart2 size={16} /> Auditoria</button>
-            <button onClick={() => { setIsSettingsOpen(true); setIsAnalyticsOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><Settings size={16} /> Sistema</button>
+            <button onClick={() => handleAllPanels('financial')} style={styles.headerBtn}><DollarSign size={16} /> Financeiro</button>
+            <button onClick={() => handleAllPanels('analytics')} style={styles.headerBtn}><BarChart2 size={16} /> Auditoria</button>
+            <button onClick={() => handleAllPanels('settings')} style={styles.headerBtn}><Settings size={16} /> Sistema</button>
           </div>
         </header>
 
         <Suspense fallback={<div style={{ padding: '50px', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" color={activePalette.fontColor} size={32} /></div>}>
           {isAnalyticsOpen ? (
-            <AnalyticsPanel 
-              onClose={() => { setIsAnalyticsOpen(false); fetchData(); }} 
-              secret={secret} 
-              API_URL={API_URL} 
-              styles={styles}
-              openDeleteModal={openDeleteModal}
+            <AnalyticsPanel
+                onClose={() => { handleAllPanels(null); fetchData(); }}
+                secret={secret}
+                API_URL={API_URL}
+                styles={styles}
+                openDeleteModal={openDeleteModal}
             />
+          ) : isFinancialOpen ? (
+            <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+                <button onClick={() => { handleAllPanels(null); fetchData(); }} style={{...styles.backButton, marginBottom: '20px'}}>
+                    <ArrowLeft size={16} /> Voltar ao Console
+                </button>
+                <FinancialPanel 
+                    showBackButton={false}
+                    secret={secret} 
+                    API_URL={API_URL} 
+                    styles={styles}
+                    activePalette={activePalette}
+                    isDarkBase={isDarkBase}
+                    showNotification={showNotification}
+                />
+            </div>
           ) : isSettingsOpen ? (
             <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-              <button onClick={() => { setIsSettingsOpen(false); fetchData(); }} style={{...styles.backButton, marginBottom: '20px'}}>
+              <button onClick={() => { handleAllPanels(null); fetchData(); }} style={{...styles.backButton, marginBottom: '20px'}}>
                 <ArrowLeft size={16} /> Voltar ao Console
               </button>
-              <div style={styles.settingsPageGrid}>
-                <FinancialPanel 
-                  showBackButton={false}
-                  onClose={() => { setIsSettingsOpen(false); fetchData(); }} 
-                  secret={secret} 
-                  API_URL={API_URL} 
-                  styles={styles}
-                  activePalette={activePalette}
-                  isDarkBase={isDarkBase}
-                  showNotification={showNotification}
-                />
-                <SettingsPanel 
-                  showBackButton={false}
-                  settings={settings} setSettings={setSettings} 
-                  rateLimit={rateLimit} setRateLimit={setRateLimit} 
-                  rotation={rotation} setRotation={setRotation} 
-                  disclaimers={disclaimers} setDisclaimers={setDisclaimers} 
-                  isSaving={isSaving} onSave={handleSaveSettings} 
-                  onClose={() => { setIsSettingsOpen(false); fetchData(); }} 
-                  triggerBgUpload={triggerBgUpload} 
-                  isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} 
-                  styles={styles}
-                  activePalette={activePalette}
-                  isDarkBase={isDarkBase}
-                />
-              </div>
+              <SettingsPanel 
+                showBackButton={false}
+                settings={settings} setSettings={setSettings} 
+                rateLimit={rateLimit} setRateLimit={setRateLimit} 
+                rotation={rotation} setRotation={setRotation} 
+                disclaimers={disclaimers} setDisclaimers={setDisclaimers} 
+                isSaving={isSaving} onSave={handleSaveSettings} 
+                triggerBgUpload={triggerBgUpload} 
+                isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} 
+                styles={styles}
+                activePalette={activePalette}
+                isDarkBase={isDarkBase}
+              />
             </div>
           ) : isEditorOpen ? (
-            <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
+            <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { handleAllPanels(null); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
           ) : (
             <PostList 
               posts={posts} 
