@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/components/EditorPanel.jsx
-// Versão: v1.1.0
-// Descrição: Componente isolado. Preservação funcional do Tiptap/IA com integração plena às classes globais de UI (modalOverlay/modalContent) e paleta vídrica.
+// Versão: v2.0.0
+// Descrição: Alinhamento completo do componente com o padrão visual Glassmorphism/MD3, incluindo modais internos e controles da barra de ferramentas.
 
 import React, { useState, useRef } from 'react';
 import { Extension } from '@tiptap/core';
@@ -136,21 +136,21 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
     <div style={styles.toolbar}>
       {promptModal.show && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
-            <h3 style={{ margin: '0 0 20px 0', fontSize: '14px', textTransform: 'uppercase', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '10px' }}>{promptModal.title}</h3>
+          <div style={{...styles.modalContent, textAlign: 'left'}}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '14px', textTransform: 'uppercase', borderBottom: `1px solid ${styles.glassBorder}`, paddingBottom: '10px' }}>{promptModal.title}</h3>
             <input autoFocus type="text" placeholder="https://..." value={promptModal.value} onChange={e => setPromptModal({...promptModal, value: e.target.value})} style={styles.textInput} />
             {promptModal.isLink && editor.state.selection.empty && (
               <input type="text" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({...promptModal, linkText: e.target.value})} style={{...styles.textInput, marginTop: '15px'}} />
             )}
-            <div style={styles.modalActions}>
+            <div style={{...styles.modalActions, marginTop: '20px'}}>
               <button type="button" onClick={() => setPromptModal({show: false})} style={styles.modalBtnCancel}>CANCELAR</button>
-              <button type="button" onClick={() => { promptModal.callback(promptModal.value, promptModal.linkText); setPromptModal({show: false}); }} style={styles.modalBtnConfirm}>INSERIR</button>
+              <button type="button" onClick={() => { promptModal.callback(promptModal.value, promptModal.linkText); setPromptModal({show: false}); }} style={{...styles.modalBtnConfirm, backgroundColor: styles.plusButton.backgroundColor, color: styles.plusButton.color, border: 'none' }}>INSERIR</button>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(2, 132, 199, 0.1)', padding: '2px 5px', borderRadius: '6px', border: '1px solid rgba(2, 132, 199, 0.3)', marginRight: '5px' }} title="Inteligência Artificial (Gemini 2.5 Pro)">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(2, 132, 199, 0.1)', backdropFilter: 'blur(5px)', padding: '2px 8px', borderRadius: '8px', border: '1px solid rgba(2, 132, 199, 0.3)', marginRight: '5px' }} title="Inteligência Artificial (Gemini 2.5 Pro)">
         <Sparkles size={14} color="#0284c7" />
         <select onChange={(e) => { if (e.target.value) { handleAITransform(e.target.value); e.target.value = ''; } }} style={{ fontSize: '11px', padding: '2px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#0284c7', fontWeight: 'bold', outline: 'none' }} disabled={isGeneratingAI}>
           <option value="">{isGeneratingAI ? 'Processando...' : 'IA: Aprimorar Texto'}</option><option value="grammar">Corrigir Gramática</option><option value="summarize">Resumir Seleção</option><option value="expand">Expandir Conteúdo</option><option value="formal">Tornar Formal</option>

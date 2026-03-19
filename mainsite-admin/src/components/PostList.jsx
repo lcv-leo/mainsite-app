@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/components/PostList.jsx
-// Versão: v1.1.1
-// Descrição: Componente isolado. Lógica de Drag and Drop preservada, com refatoração visual e correção de timezone para renderização de datas em formato pt-BR (America/Sao_Paulo).
+// Versão: v1.2.0
+// Descrição: Componente refatorado para usar props de tema (activePalette, isDarkBase), garantindo consistência visual com o padrão Glassmorphism/MD3.
 
 import React from 'react';
 import { Pin, Edit3, Trash2, GripVertical } from 'lucide-react';
@@ -14,7 +14,9 @@ const PostList = ({
   onDragEnd,
   onDragOver,
   onDrop,
-  styles
+  styles,
+  activePalette,
+  isDarkBase
 }) => {
   if (!posts || posts.length === 0) {
     return (
@@ -23,6 +25,9 @@ const PostList = ({
       </div>
     );
   }
+
+  // Define um fundo sutil para o botão de fixar quando ativo, baseado no tema
+  const activePinBg = isDarkBase ? 'rgba(138, 180, 248, 0.2)' : 'rgba(26, 115, 232, 0.15)';
 
   return (
     <div style={styles.list}>
@@ -34,7 +39,10 @@ const PostList = ({
           onDragEnd={onDragEnd} 
           onDragOver={onDragOver} 
           onDrop={(e) => onDrop(e, index)} 
-          style={{ ...styles.postCard, borderLeft: post.is_pinned ? '4px solid #4da6ff' : `1px solid rgba(128,128,128,0.1)` }}
+          style={{ 
+            ...styles.postCard, 
+            borderLeft: post.is_pinned ? `4px solid ${activePalette.titleColor}` : `1px solid ${styles.glassBorder}` 
+          }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <div style={{ cursor: 'grab', opacity: 0.4 }} title="Reordenar">
@@ -42,7 +50,6 @@ const PostList = ({
             </div>
             <div>
               <div style={styles.cardDate}>
-                {/* CORREÇÃO DE TIMEZONE APLICADA */}
                 {new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} 
                 {post.is_pinned && <span style={styles.pinnedBadge}>FIXADO</span>}
               </div>
@@ -52,7 +59,11 @@ const PostList = ({
           <div style={styles.actions}>
             <button 
               onClick={() => onPin(post.id)} 
-              style={{ ...styles.actionBtnPin, background: post.is_pinned ? 'rgba(128,128,128,0.3)' : 'transparent' }} 
+              style={{ 
+                ...styles.actionBtnPin, 
+                background: post.is_pinned ? activePinBg : 'transparent',
+                color: post.is_pinned ? activePalette.titleColor : activePalette.fontColor,
+              }} 
               title="Fixar/Desafixar"
             >
               <Pin size={16} />

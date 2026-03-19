@@ -1,21 +1,15 @@
 // Módulo: mainsite-frontend/src/components/CommentModal.jsx
-// Versão: v1.0.0
-// Descrição: Casca visual em Glassmorphism para envio de comentários contextuais.
+// Versão: v2.0.0
+// Descrição: Componente refatorado para utilizar o motor de estilos central (Glassmorphism/MD3), alinhando o visual do modal e seus formulários com o restante da aplicação.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Send, Loader2, User, Phone, Mail } from 'lucide-react';
 
-const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, currentPost }) => {
+const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, currentPost, styles }) => {
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', message: '' });
-  const [isVisible, setIsVisible] = useState(false);
 
-  useEffect(() => {
-    if (show) { setIsVisible(true); } else { setTimeout(() => setIsVisible(false), 400); }
-  }, [show]);
+  if (!show || !styles || !activePalette) return null;
 
-  if (!isVisible && !show) return null;
-
-  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
   const charsLeft = 1000 - formData.message.length;
 
   const formatPhone = (val) => {
@@ -35,85 +29,52 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({ ...formData, post_title: currentPost?.title }, () => setFormData({ name: '', phone: '', email: '', message: '' }));
+    onSubmit('comment', { ...formData, post_title: currentPost?.title }, () => setFormData({ name: '', phone: '', email: '', message: '' }), "Comentário enviado ao autor!", "Falha ao enviar comentário.");
   };
 
-  const overlayStyle = {
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: isDarkBase ? 'rgba(0, 0, 0, 0.65)' : 'rgba(255, 255, 255, 0.45)',
-    backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-    opacity: show ? 1 : 0, transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', padding: '20px'
-  };
-
-  const modalStyle = {
-    backgroundColor: activePalette.bgColor, color: activePalette.fontColor,
-    padding: '35px', maxWidth: '550px', width: '100%', borderRadius: '16px',
-    border: '1px solid rgba(128, 128, 128, 0.15)',
-    boxShadow: isDarkBase ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
-    transform: show ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(15px)',
-    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)', position: 'relative'
-  };
-
-  const inputStyle = {
-    width: '100%', padding: '12px 16px 12px 38px',
-    backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-    border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: '8px',
-    color: activePalette.fontColor, fontSize: '14px', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box'
-  };
-
-  const iconStyle = { position: 'absolute', top: '13px', left: '12px', opacity: 0.5, color: activePalette.fontColor };
-
-  const buttonStyle = {
-    backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none',
-    padding: '14px', fontSize: '15px', fontWeight: '600', borderRadius: '8px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
-    width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px',
-    transition: 'transform 0.2s ease, opacity 0.2s ease', boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)',
-    opacity: isSubmitting ? 0.7 : 1, marginTop: '10px'
-  };
+  const inputContainerStyle = { position: 'relative' };
+  const iconStyle = { position: 'absolute', top: '13px', left: '12px', opacity: 0.5, color: activePalette.fontColor, zIndex: 1 };
+  const inputStyle = { ...styles.textInput, paddingLeft: '38px', width: '100%', boxSizing: 'border-box' };
 
   return (
-    <div style={overlayStyle}>
-      <div style={modalStyle}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.6 }} onMouseOver={(e) => e.currentTarget.style.opacity = 1} onMouseOut={(e) => e.currentTarget.style.opacity = 0.6}>
+    <div style={{ ...styles.modalOverlay, opacity: show ? 1 : 0, transition: 'opacity 0.3s' }}>
+      <div style={{...styles.modalContent, animation: 'fadeIn 0.3s ease-out', maxWidth: '550px', width: '100%', textAlign: 'left' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.6 }}>
           <X size={24} />
         </button>
 
-        <h2 style={{ margin: '0 0 5px 0', fontSize: '22px', fontWeight: '600', color: activePalette.titleColor, letterSpacing: '-0.02em' }}>
+        <h2 style={{ margin: '0 0 5px 0', fontSize: '20px', fontWeight: '600', color: activePalette.titleColor }}>
           Deixar um Comentário
         </h2>
-        <p style={{ fontSize: '13px', opacity: 0.6, marginBottom: '25px', marginTop: 0 }}>
-          Em relação ao fragmento: <strong>{currentPost?.title || 'Geral'}</strong>
+        <p style={{ fontSize: '13px', opacity: 0.7, marginBottom: '25px', marginTop: 0 }}>
+          Sobre: <strong>{currentPost?.title || 'Geral'}</strong>
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', width: '100%' }}>
-          <div style={{ position: 'relative' }}>
+          <div style={inputContainerStyle}>
             <User size={18} style={iconStyle} />
             <input type="text" name="name" placeholder="Seu Nome (Opcional)" value={formData.name} onChange={handleChange} style={inputStyle} />
           </div>
-
+          
           <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', flex: '1 1 200px' }}>
+            <div style={{ ...inputContainerStyle, flex: '1 1 200px' }}>
               <Phone size={18} style={iconStyle} />
               <input type="tel" name="phone" placeholder="Telefone (Opcional)" value={formData.phone} onChange={handleChange} maxLength={16} style={inputStyle} />
             </div>
-            <div style={{ position: 'relative', flex: '1 1 200px' }}>
+            <div style={{ ...inputContainerStyle, flex: '1 1 200px' }}>
               <Mail size={18} style={iconStyle} />
               <input type="email" name="email" placeholder="Seu E-mail (Opcional)" value={formData.email} onChange={handleChange} style={inputStyle} />
             </div>
           </div>
 
           <div style={{ position: 'relative' }}>
-            <textarea 
-              name="message" required maxLength={1000} placeholder="Escreva seu comentário aqui (Obrigatório)..." 
-              value={formData.message} onChange={handleChange} style={{ ...inputStyle, padding: '15px', minHeight: '130px', resize: 'vertical' }} 
-            />
-            <div style={{ position: 'absolute', bottom: '15px', right: '15px', fontSize: '11px', fontWeight: '600', color: charsLeft < 50 ? '#ef4444' : activePalette.fontColor, opacity: charsLeft < 50 ? 1 : 0.5 }}>
-              {charsLeft} caracteres restantes
+            <textarea name="message" required maxLength={1000} placeholder="Escreva seu comentário aqui (Obrigatório)..." value={formData.message} onChange={handleChange} style={{ ...inputStyle, padding: '12px', minHeight: '130px', resize: 'vertical' }} />
+            <div style={{ position: 'absolute', bottom: '12px', right: '12px', fontSize: '11px', fontWeight: '600', color: charsLeft < 50 ? '#ef4444' : activePalette.fontColor, opacity: charsLeft < 50 ? 1 : 0.6 }}>
+              {charsLeft}
             </div>
           </div>
 
-          <button type="submit" disabled={isSubmitting} style={buttonStyle} onMouseOver={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(-1px)')} onMouseOut={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(0)')} onMouseDown={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(1px)')}>
+          <button type="submit" disabled={isSubmitting} style={{...styles.adminButton, marginTop: '10px' }}>
             {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />} 
             {isSubmitting ? 'ENVIANDO...' : 'ENVIAR COMENTÁRIO'}
           </button>

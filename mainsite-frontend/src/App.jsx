@@ -1,23 +1,68 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v3.24.0
-// Descrição: Alteração profunda no motor de Opt-Out. O bloqueio global hide_df_disclaimer foi substituído pela checagem individual de ID na fila, além de preparar o DisclaimerModal para disparar a janela de doação nativa através da propriedade onDonationTrigger.
+// Versão: v4.0.1
+// Descrição: Hotfix para restaurar a funcionalidade de compartilhamento por e-mail. Implementação de um novo modal genérico e estilizado para substituir o obsoleto ShareOverlay.
 
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Loader2, AlertTriangle, Check } from 'lucide-react';
+import { Loader2, AlertTriangle, Check, Send, Mail } from 'lucide-react';
 
+// Componentes Principais
 import PostReader from './components/PostReader';
 import ArchiveMenu from './components/ArchiveMenu';
 import FloatingControls from './components/FloatingControls';
 
+// Componentes Lazy-loaded
 const DisclaimerModal = lazy(() => import('./components/DisclaimerModal'));
-const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
 const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const ContactModal = lazy(() => import('./components/ContactModal'));
 const CommentModal = lazy(() => import('./components/CommentModal'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.24.0';
+const APP_VERSION = 'APP v4.0.1';
+
+// CORE STYLING ENGINE (Portado do mainsite-admin)
+const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse) => ({
+  glassBg,
+  glassBorder,
+  appBody: { 
+    backgroundColor: activePalette.bgColor, 
+    backgroundImage: bgImageToUse,
+    backgroundSize: 'cover', backgroundAttachment: 'fixed',
+    color: activePalette.fontColor, fontFamily: activePalette.fontFamily || 'system-ui, -apple-system, sans-serif', 
+    minHeight: '100vh', padding: '40px 20px', transition: 'all 0.4s ease',
+    boxSizing: 'border-box',
+    display: 'flex', flexDirection: 'column', alignItems: 'center'
+  },
+  toast: { 
+    position: 'fixed', top: '30px', left: '50%', padding: '12px 24px', borderRadius: '12px', 
+    zIndex: 10000, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', 
+    transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', 
+    border: `1px solid ${glassBorder}`, display: 'flex', alignItems: 'center', 
+    gap: '12px', fontWeight: '500', fontSize: '14px', 
+    backgroundColor: glassBg, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' 
+  },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: isDarkBase ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' },
+  modalContent: { backgroundColor: glassBg, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', padding: '40px', borderRadius: '24px', border: `1px solid ${glassBorder}`, maxWidth: '450px', width: '100%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', color: activePalette.fontColor },
+  modalActions: { display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '30px' },
+  modalBtnConfirm: { flex: 1, background: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none', borderRadius: '12px', padding: '14px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'opacity 0.2s' },
+  modalBtnCancel: { flex: 1, backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '12px', padding: '14px', fontWeight: '600', cursor: 'pointer', transition: 'background 0.2s' },
+  textInput: { padding: '12px 16px', border: `1px solid ${glassBorder}`, backgroundColor: glassBg, backdropFilter: 'blur(5px)', color: activePalette.fontColor, outline: 'none', fontSize: '14px', borderRadius: '8px', transition: 'border 0.2s', width: '100%', boxSizing: 'border-box' },
+  adminButton: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none', borderRadius: '12px', padding: '16px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', letterSpacing: '0.5px', marginTop: '20px', transition: 'opacity 0.2s' },
+  appContainer: {
+    maxWidth: '1200px', width: '100%', 
+    padding: ' clamp(20px, 5vw, 50px)',
+    backgroundColor: glassBg,
+    backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+    borderRadius: '24px', border: `1px solid ${glassBorder}`,
+    boxShadow: '0 20px 40px rgba(0,0,0,0.08)'
+  },
+  postCard: { 
+    padding: '20px 24px', border: `1px solid ${glassBorder}`, 
+    backgroundColor: glassBg, backdropFilter: 'blur(5px)', 
+    borderRadius: '16px', transition: 'transform 0.2s, box-shadow 0.2s'
+  },
+  loaderCenter: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: activePalette.bgColor }
+});
 
 const App = () => {
   const [posts, setPosts] = useState([]);
@@ -27,47 +72,28 @@ const App = () => {
   
   const [settings, setSettings] = useState({
     allowAutoMode: true,
-    light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' },
-    dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' },
-    shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' }
+    light: { bgColor: '#f8f9fa', bgImage: '', fontColor: '#202124', titleColor: '#1a73e8' },
+    dark: { bgColor: '#131314', bgImage: '', fontColor: '#e3e3e3', titleColor: '#8ab4f8' },
+    shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'system-ui, -apple-system, sans-serif' }
   });
 
   const [userTheme, setUserTheme] = useState(localStorage.getItem('themePref') || 'auto');
   const [systemIsDark, setSystemIsDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
-  const [emailModal, setEmailModal] = useState({ show: false, email: '' });
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   const [isDonationOpen, setIsDonationOpen] = useState(false);
   const [isSendingComment, setIsSendingComment] = useState(false);
   const [isSendingContact, setIsSendingContact] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [disclaimersConfig, setDisclaimersConfig] = useState({ enabled: false, items: [] });
-  // Novo Estado Filtrado de Avisos
   const [filteredDisclaimers, setFilteredDisclaimers] = useState({ enabled: false, items: [] });
 
-  const submitCommentForm = async (formData, resetFormCb) => {
-  setIsSendingComment(true);
-  try {
-    const res = await fetch(`${API_URL}/comment`, { 
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify(formData) 
-    });
-    if (res.ok) {
-      showNotification("Comentário enviado com sucesso para o autor!", "success");
-      resetFormCb();
-      setIsCommentOpen(false);
-    } else throw new Error();
-  } catch (err) { 
-    showNotification("Falha ao enviar comentário. Tente novamente.", "error"); 
-  } finally { 
-    setIsSendingComment(false); 
-  }
-};
+  const [emailShareModal, setEmailShareModal] = useState({ show: false, value: '' });
 
   const showNotification = useCallback((message, type = 'info') => {
     setToast({ show: true, message, type });
@@ -81,50 +107,15 @@ const App = () => {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  useEffect(() => {
-    fetchData();
-    const handleScroll = () => setShowBackToTop(window.scrollY > 400);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // INJEÇÃO DA REGRA DE OPT-OUT INDIVIDUAL NO MOTOR DE ROTEAMENTO
-  useEffect(() => {
-    if (currentPost) {
-      
-      // Filtra o array de avisos retendo apenas os que não constam no localStorage do usuário
-      if (disclaimersConfig.enabled && disclaimersConfig.items.length > 0) {
-        const visibleItems = disclaimersConfig.items.filter(item => {
-           return localStorage.getItem(`hide_disclaimer_${item.id}`) !== 'true';
-        });
-        
-        if (visibleItems.length > 0) {
-           setFilteredDisclaimers({ enabled: true, items: visibleItems });
-           setShowDisclaimer(true);
-        }
-      }
-      
-      document.title = `${currentPost.title} | Divagações Filosóficas`;
-      const cleanText = currentPost.content ? currentPost.content.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : '';
-      const metaDesc = document.querySelector('meta[name="description"]');
-      if (metaDesc) metaDesc.setAttribute("content", cleanText);
-      const ogTitle = document.querySelector('meta[property="og:title"]');
-      if (ogTitle) ogTitle.setAttribute("content", currentPost.title);
-      const ogDesc = document.querySelector('meta[property="og:description"]');
-      if (ogDesc) ogDesc.setAttribute("content", cleanText);
-      
-      window.history.replaceState(null, '', `?p=${currentPost.id}`);
-    } else {
-      document.title = "Divagações Filosóficas";
-    }
-  }, [currentPost, disclaimersConfig]); // Reavalia caso as configs mudem
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [resPosts, resSettings] = await Promise.all([ fetch(`${API_URL}/posts`), fetch(`${API_URL}/settings`) ]);
+      const [resPosts, resSettings, resDisc] = await Promise.all([
+        fetch(`${API_URL}/posts`),
+        fetch(`${API_URL}/settings`),
+        fetch(`${API_URL}/settings/disclaimers`)
+      ]);
+      
       const dataPosts = await resPosts.json();
-      const dataSettings = await resSettings.json();
-
       if (Array.isArray(dataPosts) && dataPosts.length > 0) {
         setPosts(dataPosts);
         const params = new URLSearchParams(window.location.search);
@@ -132,28 +123,48 @@ const App = () => {
         setCurrentPost(requestedPostId ? (dataPosts.find(p => p.id.toString() === requestedPostId) || dataPosts[0]) : dataPosts[0]);
       }
       
+      const dataSettings = await resSettings.json();
       if (!dataSettings.error) {
-        if (dataSettings.light) {
-          setSettings({
-            allowAutoMode: dataSettings.allowAutoMode ?? true,
-            light: dataSettings.light, dark: dataSettings.dark,
-            shared: dataSettings.shared || { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' }
-          });
-        } else {
-          setSettings(prev => ({ ...prev, dark: { bgColor: dataSettings.bgColor || prev.dark.bgColor, bgImage: dataSettings.bgImage || prev.dark.bgImage, fontColor: dataSettings.fontColor || prev.dark.fontColor, titleColor: dataSettings.titleColor || prev.dark.titleColor }, shared: { fontSize: dataSettings.fontSize || prev.shared.fontSize, titleFontSize: dataSettings.titleFontSize || prev.shared.titleFontSize, fontFamily: dataSettings.fontFamily || prev.shared.fontFamily } }));
+        if (dataSettings.light) setSettings(dataSettings);
+        else setSettings(prev => ({ ...prev, ...dataSettings })); // Fallback
+      }
+
+      if (resDisc.ok) setDisclaimersConfig(await resDisc.json());
+
+    } catch (err) { showNotification("Falha de comunicação com a API.", "error"); } 
+    finally { setLoading(false); }
+  }, [showNotification]);
+
+  useEffect(() => {
+    fetchData();
+    const handleScroll = () => setShowBackToTop(window.scrollY > 400);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (currentPost) {
+      if (disclaimersConfig.enabled && disclaimersConfig.items.length > 0) {
+        const visibleItems = disclaimersConfig.items.filter(item => localStorage.getItem(`hide_disclaimer_${item.id}`) !== 'true');
+        if (visibleItems.length > 0) {
+           setFilteredDisclaimers({ enabled: true, items: visibleItems });
+           setShowDisclaimer(true);
         }
       }
-      const resDisc = await fetch(`${API_URL}/settings/disclaimers`);
-      if (resDisc.ok) {
-         const dConfig = await resDisc.json();
-         setDisclaimersConfig(dConfig);
-      }
-    } catch (err) { console.error("Falha na API."); } finally { setLoading(false); }
-  };
+      document.title = `${currentPost.title} | Divagações Filosóficas`;
+      const cleanText = currentPost.content ? currentPost.content.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : '';
+      document.querySelector('meta[name="description"]')?.setAttribute("content", cleanText);
+      document.querySelector('meta[property="og:title"]')?.setAttribute("content", currentPost.title);
+      document.querySelector('meta[property="og:description"]')?.setAttribute("content", cleanText);
+      window.history.replaceState(null, '', `?p=${currentPost.id}`);
+    } else {
+      document.title = "Divagações Filosóficas";
+    }
+  }, [currentPost, disclaimersConfig]);
 
   const activePalette = useMemo(() => {
-    const safeDark = settings.dark || { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' };
-    const safeLight = settings.light || { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' };
+    const safeDark = settings.dark || { bgColor: '#131314', bgImage: '', fontColor: '#e3e3e3', titleColor: '#8ab4f8' };
+    const safeLight = settings.light || { bgColor: '#f8f9fa', fontColor: '#202124', titleColor: '#1a73e8' };
     if (!settings.allowAutoMode && userTheme === 'auto') return safeDark;
     let resolved = userTheme;
     if (resolved === 'auto') resolved = systemIsDark ? 'dark' : 'light';
@@ -167,157 +178,120 @@ const App = () => {
     setUserTheme(next);
     localStorage.setItem('themePref', next);
   };
-
+  
   const handleShare = async (platform) => {
     if (!currentPost) return;
     const postLink = `${window.location.origin}/?p=${currentPost.id}`;
-    const shareText = `Recomendo esta leitura: "${currentPost.title}"`;
-    try {
-      if (platform === 'whatsapp') {
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} - ${postLink}`)}`, '_blank');
-        fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'whatsapp', target: postLink }) });
-      } 
-      else if (platform === 'link') {
-        await navigator.clipboard.writeText(postLink);
-        showNotification("Link copiado para a área de transferência!", "success");
-        fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'link', target: postLink }) });
-      }
-      else if (platform === 'email') {
-        setEmailModal({ show: true, email: '' });
-      }
-    } catch (e) { showNotification("Falha no compartilhamento. Verifique permissões do navegador.", "error"); }
+    if (platform === 'link') {
+      await navigator.clipboard.writeText(postLink);
+      showNotification("Link copiado para a área de transferência!", "success");
+      fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'link', target: postLink }) });
+    }
+    else if (platform === 'email') {
+      setEmailShareModal({ show: true, value: '' });
+    }
   };
 
   const submitEmailShare = async (e) => {
     e.preventDefault();
-    if (!emailModal.email || !currentPost) return;
+    if (!emailShareModal.value || !currentPost) return;
     const postLink = `${window.location.origin}/?p=${currentPost.id}`;
-    setIsSendingEmail(true); setEmailModal({ show: false, email: '' });
+    setIsSendingEmail(true);
+    setEmailShareModal({ show: false, value: '' });
     try {
-      const res = await fetch(`${API_URL}/share/email`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, link: postLink, target_email: emailModal.email }) });
-      if (res.ok) showNotification("E-mail disparado com sucesso!", "success"); else throw new Error();
-    } catch (err) { showNotification("Falha ao enviar e-mail. Tente novamente.", "error"); } finally { setIsSendingEmail(false); }
-  };
-
-  const submitContactForm = async (formData, resetFormCb) => {
-    setIsSendingContact(true);
-    try {
-      const res = await fetch(`${API_URL}/contact`, { 
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(formData) 
-      });
-      if (res.ok) {
-        showNotification("Mensagem enviada com sucesso! Verifique seu e-mail.", "success");
-        resetFormCb();
-        setIsContactOpen(false);
-      } else throw new Error();
-    } catch (err) { 
-      showNotification("Falha ao enviar mensagem. Tente novamente.", "error"); 
-    } finally { 
-      setIsSendingContact(false); 
+      const res = await fetch(`${API_URL}/share/email`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, link: postLink, target_email: emailShareModal.value }) });
+      if (res.ok) showNotification("E-mail de compartilhamento enviado!", "success");
+      else throw new Error((await res.json()).error || "Falha no envio do e-mail.");
+    } catch (err) {
+      showNotification(err.message, "error");
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
+  const handleFormSubmit = async (endpoint, formData, resetCb, successMsg, errorMsg) => {
+      const stateSetter = endpoint === 'comment' ? setIsSendingComment : setIsSendingContact;
+      const modalCloser = endpoint === 'comment' ? setIsCommentOpen : setIsContactOpen;
+      stateSetter(true);
+      try {
+        const res = await fetch(`${API_URL}/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+        if (res.ok) {
+          showNotification(successMsg, "success");
+          if(resetCb) resetCb();
+          modalCloser(false);
+        } else throw new Error((await res.json()).error || errorMsg);
+      } catch (err) { showNotification(err.message || errorMsg, "error"); } 
+      finally { stateSetter(false); }
+  };
+  
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  const isDarkBase = activePalette && activePalette.bgColor ? (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1')) : true;
-  const hasCustomImage = activePalette.bgImage && activePalette.bgImage.trim() !== '';
-
-  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: activePalette.bgColor }}><Loader2 color={activePalette.fontColor} size={40} className="animate-spin" /></div>;
+  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
+  const glassBg = isDarkBase ? 'rgba(30, 30, 32, 0.7)' : 'rgba(255, 255, 255, 0.75)';
+  const glassBorder = isDarkBase ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
 
   const defaultCSSPattern = isDarkBase 
-    ? `radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.25), transparent 45%), radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.25), transparent 45%), linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px)`
-    : `radial-gradient(circle at 15% 40%, rgba(26, 115, 232, 0.15), transparent 45%), radial-gradient(circle at 85% 60%, rgba(161, 66, 244, 0.15), transparent 45%), linear-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.08) 1px, transparent 1px)`;
+    ? `radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.15), transparent 45%), radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.15), transparent 45%)`
+    : `radial-gradient(circle at 15% 40%, rgba(26, 115, 232, 0.08), transparent 45%), radial-gradient(circle at 85% 60%, rgba(161, 66, 244, 0.08), transparent 45%)`;
 
-  const bgImageToUse = hasCustomImage ? (isDarkBase ? `url("${activePalette.bgImage}")` : `linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url("${activePalette.bgImage}")`) : defaultCSSPattern;
-  const bgSizeToUse = hasCustomImage ? 'cover' : '100% 100%, 100% 100%, 40px 40px, 40px 40px';
+  const bgImageToUse = (activePalette.bgImage && activePalette.bgImage.trim() !== '') 
+    ? (isDarkBase ? `url("${activePalette.bgImage}")` : `linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url("${activePalette.bgImage}")`) 
+    : defaultCSSPattern;
+
+  const styles = useMemo(() => 
+    getStyles(activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse), 
+  [activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse]);
+
+  if (loading) return <div style={styles.loaderCenter}><Loader2 color={activePalette.fontColor} size={40} className="animate-spin" /></div>;
 
   return (
-    <div style={{ backgroundColor: activePalette.bgColor, backgroundImage: bgImageToUse, backgroundSize: bgSizeToUse, backgroundAttachment: 'fixed', backgroundPosition: 'center', color: activePalette.fontColor, fontFamily: settings.shared.fontFamily, minHeight: '100vh', width: '100%', margin: 0, padding: 0, position: 'relative', transition: 'background-color 0.5s ease, color 0.5s ease' }}>
+    <div style={styles.appBody}>
       
-      <div style={{ position: 'fixed', top: '30px', left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#000' : '#fff', color: toast.type === 'error' ? '#fff' : '#000', padding: '15px 25px', borderRadius: '8px', zIndex: 10000, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)', border: '2px solid #000', fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', pointerEvents: 'none' }}>
-        {toast.type === 'error' ? <AlertTriangle size={18} /> : <Check size={18} />} {toast.message}
+      <div style={{ ...styles.toast, transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, color: toast.type === 'error' ? '#fff' : activePalette.fontColor, ...(toast.type === 'error' && { backgroundColor: '#ea4335', backdropFilter: 'blur(0px)' }) }}>
+        {toast.type === 'error' ? <AlertTriangle size={18} /> : <Check size={18} />} <span>{toast.message}</span>
       </div>
+      
+      {emailShareModal.show && (
+        <div style={styles.modalOverlay}>
+            <form onSubmit={submitEmailShare} style={{...styles.modalContent, animation: 'fadeIn 0.3s ease-out'}}>
+                <div style={{ display: 'flex', justifyContent: 'center', color: activePalette.titleColor, opacity: 0.8, marginBottom: '20px' }}>
+                    <Mail size={40} />
+                </div>
+                <h3 style={{margin: '0 0 10px 0', fontSize: '18px', color: activePalette.titleColor}}>Compartilhar por E-mail</h3>
+                <p style={{margin: '0 0 25px 0', fontSize: '14px', lineHeight: '1.6', opacity: 0.85}}>Insira o e-mail do destinatário.</p>
+                <input type="email" required autoFocus placeholder="destinatario@email.com" value={emailShareModal.value} onChange={(e) => setEmailShareModal({...emailShareModal, value: e.target.value})} style={styles.textInput} />
+                <div style={styles.modalActions}>
+                    <button type="button" onClick={() => setEmailShareModal({ show: false, value: '' })} style={styles.modalBtnCancel}>CANCELAR</button>
+                    <button type="submit" style={styles.modalBtnConfirm}><Send size={16}/> ENVIAR</button>
+                </div>
+            </form>
+        </div>
+      )}
 
       <Suspense fallback={null}>
-        <ShareOverlay modalState={emailModal} setModalState={setEmailModal} onSubmit={submitEmailShare} activePalette={activePalette} />
-        
-        {/* MODAL AGORA USA OS ITEMS FILTRADOS E RECEBE A ACTION DOACION */}
-        <DisclaimerModal 
-          show={showDisclaimer} 
-          onClose={() => setShowDisclaimer(false)} 
-          activePalette={activePalette} 
-          config={filteredDisclaimers}
-          onDonationTrigger={() => setIsDonationOpen(true)}
-        />
-
-        <ContactModal 
-          show={isContactOpen} 
-          onClose={() => setIsContactOpen(false)} 
-          onSubmit={submitContactForm} 
-          activePalette={activePalette} 
-          isSubmitting={isSendingContact} 
-        />
-
-        <CommentModal 
-         show={isCommentOpen} 
-         onClose={() => setIsCommentOpen(false)} 
-         onSubmit={submitCommentForm} 
-         activePalette={activePalette} 
-         isSubmitting={isSendingComment}
-         currentPost={currentPost} 
-        />
-
-       <DonationModal
-        show={isDonationOpen}
-        onClose={() => setIsDonationOpen(false)}
-        activePalette={activePalette}
-        API_URL={API_URL} 
-      />
-        
-        <ChatWidget 
-          isOpen={isChatOpen} 
-          onClose={() => setIsChatOpen(false)} 
-          currentPost={currentPost} 
-          activePalette={activePalette} 
-          API_URL={API_URL} 
-          triggerDonation={() => setIsDonationOpen(true)}
-        />
+        <DisclaimerModal show={showDisclaimer} onClose={() => setShowDisclaimer(false)} onDonationTrigger={() => setIsDonationOpen(true)} config={filteredDisclaimers} styles={styles} activePalette={activePalette} />
+        <ContactModal show={isContactOpen} onClose={() => setIsContactOpen(false)} onSubmit={handleFormSubmit} isSubmitting={isSendingContact} styles={styles} activePalette={activePalette} />
+        <CommentModal show={isCommentOpen} onClose={() => setIsCommentOpen(false)} onSubmit={handleFormSubmit} isSubmitting={isSendingComment} currentPost={currentPost} styles={styles} activePalette={activePalette} />
+        <DonationModal show={isDonationOpen} onClose={() => setIsDonationOpen(false)} API_URL={API_URL} styles={styles} activePalette={activePalette} showNotification={showNotification} />
+        <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} triggerDonation={() => setIsDonationOpen(true)} API_URL={API_URL} styles={styles} activePalette={activePalette} showNotification={showNotification} />
       </Suspense>
 
-      <style>{`
-        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
-        .fade-in-node { opacity: 0; transform: translateY(10px); animation: fadeIn 1.5s forwards; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .animate-spin { animation: spin 1s linear infinite; }
-        .public-wrapper { padding: 40px 20px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
-        .app-container { max-width: 1200px; width: 100%; padding: 50px; border: 1px solid rgba(128,128,128,0.2); background-color: ${activePalette.bgColor}; margin: auto; box-sizing: border-box; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.15); transition: background-color 0.5s ease; }
-        .public-wrapper h1, .public-wrapper h2, .public-wrapper h3, .public-wrapper h4 { line-height: 1.5 !important; }
-        @media (max-width: 768px) { .public-wrapper { padding: 20px 10px; } .app-container { padding: 30px 20px; border-radius: 0; } }
-      `}</style>
+      {/* O ShareOverlay foi substituído pelo modal genérico de e-mail e será removido. */}
 
-      <FloatingControls showBackToTop={showBackToTop} scrollToTop={scrollToTop} userTheme={userTheme} cycleTheme={cycleTheme} isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} activePalette={activePalette} />
+      <FloatingControls showBackToTop={showBackToTop} scrollToTop={scrollToTop} userTheme={userTheme} cycleTheme={cycleTheme} isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} styles={styles} activePalette={activePalette} />
       
-      <div className="public-wrapper">
-        <div className="fade-in-node app-container">
-          {currentPost && (
-            <PostReader 
-              post={currentPost} 
-              activePalette={activePalette} 
-              settings={settings} 
-              API_URL={API_URL} 
-              onShare={handleShare} 
-              onContact={() => setIsContactOpen(true)}
-              onComment={() => setIsCommentOpen(true)}
-              onDonation={() => setIsDonationOpen(true)}
-              isSendingEmail={isSendingEmail} 
-              isNotHomePage={posts.length > 0 && currentPost.id !== posts[0].id}
-            />
-          )}
-        </div>
-
-        <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={setCurrentPost} activePalette={activePalette} APP_VERSION={APP_VERSION} />
+      <div className="fade-in-node" style={styles.appContainer}>
+        {currentPost && (
+          <PostReader 
+            post={currentPost} settings={settings} API_URL={API_URL}
+            onShare={handleShare} onContact={() => setIsContactOpen(true)} onComment={() => setIsCommentOpen(true)} onDonation={() => setIsDonationOpen(true)}
+            isSendingEmail={isSendingEmail} isNotHomePage={posts.length > 0 && currentPost.id !== posts[0].id}
+            styles={styles} activePalette={activePalette}
+          />
+        )}
       </div>
+
+      <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={setCurrentPost} styles={styles} activePalette={activePalette} APP_VERSION={APP_VERSION} />
     </div>
   );
 };

@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.27.0
-// Descrição: Monólito consolidado. Painel Financeiro integrado e exclusão mútua de abas ajustada.
+// Versão: v3.31.0
+// Descrição: Refatoração visual completa para Glassmorphism/MD3. Lógica de estilos centralizada e modal de exclusão genérico.
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
@@ -16,7 +16,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel')); // NOV
 
 // URL Oficial da API
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.27.0';
+const APP_VERSION = 'APP v3.31.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -26,6 +26,8 @@ const DEFAULT_SETTINGS = {
 };
 
 const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse) => ({
+  glassBg,
+  glassBorder,
   center: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: activePalette.bgColor },
   adminBody: { 
     backgroundColor: activePalette.bgColor, 
@@ -33,12 +35,12 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
     backgroundSize: 'cover', backgroundAttachment: 'fixed',
     color: activePalette.fontColor, fontFamily: activePalette.fontFamily || 'system-ui, -apple-system, sans-serif', minHeight: '100vh', padding: '40px 20px', transition: 'all 0.4s ease' 
   },
-  toast: { position: 'fixed', top: '30px', left: '50%', padding: '12px 24px', borderRadius: '12px', zIndex: 10000, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', border: `1px solid ${glassBorder}`, display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '500', fontSize: '14px' },
+  toast: { position: 'fixed', top: '30px', left: '50%', padding: '12px 24px', borderRadius: '12px', zIndex: 10000, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', border: `1px solid ${glassBorder}`, display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '500', fontSize: '14px', backgroundColor: glassBg, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' },
   modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: isDarkBase ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 },
-  modalContent: { backgroundColor: isDarkBase ? '#1e1e1e' : '#ffffff', padding: '40px', borderRadius: '24px', border: `1px solid ${glassBorder}`, maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', color: activePalette.fontColor },
+  modalContent: { backgroundColor: glassBg, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', padding: '40px', borderRadius: '24px', border: `1px solid ${glassBorder}`, maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', color: activePalette.fontColor },
   modalText: { fontSize: '16px', fontWeight: '500', marginBottom: '30px' },
   modalActions: { display: 'flex', gap: '12px', justifyContent: 'center' },
-  modalBtnConfirm: { backgroundColor: '#ea4335', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
+  modalBtnConfirm: { backgroundColor: 'rgba(234, 67, 53, 0.4)', backdropFilter: 'blur(10px)', color: '#fff', border: '1px solid rgba(234, 67, 53, 0.5)', borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
   modalBtnCancel: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
   adminContainer: { maxWidth: '1000px', margin: '0 auto', backgroundColor: glassBg, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: '24px', border: `1px solid ${glassBorder}`, padding: '40px', boxShadow: '0 20px 40px rgba(0,0,0,0.08)' },
   adminHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: `1px solid ${glassBorder}`, paddingBottom: '24px', flexWrap: 'wrap', gap: '15px' },
@@ -48,12 +50,12 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   settingsBtn: { backgroundColor: 'transparent', color: activePalette.fontColor, border: `1px solid ${glassBorder}`, borderRadius: '20px', padding: '10px 20px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' },
   backButton: { background: 'none', border: 'none', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px', color: activePalette.fontColor, opacity: 0.8 },
   form: { display: 'flex', flexDirection: 'column', gap: '24px' },
-  settingsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)', padding: '20px', border: `1px solid ${glassBorder}`, borderRadius: '16px' },
+  settingsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: 'rgba(0,0,0,0.02)', padding: '20px', border: `1px solid ${glassBorder}`, borderRadius: '16px', backdropFilter: 'blur(5px)' },
   label: { display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor },
   colorInput: { height: '40px', width: '100%', cursor: 'pointer', border: 'none', borderRadius: '8px', background: 'transparent' },
-  textInput: { padding: '12px', border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff', color: activePalette.fontColor, outline: 'none', fontSize: '14px', borderRadius: '8px', transition: 'border 0.2s' },
+  textInput: { padding: '12px', border: `1px solid ${glassBorder}`, backgroundColor: glassBg, backdropFilter: 'blur(5px)', color: activePalette.fontColor, outline: 'none', fontSize: '14px', borderRadius: '8px', transition: 'border 0.2s' },
   adminInput: { border: 'none', borderBottom: `2px solid ${activePalette.titleColor}`, backgroundColor: 'transparent', color: activePalette.titleColor, padding: '15px 0', fontSize: '24px', fontWeight: '600', outline: 'none', marginBottom: '10px' },
-  editorContainer: { border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+  editorContainer: { border: `1px solid ${glassBorder}`, backgroundColor: glassBg, backdropFilter: 'blur(5px)', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
   toolbar: { display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '12px', borderBottom: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' },
   toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: activePalette.fontColor, border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '6px', width: '32px', height: '32px', transition: 'background 0.2s' },
   toolbarDivider: { width: '1px', backgroundColor: glassBorder, margin: '0 8px' },
@@ -61,7 +63,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   statusBar: { padding: '8px 16px', borderTop: `1px solid ${glassBorder}`, fontSize: '12px', color: activePalette.fontColor, opacity: 0.6, textAlign: 'right', background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)' },
   adminButton: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none', borderRadius: '12px', padding: '16px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', letterSpacing: '0.5px', marginTop: '20px', transition: 'opacity 0.2s' },
   list: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  postCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : '#fff', borderRadius: '16px', transition: 'transform 0.2s, box-shadow 0.2s' },
+  postCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', border: `1px solid ${glassBorder}`, backgroundColor: glassBg, backdropFilter: 'blur(5px)', borderRadius: '16px', transition: 'transform 0.2s, box-shadow 0.2s' },
   cardDate: { fontSize: '12px', color: activePalette.fontColor, opacity: 0.6, marginBottom: '6px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' },
   pinnedBadge: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold' },
   cardTitle: { fontSize: '16px', fontWeight: '600', color: activePalette.fontColor },
@@ -85,7 +87,7 @@ const App = () => {
   const [isSaving, setIsSaving] = useState(false);
   
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
-  const [modal, setModal] = useState({ show: false, id: null });
+  const [modal, setModal] = useState({ show: false, id: null, type: null, onComplete: null });
   const [draggedIndex, setDraggedIndex] = useState(null);
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -198,12 +200,29 @@ const App = () => {
     } catch (err) { showNotification("Erro ao salvar configs.", "error"); } finally { setIsSaving(false); }
   };
 
+  const openDeleteModal = (id, type, onComplete, customMessage) => {
+    setModal({ show: true, id, type, onComplete, message: customMessage || `Deseja apagar permanentemente?` });
+  };
+
   const confirmDelete = async () => {
-    const id = modal.id; setModal({ show: false, id: null });
+    const { id, type, onComplete } = modal;
+    setModal({ show: false, id: null, type: null, onComplete: null }); // Fechar modal imediatamente
+    if (!id || !type) return;
+
     try {
-      const res = await fetch(`${API_URL}/posts/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${secret}` } });
-      if (res.ok) { showNotification("Removido.", "success"); await fetchData(); }
-    } catch (err) { showNotification("Falha.", "error"); }
+      const res = await fetch(`${API_URL}/${type}/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${secret}` }
+      });
+      if (res.ok) {
+        showNotification("Registro removido.", "success");
+        if (onComplete) onComplete();
+      } else {
+        throw new Error("Falha ao remover o registro.");
+      }
+    } catch (err) {
+      showNotification(err.message, "error");
+    }
   };
 
   const handlePin = async (id) => {
@@ -271,7 +290,7 @@ const App = () => {
         button:hover { opacity: 0.9; }
       `}</style>
       
-      <div style={{ ...styles.toast, transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor }}>
+      <div style={{ ...styles.toast, transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -120px)', opacity: toast.show ? 1 : 0, color: toast.type === 'error' ? '#fff' : activePalette.fontColor, ...(toast.type === 'error' && { backgroundColor: '#ea4335', backdropFilter: 'blur(0px)' }) }}>
         {toast.type === 'error' ? <AlertCircle size={18} /> : <Check size={18} />} <span>{toast.message}</span>
       </div>
 
@@ -279,9 +298,9 @@ const App = () => {
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <AlertCircle size={48} color="#ea4335" style={{ marginBottom: '20px' }} />
-            <p style={styles.modalText}>Deseja apagar permanentemente?</p>
+            <p style={styles.modalText}>{modal.message}</p>
             <div style={styles.modalActions}>
-              <button onClick={() => setModal({ show: false, id: null })} style={styles.modalBtnCancel}>CANCELAR</button>
+              <button onClick={() => setModal({ show: false, id: null, type: null, onComplete: null })} style={styles.modalBtnCancel}>CANCELAR</button>
               <button onClick={confirmDelete} style={styles.modalBtnConfirm}>EXCLUIR</button>
             </div>
           </div>
@@ -314,11 +333,29 @@ const App = () => {
 
         <Suspense fallback={<div style={{ padding: '50px', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" color={activePalette.fontColor} size={32} /></div>}>
           {isAnalyticsOpen ? (
-            <AnalyticsPanel onClose={() => { setIsAnalyticsOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} />
+            <AnalyticsPanel 
+              onClose={() => { setIsAnalyticsOpen(false); fetchData(); }} 
+              secret={secret} 
+              API_URL={API_URL} 
+              styles={styles}
+              openDeleteModal={openDeleteModal}
+            />
           ) : isFinancialOpen ? (
-            <FinancialPanel onClose={() => { setIsFinancialOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} activePalette={activePalette} isDarkBase={isDarkBase} />
+            <FinancialPanel onClose={() => { setIsFinancialOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} activePalette={activePalette} isDarkBase={isDarkBase} showNotification={showNotification} />
           ) : isSettingsOpen ? (
-            <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} rotation={rotation} setRotation={setRotation} disclaimers={disclaimers} setDisclaimers={setDisclaimers} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
+            <SettingsPanel 
+              settings={settings} setSettings={setSettings} 
+              rateLimit={rateLimit} setRateLimit={setRateLimit} 
+              rotation={rotation} setRotation={setRotation} 
+              disclaimers={disclaimers} setDisclaimers={setDisclaimers} 
+              isSaving={isSaving} onSave={handleSaveSettings} 
+              onClose={() => { setIsSettingsOpen(false); fetchData(); }} 
+              triggerBgUpload={triggerBgUpload} 
+              isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} 
+              styles={styles}
+              activePalette={activePalette}
+              isDarkBase={isDarkBase}
+            />
           ) : isEditorOpen ? (
             <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
           ) : (
@@ -326,12 +363,14 @@ const App = () => {
               posts={posts} 
               onPin={handlePin} 
               onEdit={openEditor} 
-              onDelete={(id) => setModal({ show: true, id })} 
+              onDelete={(id) => openDeleteModal(id, 'posts', fetchData, 'Deseja apagar este post permanentemente?')} 
               onDragStart={handleDragStart} 
               onDragEnd={handleDragEnd} 
               onDragOver={handleDragOver} 
               onDrop={handleDrop} 
-              styles={styles} 
+              styles={styles}
+              activePalette={activePalette}
+              isDarkBase={isDarkBase}
             />
           )}
         </Suspense>
