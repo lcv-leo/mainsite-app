@@ -511,6 +511,12 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
       data = {};
     }
     if (!response.ok) {
+      // Salva a tentativa fracassada no DB para rastreabilidade no painel financeiro
+      const failedEmail = (email || '').trim() || 'N/A';
+      c.executionCtx.waitUntil(
+        c.env.DB.prepare("INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
+          .bind(checkoutId, data.status || 'failed', Number(amount), 'sumup_card', failedEmail, JSON.stringify(data)).run()
+      );
       const reason = data?.message || data?.detail || data?.title || 'Pagamento SumUp recusado.';
       const param = data?.param ? ` (param: ${data.param})` : '';
       return c.json({ error: `${reason}${param}` }, 402);
@@ -521,9 +527,10 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
     const transactionId = data.transactions?.[0]?.id;
     const storedId = transactionId || data.id || checkoutId;
 
+    const payerEmail = (email || '').trim() || 'N/A';
     c.executionCtx.waitUntil(
       c.env.DB.prepare("INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
-        .bind(storedId, data.status || 'paid', Number(amount), 'sumup_card', 'N/A', JSON.stringify(data)).run()
+        .bind(storedId, data.status || 'paid', Number(amount), 'sumup_card', payerEmail, JSON.stringify(data)).run()
     );
 
     return c.json({ success: true, id: storedId, status: data.status || 'paid' });
@@ -747,6 +754,55 @@ app.delete('/api/financial-logs/:id', async (c) => {
 });
 
 // --- ROTAS ADMINISTRATIVAS SUMUP (PAINEL FINANCEIRO) ---
+
+// Sincroniza checkouts históricos da SumUp com o banco local.
+// Útil para recuperar transações que não foram gravadas (ex: falhas anteriores ao fix).
+app.post('/api/sumup/sync', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: '401' }, 401);
+  try {
+    const token = c.env.SUMUP_API_KEY_PRIVATE;
+    if (!token) throw new Error('SUMUP_API_KEY_PRIVATE ausente.');
+
+    const response = await fetch('https://api.sumup.com/v0.1/checkouts', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Falha ao listar checkouts na SumUp.');
+
+    const checkouts = await response.json();
+    if (!Array.isArray(checkouts)) throw new Error('Resposta inesperada da SumUp.');
+
+    let inserted = 0, updated = 0;
+    for (const checkout of checkouts) {
+      const tx = checkout.transactions?.[0];
+      // Usa transaction UUID quando disponível (pagamentos concluídos),
+      // senão usa o checkout UUID (tentativas sem transação confirmada).
+      const paymentId = tx?.id || checkout.id;
+      const status = (tx?.status || checkout.status || 'unknown').toLowerCase();
+      const amount = Number(checkout.amount || 0);
+      const raw = JSON.stringify(tx ? checkout : checkout);
+
+      const existing = await c.env.DB.prepare(
+        "SELECT id FROM financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
+      ).bind(paymentId).first();
+
+      if (existing) {
+        await c.env.DB.prepare(
+          "UPDATE financial_logs SET status = ?, raw_payload = ? WHERE payment_id = ? AND method = 'sumup_card'"
+        ).bind(status, raw, paymentId).run();
+        updated++;
+      } else {
+        await c.env.DB.prepare(
+          "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
+        ).bind(paymentId, status, amount, 'sumup_card', 'N/A', raw).run();
+        inserted++;
+      }
+    }
+
+    return c.json({ success: true, inserted, updated, total: checkouts.length });
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
 
 app.get('/api/sumup-financial-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
