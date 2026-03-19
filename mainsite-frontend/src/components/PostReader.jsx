@@ -51,10 +51,10 @@ const PostReader = ({ post, activePalette, settings, API_URL, styles, onShare, o
   const localStyles = {
     h1: { textAlign: 'center', fontSize: settings.shared.titleFontSize, letterSpacing: '0.1em', marginBottom: '2rem', color: activePalette.titleColor, textTransform: 'uppercase', fontWeight: 'bold', transition: 'color 0.5s ease' },
     content: { userSelect: 'none', WebkitUserSelect: 'none', MsUserSelect: 'none', },
-    aiActionsContainer: { marginBottom: '3rem', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' },
-    aiActionsBar: { display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap', width: '100%' },
-    aiBtn: { ...styles.headerBtn, maxWidth: '100%', justifyContent: 'center', fontWeight: 'bold', letterSpacing: '1px' },
-    aiErrorMsg: { ...styles.postCard, display: 'flex', alignItems: 'center', gap: '8px', color: '#ff4d4d', fontSize: '13px', fontWeight: 'bold', background: 'rgba(255, 77, 77, 0.1)', padding: '12px 18px', border: '1px solid rgba(255, 77, 77, 0.3)', animation: 'fadeIn 0.3s ease-out' },
+    aiActionsContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', marginBottom: '3rem' },
+    aiActionsBar: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', flexWrap: 'wrap' },
+    aiBtn: { ...styles.headerBtn, justifyContent: 'center', fontWeight: 'bold', letterSpacing: '1px' },
+    aiErrorMsg: { ...styles.postCard, display: 'flex', alignItems: 'center', gap: '8px', color: '#ff4d4d', fontSize: '13px', fontWeight: 'bold', background: 'rgba(255, 77, 77, 0.1)', padding: '12px 18px', border: '1px solid rgba(255, 77, 77, 0.3)', animation: 'fadeIn 0.3s ease-out', width: 'auto' },
     aiSummaryBox: { ...styles.postCard, borderLeft: `4px solid ${activePalette.titleColor}`, padding: '25px', margin: '1rem 0 3rem 0', fontStyle: 'italic', lineHeight: '1.7' },
     shareBar: { display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '3rem', paddingTop: '2rem', borderTop: `1px solid ${styles.glassBorder}`, flexWrap: 'wrap' },
     shareBtn: { flex: '1 1 150px', maxWidth: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 15px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '11px', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase', border: 'none', transition: 'all 0.2s', color: '#fff' }
@@ -124,9 +124,9 @@ const PostReader = ({ post, activePalette, settings, API_URL, styles, onShare, o
             {isSummarizing ? 'GERANDO RESUMO...' : 'RESUMO POR IA'}
           </button>
           
-          <div style={{...localStyles.aiBtn, padding: 0, ...(isTranslating && { background: styles.glassBg, color: activePalette.titleColor, borderColor: activePalette.titleColor })}}>
-            <div style={{ padding: '12px 0 12px 20px' }}> {isTranslating ? <Loader2 size={16} className="animate-spin"/> : <Languages size={16}/>} </div>
-            <select onChange={handleTranslate} disabled={isAILoading} style={{ flex: 1, background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold', textTransform: 'uppercase', outline: 'none', padding: '12px 20px 12px 10px' }}>
+          <div style={{...localStyles.aiBtn, padding: '0 12px 0 20px', ...(isTranslating && { background: styles.glassBg, color: activePalette.titleColor, borderColor: activePalette.titleColor })}}>
+            {isTranslating ? <Loader2 size={16} className="animate-spin"/> : <Languages size={16}/>}
+            <select onChange={handleTranslate} disabled={isAILoading} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold', textTransform: 'uppercase', outline: 'none', padding: '12px 0 12px 10px' }}>
               <option value="">{isTranslating ? 'TRADUZINDO...' : 'TRADUZIR PARA...'}</option>
               <option value="Inglês">English</option><option value="Espanhol">Español</option><option value="Francês">Français</option><option value="Alemão">Deutsch</option>
             </select>

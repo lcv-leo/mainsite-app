@@ -147,7 +147,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         </div>
       )}
 
-      <button onClick={onClose} style={styles.backButton}><X size={18} /> FECHAR PAINEL FINANCEIRO</button>
+      <button onClick={onClose} style={styles.backButton}><X size={18} /> Voltar ao Console</button>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
         <div style={{...styles.postCard, borderLeft: '4px solid #10b981', padding: '24px' }}>

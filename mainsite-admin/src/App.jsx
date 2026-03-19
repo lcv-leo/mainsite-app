@@ -12,7 +12,7 @@ import PostList from './components/PostList';
 const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
 const EditorPanel = lazy(() => import('./components/EditorPanel'));
 const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel'));
-const FinancialPanel = lazy(() => import('./components/FinancialPanel')); // NOVA INJEÇÃO
+const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
 // URL Oficial da API
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
@@ -81,7 +81,6 @@ const App = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
-  const [isFinancialOpen, setIsFinancialOpen] = useState(false); // CONTROLE DE PAINEL ADICIONADO
   
   const [editingPost, setEditingPost] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -251,7 +250,6 @@ const App = () => {
   const openEditor = (post = null) => {
     setIsSettingsOpen(false); 
     setIsAnalyticsOpen(false);
-    setIsFinancialOpen(false);
     setEditingPost(post);
     setIsEditorOpen(true);
   };
@@ -318,7 +316,7 @@ const App = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <Database size={24} color={activePalette.titleColor} />
             <h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'Console')}</h1>
-            {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && !isFinancialOpen && (
+            {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && (
               <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={18} /> NOVO</button>
             )}
           </div>
@@ -326,12 +324,10 @@ const App = () => {
             <button onClick={cycleTheme} style={styles.headerBtn} title="Alternar Tema">
               {userTheme === 'auto' ? <Settings size={16}/> : userTheme === 'dark' ? <Moon size={16}/> : <Sun size={16}/>}
             </button>
-            <button onClick={() => { setIsAnalyticsOpen(false); setIsSettingsOpen(false); setIsFinancialOpen(false); fetchData(); }} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={16} /></button>
+            <button onClick={() => { setIsAnalyticsOpen(false); setIsSettingsOpen(false); fetchData(); }} style={styles.headerBtn} title="Sincronizar Banco"><RefreshCw size={16} /></button>
             
-            {/* LÓGICA DE EXCLUSÃO MÚTUA PARA MANTER UM PAINEL ABERTO POR VEZ */}
-            <button onClick={() => { setIsAnalyticsOpen(true); setIsSettingsOpen(false); setIsFinancialOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><BarChart2 size={16} /> Auditoria</button>
-            <button onClick={() => { setIsFinancialOpen(true); setIsAnalyticsOpen(false); setIsSettingsOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><DollarSign size={16} /> Financeiro</button>
-            <button onClick={() => { setIsSettingsOpen(true); setIsAnalyticsOpen(false); setIsFinancialOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><Settings size={16} /> Sistema</button>
+            <button onClick={() => { setIsAnalyticsOpen(true); setIsSettingsOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><BarChart2 size={16} /> Auditoria</button>
+            <button onClick={() => { setIsSettingsOpen(true); setIsAnalyticsOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><Settings size={16} /> Sistema</button>
           </div>
         </header>
 
@@ -344,22 +340,32 @@ const App = () => {
               styles={styles}
               openDeleteModal={openDeleteModal}
             />
-          ) : isFinancialOpen ? (
-            <FinancialPanel onClose={() => { setIsFinancialOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} activePalette={activePalette} isDarkBase={isDarkBase} showNotification={showNotification} />
           ) : isSettingsOpen ? (
-            <SettingsPanel 
-              settings={settings} setSettings={setSettings} 
-              rateLimit={rateLimit} setRateLimit={setRateLimit} 
-              rotation={rotation} setRotation={setRotation} 
-              disclaimers={disclaimers} setDisclaimers={setDisclaimers} 
-              isSaving={isSaving} onSave={handleSaveSettings} 
-              onClose={() => { setIsSettingsOpen(false); fetchData(); }} 
-              triggerBgUpload={triggerBgUpload} 
-              isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} 
-              styles={styles}
-              activePalette={activePalette}
-              isDarkBase={isDarkBase}
-            />
+            <div>
+              <FinancialPanel 
+                onClose={() => { setIsSettingsOpen(false); fetchData(); }} 
+                secret={secret} 
+                API_URL={API_URL} 
+                styles={styles}
+                activePalette={activePalette}
+                isDarkBase={isDarkBase}
+                showNotification={showNotification}
+              />
+              <div style={{ height: '24px' }} />
+              <SettingsPanel 
+                settings={settings} setSettings={setSettings} 
+                rateLimit={rateLimit} setRateLimit={setRateLimit} 
+                rotation={rotation} setRotation={setRotation} 
+                disclaimers={disclaimers} setDisclaimers={setDisclaimers} 
+                isSaving={isSaving} onSave={handleSaveSettings} 
+                onClose={() => { setIsSettingsOpen(false); fetchData(); }} 
+                triggerBgUpload={triggerBgUpload} 
+                isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} 
+                styles={styles}
+                activePalette={activePalette}
+                isDarkBase={isDarkBase}
+              />
+            </div>
           ) : isEditorOpen ? (
             <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
           ) : (
