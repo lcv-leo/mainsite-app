@@ -246,6 +246,15 @@ app.get('/api/chat-logs', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+app.delete('/api/chat-logs/:id', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare("DELETE FROM chat_logs WHERE id = ?").bind(id).run();
+    return c.json({ success: true });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
 app.get('/api/contact-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
@@ -254,11 +263,29 @@ app.get('/api/contact-logs', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+app.delete('/api/contact-logs/:id', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare("DELETE FROM contact_logs WHERE id = ?").bind(id).run();
+    return c.json({ success: true });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
 app.get('/api/shares', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const { results } = await c.env.DB.prepare("SELECT * FROM shares ORDER BY created_at DESC LIMIT 200").all();
     return c.json(results || []);
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.delete('/api/shares/:id', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare("DELETE FROM shares WHERE id = ?").bind(id).run();
+    return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
