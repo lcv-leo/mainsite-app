@@ -2,7 +2,7 @@
 // Versão: v1.2.0
 // Descrição: Editor Tiptap integrado às classes globais de UI (modalOverlay/modalContent) e estética MD3.
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Extension } from '@tiptap/core';
 import { useEditor, EditorContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import { NodeSelection } from 'prosemirror-state';
@@ -35,7 +35,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Link as LinkIcon, Unlink, Underline as UnderlineIcon,
   Highlighter, Subscript as SubIcon, Superscript as SuperIcon, Quote, Minus, Code, Table as TableIcon,
   CheckSquare, Palette, Type, WrapText, Upload, Sparkles, Image as ImageIcon, Youtube, ZoomIn, ZoomOut,
-  MessageSquare
+  MessageSquare, MousePointer2
 } from 'lucide-react';
 
 const FontSize = Extension.create({
@@ -76,10 +76,10 @@ const formatImageUrl = (url) => {
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-const ResizableMediaHandle = ({ onStartResize }) => (
+const ResizableMediaHandle = ({ onStartResize, tone = 'neutral' }) => (
   <button
     type="button"
-    className="media-resize-handle"
+    className={`media-resize-handle tone-${tone}`}
     contentEditable={false}
     onMouseDown={onStartResize}
     onPointerDown={onStartResize}
@@ -106,7 +106,8 @@ const SelectMediaButton = ({ onSelect }) => (
     title="Selecionar mídia"
     aria-label="Selecionar mídia"
   >
-    Selecionar
+    <MousePointer2 size={13} className="media-select-btn-icon" />
+    <span className="media-select-btn-label">Selecionar</span>
   </button>
 );
 
@@ -142,6 +143,57 @@ const YoutubeSnapBar = ({ onSnap }) => (
 const ResizableImageNodeView = ({ node, updateAttributes, selected, editor, getPos }) => {
   const startXRef = useRef(0);
   const startWidthRef = useRef(100);
+  const imageRef = useRef(null);
+  const [localTone, setLocalTone] = useState('neutral');
+
+  useEffect(() => {
+    const img = imageRef.current;
+    if (!img) return;
+
+    const analyzeTone = () => {
+      try {
+        const sample = 24;
+        const canvas = document.createElement('canvas');
+        canvas.width = sample;
+        canvas.height = sample;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) {
+          setLocalTone('neutral');
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, sample, sample);
+        const { data } = ctx.getImageData(0, 0, sample, sample);
+        let total = 0;
+        let count = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const a = data[i + 3];
+          if (a < 32) continue;
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          total += (0.299 * r) + (0.587 * g) + (0.114 * b);
+          count += 1;
+        }
+
+        if (!count) {
+          setLocalTone('neutral');
+          return;
+        }
+
+        const luma = (total / count) / 255;
+        setLocalTone(luma >= 0.56 ? 'light' : 'dark');
+      } catch {
+        // Fallback para imagens sem CORS permitido (canvas tainted)
+        setLocalTone('neutral');
+      }
+    };
+
+    if (img.complete) analyzeTone();
+    img.addEventListener('load', analyzeTone);
+    return () => img.removeEventListener('load', analyzeTone);
+  }, [node.attrs.src]);
 
   const onStartResize = (event) => {
     event.preventDefault();
@@ -180,14 +232,14 @@ const ResizableImageNodeView = ({ node, updateAttributes, selected, editor, getP
 
   return (
     <NodeViewWrapper
-      className={`resizable-media media-image ${selected ? 'is-selected' : ''}`}
+      className={`resizable-media media-image tone-${localTone} ${selected ? 'is-selected' : ''}`}
       contentEditable={false}
       style={{ width: node.attrs.width || '100%' }}
     >
       <MediaSnapBar onSnap={(size) => updateAttributes({ width: size })} />
       <SelectMediaButton onSelect={selectCurrentNode} />
-      <img src={node.attrs.src} alt={node.attrs.alt || ''} title={node.attrs.title || ''} draggable="false" />
-      <ResizableMediaHandle onStartResize={onStartResize} />
+      <img ref={imageRef} crossOrigin="anonymous" src={node.attrs.src} alt={node.attrs.alt || ''} title={node.attrs.title || ''} draggable="false" />
+      <ResizableMediaHandle onStartResize={onStartResize} tone={localTone} />
     </NodeViewWrapper>
   );
 };
@@ -249,7 +301,7 @@ const ResizableYoutubeNodeView = ({ node, updateAttributes, selected, editor, ge
           allowFullScreen
         />
       </div>
-      <ResizableMediaHandle onStartResize={onStartResize} />
+      <ResizableMediaHandle onStartResize={onStartResize} tone="neutral" />
     </NodeViewWrapper>
   );
 };

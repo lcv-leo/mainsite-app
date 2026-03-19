@@ -1,5 +1,5 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.32.0
+// Versão: v3.35.0
 // Descrição: Monólito consolidado. Painel Financeiro integrado, exclusão mútua de abas ajustada. Envelopamento global em Glassmorphism + Material Design 3 e ícone de Refresh dinâmico.
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
@@ -16,7 +16,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
 // URL Oficial da API
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.32.0';
+const APP_VERSION = 'APP v3.35.0';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -54,6 +54,36 @@ const normalizeRateLimitConfig = (raw) => {
       maxRequests: Math.max(1, Number(raw.email?.maxRequests) || DEFAULT_RATE_LIMIT.email.maxRequests),
       windowMinutes: Math.max(1, Number(raw.email?.windowMinutes) || DEFAULT_RATE_LIMIT.email.windowMinutes)
     }
+  };
+};
+
+const hexToRgb = (hex) => {
+  if (!hex || typeof hex !== 'string') return null;
+  const normalized = hex.replace('#', '').trim();
+  if (!/^[0-9a-fA-F]{3,8}$/.test(normalized)) return null;
+  const full = normalized.length === 3
+    ? normalized.split('').map((c) => `${c}${c}`).join('')
+    : normalized.slice(0, 6);
+  const int = Number.parseInt(full, 16);
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255,
+  };
+};
+
+const getMediaSelectTheme = (titleColor, isDarkBase) => {
+  const rgb = hexToRgb(titleColor);
+  const luminance = rgb
+    ? ((0.299 * rgb.r) + (0.587 * rgb.g) + (0.114 * rgb.b)) / 255
+    : (isDarkBase ? 0.2 : 0.8);
+
+  const preferDarkSurface = luminance > 0.62;
+
+  return {
+    bg: preferDarkSurface ? 'rgba(17, 20, 27, 0.94)' : 'rgba(255, 255, 255, 0.94)',
+    fg: preferDarkSurface ? 'rgba(248, 250, 252, 0.98)' : 'rgba(17, 24, 39, 0.95)',
+    border: preferDarkSurface ? 'rgba(255,255,255,0.24)' : 'rgba(17,24,39,0.2)',
   };
 };
 
@@ -324,6 +354,10 @@ const App = () => {
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
   const glassBg = isDarkBase ? 'rgba(30, 30, 32, 0.7)' : 'rgba(255, 255, 255, 0.75)';
   const glassBorder = isDarkBase ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+  const mediaSelectTheme = useMemo(
+    () => getMediaSelectTheme(activePalette.titleColor, isDarkBase),
+    [activePalette.titleColor, isDarkBase]
+  );
 
   const defaultCSSPattern = isDarkBase
     ? `radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.15), transparent 45%), radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.15), transparent 45%)`
@@ -343,6 +377,10 @@ const App = () => {
     <div style={styles.adminBody}>
       <style>{`
         @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes mediaSelectIn {
+          from { opacity: 0; transform: translateY(-2px) scale(0.92); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
         .animate-spin { animation: spin 1s linear infinite; }
         .ProseMirror { min-height: 400px; padding: 30px; outline: none; line-height: 1.6; font-size: 16px; }
         .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: ${isDarkBase ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}; pointer-events: none; height: 0; }
@@ -360,8 +398,16 @@ const App = () => {
           box-shadow: 0 8px 20px rgba(0,0,0,0.22);
           cursor: nwse-resize;
           opacity: 0;
-          transition: opacity 0.18s ease, transform 0.18s ease;
+          transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
           z-index: 5;
+        }
+        .ProseMirror .resizable-media.media-image.tone-light .media-resize-handle {
+          background: rgba(12, 16, 24, 0.94);
+          border-color: rgba(255, 255, 255, 0.32);
+        }
+        .ProseMirror .resizable-media.media-image.tone-dark .media-resize-handle {
+          background: rgba(255, 255, 255, 0.94);
+          border-color: rgba(17, 24, 39, 0.28);
         }
         .ProseMirror .resizable-media:hover .media-resize-handle,
         .ProseMirror .resizable-media.is-selected .media-resize-handle { opacity: 1; }
@@ -373,7 +419,15 @@ const App = () => {
           border-radius: 100px; padding: 4px 8px;
           box-shadow: 0 4px 20px rgba(0,0,0,0.22); border: 1px solid ${glassBorder};
           opacity: 0; pointer-events: none;
-          transition: opacity 0.18s ease; z-index: 10; white-space: nowrap;
+          transition: opacity 0.18s ease, background 0.18s ease, border-color 0.18s ease; z-index: 10; white-space: nowrap;
+        }
+        .ProseMirror .resizable-media.media-image.tone-light .media-snap-bar {
+          background: rgba(12, 16, 24, 0.94);
+          border-color: rgba(255, 255, 255, 0.2);
+        }
+        .ProseMirror .resizable-media.media-image.tone-dark .media-snap-bar {
+          background: rgba(255, 255, 255, 0.94);
+          border-color: rgba(17, 24, 39, 0.18);
         }
         .ProseMirror .resizable-media.is-selected .media-snap-bar { opacity: 1; pointer-events: auto; }
         .ProseMirror .resizable-media .media-snap-bar button {
@@ -382,6 +436,12 @@ const App = () => {
           color: ${isDarkBase ? 'rgba(255,255,255,0.72)' : 'rgba(0,0,0,0.65)'};
           transition: background 0.14s, color 0.14s; line-height: 1.4;
         }
+        .ProseMirror .resizable-media.media-image.tone-light .media-snap-bar button {
+          color: rgba(248, 250, 252, 0.76);
+        }
+        .ProseMirror .resizable-media.media-image.tone-dark .media-snap-bar button {
+          color: rgba(17, 24, 39, 0.68);
+        }
         .ProseMirror .resizable-media .media-snap-bar button:hover {
           background: ${activePalette.titleColor}28; color: ${activePalette.titleColor};
         }
@@ -389,24 +449,77 @@ const App = () => {
           position: absolute;
           top: 8px;
           right: 8px;
-          border: 1px solid ${glassBorder};
-          background: ${isDarkBase ? 'rgba(18,18,22,0.92)' : 'rgba(255,255,255,0.92)'};
-          color: ${activePalette.fontColor};
-          border-radius: 999px;
+          border: 1px solid ${mediaSelectTheme.border};
+          background: ${mediaSelectTheme.bg};
+          color: ${mediaSelectTheme.fg};
+          border-radius: 14px;
           font-size: 10px;
           font-weight: 800;
           letter-spacing: 0.2px;
-          padding: 4px 8px;
+          padding: 6px 10px;
+          min-width: 72px;
+          min-height: 44px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 2px;
+          line-height: 1;
           cursor: pointer;
           opacity: 0;
           pointer-events: none;
-          transition: opacity 0.16s ease;
+          transform: translateY(-2px) scale(0.92);
+          transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
           z-index: 9;
+        }
+        .ProseMirror .resizable-media .media-select-btn .media-select-btn-icon { opacity: 0.95; }
+        .ProseMirror .resizable-media .media-select-btn .media-select-btn-label { font-size: 9px; letter-spacing: 0.3px; text-transform: uppercase; }
+        .ProseMirror .resizable-media.media-image.tone-light .media-select-btn {
+          background: rgba(12, 16, 24, 0.92);
+          color: rgba(248, 250, 252, 0.98);
+          border-color: rgba(255, 255, 255, 0.28);
+        }
+        .ProseMirror .resizable-media.media-image.tone-dark .media-select-btn {
+          background: rgba(255, 255, 255, 0.94);
+          color: rgba(17, 24, 39, 0.95);
+          border-color: rgba(17, 24, 39, 0.2);
+        }
+        .ProseMirror .resizable-media.media-image.tone-neutral .media-select-btn {
+          background: ${mediaSelectTheme.bg};
+          color: ${mediaSelectTheme.fg};
+          border-color: ${mediaSelectTheme.border};
         }
         .ProseMirror .resizable-media:hover .media-select-btn,
         .ProseMirror .resizable-media.is-selected .media-select-btn {
           opacity: 1;
+          transform: translateY(0) scale(1);
+          animation: mediaSelectIn 0.18s ease;
           pointer-events: auto;
+        }
+        .ProseMirror .resizable-media .media-select-btn:hover,
+        .ProseMirror .resizable-media .media-select-btn:focus-visible {
+          box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+          border-color: ${activePalette.titleColor};
+          color: ${activePalette.titleColor};
+          outline: none;
+        }
+        @media (max-width: 768px) {
+          .ProseMirror .resizable-media .media-select-btn {
+            top: 6px;
+            right: 6px;
+            min-width: 54px;
+            min-height: 34px;
+            padding: 4px 6px;
+            gap: 1px;
+          }
+          .ProseMirror .resizable-media .media-select-btn .media-select-btn-icon {
+            width: 11px;
+            height: 11px;
+          }
+          .ProseMirror .resizable-media .media-select-btn .media-select-btn-label {
+            font-size: 8px;
+            letter-spacing: 0.2px;
+          }
         }
         .ProseMirror .resizable-media.media-youtube { width: fit-content; }
         .ProseMirror .resizable-media.media-youtube > div[data-youtube-video] { border-radius: 14px; overflow: hidden; box-shadow: 0 8px 28px rgba(0,0,0,0.12); }
