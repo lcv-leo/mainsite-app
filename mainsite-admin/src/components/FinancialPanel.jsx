@@ -162,13 +162,33 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     }
   }, [API_URL, secret, fetchFinanceData, showPanelToast]);
 
-  // Quando a aba SumUp é ativada, sincroniza automaticamente com a API
-  // para garantir que transações recusadas ou expiradas apareçam corretamente.
+  const syncMercadoPagoCheckouts = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch(`${API_URL}/mp/sync`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${secret}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha na sincronização.');
+      showPanelToast(`Sincronizado: ${data.inserted} novo(s), ${data.updated} atualizado(s) de ${data.total} transação(ões).`, 'success');
+      fetchFinanceData(true);
+    } catch (err) {
+      showPanelToast(`Erro ao sincronizar: ${err.message}`, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [API_URL, secret, fetchFinanceData, showPanelToast]);
+
+  // Quando a aba for ativada, sincroniza automaticamente com a API
+  // para garantir que transações recusadas, expiradas ou pendentes apareçam corretamente.
   useEffect(() => {
     if (paymentProvider === 'sumup') {
       syncSumupCheckouts();
+    } else if (paymentProvider === 'mercadopago') {
+      syncMercadoPagoCheckouts();
     }
-  }, [paymentProvider, syncSumupCheckouts]);
+  }, [paymentProvider, syncSumupCheckouts, syncMercadoPagoCheckouts]);
 
   const closeAndResetModal = () => {
     setModalType(null);
