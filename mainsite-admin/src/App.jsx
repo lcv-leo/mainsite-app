@@ -37,7 +37,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   },
   toast: { position: 'fixed', top: '30px', left: '50%', padding: '12px 24px', borderRadius: '12px', zIndex: 10000, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', border: `1px solid ${glassBorder}`, display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '500', fontSize: '14px', backgroundColor: glassBg, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' },
   modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: isDarkBase ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 },
-  modalContent: { backgroundColor: glassBg, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', padding: '40px', borderRadius: '24px', border: `1px solid ${glassBorder}`, maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', color: activePalette.fontColor },
+  modalContent: { animation: 'fadeIn 0.3s ease-out forwards', backgroundColor: glassBg, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', padding: '40px', borderRadius: '24px', border: `1px solid ${glassBorder}`, maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', color: activePalette.fontColor },
   modalText: { fontSize: '16px', fontWeight: '500', marginBottom: '30px' },
   modalActions: { display: 'flex', gap: '12px', justifyContent: 'center' },
   modalBtnConfirm: { backgroundColor: 'rgba(234, 67, 53, 0.4)', backdropFilter: 'blur(10px)', color: '#fff', border: '1px solid rgba(234, 67, 53, 0.5)', borderRadius: '8px', padding: '12px 24px', fontWeight: '600', cursor: 'pointer', flex: 1, transition: 'background 0.2s' },
@@ -277,6 +277,10 @@ const App = () => {
   return (
     <div style={styles.adminBody}>
       <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
         .ProseMirror { min-height: 400px; padding: 30px; outline: none; line-height: 1.6; font-size: 16px; }
         .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: ${isDarkBase ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}; pointer-events: none; height: 0; }
         .ProseMirror table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 0; overflow: hidden; }

@@ -56,7 +56,7 @@ jobs:
         run: |
           npm install
           npm run build
-          npx wrangler pages deploy ./dist --project-name=mainsite-admin --branch production
+          npx wrangler pages deploy ./dist --project-name=mainsite-admin --branch production --commit-dirty=true
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -80,4 +80,4 @@ jobs:
         run: |
           npm install
           npm run build
-          npx wrangler pages deploy ./dist --project-name=mainsite-frontend --branch production
+          npx wrangler pages deploy ./dist --project-name=mainsite-frontend --branch production --commit-dirty=true

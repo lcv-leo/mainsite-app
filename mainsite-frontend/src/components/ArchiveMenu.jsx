@@ -58,7 +58,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, styles, activePalette
           />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px', padding: '20px', width: '100%', box-sizing: 'border-box' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px', padding: '20px', width: '100%', boxSizing: 'border-box' }}>
           {filteredArchive.length > 0 ? (
             filteredArchive.map(post => (
               <div 

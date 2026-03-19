@@ -1,22 +1,15 @@
 {
   "editor.inlineSuggest.enabled": true,
-  
   "editor.quickSuggestionsDelay": 50,
-  
   "editor.suggest.showInlineDetails": true,
-  
   "chat.commandCenter.enabled": true,
-
   "cloudcode.duetAI.inlineSuggestions.enable": true,
-  
   "cloudcode.duetAI.projectContext.enable": true,
-
   "github.copilot.enable": {
     "*": true,
     "plaintext": false,
     "markdown": false
   },
-
   "editor.formatOnType": true,
   "editor.formatOnPaste": true,
   "github.copilot.chat.mcp.servers": {
@@ -35,21 +28,24 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-puppeteer"
-      ]
+      ],
+      "env": {}
     },
     "fetch": {
       "command": "npx",
       "args": [
         "-y",
         "@modelcontextprotocol/server-fetch"
-      ]
+      ],
+      "env": {}
     },
     "open-websearch": {
       "command": "npx",
       "args": [
         "-y",
         "@aas-ee/open-websearch"
-      ]
+      ],
+      "env": {}
     }
   },
   "geminicodeassist.agentYoloMode": true,
@@ -86,5 +82,17 @@
   "npm-intellisense.packageSubfoldersIntellisense": true,
   "npm-intellisense.scanDevDependencies": true,
   "npm-intellisense.showBuildInLibs": true,
-  "gemini-cli.debug.logging.enabled": true
+  "gemini-cli.debug.logging.enabled": true,
+  "terminal.integrated.profiles.windows": {
+    "PowerShell 7": {
+      "path": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+      "args": [
+        "-NoLogo",
+        "-ExecutionPolicy",
+        "Bypass"
+      ],
+      "icon": "terminal-powershell"
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
 }
