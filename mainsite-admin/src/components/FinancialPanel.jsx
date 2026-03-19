@@ -2,7 +2,7 @@
 // Version: v1.11.0
 // Description: Dynamic Y-axis positioning for all modals (Refund, Cancel, Delete) based on mouse click coordinates (e.clientY). Status colors swapped as requested (Refunded = Red, Cancelled/Rejected = Orange). Blood-red trash icon preserved.
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom'; // ADDED REACT PORTAL
 import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet, Trash2, ArrowLeft } from 'lucide-react';
 
@@ -21,11 +21,30 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
   const [paymentProvider, setPaymentProvider] = useState('mercadopago');
   const [expandedRow, setExpandedRow] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [toastTop, setToastTop] = useState(30);
+  const lastPointerYRef = useRef(null);
+
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
   const showPanelToast = (message, type = 'info') => {
+    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const pointerY = lastPointerYRef.current;
+    const baseY = pointerY != null ? pointerY : (viewportH * 0.5);
+    const nextTop = clamp(baseY - 36, 16, Math.max(16, viewportH - 90));
+    setToastTop(nextTop);
     setPanelToast({ show: true, message, type });
     setTimeout(() => setPanelToast(prev => ({ ...prev, show: false })), 4000);
   };
+
+  // Rastreia a última posição de interação do usuário no viewport,
+  // para exibir o toast próximo à região em foco.
+  useEffect(() => {
+    const trackPointer = (e) => {
+      if (typeof e?.clientY === 'number') lastPointerYRef.current = e.clientY;
+    };
+    window.addEventListener('pointerdown', trackPointer, { passive: true });
+    return () => window.removeEventListener('pointerdown', trackPointer);
+  }, []);
 
   const fetchFinanceData = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
@@ -278,8 +297,8 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
 
-      {/* Toast Notification — posicionado na base do viewport (snackbar), sempre visível independente do scroll */}
-      <div style={{ ...styles.toast, top: 'auto', bottom: '30px', transform: panelToast.show ? 'translate(-50%, 0)' : 'translate(-50%, 120px)', opacity: panelToast.show ? 1 : 0, backgroundColor: panelToast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: panelToast.type === 'error' ? '#fff' : activePalette.fontColor, zIndex: 10005 }}>
+      {/* Toast Notification — posicionamento inteligente por área de interação no viewport */}
+      <div style={{ ...styles.toast, top: `${toastTop}px`, bottom: 'auto', transform: panelToast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: panelToast.show ? 1 : 0, backgroundColor: panelToast.type === 'error' ? '#ea4335' : (isDarkBase ? '#1e1e1e' : '#fff'), color: panelToast.type === 'error' ? '#fff' : activePalette.fontColor, zIndex: 10005 }}>
         {panelToast.type === 'error' ? <AlertCircle size={18} /> : <Check size={18} />} <span>{panelToast.message}</span>
       </div>
 
