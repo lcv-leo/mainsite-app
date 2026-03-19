@@ -18,6 +18,8 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
 const APP_VERSION = 'FRONTEND v2.6.0';
+const SITE_NAME = 'Divagações Filosóficas';
+const SITE_URL = 'https://www.lcv.rio.br';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -54,6 +56,21 @@ const App = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showDisclaimerFlow, setShowDisclaimerFlow] = useState(false);
 
+  const getUrlPostId = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const queryId = urlParams.get('p');
+    if (queryId) return queryId;
+    const pathMatch = window.location.pathname.match(/^\/(?:p|post|materia|m|s)\/(\d+)\/?$/i);
+    return pathMatch ? pathMatch[1] : null;
+  };
+
+  const isEditableTarget = (target) => {
+    const tag = target?.tagName?.toLowerCase();
+    return !!(target?.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select');
+  };
+
+  const isDeepLinkedPost = !!getUrlPostId();
+
   const showNotification = (message, type = 'info') => {
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
     const pointerY = lastPointerYRef.current;
@@ -70,6 +87,64 @@ const App = () => {
     };
     window.addEventListener('pointerdown', trackPointer, { passive: true });
     return () => window.removeEventListener('pointerdown', trackPointer);
+  }, []);
+
+  useEffect(() => {
+    const handleKeydown = (e) => {
+      const isMeta = e.ctrlKey || e.metaKey;
+      const key = (e.key || '').toLowerCase();
+
+      if (e.key === 'PrintScreen') {
+        e.preventDefault();
+        showNotification('Capturas de tela não são permitidas neste conteúdo.', 'error');
+        return;
+      }
+
+      if (isMeta && key === 'p') {
+        e.preventDefault();
+        showNotification('Impressão desabilitada para proteção do conteúdo.', 'error');
+        return;
+      }
+
+      if (isMeta && key === 'c' && !isEditableTarget(e.target)) {
+        e.preventDefault();
+        showNotification('Cópia de conteúdo desabilitada.', 'error');
+      }
+    };
+
+    const style = document.createElement('style');
+    style.setAttribute('data-print-protection', 'true');
+    style.textContent = `
+      @media print {
+        body * {
+          visibility: hidden !important;
+        }
+        body::before {
+          content: "Impressão desabilitada para proteção de conteúdo.";
+          visibility: visible !important;
+          position: fixed;
+          top: 45%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-family: system-ui, -apple-system, sans-serif;
+          font-size: 18px;
+          font-weight: 700;
+          color: #111;
+          background: #fff;
+          padding: 16px 24px;
+          border: 1px solid #ddd;
+          border-radius: 12px;
+          z-index: 999999;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+    window.addEventListener('keydown', handleKeydown);
+    return () => {
+      window.removeEventListener('keydown', handleKeydown);
+      document.head.removeChild(style);
+    };
   }, []);
 
   // Sync theme with OS
@@ -89,8 +164,7 @@ const App = () => {
         const dataPosts = await resPosts.json();
         setPosts(dataPosts);
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const postId = urlParams.get('p');
+        const postId = getUrlPostId();
 
         if (postId) {
           const found = dataPosts.find(p => p.id === parseInt(postId));
@@ -121,6 +195,61 @@ const App = () => {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const upsertMeta = (selector, attrs, content) => {
+      let el = document.head.querySelector(selector);
+      if (!el) {
+        el = document.createElement('meta');
+        Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+
+    const upsertCanonical = (href) => {
+      let link = document.head.querySelector('link[rel="canonical"]');
+      if (!link) {
+        link = document.createElement('link');
+        link.setAttribute('rel', 'canonical');
+        document.head.appendChild(link);
+      }
+      link.setAttribute('href', href);
+    };
+
+    if (currentPost) {
+      const cleanText = (currentPost.content || '').replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+      const excerpt = `${cleanText.substring(0, 155)}${cleanText.length > 155 ? '...' : ''}`;
+      const canonicalUrl = `${SITE_URL}/p/${currentPost.id}`;
+      const fullTitle = `${currentPost.title} | ${SITE_NAME}`;
+
+      document.title = fullTitle;
+      upsertMeta('meta[name="description"]', { name: 'description' }, excerpt || 'Leitura filosófica em Divagações Filosóficas.');
+      upsertMeta('meta[property="og:type"]', { property: 'og:type' }, 'article');
+      upsertMeta('meta[property="og:title"]', { property: 'og:title' }, fullTitle);
+      upsertMeta('meta[property="og:description"]', { property: 'og:description' }, excerpt || currentPost.title);
+      upsertMeta('meta[property="og:url"]', { property: 'og:url' }, canonicalUrl);
+      upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name' }, SITE_NAME);
+      upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card' }, 'summary_large_image');
+      upsertMeta('meta[name="twitter:title"]', { name: 'twitter:title' }, fullTitle);
+      upsertMeta('meta[name="twitter:description"]', { name: 'twitter:description' }, excerpt || currentPost.title);
+      upsertCanonical(canonicalUrl);
+    } else {
+      const defaultTitle = SITE_NAME;
+      const defaultDesc = 'Abstrações de uma mente em constante autorreflexão. Textos, ensaios e explorações.';
+      document.title = defaultTitle;
+      upsertMeta('meta[name="description"]', { name: 'description' }, defaultDesc);
+      upsertMeta('meta[property="og:type"]', { property: 'og:type' }, 'website');
+      upsertMeta('meta[property="og:title"]', { property: 'og:title' }, defaultTitle);
+      upsertMeta('meta[property="og:description"]', { property: 'og:description' }, defaultDesc);
+      upsertMeta('meta[property="og:url"]', { property: 'og:url' }, `${SITE_URL}/`);
+      upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name' }, SITE_NAME);
+      upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card' }, 'summary_large_image');
+      upsertMeta('meta[name="twitter:title"]', { name: 'twitter:title' }, defaultTitle);
+      upsertMeta('meta[name="twitter:description"]', { name: 'twitter:description' }, defaultDesc);
+      upsertCanonical(`${SITE_URL}/`);
+    }
+  }, [currentPost]);
 
   // Back to top visibility trigger
   useEffect(() => {
@@ -178,9 +307,9 @@ const App = () => {
 
   const handleShare = (method) => {
     if (!currentPost) return;
-    const url = `https://www.lcv.rio.br/?p=${currentPost.id}`;
+    const url = `${SITE_URL}/p/${currentPost.id}`;
     if (method === 'whatsapp') {
-      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(currentPost.title + ' - ' + url)}`, '_blank');
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(url)}`, '_blank');
       fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'whatsapp' }) }).catch(e => e);
     } else if (method === 'link') {
       navigator.clipboard.writeText(url).then(() => {
@@ -196,7 +325,7 @@ const App = () => {
     e.preventDefault();
     if (!currentPost || !showShareModal.email) return;
     setIsSendingEmail(true);
-    const url = `https://www.lcv.rio.br/?p=${currentPost.id}`;
+    const url = `${SITE_URL}/p/${currentPost.id}`;
     try {
       const res = await fetch(`${API_URL}/share/email`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -246,12 +375,12 @@ const App = () => {
               onComment={() => setShowCommentModal(true)}
               onDonation={() => setShowDonationModal(true)}
               isSendingEmail={isSendingEmail}
-              isNotHomePage={window.location.search.includes('?p=')}
+              isNotHomePage={isDeepLinkedPost}
             />
           ) : (<div style={{ textAlign: 'center', padding: '60px', opacity: 0.5, fontWeight: '700', letterSpacing: '2px' }}>A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>)}
       </main>
 
-      <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={(p) => { window.history.pushState({}, '', `?p=${p.id}`); setCurrentPost(p); }} activePalette={activePalette} APP_VERSION={APP_VERSION} />
+      <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={(p) => { window.history.pushState({}, '', `/p/${p.id}`); setCurrentPost(p); }} activePalette={activePalette} APP_VERSION={APP_VERSION} />
 
       <FloatingControls showBackToTop={showBackToTop} scrollToTop={() => window.scrollTo({ top: 0, behavior: 'smooth' })} userTheme={userTheme} cycleTheme={cycleTheme} isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} activePalette={activePalette} />
 
