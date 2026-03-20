@@ -1,5 +1,5 @@
 // Module: mainsite-frontend/src/App.jsx
-// Version: v2.8.0
+// Version: v2.9.0
 // Description: Frontend Orchestrator. Expanded reading frame to 960px for widescreen displays and reduced lateral padding. English comments enabled for Copilot Plus+.
 
 import React, { useState, useEffect, useMemo, Suspense, lazy, useRef } from 'react';
@@ -17,7 +17,7 @@ const DisclaimerModal = lazy(() => import('./components/DisclaimerModal'));
 const ChatWidget = lazy(() => import('./components/ChatWidget'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v2.8.0';
+const APP_VERSION = 'APP v2.9.0';
 const SITE_NAME = 'Divagações Filosóficas';
 const SITE_URL = 'https://www.lcv.rio.br';
 
