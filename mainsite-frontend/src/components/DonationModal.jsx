@@ -417,7 +417,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 <CreditCard size={16} /> Mercado Pago
               </button>
               <button type="button" onClick={() => handleChooseCardProvider('sumup')} style={{ ...buttonStyle, background: '#111827', color: '#fff' }}>
-                <CreditCard size={16} /> SumUp (formulário próprio)
+                <CreditCard size={16} /> SumUp
               </button>
               <button type="button" onClick={() => setStep(1)} style={{ ...buttonStyle, background: isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', color: activePalette.fontColor }}>
                 Voltar

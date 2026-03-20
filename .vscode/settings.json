@@ -1,17 +1,25 @@
 {
+  // --- EDITOR FORMATTING ---
+  "editor.formatOnType": true,
+  "editor.formatOnPaste": true,
   "editor.inlineSuggest.enabled": true,
   "editor.quickSuggestionsDelay": 50,
   "editor.suggest.showInlineDetails": true,
+  // --- CHAT & SUGGESTIONS ---
   "chat.commandCenter.enabled": true,
+  "inlineChat.enableV2": true,
+  // --- GOOGLE CLOUD / GEMINI PROJECT CONTEXT ---
   "cloudcode.duetAI.inlineSuggestions.enable": true,
   "cloudcode.duetAI.projectContext.enable": true,
+  "geminicodeassist.project": "crypto-prism-465219-j5",
+  "geminicodeassist.rules": "# PROTOCOLO UNIVERSAL DE ENGENHARIA E GESTÃO MODULAR\n\nDiretrizes inegociáveis para todo projeto de TI e Engenharia:\n\n1. EXIBIÇÃO E FORMATO:\n- IDIOMA: Português (Brasil). Comentários de código em português, exceto sintaxe reservada.\n\n2. VERSIONAMENTO DINÂMICO (vX.Y.Z):\n- MODULARIDADE: O controle de versão aplica-se individualmente a cada módulo/serviço.\n- REATIVIDADE: Altere a versão e exiba o código fonte APENAS do módulo que sofreu modificação efetiva.\n- ESTÁTICA: Se o módulo não mudou, não incremente a versão nem replique seu código.\n- BASELINE: Em novos projetos, inicie módulos em v1.0.0 e siga incrementos Minor/Patch conforme alterações.\n\n3. RIGOR TÉCNICO E VERDADE:\n- STACK: Use as últimas versões estáveis (Ex: Vite 7+, Wrangler 4+, npm 11+, React 18+). Consulte docs oficiais.\n- COMPLETUDE: Forneça passo-a-passo total (build, deploy, config) para funcionamento imediato.\n- POSTURA: 100% técnico e objetivo. NUNCA misture tecnologia com psicologia, filosofia ou espiritualidade.\n\n4. PRESERVAÇÃO FUNCIONAL E ANTI-REGRESSÃO (DIRETRIZ MÁXIMA):\nEVOLUÇÃO CUMULATIVA: O versionamento dinâmico (vX.Y.Z) exige evolução cumulativa. É estritamente proibido regredir, simplificar ou descartar código funcional, lógica de negócio, máscaras de input, validações, integrações ou dados de estado que já estejam operando corretamente em versões anteriores.\n\nENVELOPAMENTO, NÃO SUBSTITUIÇÃO: Ao receber ordens para aplicar novos padrões visuais (ex: Glassmorphism, Material Design), refatorações estruturais ou conceitos globais a um módulo, a inteligência artificial deve OBRIGATORIAMENTE adaptar o novo código para \"envelopar\" e acomodar a lógica existente. O design deve servir à funcionalidade, nunca o contrário.\n\nPROIBIÇÃO DE EXCLUSÃO SILENCIOSA: Nenhuma funcionalidade ou inteligência prévia pode ser removida do código de forma silenciosa ou presumida.\n\nPROTOCOLO DE EXCEÇÃO (CONFLITO INTRANSPONÍVEL): A única exceção admitida para a regressão de código ocorre quando é tecnicamente impossível aplicar a nova solicitação sem quebrar a lógica anterior. Nestes casos raros, a IA deve PARAR imediatamente a geração do código, explicar o conflito arquitetural de forma técnica e objetiva, e solicitar a autorização explícita do consulente para decidir qual caminho seguir.",
+  // --- GITHUB COPILOT PROJECT OVERRIDES ---
   "github.copilot.enable": {
     "*": true,
     "plaintext": false,
     "markdown": false
   },
-  "editor.formatOnType": true,
-  "editor.formatOnPaste": true,
+  // --- MCP SERVERS CONFIGURATION ---
   "github.copilot.chat.mcp.servers": {
     "github": {
       "command": "npx",
@@ -48,51 +56,15 @@
       "env": {}
     }
   },
-  "geminicodeassist.agentYoloMode": true,
-  "geminicodeassist.codeGenerationPaneViewEnabled": true,
-  "geminicodeassist.outlines.automaticOutlineGeneration": true,
-  "geminicodeassist.project": "crypto-prism-465219-j5",
-  "geminicodeassist.rules": "# PROTOCOLO UNIVERSAL DE ENGENHARIA E GESTÃO MODULAR\n\nDiretrizes inegociáveis para todo projeto de TI e Engenharia:\n\n1. EXIBIÇÃO E FORMATO:\n- IDIOMA: Português (Brasil). Comentários de código em português, exceto sintaxe reservada.\n\n2. VERSIONAMENTO DINÂMICO (vX.Y.Z):\n- MODULARIDADE: O controle de versão aplica-se individualmente a cada módulo/serviço.\n- REATIVIDADE: Altere a versão e exiba o código fonte APENAS do módulo que sofreu modificação efetiva.\n- ESTÁTICA: Se o módulo não mudou, não incremente a versão nem replique seu código.\n- BASELINE: Em novos projetos, inicie módulos em v1.0.0 e siga incrementos Minor/Patch conforme alterações.\n\n3. RIGOR TÉCNICO E VERDADE:\n- STACK: Use as últimas versões estáveis (Ex: Vite 7+, Wrangler 4+, npm 11+, React 18+). Consulte docs oficiais.\n- COMPLETUDE: Forneça passo-a-passo total (build, deploy, config) para funcionamento imediato.\n- POSTURA: 100% técnico e objetivo. NUNCA misture tecnologia com psicologia, filosofia ou espiritualidade.\n\n4. PRESERVAÇÃO FUNCIONAL E ANTI-REGRESSÃO (DIRETRIZ MÁXIMA):\nEVOLUÇÃO CUMULATIVA: O versionamento dinâmico (vX.Y.Z) exige evolução cumulativa. É estritamente proibido regredir, simplificar ou descartar código funcional, lógica de negócio, máscaras de input, validações, integrações ou dados de estado que já estejam operando corretamente em versões anteriores.\n\nENVELOPAMENTO, NÃO SUBSTITUIÇÃO: Ao receber ordens para aplicar novos padrões visuais (ex: Glassmorphism, Material Design), refatorações estruturais ou conceitos globais a um módulo, a inteligência artificial deve OBRIGATORIAMENTE adaptar o novo código para \"envelopar\" e acomodar a lógica existente. O design deve servir à funcionalidade, nunca o contrário.\n\nPROIBIÇÃO DE EXCLUSÃO SILENCIOSA: Nenhuma funcionalidade ou inteligência prévia pode ser removida do código de forma silenciosa ou presumida.\n\nPROTOCOLO DE EXCEÇÃO (CONFLITO INTRANSPONÍVEL): A única exceção admitida para a regressão de código ocorre quando é tecnicamente impossível aplicar a nova solicitação sem quebrar a lógica anterior. Nestes casos raros, a IA deve PARAR imediatamente a geração do código, explicar o conflito arquitetural de forma técnica e objetiva, e solicitar a autorização explícita do consulente para decidir qual caminho seguir.",
-  "geminicodeassist.updateChannel": "Default",
-  "geminicodeassist.inlineSuggestions.nextEditPredictions": true,
-  "github.copilot.chat.agent.autoFix": true,
-  "github.copilot.chat.claudeAgent.allowDangerouslySkipPermissions": true,
-  "github.copilot.chat.localeOverride": "pt-br",
-  "github.copilot.chat.scopeSelection": true,
-  "github.copilot.chat.codesearch.enabled": true,
-  "github.copilot.chat.copilotMemory.enabled": true,
-  "github.copilot.chat.alternateGeminiModelFPrompt.enabled": true,
-  "github.copilot.chat.alternateGptPrompt.enabled": true,
-  "github.copilot.chat.anthropic.contextEditing.mode": "clear-both",
-  "github.copilot.chat.anthropic.promptOptimization": "combined",
+  "chat.mcp.assisted.nuget.enabled": true,
+  "chat.mcp.gallery.enabled": true,
+  // --- THIRD-PARTY CHAT INTEGRATIONS ---
   "github.copilot.chat.anthropic.tools.websearch.enabled": true,
   "github.copilot.chat.githubMcpServer.enabled": true,
   "github.copilot.chat.getSearchViewResultsSkill.enabled": true,
-  "github.copilot.chat.notebook.enhancedNextEditSuggestions.enabled": true,
-  "github.copilot.chat.notebook.followCellExecution.enabled": true,
-  "redhat.telemetry.enabled": true,
-  "vsicons.presets.angular": true,
-  "vsicons.presets.foldersAllDefaultIcon": true,
-  "vsicons.presets.jsOfficial": true,
-  "vsicons.presets.jsonOfficial": true,
-  "vsicons.presets.nestjs": true,
-  "vsicons.presets.tsOfficial": true,
-  "vsicons.presets.yamlOfficial": true,
-  "vsicons.projectDetection.autoReload": true,
-  "npm-intellisense.packageSubfoldersIntellisense": true,
-  "npm-intellisense.scanDevDependencies": true,
-  "npm-intellisense.showBuildInLibs": true,
-  "gemini-cli.debug.logging.enabled": true,
-  "terminal.integrated.profiles.windows": {
-    "PowerShell 7": {
-      "path": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
-      "args": [
-        "-NoLogo",
-        "-ExecutionPolicy",
-        "Bypass"
-      ],
-      "icon": "terminal-powershell"
-    }
-  },
-  "terminal.integrated.defaultProfile.windows": "PowerShell"
+  "github.copilot.chat.newWorkspace.useContext7": true,
+  "github.copilot.chat.languageContext.fix.typescript.enabled": true,
+  "github.copilot.chat.languageContext.inline.typescript.enabled": true,
+  "github.copilot.chat.languageContext.typescript.enabled": true,
+  "github.copilot.chat.languageContext.typescript.includeDocumentation": true
 }
