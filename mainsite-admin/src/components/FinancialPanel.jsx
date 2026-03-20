@@ -87,6 +87,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     }
   });
   const [toastTop, setToastTop] = useState(30);
+  const [methodTooltip, setMethodTooltip] = useState({ visible: false, label: '', x: 0, y: 0 });
   const lastPointerYRef = useRef(null);
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -230,13 +231,20 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
   const syncSumupCheckouts = useCallback(async () => {
     setIsSyncing(true);
     try {
+      const reindexRes = await fetch(`${API_URL}/sumup/reindex-statuses`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${secret}` },
+      });
+      const reindexData = await reindexRes.json();
+      if (!reindexRes.ok) throw new Error(reindexData.error || 'Falha na reindexação de status SumUp.');
+
       const res = await fetch(`${API_URL}/sumup/sync`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${secret}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Falha na sincronização.');
-      showPanelToast(`Sincronizado: ${data.inserted} novo(s), ${data.updated} atualizado(s) de ${data.total} checkout(s).`, 'success');
+      showPanelToast(`Reindexado DB1: ${reindexData.updated}/${reindexData.scanned}. Sincronizado: ${data.inserted} novo(s), ${data.updated} atualizado(s) de ${data.total} checkout(s).`, 'success');
       fetchFinanceData(true);
     } catch (err) {
       showPanelToast(`Erro ao sincronizar: ${err.message}`, 'error');
@@ -244,6 +252,92 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       setIsSyncing(false);
     }
   }, [API_URL, secret, fetchFinanceData, showPanelToast]);
+
+  const methodLogoMap = {
+    sumup: {
+      apple_pay: { label: 'Apple Pay', src: 'https://cdn.simpleicons.org/applepay/000000' },
+      google_pay: { label: 'Google Pay', src: 'https://cdn.simpleicons.org/googlepay/4285F4' },
+      pix: { label: 'PIX', src: 'https://cdn.simpleicons.org/pix/32BCAD' },
+      card: { label: 'Card', src: 'https://cdn.simpleicons.org/visa/1A1F71' },
+    },
+    mp: {
+      amex: { label: 'Amex', src: 'https://cdn.simpleicons.org/americanexpress/2E77BC' },
+      pix: { label: 'PIX', src: 'https://cdn.simpleicons.org/pix/32BCAD' },
+      master: { label: 'Mastercard', src: 'https://cdn.simpleicons.org/mastercard/EB001B' },
+      visa: { label: 'Visa', src: 'https://cdn.simpleicons.org/visa/1A1F71' },
+      elo: { label: 'Elo', src: 'https://cdn.simpleicons.org/elo/00A4E0' },
+      debelo: { label: 'Débito Elo', src: 'https://cdn.simpleicons.org/elo/00A4E0' },
+      bolbradesco: { label: 'Boleto Bradesco', src: 'https://cdn.simpleicons.org/bradesco/CC092F' },
+      account_money: { label: 'Saldo MP', src: 'https://cdn.simpleicons.org/mercadopago/00B1EA' },
+    },
+  };
+
+  const renderMethodIcons = (methods = [], provider = 'sumup') => {
+    const palette = provider === 'sumup' ? methodLogoMap.sumup : methodLogoMap.mp;
+    if (!Array.isArray(methods) || methods.length === 0) return <span>—</span>;
+
+    return (
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+        {methods.map((m) => {
+          const key = String(m || '').toLowerCase();
+          const icon = palette[key];
+
+          return (
+            <span
+              key={`${provider}-${key}`}
+              title={icon?.label || key.toUpperCase()}
+              tabIndex={0}
+              onMouseEnter={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                setMethodTooltip({
+                  visible: true,
+                  label: icon?.label || key.toUpperCase(),
+                  x: r.left + (r.width / 2),
+                  y: r.top - 8,
+                });
+              }}
+              onMouseLeave={() => setMethodTooltip((prev) => ({ ...prev, visible: false }))}
+              onFocus={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                setMethodTooltip({
+                  visible: true,
+                  label: icon?.label || key.toUpperCase(),
+                  x: r.left + (r.width / 2),
+                  y: r.top - 8,
+                });
+              }}
+              onBlur={() => setMethodTooltip((prev) => ({ ...prev, visible: false }))}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '30px',
+                height: '20px',
+                borderRadius: '4px',
+                border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
+                background: isDarkBase ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.7)',
+                overflow: 'hidden',
+                cursor: 'help',
+                outline: 'none',
+              }}
+            >
+              {icon?.src ? (
+                <img
+                  src={icon.src}
+                  alt={icon.label || key}
+                  style={{ width: '16px', height: '16px', objectFit: 'contain' }}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.2px' }}>{key.slice(0, 4).toUpperCase()}</span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
 
   const syncMercadoPagoCheckouts = useCallback(async () => {
     setIsSyncing(true);
@@ -537,21 +631,21 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
   const getSumupStatusConfig = (status) => {
     const s = (status || '').toUpperCase();
     if (['PAID', 'SUCCESSFUL', 'APPROVED'].includes(s))
-      return { color: '#10b981', bg: 'rgba(16,185,129,0.15)', label: 'APROVADO', canRefund: true, canCancel: false };
+      return { color: '#10b981', bg: 'rgba(16,185,129,0.15)', label: 'SUCCESSFUL', canRefund: true, canCancel: false };
     if (['PENDING', 'IN_PROCESS', 'PROCESSING'].includes(s))
-      return { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', label: 'PENDENTE', canRefund: false, canCancel: true };
+      return { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', label: 'PENDING', canRefund: false, canCancel: true };
     if (['FAILED', 'FAILURE'].includes(s))
-      return { color: '#ef4444', bg: 'rgba(239,68,68,0.15)', label: 'FALHOU', canRefund: false, canCancel: false };
+      return { color: '#ef4444', bg: 'rgba(239,68,68,0.15)', label: 'FAILED', canRefund: false, canCancel: false };
     if (s === 'EXPIRED')
       return { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', label: 'EXPIRADO', canRefund: false, canCancel: false };
     if (s === 'REFUNDED')
-      return { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', label: 'ESTORNADO', canRefund: false, canCancel: false };
+      return { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', label: 'REFUNDED', canRefund: false, canCancel: false };
     if (s === 'PARTIALLY_REFUNDED')
-      return { color: '#a78bfa', bg: 'rgba(167,139,250,0.15)', label: 'EST. PARCIAL', canRefund: true, canCancel: false };
+      return { color: '#a78bfa', bg: 'rgba(167,139,250,0.15)', label: 'PARTIALLY_REFUNDED', canRefund: true, canCancel: false };
     if (['CANCELLED', 'CANCEL', 'CANCELED'].includes(s))
-      return { color: '#f97316', bg: 'rgba(249,115,22,0.15)', label: 'CANCELADO', canRefund: false, canCancel: false };
+      return { color: '#f97316', bg: 'rgba(249,115,22,0.15)', label: 'CANCELLED', canRefund: false, canCancel: false };
     if (s.includes('CHARGEBACK') || s.includes('CHARGE_BACK'))
-      return { color: '#dc2626', bg: 'rgba(220,38,38,0.15)', label: 'CHARGEBACK', canRefund: false, canCancel: false };
+      return { color: '#dc2626', bg: 'rgba(220,38,38,0.15)', label: 'CHARGE_BACK', canRefund: false, canCancel: false };
     return { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', label: s || '?', canRefund: false, canCancel: false };
   };
 
@@ -663,6 +757,31 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
           </div>
         </div>,
         document.body // Prevents Glassmorphism CSS from trapping the modal
+      )}
+
+      {methodTooltip.visible && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            left: `${methodTooltip.x}px`,
+            top: `${methodTooltip.y}px`,
+            transform: 'translate(-50%, -100%)',
+            padding: '5px 8px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: 700,
+            color: '#f8fafc',
+            background: 'rgba(15, 23, 42, 0.94)',
+            border: '1px solid rgba(148,163,184,0.45)',
+            boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
+            zIndex: 3000,
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {methodTooltip.label}
+        </div>,
+        document.body
       )}
 
       {/* Standardized Back Button */}
@@ -883,8 +1002,8 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px', marginBottom: '12px' }}>
                 <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(79,70,229,0.2)', borderRadius: '10px', padding: '10px' }}>
                   <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Métodos disponíveis</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, color: activePalette.titleColor }}>
-                    {sumupInsights.paymentMethods.length > 0 ? sumupInsights.paymentMethods.join(', ') : '—'}
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: activePalette.titleColor }}>
+                    {renderMethodIcons(sumupInsights.paymentMethods, 'sumup')}
                   </div>
                 </div>
 
@@ -1134,8 +1253,8 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px', marginBottom: '12px' }}>
                 <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '10px', padding: '10px' }}>
                   <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Métodos disponíveis</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, color: activePalette.titleColor }}>
-                    {mpInsights.paymentMethods.length > 0 ? mpInsights.paymentMethods.join(', ') : '—'}
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: activePalette.titleColor }}>
+                    {renderMethodIcons(mpInsights.paymentMethods, 'mp')}
                   </div>
                 </div>
 
@@ -1277,8 +1396,9 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                   // Config de status por provedor
                   const mpInfo = paymentProvider === 'mercadopago' ? parseMPPayload(log.raw_payload) : {};
                   const sumupInfo = paymentProvider === 'sumup' ? parseSumupPayload(log.raw_payload) : {};
+                  const effectiveSumupStatus = sumupInfo.txStatus || sumupInfo.checkoutStatus || log.status;
                   const statusCfg = paymentProvider === 'sumup'
-                    ? getSumupStatusConfig(log.status)
+                    ? getSumupStatusConfig(effectiveSumupStatus)
                     : getMPStatusConfig(log.status, mpInfo.statusDetail);
                   const isApproved = statusCfg.canRefund;
                   const isPending = statusCfg.canCancel;
