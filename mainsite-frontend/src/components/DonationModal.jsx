@@ -10,6 +10,11 @@ const MP_PUBLIC_KEY_FALLBACK = 'APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794';
 const mpPublicKey = (import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || MP_PUBLIC_KEY_FALLBACK)
   .trim()
   .replace(/^['"]|['"]$/g, '');
+const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || '')
+  .trim()
+  .replace(/^['"]|['"]$/g, '')
+  .replace(/\/+$/, '');
+const getBrandIconSrc = (fileName) => (brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : '');
 if (mpPublicKey) {
   initMercadoPago(mpPublicKey, { locale: 'pt-BR' });
 }
@@ -374,10 +379,10 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const donationGrossSumup = getGrossAmount('sumup');
   const donationGrossMp = getGrossAmount('mercadopago');
   const sumupBrandIcons = [
-    { key: 'mastercard', label: 'Mastercard', src: 'https://cdn.simpleicons.org/mastercard/EB001B' },
-    { key: 'visa', label: 'Visa', src: 'https://cdn.simpleicons.org/visa/1A1F71' },
-    { key: 'elo', label: 'Elo', src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Elo_logo.svg/512px-Elo_logo.svg.png' },
-    { key: 'amex', label: 'American Express', src: 'https://cdn.simpleicons.org/americanexpress/2E77BC' },
+    { key: 'mastercard', label: 'Mastercard', src: getBrandIconSrc('mastercard.svg') },
+    { key: 'visa', label: 'Visa', src: getBrandIconSrc('visa.svg') },
+    { key: 'elo', label: 'Elo', src: getBrandIconSrc('elo.svg') },
+    { key: 'amex', label: 'American Express', src: getBrandIconSrc('amex.svg') },
   ];
 
   return (
@@ -548,7 +553,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                     padding: '4px',
                   }}
                 >
-                  {!brandImageFailed[brand.key] ? (
+                  {brand.src && !brandImageFailed[brand.key] ? (
                     <img
                       src={brand.src}
                       alt={brand.label}
@@ -568,10 +573,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
             <form onSubmit={handleSubmitSumupCard} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                <label htmlFor="sumup-card-number" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
                   Número do cartão
                 </label>
                 <input
+                  id="sumup-card-number"
                   type="text"
                   placeholder="1234 1234 1234 1234"
                   value={sumupCard.number}
@@ -583,10 +589,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                  <label htmlFor="sumup-card-expiry" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
                     Data de vencimento
                   </label>
                   <input
+                    id="sumup-card-expiry"
                     type="text"
                     placeholder="mm/aa"
                     value={sumupCard.expiry}
@@ -596,10 +603,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                  <label htmlFor="sumup-card-cvv" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
                     Código de segurança
                   </label>
                   <input
+                    id="sumup-card-cvv"
                     type="text"
                     placeholder="Ex.: 123"
                     value={sumupCard.cvv}
@@ -611,10 +619,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                <label htmlFor="sumup-card-holder" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
                   Nome do titular como aparece no cartão
                 </label>
                 <input
+                  id="sumup-card-holder"
                   type="text"
                   placeholder="Maria Santos Pereira"
                   value={sumupCard.holder}
@@ -626,10 +635,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div style={{ width: '100px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                  <label htmlFor="sumup-document-type" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
                     Tipo
                   </label>
                   <select
+                    id="sumup-document-type"
                     value={sumupDocumentType}
                     onChange={(e) => setSumupDocumentType(e.target.value)}
                     style={{ ...inputStyle, width: '100%' }}
@@ -639,10 +649,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                  <label htmlFor="sumup-document" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
                     Documento
                   </label>
                   <input
+                    id="sumup-document"
                     type="text"
                     placeholder={sumupDocumentType === 'CPF' ? '999.999.999-99' : '99.999.999/0000-99'}
                     value={sumupDocument}
@@ -654,10 +665,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               </div>
 
               <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid rgba(128,128,128,0.2)` }}>
-                <h3 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor }}>
+                <label htmlFor="sumup-email" style={{ display: 'block', margin: '0 0 12px 0', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor }}>
                   Preencha seus dados
-                </h3>
+                </label>
                 <input
+                  id="sumup-email"
                   type="email"
                   placeholder="E-mail"
                   value={sumupEmail}

@@ -10,6 +10,11 @@ const SUMUP_FILTERS_STORAGE_KEY = 'mainsite_sumup_filters_v1';
 const MP_FILTERS_STORAGE_KEY = 'mainsite_mp_filters_v1';
 const FINANCIAL_CUTOFF_DATE = '2026-03-01';
 const FINANCIAL_CUTOFF_BRT_ISO = '2026-03-01T00:00:00-03:00';
+const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || '')
+  .trim()
+  .replace(/^['"]|['"]$/g, '')
+  .replace(/\/+$/, '');
+const getBrandIconSrc = (fileName) => (brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : '');
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);
@@ -336,20 +341,20 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
   const methodLogoMap = {
     sumup: {
-      apple_pay: { label: 'Apple Pay', src: 'https://cdn.simpleicons.org/applepay/000000' },
-      google_pay: { label: 'Google Pay', src: 'https://cdn.simpleicons.org/googlepay/4285F4' },
-      pix: { label: 'PIX', src: 'https://cdn.simpleicons.org/pix/32BCAD' },
-      card: { label: 'Card', src: 'https://cdn.simpleicons.org/visa/1A1F71' },
+      apple_pay: { label: 'Apple Pay', src: getBrandIconSrc('applepay.svg') },
+      google_pay: { label: 'Google Pay', src: getBrandIconSrc('googlepay.svg') },
+      pix: { label: 'PIX', src: getBrandIconSrc('pix.svg') },
+      card: { label: 'Card', src: getBrandIconSrc('card.svg') },
     },
     mp: {
-      amex: { label: 'Amex', src: 'https://cdn.simpleicons.org/americanexpress/2E77BC' },
-      pix: { label: 'PIX', src: 'https://cdn.simpleicons.org/pix/32BCAD' },
-      master: { label: 'Mastercard', src: 'https://cdn.simpleicons.org/mastercard/EB001B' },
-      visa: { label: 'Visa', src: 'https://cdn.simpleicons.org/visa/1A1F71' },
-      elo: { label: 'Elo', src: 'https://cdn.simpleicons.org/elo/00A4E0' },
-      debelo: { label: 'Débito Elo', src: 'https://cdn.simpleicons.org/elo/00A4E0' },
-      bolbradesco: { label: 'Boleto Bradesco', src: 'https://cdn.simpleicons.org/bradesco/CC092F' },
-      account_money: { label: 'Saldo MP', src: 'https://cdn.simpleicons.org/mercadopago/00B1EA' },
+      amex: { label: 'Amex', src: getBrandIconSrc('amex.svg') },
+      pix: { label: 'PIX', src: getBrandIconSrc('pix.svg') },
+      master: { label: 'Mastercard', src: getBrandIconSrc('mastercard.svg') },
+      visa: { label: 'Visa', src: getBrandIconSrc('visa.svg') },
+      elo: { label: 'Elo', src: getBrandIconSrc('elo.svg') },
+      debelo: { label: 'Débito Elo', src: getBrandIconSrc('elo.svg') },
+      bolbradesco: { label: 'Boleto Bradesco', src: getBrandIconSrc('bradesco.svg') },
+      account_money: { label: 'Saldo MP', src: getBrandIconSrc('mercadopago.svg') },
     },
   };
 
@@ -363,7 +368,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
           const key = String(m || '').toLowerCase();
           const icon = palette[key];
           const asset = provider === 'mp' ? assets?.[key] : null;
-          const iconSrc = asset?.image || icon?.src || null;
+          const iconSrc = icon?.src || asset?.image || null;
           const iconLabel = asset?.label || icon?.label || key.toUpperCase();
 
           return (

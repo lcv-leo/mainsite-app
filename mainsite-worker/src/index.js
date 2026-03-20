@@ -1647,6 +1647,19 @@ app.get('/api/uploads/:filename', async (c) => {
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
+app.get('/api/uploads/brands/:filename', async (c) => {
+  const filename = c.req.param('filename');
+  try {
+    const object = await c.env.BUCKET.get(`brands/${filename}`);
+    if (!object) return c.text('Arquivo não encontrado.', 404);
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('etag', object.httpEtag);
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    return new Response(object.body, { headers });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
 // --- CRUD DE POSTS ---
 
 app.get('/api/posts', async (c) => {
