@@ -15,10 +15,6 @@ const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || 'https:/
   .replace(/^['"]|['"]$/g, '')
   .replace(/\/+$/, '');
 const getBrandIconSrc = (fileName) => `${brandIconsBaseUrl}/${fileName}`;
-const getInlineMethodBadgeSrc = (label, { bg = '#0f172a', color = '#ffffff', fontSize = 16 } = {}) => {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="40" viewBox="0 0 64 40" role="img" aria-label="${label}"><rect width="64" height="40" rx="8" fill="${bg}"/><text x="32" y="25" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="700" fill="${color}">${label}</text></svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-};
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);
@@ -345,10 +341,14 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
   const methodLogoMap = {
     sumup: {
-      apple_pay: { label: 'Apple Pay', src: getInlineMethodBadgeSrc('AP', { bg: '#111827', fontSize: 18 }) },
-      google_pay: { label: 'Google Pay', src: getInlineMethodBadgeSrc('GP', { bg: '#1f2937', fontSize: 18 }) },
-      pix: { label: 'PIX', src: getInlineMethodBadgeSrc('PIX', { bg: '#0f766e', fontSize: 16 }) },
-      card: { label: 'Card', src: getInlineMethodBadgeSrc('CARD', { bg: '#1d4ed8', fontSize: 13 }) },
+      apple_pay: { label: 'Apple Pay', src: getBrandIconSrc('apple_pay.svg') },
+      google_pay: { label: 'Google Pay', src: getBrandIconSrc('google_pay.svg') },
+      pix: { label: 'PIX', src: getBrandIconSrc('pix.svg') },
+      card: { label: 'Card', src: getBrandIconSrc('card.svg') },
+      mastercard: { label: 'Mastercard', src: getBrandIconSrc('mastercard.png') },
+      visa: { label: 'Visa', src: getBrandIconSrc('visa.png') },
+      elo: { label: 'Elo', src: getBrandIconSrc('elo.png') },
+      amex: { label: 'American Express', src: getBrandIconSrc('amex.svg') },
     },
     mp: {
       amex: { label: 'Amex', src: getBrandIconSrc('amex.svg') },
