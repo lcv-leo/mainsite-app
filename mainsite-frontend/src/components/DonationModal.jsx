@@ -379,9 +379,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const donationGrossSumup = getGrossAmount('sumup');
   const donationGrossMp = getGrossAmount('mercadopago');
   const sumupBrandIcons = [
-    { key: 'mastercard', label: 'Mastercard', src: getBrandIconSrc('mastercard.png') },
-    { key: 'visa', label: 'Visa', src: getBrandIconSrc('visa.png') },
-    { key: 'elo', label: 'Elo', src: getBrandIconSrc('elo.png') },
+    { key: 'mastercard', label: 'Mastercard', src: getBrandIconSrc('mastercard.svg') },
+    { key: 'visa', label: 'Visa', src: getBrandIconSrc('visa.svg') },
+    { key: 'elo', label: 'Elo', src: getBrandIconSrc('elo.svg') },
     { key: 'amex', label: 'American Express', src: getBrandIconSrc('amex.svg') },
   ];
 

@@ -341,13 +341,13 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
   const methodLogoMap = {
     sumup: {
-      apple_pay: { label: 'Apple Pay', src: getBrandIconSrc('apple_pay.svg') },
-      google_pay: { label: 'Google Pay', src: getBrandIconSrc('google_pay.svg') },
+      applepay: { label: 'Apple Pay', src: getBrandIconSrc('applepay.svg') },
+      googlepay: { label: 'Google Pay', src: getBrandIconSrc('googlepay.svg') },
       pix: { label: 'PIX', src: getBrandIconSrc('pix.svg') },
       card: { label: 'Card', src: getBrandIconSrc('card.svg') },
-      mastercard: { label: 'Mastercard', src: getBrandIconSrc('mastercard.png') },
-      visa: { label: 'Visa', src: getBrandIconSrc('visa.png') },
-      elo: { label: 'Elo', src: getBrandIconSrc('elo.png') },
+      mastercard: { label: 'Mastercard', src: getBrandIconSrc('mastercard.svg') },
+      visa: { label: 'Visa', src: getBrandIconSrc('visa.svg') },
+      elo: { label: 'Elo', src: getBrandIconSrc('elo.svg') },
       amex: { label: 'American Express', src: getBrandIconSrc('amex.svg') },
     },
     mp: {
