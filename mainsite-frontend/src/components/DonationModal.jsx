@@ -29,6 +29,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isProcessingCard, setIsProcessingCard] = useState(false);
   const [sumupCard, setSumupCard] = useState({ holder: '', number: '', expiry: '', cvv: '' });
   const [sumupEmail, setSumupEmail] = useState('');
+  const [sumupDocument, setSumupDocument] = useState('');
+  const [sumupDocumentType, setSumupDocumentType] = useState('CPF');
   const [coverFees, setCoverFees] = useState(false);
 
   const [firstName, setFirstName] = useState('');
@@ -75,6 +77,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         setIsCopied(false);
         setSumupCard({ holder: '', number: '', expiry: '', cvv: '' });
         setSumupEmail('');
+        setSumupDocument('');
+        setSumupDocumentType('CPF');
         setCoverFees(false);
         setIsProcessingCard(false);
       }, 0);
@@ -162,8 +166,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     const validMonth = Number.isInteger(expMonthNum) && expMonthNum >= 1 && expMonthNum <= 12;
     const validYear = Number.isInteger(expYearNum) && expYearNum >= currentYear;
 
-    if (!sumupCard.holder.trim() || cardNumber.length < 13 || !validMonth || !validYear || sumupCard.cvv.length < 3 || !sumupEmail.trim()) {
-      showToast('Preencha corretamente os dados do cartão SumUp.', 'error');
+    if (!sumupCard.holder.trim() || cardNumber.length < 13 || !validMonth || !validYear || sumupCard.cvv.length < 3 || !sumupEmail.trim() || !sumupDocument.trim()) {
+      showToast('Preencha corretamente todos os dados do cartão.', 'error');
       return;
     }
 
@@ -193,6 +197,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: sumupEmail.trim(),
+          documentType: sumupDocumentType,
+          document: sumupDocument.trim(),
           card: {
             name: sumupCard.holder.trim(),
             number: cardNumber,
@@ -453,21 +459,140 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
         {step === 5 && (
           <div style={{ animation: 'fadeIn 0.3s', textAlign: 'left' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <button type="button" onClick={() => setStep(4)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: '0', color: activePalette.titleColor, fontSize: '18px', fontWeight: '600' }}>
+                Cartão de crédito ou débito
+              </h2>
+              <button type="button" onClick={() => setStep(4)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: 0.7 }}>&larr; Voltar</button>
             </div>
 
-            <h3 style={{ margin: '0 0 12px 0', color: activePalette.titleColor, fontSize: '18px' }}>Pagamento com cartão via SumUp</h3>
-            <form onSubmit={handleSubmitSumupCard} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <input type="email" placeholder="E-mail do titular" value={sumupEmail} onChange={(e) => setSumupEmail(e.target.value)} style={inputStyle} required />
-              <input type="text" placeholder="Nome no cartão" value={sumupCard.holder} onChange={(e) => handleSumupCardChange('holder', e.target.value)} style={inputStyle} required />
-              <input type="text" placeholder="Número do cartão" value={sumupCard.number} onChange={(e) => handleSumupCardChange('number', e.target.value)} style={inputStyle} required />
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input type="text" placeholder="MM/AA" value={sumupCard.expiry} onChange={(e) => handleSumupCardChange('expiry', e.target.value)} style={inputStyle} required />
-                <input type="text" placeholder="CVV" value={sumupCard.cvv} onChange={(e) => handleSumupCardChange('cvv', e.target.value)} style={inputStyle} required />
+            {/* Ícones de bandeiras */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', justifyContent: 'flex-start' }}>
+              <div style={{ width: '40px', height: '25px', borderRadius: '4px', background: '#EB001B', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>MC</div>
+              <div style={{ width: '40px', height: '25px', borderRadius: '4px', background: '#1434CB', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>VISA</div>
+              <div style={{ width: '40px', height: '25px', borderRadius: '4px', background: '#FF5F00', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>ELO</div>
+              <div style={{ width: '40px', height: '25px', borderRadius: '4px', background: '#006FCF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>AMEX</div>
+            </div>
+
+            <form onSubmit={handleSubmitSumupCard} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Número do cartão */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                  Número do cartão
+                </label>
+                <input
+                  type="text"
+                  placeholder="1234 1234 1234 1234"
+                  value={sumupCard.number}
+                  onChange={(e) => handleSumupCardChange('number', e.target.value)}
+                  style={inputStyle}
+                  required
+                />
               </div>
-              <button type="submit" disabled={isProcessingCard} style={{ ...buttonStyle, background: '#111827', color: '#fff' }}>
-                {isProcessingCard ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />} {isProcessingCard ? 'PROCESSANDO...' : 'PAGAR COM SUMUP'}
+
+              {/* Data de vencimento e CVV */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                    Data de vencimento
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="mm/aa"
+                    value={sumupCard.expiry}
+                    onChange={(e) => handleSumupCardChange('expiry', e.target.value)}
+                    style={inputStyle}
+                    required
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                    Código de segurança
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex.: 123"
+                    value={sumupCard.cvv}
+                    onChange={(e) => handleSumupCardChange('cvv', e.target.value)}
+                    style={inputStyle}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Nome do titular */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                  Nome do titular como aparece no cartão
+                </label>
+                <input
+                  type="text"
+                  placeholder="Maria Santos Pereira"
+                  value={sumupCard.holder}
+                  onChange={(e) => handleSumupCardChange('holder', e.target.value)}
+                  style={inputStyle}
+                  required
+                />
+              </div>
+
+              {/* Documento do titular */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ width: '100px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                    Tipo
+                  </label>
+                  <select
+                    value={sumupDocumentType}
+                    onChange={(e) => setSumupDocumentType(e.target.value)}
+                    style={{ ...inputStyle, width: '100%' }}
+                  >
+                    <option value="CPF">CPF</option>
+                    <option value="CNPJ">CNPJ</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                    Documento
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={sumupDocumentType === 'CPF' ? '999.999.999-99' : '99.999.999/0000-99'}
+                    value={sumupDocument}
+                    onChange={(e) => setSumupDocument(e.target.value)}
+                    style={inputStyle}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Seção Preencha seus dados */}
+              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid rgba(128,128,128,0.2)` }}>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor }}>
+                  Preencha seus dados
+                </h3>
+                <input
+                  type="email"
+                  placeholder="E-mail"
+                  value={sumupEmail}
+                  onChange={(e) => setSumupEmail(e.target.value)}
+                  style={inputStyle}
+                  required
+                />
+              </div>
+
+              {/* Botão Pagar */}
+              <button
+                type="submit"
+                disabled={isProcessingCard}
+                style={{
+                  ...buttonStyle,
+                  background: '#0066ff',
+                  color: '#fff',
+                  marginTop: '8px'
+                }}
+              >
+                {isProcessingCard ? <Loader2 size={16} className="animate-spin" /> : null}
+                {isProcessingCard ? 'PROCESSANDO...' : 'PAGAR'}
               </button>
             </form>
           </div>

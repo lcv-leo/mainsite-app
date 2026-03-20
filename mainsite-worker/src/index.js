@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { MercadoPagoConfig, Payment, PaymentRefund } from 'mercadopago';
+import SumUp from '@sumup/sdk';
 
 // Polyfill para Headers.raw() exigido por algumas dependências
 if (typeof Headers !== 'undefined' && !Headers.prototype.raw) {
@@ -465,50 +466,34 @@ app.post('/api/comment', async (c) => {
 
 app.post('/api/sumup/checkout', async (c) => {
   try {
-    const { amount, firstName, lastName } = await c.req.json();
+    const { amount, firstName, lastName, email } = await c.req.json();
     if (!amount || Number(amount) <= 0) return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
 
     const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
-    const merchantCode = c.env.SUMUP_MERCHANT_CODE;
-    if (!sumupToken || !merchantCode) return c.json({ error: 'SUMUP_API_KEY_PRIVATE ou SUMUP_MERCHANT_CODE não configurados.' }, 503);
+    if (!sumupToken) return c.json({ error: 'SUMUP_API_KEY_PRIVATE não configurada.' }, 503);
 
+    const client = new SumUp({ apiKey: sumupToken });
+    
     const checkoutReference = `SUMUP-DON-${crypto.randomUUID()}`;
     const fullName = `${(firstName || '').trim()} ${(lastName || '').trim()}`.trim() || 'Doador';
-    const returnUrl = 'https://www.lcv.rio.br';
 
-    const response = await fetch('https://api.sumup.com/v0.1/checkouts', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${sumupToken}`,
-        'Content-Type': 'application/json',
+    const checkout = await client.checkouts.create({
+      checkout_reference: checkoutReference,
+      amount: Math.round(Number(amount) * 100), // Convertido para centavos
+      currency: 'BRL',
+      description: `Doação de ${fullName} - Divagações Filosóficas`,
+      payer: {
+        name: fullName,
+        email: (email || '').trim() || undefined,
       },
-      body: JSON.stringify({
-        checkout_reference: checkoutReference,
-        amount: Number(amount),
-        currency: 'BRL',
-        merchant_code: merchantCode,
-        description: `Doação de ${fullName} - Divagações Filosóficas`,
-        return_url: returnUrl,
-      }),
     });
 
-    let data = {};
-    try {
-      data = await response.json();
-    } catch {
-      data = {};
-    }
-    if (!response.ok) {
-      const reason = data?.message || data?.detail || data?.title || 'Falha ao criar checkout SumUp.';
-      const param = data?.param ? ` (param: ${data.param})` : '';
-      return c.json({ error: `${reason}${param}` }, 502);
-    }
-
     return c.json({
-      checkoutId: data.id,
+      checkoutId: checkout.id,
       checkoutReference,
     }, 201);
   } catch (err) {
+    console.error('Erro ao criar checkout SumUp:', err);
     return c.json({ error: err.message || 'Falha ao iniciar checkout SumUp.' }, 500);
   }
 });
@@ -527,61 +512,58 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
     const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
     if (!sumupToken) return c.json({ error: 'SUMUP_API_KEY_PRIVATE não configurada.' }, 503);
 
-    const response = await fetch(`https://api.sumup.com/v0.1/checkouts/${checkoutId}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${sumupToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        payment_type: 'card',
-        amount: Number(amount),
-        card: {
-          name: card.name,
-          number: card.number,
-          expiry_month: card.expiryMonth,
-          expiry_year: card.expiryYear,
-          cvv: card.cvv,
-        },
-        personal_details: {
-          first_name: (firstName || '').trim() || undefined,
-          last_name: (lastName || '').trim() || undefined,
-          email: (email || '').trim() || undefined,
-        },
-      }),
-    });
+    const client = new SumUp({ apiKey: sumupToken });
 
-    let data = {};
+    const cardData = {
+      number: card.number.replace(/\s/g, ''),
+      expiry_month: String(card.expiryMonth).padStart(2, '0'),
+      expiry_year: `20${card.expiryYear}`,
+      cvv: card.cvv,
+      name: card.name.trim(),
+    };
+
+    const payload = {
+      amount: Math.round(Number(amount) * 100), // Centavos
+      payment_method: {
+        type: 'card',
+        card: cardData,
+      },
+      payer: {
+        name: card.name.trim(),
+        email: (email || '').trim() || undefined,
+      },
+      description: `Doação - ${firstName} ${lastName}`,
+    };
+
+    // Tenta atualizar o checkout com o pagamento
+    let result;
     try {
-      data = await response.json();
-    } catch {
-      data = {};
-    }
-    if (!response.ok) {
-      // Salva a tentativa fracassada no DB para rastreabilidade no painel financeiro
+      result = await client.checkouts.update(checkoutId, payload);
+    } catch (updateErr) {
+      // Se falhar na atualização, registra tentativa fracassada
       const failedEmail = (email || '').trim() || 'N/A';
       c.executionCtx.waitUntil(
-        c.env.DB.prepare("INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
-          .bind(checkoutId, data.status || 'failed', Number(amount), 'sumup_card', failedEmail, JSON.stringify(data)).run()
+        c.env.DB.prepare(
+          "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
+        ).bind(checkoutId, 'failed', Number(amount), 'sumup_card', failedEmail, JSON.stringify({ error: updateErr.message })).run()
       );
-      const reason = data?.message || data?.detail || data?.title || 'Pagamento SumUp recusado.';
-      const param = data?.param ? ` (param: ${data.param})` : '';
-      return c.json({ error: `${reason}${param}` }, 402);
+      throw updateErr;
     }
 
-    // Usa o transaction UUID (transactions[0].id) como payment_id, que é o
-    // ID necessário para o endpoint de estorno POST /v0.1/me/refund/{txn_id}.
-    const transactionId = data.transactions?.[0]?.id;
-    const storedId = transactionId || data.id || checkoutId;
+    // Extrai o transaction ID se disponível
+    const transactionId = result.transactions?.[0]?.id;
+    const storedId = transactionId || result.id || checkoutId;
 
     const payerEmail = (email || '').trim() || 'N/A';
     c.executionCtx.waitUntil(
-      c.env.DB.prepare("INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
-        .bind(storedId, data.status || 'paid', Number(amount), 'sumup_card', payerEmail, JSON.stringify(data)).run()
+      c.env.DB.prepare(
+        "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
+      ).bind(storedId, result.status || 'paid', Number(amount), 'sumup_card', payerEmail, JSON.stringify(result)).run()
     );
 
-    return c.json({ success: true, id: storedId, status: data.status || 'paid' });
+    return c.json({ success: true, id: storedId, status: result.status || 'paid' });
   } catch (err) {
+    console.error('Erro ao processar pagamento SumUp:', err);
     return c.json({ error: err.message || 'Falha no pagamento SumUp.' }, 500);
   }
 });
@@ -909,12 +891,9 @@ app.post('/api/sumup/sync', async (c) => {
     const token = c.env.SUMUP_API_KEY_PRIVATE;
     if (!token) throw new Error('SUMUP_API_KEY_PRIVATE ausente.');
 
-    const response = await fetch('https://api.sumup.com/v0.1/checkouts', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!response.ok) throw new Error('Falha ao listar checkouts na SumUp.');
+    const client = new SumUp({ apiKey: token });
 
-    const checkouts = await response.json();
+    const checkouts = await client.checkouts.list();
     if (!Array.isArray(checkouts)) throw new Error('Resposta inesperada da SumUp.');
 
     let inserted = 0, updated = 0;
@@ -946,6 +925,7 @@ app.post('/api/sumup/sync', async (c) => {
 
     return c.json({ success: true, inserted, updated, total: checkouts.length });
   } catch (err) {
+    console.error('Erro ao sincronizar checkouts SumUp:', err);
     return c.json({ error: err.message }, 500);
   }
 });
@@ -999,17 +979,17 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
     let amount = null;
     try {
       const body = await c.req.json();
-      if (body?.amount) amount = Number(body.amount);
+      if (body?.amount) amount = Math.round(Number(body.amount) * 100); // Centavos
     } catch { }
 
-    // Resolve o transaction UUID correto para o endpoint POST /v0.1/me/refund/{txn_id}.
-    // Estratégia em cascata:
-    // 1. Tenta extrair transactions[0].id do raw_payload salvo no banco.
-    // 2. Se não achar, busca o checkout na SumUp API para obter o transaction ID.
-    // 3. Fallback: usa o ID armazenado diretamente (pode ser o checkout UUID).
+    const client = new SumUp({ apiKey: token });
+
+    // Tenta resolver o transaction UUID correto (em cascata):
+    // 1. Extrai do raw_payload salvo no banco
+    // 2. Busca o checkout na API
+    // 3. Usa o ID direto como fallback
     let txnId = id;
 
-    // Etapa 1: raw_payload local
     try {
       const record = await c.env.DB.prepare(
         "SELECT raw_payload FROM financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
@@ -1021,41 +1001,29 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
       }
     } catch { }
 
-    // Etapa 2: se ainda é o checkout UUID (sem transaction ID no payload),
-    // busca o checkout na SumUp para obter transactions[0].id
+    // Se ainda é o checkout UUID, busca na API
     if (txnId === id) {
       try {
-        const checkoutRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${id}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (checkoutRes.ok) {
-          const checkoutData = await checkoutRes.json();
-          const extracted = checkoutData.transactions?.[0]?.id;
-          if (extracted) txnId = extracted;
-        }
+        const checkout = await client.checkouts.get(id);
+        const extracted = checkout.transactions?.[0]?.id;
+        if (extracted) txnId = extracted;
       } catch { }
     }
 
-    // Endpoint correto: POST /v0.1/me/refund/{txn_id} (ID no path, amount opcional no body)
-    const refundBody = amount ? { amount } : {};
-    const response = await fetch(`https://api.sumup.com/v0.1/me/refund/${txnId}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(refundBody),
-    });
+    // Processa o reembolso
+    const refundPayload = amount ? { amount } : {};
+    const result = await client.transactions.refund(txnId, refundPayload);
 
-    // 204 No Content = sucesso pleno sem body
-    if (response.status === 204 || response.ok) {
-      const newStatus = amount ? 'partially_refunded' : 'refunded';
-      await c.env.DB.prepare("UPDATE financial_logs SET status = ? WHERE payment_id = ? AND method = 'sumup_card'").bind(newStatus, id).run();
-      return c.json({ success: true, status: newStatus });
-    }
+    const newStatus = amount ? 'partially_refunded' : 'refunded';
+    await c.env.DB.prepare(
+      "UPDATE financial_logs SET status = ? WHERE payment_id = ? AND method = 'sumup_card'"
+    ).bind(newStatus, id).run();
 
-    let data = {};
-    try { data = await response.json(); } catch { }
-    const reason = data?.message || data?.detail || data?.title || `HTTP ${response.status} SumUp`;
-    return c.json({ error: `Estorno SumUp falhou: ${reason} (txn: ${txnId})` }, 502);
-  } catch (err) { return c.json({ error: err.message }, 500); }
+    return c.json({ success: true, status: newStatus });
+  } catch (err) {
+    console.error('Erro ao processar reembolso SumUp:', err);
+    return c.json({ error: err.message || 'Reembolso SumUp falhou.' }, 502);
+  }
 });
 
 app.put('/api/sumup-payment/:id/cancel', async (c) => {
@@ -1065,19 +1033,19 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
     const token = c.env.SUMUP_API_KEY_PRIVATE;
     if (!token) throw new Error("SUMUP_API_KEY_PRIVATE ausente.");
 
-    const response = await fetch(`https://api.sumup.com/v0.1/checkouts/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
+    const client = new SumUp({ apiKey: token });
 
-    if (!response.ok) {
-      const data = await response.json();
-      return c.json({ error: data.message || 'Falha ao cancelar pagamento SumUp.' }, 502);
-    }
+    await client.checkouts.delete(id);
 
-    await c.env.DB.prepare("UPDATE financial_logs SET status = 'cancelled' WHERE payment_id = ? AND method = 'sumup_card'").bind(id).run();
+    await c.env.DB.prepare(
+      "UPDATE financial_logs SET status = 'cancelled' WHERE payment_id = ? AND method = 'sumup_card'"
+    ).bind(id).run();
+
     return c.json({ success: true });
-  } catch (err) { return c.json({ error: err.message }, 500); }
+  } catch (err) {
+    console.error('Erro ao cancelar pagamento SumUp:', err);
+    return c.json({ error: err.message || 'Falha ao cancelar pagamento SumUp.' }, 502);
+  }
 });
 
 // --- UPLOAD PARA CLOUDFLARE R2 ---

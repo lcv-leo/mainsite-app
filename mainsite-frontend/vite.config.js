@@ -9,6 +9,8 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
+    // Desabilita lightningcss (problema de compatibilidade no Windows)
+    cssCodeSplit: false,
     // O Vite já usa o 'esbuild' como minificador padrão, não precisamos chamar o terser
     rollupOptions: {
       output: {
@@ -22,5 +24,9 @@ export default defineConfig({
         }
       }
     }
+  },
+  // Desabilita lightningcss para resolver problema em Windows
+  optimizeDeps: {
+    exclude: ['lightningcss']
   }
 });

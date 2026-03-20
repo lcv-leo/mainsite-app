@@ -99,7 +99,7 @@ jobs:
           npm install
           npm run build
           npx wrangler@${WRANGLER_VERSION} --version
-          retry_wrangler "npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-admin --branch production --commit-dirty=true"
+          retry_wrangler "npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-admin --branch production --commit-dirty=true
 
       - name: Instalar, Compilar e Publicar Frontend
         working-directory: ./mainsite-frontend
@@ -134,4 +134,4 @@ jobs:
           npm install
           npm run build
           npx wrangler@${WRANGLER_VERSION} --version
-          retry_wrangler "npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-frontend --branch production --commit-dirty=true"
+          retry_wrangler "npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-frontend --branch production --commit-dirty=true
