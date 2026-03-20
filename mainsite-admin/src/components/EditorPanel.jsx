@@ -614,7 +614,21 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
 };
 
 const STATIC_EXTENSIONS = [
-  StarterKit.configure({ dropcursor: false }), Markdown, Underline, Highlight, Subscript, Superscript, TextStyle, Color, FontFamily, FontSize, Typography,
+  StarterKit.configure({
+    dropcursor: false,
+    link: false,
+    underline: false,
+  }),
+  Markdown,
+  Underline,
+  Highlight,
+  Subscript,
+  Superscript,
+  TextStyle,
+  Color,
+  FontFamily,
+  FontSize,
+  Typography,
   TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'justify' }),
   ResizableImage.configure({ inline: false }),
   ResizableYoutube.configure({ inline: false, width: 840, height: 472.5 }),
@@ -628,15 +642,6 @@ const STATIC_EXTENSIONS = [
 
 const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotification, styles, API_URL }) => {
   const [title, setTitle] = useState(post ? post.title : '');
-
-  React.useEffect(() => {
-    const originalWarn = console.warn;
-    console.warn = (...args) => {
-      if (typeof args[0] === 'string' && args[0].includes('Duplicate extension names found')) return;
-      originalWarn(...args);
-    };
-    return () => { console.warn = originalWarn; };
-  }, []);
 
   const editor = useEditor({
     extensions: STATIC_EXTENSIONS,
