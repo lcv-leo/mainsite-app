@@ -341,10 +341,10 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
   const methodLogoMap = {
     sumup: {
-      apple_pay: { label: 'Apple Pay', src: getBrandIconSrc('applepay.svg') },
-      google_pay: { label: 'Google Pay', src: getBrandIconSrc('googlepay.svg') },
-      pix: { label: 'PIX', src: getBrandIconSrc('pix.svg') },
-      card: { label: 'Card', src: getBrandIconSrc('card.svg') },
+      apple_pay: { label: 'Apple Pay', src: getBrandIconSrc('sumup-applepay.svg') },
+      google_pay: { label: 'Google Pay', src: getBrandIconSrc('sumup-googlepay.svg') },
+      pix: { label: 'PIX', src: getBrandIconSrc('sumup-pix.gif') },
+      card: { label: 'Card', src: getBrandIconSrc('sumup-card.png') },
     },
     mp: {
       amex: { label: 'Amex', src: getBrandIconSrc('amex.svg') },

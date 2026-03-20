@@ -14,7 +14,7 @@ const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || '')
   .trim()
   .replace(/^['"]|['"]$/g, '')
   .replace(/\/+$/, '');
-const getBrandIconSrc = (fileName) => (brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : '');
+const getBrandIconSrc = (fileName, fallbackUrl = '') => (brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : fallbackUrl);
 if (mpPublicKey) {
   initMercadoPago(mpPublicKey, { locale: 'pt-BR' });
 }
@@ -379,10 +379,10 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const donationGrossSumup = getGrossAmount('sumup');
   const donationGrossMp = getGrossAmount('mercadopago');
   const sumupBrandIcons = [
-    { key: 'mastercard', label: 'Mastercard', src: getBrandIconSrc('mastercard.svg') },
-    { key: 'visa', label: 'Visa', src: getBrandIconSrc('visa.svg') },
-    { key: 'elo', label: 'Elo', src: getBrandIconSrc('elo.svg') },
-    { key: 'amex', label: 'American Express', src: getBrandIconSrc('amex.svg') },
+    { key: 'mastercard', label: 'Mastercard', src: getBrandIconSrc('sumup-mastercard.png') },
+    { key: 'visa', label: 'Visa', src: getBrandIconSrc('sumup-visa.png') },
+    { key: 'elo', label: 'Elo', src: getBrandIconSrc('sumup-elo.png') },
+    { key: 'amex', label: 'American Express', src: getBrandIconSrc('sumup-amex.svg') },
   ];
 
   return (
