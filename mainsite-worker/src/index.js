@@ -848,6 +848,12 @@ app.get('/api/mp/transactions-summary', async (c) => {
     const limitRaw = Number(c.req.query('limit'));
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 50;
 
+    // Calcular datas dos últimos 90 dias
+    const now = new Date();
+    const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+    const begin_date = ninetyDaysAgo.toISOString();
+    const end_date = now.toISOString();
+
     const client = new MercadoPagoConfig({ accessToken: token });
     const paymentApi = new Payment(client);
     const payload = await paymentApi.search({
@@ -855,6 +861,8 @@ app.get('/api/mp/transactions-summary', async (c) => {
         sort: 'date_created',
         criteria: 'desc',
         range: 'date_created',
+        begin_date,
+        end_date,
         limit,
         offset: 0,
       },
@@ -913,6 +921,12 @@ app.get('/api/mp/transactions-advanced', async (c) => {
     const statuses = parseList(c.req.query('statuses'));
     const types = parseList(c.req.query('types'));
 
+    // Calcular datas dos últimos 90 dias
+    const now = new Date();
+    const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+    const begin_date = ninetyDaysAgo.toISOString();
+    const end_date = now.toISOString();
+
     const client = new MercadoPagoConfig({ accessToken: token });
     const paymentApi = new Payment(client);
     const payload = await paymentApi.search({
@@ -920,6 +934,8 @@ app.get('/api/mp/transactions-advanced', async (c) => {
         sort: 'date_created',
         criteria: order,
         range: 'date_created',
+        begin_date,
+        end_date,
         limit,
         offset,
       },
@@ -1312,7 +1328,7 @@ app.post('/api/sumup/sync', async (c) => {
       // Usa transaction UUID quando disponível (pagamentos concluídos),
       // senão usa o checkout UUID (tentativas sem transação confirmada).
       const paymentId = tx?.id || checkout.id;
-      const status = (tx?.status || checkout.status || 'unknown').toLowerCase();
+      const status = (tx?.status || checkout.status || 'unknown').toUpperCase();
       const amount = Number(checkout.amount || 0);
       const raw = JSON.stringify(tx ? checkout : checkout);
 

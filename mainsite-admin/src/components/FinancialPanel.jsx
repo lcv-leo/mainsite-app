@@ -533,26 +533,26 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     } catch { return {}; }
   };
 
-  // Config de status para todos os estados SumUp conhecidos
+  // Config de status para todos os estados SumUp conhecidos (normalizado para MAIÚSCULAS)
   const getSumupStatusConfig = (status) => {
-    const s = (status || '').toLowerCase();
-    if (['paid', 'successful', 'approved'].includes(s))
-      return { color: '#10b981', bg: 'rgba(16,185,129,0.15)', label: status.toUpperCase(), canRefund: true, canCancel: false };
-    if (['pending', 'in_process', 'processing'].includes(s))
-      return { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', label: status.toUpperCase(), canRefund: false, canCancel: true };
-    if (['failed', 'failure'].includes(s))
+    const s = (status || '').toUpperCase();
+    if (['PAID', 'SUCCESSFUL', 'APPROVED'].includes(s))
+      return { color: '#10b981', bg: 'rgba(16,185,129,0.15)', label: 'APROVADO', canRefund: true, canCancel: false };
+    if (['PENDING', 'IN_PROCESS', 'PROCESSING'].includes(s))
+      return { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', label: 'PENDENTE', canRefund: false, canCancel: true };
+    if (['FAILED', 'FAILURE'].includes(s))
       return { color: '#ef4444', bg: 'rgba(239,68,68,0.15)', label: 'FALHOU', canRefund: false, canCancel: false };
-    if (s === 'expired')
+    if (s === 'EXPIRED')
       return { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', label: 'EXPIRADO', canRefund: false, canCancel: false };
-    if (s === 'refunded')
+    if (s === 'REFUNDED')
       return { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', label: 'ESTORNADO', canRefund: false, canCancel: false };
-    if (s === 'partially_refunded')
+    if (s === 'PARTIALLY_REFUNDED')
       return { color: '#a78bfa', bg: 'rgba(167,139,250,0.15)', label: 'EST. PARCIAL', canRefund: true, canCancel: false };
-    if (['cancelled', 'cancel', 'canceled'].includes(s))
+    if (['CANCELLED', 'CANCEL', 'CANCELED'].includes(s))
       return { color: '#f97316', bg: 'rgba(249,115,22,0.15)', label: 'CANCELADO', canRefund: false, canCancel: false };
-    if (s.includes('chargeback') || s.includes('charge_back'))
+    if (s.includes('CHARGEBACK') || s.includes('CHARGE_BACK'))
       return { color: '#dc2626', bg: 'rgba(220,38,38,0.15)', label: 'CHARGEBACK', canRefund: false, canCancel: false };
-    return { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', label: status?.toUpperCase() || '?', canRefund: false, canCancel: false };
+    return { color: '#6b7280', bg: 'rgba(107,114,128,0.15)', label: s || '?', canRefund: false, canCancel: false };
   };
 
   // Extrai campos relevantes do raw_payload do Mercado Pago
