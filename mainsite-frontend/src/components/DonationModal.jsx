@@ -405,17 +405,19 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <p style={{ fontSize: '14px', opacity: 0.8, lineHeight: '1.6', marginBottom: '25px' }}>
               Insira seus dados reais, o valor desejado e escolha a plataforma.
             </p>
-            <form>
+            <form autoComplete="on">
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
                 <input
-                  id="donation-first-name" name="donationFirstName"
+                  id="donation-first-name" name="firstName"
                   type="text" required placeholder="Nome"
+                  autoComplete="given-name"
                   value={firstName} onChange={(e) => setFirstName(e.target.value)}
                   style={inputStyle}
                 />
                 <input
-                  id="donation-last-name" name="donationLastName"
+                  id="donation-last-name" name="lastName"
                   type="text" required placeholder="Sobrenome"
+                  autoComplete="family-name"
                   value={lastName} onChange={(e) => setLastName(e.target.value)}
                   style={inputStyle}
                 />
@@ -426,6 +428,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 <input
                   id="donation-amount" name="donationAmount"
                   type="text" required value={amountDisplay} onChange={handleAmountChange} placeholder="0,00"
+                  autoComplete="transaction-amount"
+                  inputMode="decimal"
                   style={{ width: '100%', padding: '15px 15px 15px 50px', backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: 'var(--shape-md)', color: activePalette.fontColor, fontSize: '22px', fontWeight: 'bold', boxSizing: 'border-box' }}
                 />
               </div>
@@ -575,15 +579,18 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               ))}
             </div>
 
-            <form onSubmit={handleSubmitSumupCard} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form onSubmit={handleSubmitSumupCard} autoComplete="on" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label htmlFor="sumup-card-number" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
                   Número do cartão
                 </label>
                 <input
                   id="sumup-card-number"
+                  name="cardNumber"
                   type="text"
                   placeholder="1234 1234 1234 1234"
+                  autoComplete="cc-number"
+                  inputMode="numeric"
                   value={sumupCard.number}
                   onChange={(e) => handleSumupCardChange('number', e.target.value)}
                   style={inputStyle}
@@ -598,8 +605,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                   </label>
                   <input
                     id="sumup-card-expiry"
+                    name="cardExpiry"
                     type="text"
                     placeholder="mm/aa"
+                    autoComplete="cc-exp"
+                    inputMode="numeric"
                     value={sumupCard.expiry}
                     onChange={(e) => handleSumupCardChange('expiry', e.target.value)}
                     style={inputStyle}
@@ -612,8 +622,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                   </label>
                   <input
                     id="sumup-card-cvv"
+                    name="cardCvv"
                     type="text"
                     placeholder="Ex.: 123"
+                    autoComplete="cc-csc"
+                    inputMode="numeric"
                     value={sumupCard.cvv}
                     onChange={(e) => handleSumupCardChange('cvv', e.target.value)}
                     style={inputStyle}
@@ -628,8 +641,10 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 </label>
                 <input
                   id="sumup-card-holder"
+                  name="cardholderName"
                   type="text"
                   placeholder="Maria Santos Pereira"
+                  autoComplete="cc-name"
                   value={sumupCard.holder}
                   onChange={(e) => handleSumupCardChange('holder', e.target.value)}
                   style={inputStyle}
@@ -644,6 +659,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                   </label>
                   <select
                     id="sumup-document-type"
+                    name="documentType"
+                    autoComplete="off"
                     value={sumupDocumentType}
                     onChange={(e) => setSumupDocumentType(e.target.value)}
                     style={{ ...inputStyle, width: '100%' }}
@@ -658,8 +675,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                   </label>
                   <input
                     id="sumup-document"
+                    name="documentNumber"
                     type="text"
                     placeholder={sumupDocumentType === 'CPF' ? '999.999.999-99' : '99.999.999/0000-99'}
+                    autoComplete="off"
+                    inputMode="numeric"
                     value={sumupDocument}
                     onChange={(e) => setSumupDocument(e.target.value)}
                     style={inputStyle}
@@ -674,8 +694,10 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 </label>
                 <input
                   id="sumup-email"
+                  name="email"
                   type="email"
                   placeholder="E-mail"
+                  autoComplete="email"
                   value={sumupEmail}
                   onChange={(e) => setSumupEmail(e.target.value)}
                   style={inputStyle}

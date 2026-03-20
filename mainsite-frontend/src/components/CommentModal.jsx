@@ -89,25 +89,25 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
           Em relação ao fragmento: <strong>{currentPost?.title || 'Geral'}</strong>
         </p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+        <form onSubmit={handleSubmit} autoComplete="on" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
           <div style={{ position: 'relative' }}>
             <User size={18} style={iconStyle} />
-            <input type="text" name="name" placeholder="Seu Nome (Opcional)" value={formData.name} onChange={handleChange} style={inputStyle} />
+            <input id="comment-name" type="text" name="name" placeholder="Seu Nome (Opcional)" autoComplete="name" value={formData.name} onChange={handleChange} style={inputStyle} />
           </div>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
               <Phone size={18} style={iconStyle} />
-              <input type="tel" name="phone" placeholder="Telefone (Opcional)" value={formData.phone} onChange={handleChange} maxLength={16} style={inputStyle} />
+              <input id="comment-phone" type="tel" name="phone" placeholder="Telefone (Opcional)" autoComplete="tel-national" inputMode="tel" value={formData.phone} onChange={handleChange} maxLength={16} style={inputStyle} />
             </div>
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
               <Mail size={18} style={iconStyle} />
-              <input type="email" name="email" placeholder="Seu E-mail (Opcional)" value={formData.email} onChange={handleChange} style={inputStyle} />
+              <input id="comment-email" type="email" name="email" placeholder="Seu E-mail (Opcional)" autoComplete="email" value={formData.email} onChange={handleChange} style={inputStyle} />
             </div>
           </div>
 
           <div style={{ position: 'relative' }}>
-            <textarea name="message" required maxLength={1000} placeholder="Escreva seu comentário aqui (Obrigatório)..." value={formData.message} onChange={handleChange} style={{ ...inputStyle, padding: '16px', minHeight: '140px', resize: 'vertical' }} />
+            <textarea id="comment-message" name="message" required maxLength={1000} autoComplete="off" placeholder="Escreva seu comentário aqui (Obrigatório)..." value={formData.message} onChange={handleChange} style={{ ...inputStyle, padding: '16px', minHeight: '140px', resize: 'vertical' }} />
             <div style={{ position: 'absolute', bottom: '16px', right: '16px', fontSize: '11px', fontWeight: '800', color: charsLeft < 50 ? 'var(--semantic-error)' : activePalette.fontColor, opacity: charsLeft < 50 ? 1 : 0.5 }}>
               {charsLeft} restantes
             </div>

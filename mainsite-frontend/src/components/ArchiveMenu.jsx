@@ -63,6 +63,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
             id="archive-keyword-search"
             name="archiveKeywordSearch"
             type="text"
+            autoComplete="off"
             placeholder="BUSCA EXATA POR PALAVRAS-CHAVE..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

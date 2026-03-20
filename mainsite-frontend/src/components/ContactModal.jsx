@@ -86,25 +86,25 @@ const ContactModal = ({ show, onClose, onSubmit, activePalette, isSubmitting }) 
           Entre em Contato
         </h2>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+        <form onSubmit={handleSubmit} autoComplete="on" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
           <div style={{ position: 'relative' }}>
             <User size={18} style={iconStyle} />
-            <input type="text" name="name" required placeholder="Seu Nome" value={formData.name} onChange={handleChange} style={inputStyle} />
+            <input id="contact-name" type="text" name="name" required placeholder="Seu Nome" autoComplete="name" value={formData.name} onChange={handleChange} style={inputStyle} />
           </div>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
               <Phone size={18} style={iconStyle} />
-              <input type="tel" name="phone" placeholder="Telefone (Opcional)" value={formData.phone} onChange={handleChange} maxLength={16} style={inputStyle} />
+              <input id="contact-phone" type="tel" name="phone" placeholder="Telefone (Opcional)" autoComplete="tel-national" inputMode="tel" value={formData.phone} onChange={handleChange} maxLength={16} style={inputStyle} />
             </div>
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
               <Mail size={18} style={iconStyle} />
-              <input type="email" name="email" required placeholder="Seu E-mail" value={formData.email} onChange={handleChange} style={inputStyle} />
+              <input id="contact-email" type="email" name="email" required placeholder="Seu E-mail" autoComplete="email" value={formData.email} onChange={handleChange} style={inputStyle} />
             </div>
           </div>
 
           <div style={{ position: 'relative' }}>
-            <textarea name="message" required maxLength={500} placeholder="Escreva sua mensagem aqui..." value={formData.message} onChange={handleChange} style={{ ...inputStyle, padding: '16px', minHeight: '140px', resize: 'vertical' }} />
+            <textarea id="contact-message" name="message" required maxLength={500} autoComplete="off" placeholder="Escreva sua mensagem aqui..." value={formData.message} onChange={handleChange} style={{ ...inputStyle, padding: '16px', minHeight: '140px', resize: 'vertical' }} />
             <div style={{ position: 'absolute', bottom: '16px', right: '16px', fontSize: '11px', fontWeight: '800', color: charsLeft < 50 ? 'var(--semantic-error)' : activePalette.fontColor, opacity: charsLeft < 50 ? 1 : 0.5 }}>
               {charsLeft} restantes
             </div>

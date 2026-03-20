@@ -405,6 +405,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
           <input
             id="chat-message-input" name="chatMessageInput"
             type="text"
+            autoComplete="off"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Faça uma pergunta..."

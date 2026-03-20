@@ -536,12 +536,12 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <h3 style={{ margin: '0 0 24px 0', fontSize: 'var(--type-label)', fontWeight: '700', textTransform: 'uppercase', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '12px', letterSpacing: '0.5px' }}>{promptModal.title}</h3>
-            <input id="prompt-modal-url" name="promptModalUrl" autoFocus type="text" placeholder={promptModal.placeholder || 'https://...'} value={promptModal.value} onChange={e => setPromptModal({ ...promptModal, value: e.target.value })} style={styles.textInput} />
+            <input id="prompt-modal-url" name="promptModalUrl" autoFocus autoComplete="url" type="text" placeholder={promptModal.placeholder || 'https://...'} value={promptModal.value} onChange={e => setPromptModal({ ...promptModal, value: e.target.value })} style={styles.textInput} />
             {promptModal.isLink && editor.state.selection.empty && (
-              <input id="prompt-modal-link-text" name="promptModalLinkText" type="text" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({ ...promptModal, linkText: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
+              <input id="prompt-modal-link-text" name="promptModalLinkText" type="text" autoComplete="off" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({ ...promptModal, linkText: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
             )}
             {promptModal.showCaption && (
-              <input id="prompt-modal-caption" name="promptModalCaption" type="text" placeholder="Legenda (opcional)" value={promptModal.caption} onChange={e => setPromptModal({ ...promptModal, caption: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
+              <input id="prompt-modal-caption" name="promptModalCaption" type="text" autoComplete="off" placeholder="Legenda (opcional)" value={promptModal.caption} onChange={e => setPromptModal({ ...promptModal, caption: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
             )}
             <div style={{ ...styles.modalActions, marginTop: '24px' }}>
               <button type="button" onClick={() => setPromptModal({ show: false })} style={styles.modalBtnCancel}>CANCELAR</button>
@@ -553,7 +553,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(2, 132, 199, 0.1)', padding: '6px 12px', borderRadius: '100px', border: '1px solid rgba(2, 132, 199, 0.3)', marginRight: '10px' }} title="Inteligência Artificial (Gemini 2.5 Pro)">
         <Sparkles size={16} color="#0284c7" />
-        <select name="ai-action" onChange={(e) => { if (e.target.value) { handleAITransform(e.target.value); e.target.value = ''; } }} style={{ fontSize: '12px', padding: '2px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#0284c7', fontWeight: '800' }} disabled={isGeneratingAI}>
+        <select id="ai-action" name="aiAction" autoComplete="off" onChange={(e) => { if (e.target.value) { handleAITransform(e.target.value); e.target.value = ''; } }} style={{ fontSize: '12px', padding: '2px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#0284c7', fontWeight: '800' }} disabled={isGeneratingAI}>
           <option value="">{isGeneratingAI ? 'Processando...' : 'IA: Aprimorar Texto'}</option><option value="grammar">Corrigir Gramática</option><option value="summarize">Resumir Seleção</option><option value="expand">Expandir Conteúdo</option><option value="formal">Tornar Formal</option>
         </select>
       </div>
@@ -591,7 +591,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
       <button type="button" title="Link" onClick={addLink} style={getActiveStyle(editor.isActive('link'))}><LinkIcon size={16} /></button>
       <button type="button" title="Remover Link" onClick={() => editor.chain().focus().unsetLink().run()} disabled={!editor.isActive('link')} style={{ ...styles.toolbarBtn, opacity: editor.isActive('link') ? 1 : 0.5 }}><Unlink size={16} /></button>
 
-      <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{ display: 'none' }} />
+      <input id="editor-image-upload" name="editorImageUpload" type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{ display: 'none' }} />
       <button type="button" title="Upload" onClick={() => fileInputRef.current.click()} disabled={isUploading} style={{ ...styles.toolbarBtn, opacity: isUploading ? 0.5 : 1 }}><Upload size={16} /></button>
       <button type="button" title="Img URL" onClick={addImageUrl} style={styles.toolbarBtn}><ImageIcon size={16} /></button>
       <button type="button" title="YouTube" onClick={addYoutube} style={styles.toolbarBtn}><Youtube size={16} /></button>
@@ -601,13 +601,13 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
 
       <div style={styles.toolbarDivider}></div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
-        <Palette size={16} /><input name="text-color" type="color" onInput={event => editor.chain().focus().setColor(event.target.value).run()} value={editor.getAttributes('textStyle').color || '#000000'} style={{ cursor: 'pointer', padding: 0, border: 'none', width: '28px', height: '28px', background: 'transparent', borderRadius: '10px' }} />
+        <Palette size={16} /><input id="editor-text-color" name="textColor" type="color" autoComplete="off" onInput={event => editor.chain().focus().setColor(event.target.value).run()} value={editor.getAttributes('textStyle').color || '#000000'} style={{ cursor: 'pointer', padding: 0, border: 'none', width: '28px', height: '28px', background: 'transparent', borderRadius: '10px' }} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
-        <Type size={16} /><select name="font-family" onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()} value={editor.getAttributes('textStyle').fontFamily || 'inherit'} style={{ fontSize: '13px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', fontWeight: '600' }}><option value="inherit">Padrão</option><option value="monospace">Monospace</option><option value="Arial">Arial</option><option value="'Times New Roman', Times, serif">Times</option></select>
+        <Type size={16} /><select id="editor-font-family" name="fontFamily" autoComplete="off" onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()} value={editor.getAttributes('textStyle').fontFamily || 'inherit'} style={{ fontSize: '13px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', fontWeight: '600' }}><option value="inherit">Padrão</option><option value="monospace">Monospace</option><option value="Arial">Arial</option><option value="'Times New Roman', Times, serif">Times</option></select>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
-        <select name="font-size" onChange={e => editor.chain().focus().setFontSize(e.target.value).run()} value={editor.getAttributes('textStyle').fontSize || ''} style={{ fontSize: '13px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', fontWeight: '600' }}><option value="">Tam.</option><option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="20px">20px</option><option value="24px">24px</option><option value="30px">30px</option></select>
+        <select id="editor-font-size" name="fontSize" autoComplete="off" onChange={e => editor.chain().focus().setFontSize(e.target.value).run()} value={editor.getAttributes('textStyle').fontSize || ''} style={{ fontSize: '13px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', fontWeight: '600' }}><option value="">Tam.</option><option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="20px">20px</option><option value="24px">24px</option><option value="30px">30px</option></select>
       </div>
     </div>
   );
