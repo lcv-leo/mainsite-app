@@ -95,6 +95,7 @@ const SettingsPanel = ({
                       id={`rate-limit-enabled-${section.key}`}
                       name={`rateLimitEnabled_${section.key}`}
                       type="checkbox"
+                      autoComplete="off"
                       checked={cfg.enabled}
                       onChange={e => setRateLimit({
                         ...rateLimit,
@@ -129,6 +130,8 @@ const SettingsPanel = ({
                       id={`rate-limit-max-req-${section.key}`}
                       name={`rateLimitMaxReq_${section.key}`}
                       type="number"
+                      autoComplete="off"
+                      inputMode="numeric"
                       min="1"
                       value={cfg.maxRequests}
                       onChange={e => setRateLimit({
@@ -147,6 +150,8 @@ const SettingsPanel = ({
                       id={`rate-limit-window-${section.key}`}
                       name={`rateLimitWindow_${section.key}`}
                       type="number"
+                      autoComplete="off"
+                      inputMode="numeric"
                       min="1"
                       value={cfg.windowMinutes}
                       onChange={e => setRateLimit({
@@ -167,29 +172,29 @@ const SettingsPanel = ({
         <h2 style={sectionTitle}>Engenharia de Automação</h2>
         <div style={glassBlock}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>
-            <input id="rotation-enabled" name="rotationEnabled" type="checkbox" checked={rotation.enabled} onChange={e => setRotation({ ...rotation, enabled: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
+            <input id="rotation-enabled" name="rotationEnabled" type="checkbox" autoComplete="off" checked={rotation.enabled} onChange={e => setRotation({ ...rotation, enabled: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
             Habilitar Rotação Autônoma da Fila de Textos
           </label>
           <label style={{ fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
             Intervalo de Rotação (Minutos):
-            <input id="rotation-interval" name="rotationInterval" type="number" min="1" value={rotation.interval} onChange={e => setRotation({ ...rotation, interval: parseInt(e.target.value) || 60 })} style={{ ...styles.textInput, width: '100px' }} disabled={!rotation.enabled} />
+            <input id="rotation-interval" name="rotationInterval" type="number" min="1" autoComplete="off" inputMode="numeric" value={rotation.interval} onChange={e => setRotation({ ...rotation, interval: parseInt(e.target.value) || 60 })} style={{ ...styles.textInput, width: '100px' }} disabled={!rotation.enabled} />
           </label>
         </div>
 
         <h2 style={sectionTitle}>Customização Visual: Multi-Tema</h2>
         <div style={glassBlock}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>
-            <input id="allow-auto-mode" name="allowAutoMode" type="checkbox" checked={settings.allowAutoMode} onChange={e => setSettings({ ...settings, allowAutoMode: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
+            <input id="allow-auto-mode" name="allowAutoMode" type="checkbox" autoComplete="off" checked={settings.allowAutoMode} onChange={e => setSettings({ ...settings, allowAutoMode: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
             Habilitar Modo Automático (Sincroniza com o Sistema Operacional do Leitor)
           </label>
         </div>
 
         <h3 style={{ fontSize: 'var(--type-label)', marginTop: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '8px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Configurações Globais (Ambos os Temas)</h3>
         <div style={styles.settingsGrid}>
-          <label style={styles.label}>Tamanho da Fonte Base (p): <input id="shared-font-size" name="sharedFontSize" type="text" placeholder="Ex: 1.15rem" value={settings.shared.fontSize} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, fontSize: e.target.value } })} style={styles.textInput} /></label>
-          <label style={styles.label}>Tamanho da Fonte Títulos (H1): <input id="shared-title-font-size" name="sharedTitleFontSize" type="text" placeholder="Ex: 1.8rem" value={settings.shared.titleFontSize} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, titleFontSize: e.target.value } })} style={styles.textInput} /></label>
+          <label style={styles.label}>Tamanho da Fonte Base (p): <input id="shared-font-size" name="sharedFontSize" type="text" autoComplete="off" placeholder="Ex: 1.15rem" value={settings.shared.fontSize} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, fontSize: e.target.value } })} style={styles.textInput} /></label>
+          <label style={styles.label}>Tamanho da Fonte Títulos (H1): <input id="shared-title-font-size" name="sharedTitleFontSize" type="text" autoComplete="off" placeholder="Ex: 1.8rem" value={settings.shared.titleFontSize} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, titleFontSize: e.target.value } })} style={styles.textInput} /></label>
           <label style={styles.label}>Família da Fonte:
-            <select id="shared-font-family" name="sharedFontFamily" value={settings.shared.fontFamily} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, fontFamily: e.target.value } })} style={styles.textInput}>
+            <select id="shared-font-family" name="sharedFontFamily" autoComplete="off" value={settings.shared.fontFamily} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, fontFamily: e.target.value } })} style={styles.textInput}>
               <option value="sans-serif">Sans-Serif (Estilo Google)</option>
               <option value="monospace">Monospace</option>
               <option value="serif">Serif</option>
@@ -202,12 +207,12 @@ const SettingsPanel = ({
 
         <h3 style={{ fontSize: 'var(--type-label)', marginTop: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '8px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Paleta Tema Escuro (Dark Mode)</h3>
         <div style={styles.settingsGrid}>
-          <label style={styles.label}>Cor de Fundo: <input id="dark-bg-color" name="darkBgColor" type="color" value={settings.dark.bgColor} onChange={e => setSettings({ ...settings, dark: { ...settings.dark, bgColor: e.target.value } })} style={styles.colorInput} /></label>
-          <label style={styles.label}>Cor do Texto Base: <input id="dark-font-color" name="darkFontColor" type="color" value={settings.dark.fontColor} onChange={e => setSettings({ ...settings, dark: { ...settings.dark, fontColor: e.target.value } })} style={styles.colorInput} /></label>
-          <label style={styles.label}>Cor dos Títulos (H1/H2): <input id="dark-title-color" name="darkTitleColor" type="color" value={settings.dark.titleColor} onChange={e => setSettings({ ...settings, dark: { ...settings.dark, titleColor: e.target.value } })} style={styles.colorInput} /></label>
+          <label style={styles.label}>Cor de Fundo: <input id="dark-bg-color" name="darkBgColor" type="color" autoComplete="off" value={settings.dark.bgColor} onChange={e => setSettings({ ...settings, dark: { ...settings.dark, bgColor: e.target.value } })} style={styles.colorInput} /></label>
+          <label style={styles.label}>Cor do Texto Base: <input id="dark-font-color" name="darkFontColor" type="color" autoComplete="off" value={settings.dark.fontColor} onChange={e => setSettings({ ...settings, dark: { ...settings.dark, fontColor: e.target.value } })} style={styles.colorInput} /></label>
+          <label style={styles.label}>Cor dos Títulos (H1/H2): <input id="dark-title-color" name="darkTitleColor" type="color" autoComplete="off" value={settings.dark.titleColor} onChange={e => setSettings({ ...settings, dark: { ...settings.dark, titleColor: e.target.value } })} style={styles.colorInput} /></label>
           <label style={styles.label}>Imagem de Fundo (R2 ou URL externa):
             <div style={{ display: 'flex', gap: '10px' }}>
-              <input id="dark-bg-image" name="darkBgImage" type="text" placeholder="https://..." value={settings.dark.bgImage} onChange={e => setSettings({ ...settings, dark: { ...settings.dark, bgImage: e.target.value } })} style={{ ...styles.textInput, flex: 1 }} />
+              <input id="dark-bg-image" name="darkBgImage" type="text" autoComplete="url" placeholder="https://..." value={settings.dark.bgImage} onChange={e => setSettings({ ...settings, dark: { ...settings.dark, bgImage: e.target.value } })} style={{ ...styles.textInput, flex: 1 }} />
               <button type="button" onClick={() => triggerBgUpload('dark')} disabled={isUploadingBg} style={{ ...styles.toolbarBtn, height: '52px', width: '52px', border: '1px solid rgba(128,128,128,0.2)', borderRadius: '16px' }} title="Fazer upload para o Storage R2">
                 {isUploadingBg && uploadTarget === 'dark' ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
               </button>
@@ -217,12 +222,12 @@ const SettingsPanel = ({
 
         <h3 style={{ fontSize: 'var(--type-label)', marginTop: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '8px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Paleta Tema Claro (Light Mode)</h3>
         <div style={styles.settingsGrid}>
-          <label style={styles.label}>Cor de Fundo: <input id="light-bg-color" name="lightBgColor" type="color" value={settings.light.bgColor} onChange={e => setSettings({ ...settings, light: { ...settings.light, bgColor: e.target.value } })} style={styles.colorInput} /></label>
-          <label style={styles.label}>Cor do Texto Base: <input id="light-font-color" name="lightFontColor" type="color" value={settings.light.fontColor} onChange={e => setSettings({ ...settings, light: { ...settings.light, fontColor: e.target.value } })} style={styles.colorInput} /></label>
-          <label style={styles.label}>Cor dos Títulos (H1/H2): <input id="light-title-color" name="lightTitleColor" type="color" value={settings.light.titleColor} onChange={e => setSettings({ ...settings, light: { ...settings.light, titleColor: e.target.value } })} style={styles.colorInput} /></label>
+          <label style={styles.label}>Cor de Fundo: <input id="light-bg-color" name="lightBgColor" type="color" autoComplete="off" value={settings.light.bgColor} onChange={e => setSettings({ ...settings, light: { ...settings.light, bgColor: e.target.value } })} style={styles.colorInput} /></label>
+          <label style={styles.label}>Cor do Texto Base: <input id="light-font-color" name="lightFontColor" type="color" autoComplete="off" value={settings.light.fontColor} onChange={e => setSettings({ ...settings, light: { ...settings.light, fontColor: e.target.value } })} style={styles.colorInput} /></label>
+          <label style={styles.label}>Cor dos Títulos (H1/H2): <input id="light-title-color" name="lightTitleColor" type="color" autoComplete="off" value={settings.light.titleColor} onChange={e => setSettings({ ...settings, light: { ...settings.light, titleColor: e.target.value } })} style={styles.colorInput} /></label>
           <label style={styles.label}>Imagem de Fundo (R2 ou URL externa):
             <div style={{ display: 'flex', gap: '10px' }}>
-              <input id="light-bg-image" name="lightBgImage" type="text" placeholder="https://..." value={settings.light.bgImage} onChange={e => setSettings({ ...settings, light: { ...settings.light, bgImage: e.target.value } })} style={{ ...styles.textInput, flex: 1 }} />
+              <input id="light-bg-image" name="lightBgImage" type="text" autoComplete="url" placeholder="https://..." value={settings.light.bgImage} onChange={e => setSettings({ ...settings, light: { ...settings.light, bgImage: e.target.value } })} style={{ ...styles.textInput, flex: 1 }} />
               <button type="button" onClick={() => triggerBgUpload('light')} disabled={isUploadingBg} style={{ ...styles.toolbarBtn, height: '52px', width: '52px', border: '1px solid rgba(128,128,128,0.2)', borderRadius: '16px' }} title="Fazer upload para o Storage R2">
                 {isUploadingBg && uploadTarget === 'light' ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
               </button>
@@ -235,7 +240,7 @@ const SettingsPanel = ({
         </h2>
         <div style={glassBlock}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>
-            <input id="disclaimers-enabled" name="disclaimersEnabled" type="checkbox" checked={disclaimers.enabled} onChange={e => setDisclaimers({ ...disclaimers, enabled: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
+            <input id="disclaimers-enabled" name="disclaimersEnabled" type="checkbox" autoComplete="off" checked={disclaimers.enabled} onChange={e => setDisclaimers({ ...disclaimers, enabled: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
             Exibir Janelas de Aviso antes da leitura dos fragmentos
           </label>
 
@@ -247,12 +252,12 @@ const SettingsPanel = ({
                     <span style={{ fontSize: '12px', fontWeight: '800', opacity: 0.6, letterSpacing: '1px' }}>AVISO {index + 1}</span>
                     <button type="button" onClick={() => { const newItems = [...disclaimers.items]; newItems.splice(index, 1); setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ background: 'var(--semantic-error-soft)', border: '1px solid var(--semantic-error-border)', color: 'var(--semantic-error)', cursor: 'pointer', fontSize: '11px', fontWeight: '800', padding: '6px 12px', borderRadius: '100px', transition: 'all 0.2s' }}>REMOVER</button>
                   </div>
-                  <input id={`disclaimer-title-${index}`} name={`disclaimerTitle_${index}`} type="text" placeholder="Título (Ex: Termos de Leitura)" value={item.title} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].title = e.target.value; setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ ...styles.textInput, width: '100%', marginBottom: '15px', boxSizing: 'border-box' }} />
-                  <textarea id={`disclaimer-text-${index}`} name={`disclaimerText_${index}`} placeholder="Texto do aviso..." value={item.text} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].text = e.target.value; setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ ...styles.textInput, width: '100%', marginBottom: '15px', minHeight: '100px', boxSizing: 'border-box', resize: 'vertical' }} />
-                  <input id={`disclaimer-btn-${index}`} name={`disclaimerBtnText_${index}`} type="text" placeholder="Texto do Botão (Ex: Concordo)" value={item.buttonText} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].buttonText = e.target.value; setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ ...styles.textInput, width: '100%', boxSizing: 'border-box', marginBottom: '20px' }} />
+                  <input id={`disclaimer-title-${index}`} name={`disclaimerTitle_${index}`} type="text" autoComplete="off" placeholder="Título (Ex: Termos de Leitura)" value={item.title} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].title = e.target.value; setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ ...styles.textInput, width: '100%', marginBottom: '15px', boxSizing: 'border-box' }} />
+                  <textarea id={`disclaimer-text-${index}`} name={`disclaimerText_${index}`} autoComplete="off" placeholder="Texto do aviso..." value={item.text} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].text = e.target.value; setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ ...styles.textInput, width: '100%', marginBottom: '15px', minHeight: '100px', boxSizing: 'border-box', resize: 'vertical' }} />
+                  <input id={`disclaimer-btn-${index}`} name={`disclaimerBtnText_${index}`} type="text" autoComplete="off" placeholder="Texto do Botão (Ex: Concordo)" value={item.buttonText} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].buttonText = e.target.value; setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ ...styles.textInput, width: '100%', boxSizing: 'border-box', marginBottom: '20px' }} />
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#ec4899', fontWeight: '700', cursor: 'pointer', background: 'rgba(236, 72, 153, 0.05)', padding: '12px', borderRadius: '16px', border: '1px solid rgba(236, 72, 153, 0.2)' }}>
-                    <input id={`disclaimer-trigger-${index}`} name={`disclaimerTrigger_${index}`} type="checkbox" checked={item.isDonationTrigger || false} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].isDonationTrigger = e.target.checked; setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ cursor: 'pointer', width: '18px', height: '18px' }} />
+                    <input id={`disclaimer-trigger-${index}`} name={`disclaimerTrigger_${index}`} type="checkbox" autoComplete="off" checked={item.isDonationTrigger || false} onChange={e => { const newItems = [...disclaimers.items]; newItems[index].isDonationTrigger = e.target.checked; setDisclaimers({ ...disclaimers, items: newItems }); }} style={{ cursor: 'pointer', width: '18px', height: '18px' }} />
                     Este aviso funciona como um Gatilho de Doação (Abre o Painel do Mercado Pago)
                   </label>
                 </div>
