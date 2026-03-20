@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { MercadoPagoConfig, Payment, PaymentRefund } from 'mercadopago';
+import { MercadoPagoConfig, Payment, PaymentMethod, PaymentRefund } from 'mercadopago';
 import SumUp from '@sumup/sdk';
 
 // Polyfill para Headers.raw() exigido por algumas dependências
@@ -811,6 +811,170 @@ app.get('/api/sumup/payouts-summary', async (c) => {
     });
   } catch (err) {
     return c.json({ error: err.message || 'Falha ao resumir payouts SumUp.' }, 500);
+  }
+});
+
+app.get('/api/mp/payment-methods', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: '401' }, 401);
+  try {
+    const token = c.env.MP_ACCESS_TOKEN;
+    if (!token) throw new Error('MP_ACCESS_TOKEN ausente.');
+
+    const client = new MercadoPagoConfig({ accessToken: token });
+    const paymentMethodApi = new PaymentMethod(client);
+    const methodsRaw = await paymentMethodApi.get();
+    const methodsList = Array.isArray(methodsRaw) ? methodsRaw : [];
+
+    const methods = [...new Set(methodsList.map((m) => m?.id).filter(Boolean))];
+    const types = [...new Set(methodsList.map((m) => m?.payment_type_id).filter(Boolean))];
+
+    return c.json({
+      success: true,
+      scanned: methodsList.length,
+      methods,
+      types,
+    });
+  } catch (err) {
+    return c.json({ error: err.message || 'Falha ao listar métodos Mercado Pago.' }, 500);
+  }
+});
+
+app.get('/api/mp/transactions-summary', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: '401' }, 401);
+  try {
+    const token = c.env.MP_ACCESS_TOKEN;
+    if (!token) throw new Error('MP_ACCESS_TOKEN ausente.');
+
+    const limitRaw = Number(c.req.query('limit'));
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 50;
+
+    const client = new MercadoPagoConfig({ accessToken: token });
+    const paymentApi = new Payment(client);
+    const payload = await paymentApi.search({
+      options: {
+        sort: 'date_created',
+        criteria: 'desc',
+        range: 'date_created',
+        limit,
+        offset: 0,
+      },
+    });
+
+    const items = Array.isArray(payload?.results) ? payload.results : [];
+    const byStatus = {};
+    const byType = {};
+    let totalAmount = 0;
+    let totalNetAmount = 0;
+
+    for (const tx of items) {
+      const status = String(tx?.status || 'unknown').toUpperCase();
+      const type = String(tx?.payment_type_id || 'unknown').toUpperCase();
+      const amount = Number(tx?.transaction_amount || 0);
+      const net = Number(tx?.transaction_details?.net_received_amount || 0);
+
+      byStatus[status] = (byStatus[status] || 0) + 1;
+      byType[type] = (byType[type] || 0) + 1;
+      totalAmount += amount;
+      totalNetAmount += net;
+    }
+
+    return c.json({
+      success: true,
+      scanned: items.length,
+      limit,
+      totalAmount,
+      totalNetAmount,
+      byStatus,
+      byType,
+      paging: payload?.paging || { total: 0, limit, offset: 0 },
+    });
+  } catch (err) {
+    return c.json({ error: err.message || 'Falha ao resumir transações Mercado Pago.' }, 500);
+  }
+});
+
+app.get('/api/mp/transactions-advanced', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: '401' }, 401);
+  try {
+    const token = c.env.MP_ACCESS_TOKEN;
+    if (!token) throw new Error('MP_ACCESS_TOKEN ausente.');
+
+    const parseList = (value) => String(value || '')
+      .split(',')
+      .map(v => v.trim().toLowerCase())
+      .filter(Boolean);
+
+    const limitRaw = Number(c.req.query('limit'));
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 50;
+    const offsetRaw = Number(c.req.query('offset'));
+    const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0;
+    const order = c.req.query('order') === 'asc' ? 'asc' : 'desc';
+
+    const statuses = parseList(c.req.query('statuses'));
+    const types = parseList(c.req.query('types'));
+
+    const client = new MercadoPagoConfig({ accessToken: token });
+    const paymentApi = new Payment(client);
+    const payload = await paymentApi.search({
+      options: {
+        sort: 'date_created',
+        criteria: order,
+        range: 'date_created',
+        limit,
+        offset,
+      },
+    });
+
+    const items = Array.isArray(payload?.results) ? payload.results : [];
+    const normalized = items.map((tx) => ({
+      id: tx?.id || null,
+      transactionCode: tx?.authorization_code || null,
+      amount: Number(tx?.transaction_amount || 0),
+      currency: tx?.currency_id || 'BRL',
+      status: tx?.status || 'unknown',
+      type: tx?.payment_type_id || 'unknown',
+      paymentType: tx?.payment_method_id || 'unknown',
+      cardType: tx?.card?.last_four_digits ? `**** ${tx.card.last_four_digits}` : null,
+      timestamp: tx?.date_created || null,
+      user: tx?.payer?.email || tx?.payer?.id || null,
+      refundedAmount: Number(tx?.transaction_amount_refunded || 0),
+    }));
+
+    const filtered = normalized.filter((tx) => {
+      const statusOk = !statuses.length || statuses.includes(String(tx.status || '').toLowerCase());
+      const typeOk = !types.length || types.includes(String(tx.type || '').toLowerCase());
+      return statusOk && typeOk;
+    });
+
+    const paging = payload?.paging || { total: 0, limit, offset };
+    const totalRaw = Number(paging?.total || 0);
+    const hasPrev = offset > 0;
+    const hasNext = (offset + limit) < totalRaw;
+
+    return c.json({
+      success: true,
+      query: {
+        order,
+        limit,
+        offset,
+        statuses,
+        types,
+      },
+      paging: {
+        total: totalRaw,
+        limit,
+        offset,
+        hasPrev,
+        hasNext,
+        prevOffset: hasPrev ? Math.max(0, offset - limit) : null,
+        nextOffset: hasNext ? offset + limit : null,
+      },
+      scanned: normalized.length,
+      totalFiltered: filtered.length,
+      items: filtered,
+    });
+  } catch (err) {
+    return c.json({ error: err.message || 'Falha ao listar transações avançadas Mercado Pago.' }, 500);
   }
 });
 

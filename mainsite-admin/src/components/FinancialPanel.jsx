@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'; // ADDED REACT PORTAL
 import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, Wallet, Trash2, ArrowLeft, Download } from 'lucide-react';
 
 const SUMUP_FILTERS_STORAGE_KEY = 'mainsite_sumup_filters_v1';
+const MP_FILTERS_STORAGE_KEY = 'mainsite_mp_filters_v1';
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);
@@ -38,11 +39,42 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     lastMove: 'initial',
     page: 1,
   });
+  const [mpInsights, setMpInsights] = useState({
+    loading: false,
+    error: '',
+    paymentMethods: [],
+    paymentTypes: [],
+    transactions: null,
+    advancedTransactions: [],
+    lastUpdated: null,
+  });
+  const [mpAdvancedPagination, setMpAdvancedPagination] = useState({
+    nextOffset: null,
+    prevOffset: null,
+    offset: 0,
+    page: 1,
+  });
   const [sumupFilters, setSumupFilters] = useState(() => {
     const defaults = { statuses: [], types: [], limit: 50 };
     if (typeof window === 'undefined') return defaults;
     try {
       const raw = window.localStorage.getItem(SUMUP_FILTERS_STORAGE_KEY);
+      if (!raw) return defaults;
+      const parsed = JSON.parse(raw);
+      return {
+        statuses: Array.isArray(parsed?.statuses) ? parsed.statuses : defaults.statuses,
+        types: Array.isArray(parsed?.types) ? parsed.types : defaults.types,
+        limit: Number(parsed?.limit) || defaults.limit,
+      };
+    } catch {
+      return defaults;
+    }
+  });
+  const [mpFilters, setMpFilters] = useState(() => {
+    const defaults = { statuses: [], types: [], limit: 50 };
+    if (typeof window === 'undefined') return defaults;
+    try {
+      const raw = window.localStorage.getItem(MP_FILTERS_STORAGE_KEY);
       if (!raw) return defaults;
       const parsed = JSON.parse(raw);
       return {
@@ -120,6 +152,15 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       // ignore write failures (private mode/quota)
     }
   }, [sumupFilters]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(MP_FILTERS_STORAGE_KEY, JSON.stringify(mpFilters));
+    } catch {
+      // ignore write failures (private mode/quota)
+    }
+  }, [mpFilters]);
 
   useEffect(() => {
     const checkWebhook = async () => {
@@ -291,6 +332,63 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     }
   }, [API_URL, secret, paymentProvider, sumupFilters]);
 
+  const fetchMercadoPagoInsights = useCallback(async (filters = mpFilters, offset = 0) => {
+    if (paymentProvider !== 'mercadopago') return;
+    setMpInsights(prev => ({ ...prev, loading: true, error: '' }));
+    try {
+      const headers = { Authorization: `Bearer ${secret}` };
+      const qs = new URLSearchParams({
+        limit: String(filters.limit || 50),
+        offset: String(Number(offset) || 0),
+        order: 'desc',
+      });
+      if (filters.statuses.length) qs.set('statuses', filters.statuses.join(','));
+      if (filters.types.length) qs.set('types', filters.types.join(','));
+
+      const [methodsRes, txRes, txAdvRes] = await Promise.all([
+        fetch(`${API_URL}/mp/payment-methods?limit=100`, { headers }),
+        fetch(`${API_URL}/mp/transactions-summary?limit=50`, { headers }),
+        fetch(`${API_URL}/mp/transactions-advanced?${qs.toString()}`, { headers }),
+      ]);
+
+      const [methodsData, txData, txAdvancedData] = await Promise.all([
+        methodsRes.json(),
+        txRes.json(),
+        txAdvRes.json(),
+      ]);
+
+      if (!methodsRes.ok) throw new Error(methodsData.error || 'Falha ao carregar métodos do Mercado Pago.');
+      if (!txRes.ok) throw new Error(txData.error || 'Falha ao carregar resumo de transações do Mercado Pago.');
+      if (!txAdvRes.ok) throw new Error(txAdvancedData.error || 'Falha ao carregar transações avançadas do Mercado Pago.');
+
+      setMpInsights({
+        loading: false,
+        error: '',
+        paymentMethods: methodsData.methods || [],
+        paymentTypes: methodsData.types || [],
+        transactions: txData,
+        advancedTransactions: txAdvancedData.items || [],
+        lastUpdated: new Date().toISOString(),
+      });
+
+      const paging = txAdvancedData?.paging || {};
+      const currentOffset = Number(paging.offset || 0);
+      const currentLimit = Number(paging.limit || (filters.limit || 50));
+      setMpAdvancedPagination({
+        nextOffset: paging.hasNext ? Number(paging.nextOffset) : null,
+        prevOffset: paging.hasPrev ? Number(paging.prevOffset) : null,
+        offset: currentOffset,
+        page: Math.floor(currentOffset / Math.max(1, currentLimit)) + 1,
+      });
+    } catch (err) {
+      setMpInsights(prev => ({
+        ...prev,
+        loading: false,
+        error: err.message || 'Erro ao carregar insights Mercado Pago.',
+      }));
+    }
+  }, [API_URL, secret, paymentProvider, mpFilters]);
+
   // Quando a aba for ativada, sincroniza automaticamente com a API
   // para garantir que transações recusadas, expiradas ou pendentes apareçam corretamente.
   useEffect(() => {
@@ -299,8 +397,9 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       fetchSumupInsights(sumupFilters, null, 'initial');
     } else if (paymentProvider === 'mercadopago') {
       syncMercadoPagoCheckouts();
+      fetchMercadoPagoInsights(mpFilters, 0);
     }
-  }, [paymentProvider, syncSumupCheckouts, syncMercadoPagoCheckouts]);
+  }, [paymentProvider, syncSumupCheckouts, syncMercadoPagoCheckouts, fetchSumupInsights, fetchMercadoPagoInsights, sumupFilters, mpFilters]);
 
   const exportSumupAdvancedCsv = useCallback(() => {
     const rows = Array.isArray(sumupInsights.advancedTransactions) ? sumupInsights.advancedTransactions : [];
@@ -350,6 +449,55 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     URL.revokeObjectURL(url);
     showPanelToast('CSV exportado com sucesso.', 'success');
   }, [sumupInsights.advancedTransactions, showPanelToast]);
+
+  const exportMpAdvancedCsv = useCallback(() => {
+    const rows = Array.isArray(mpInsights.advancedTransactions) ? mpInsights.advancedTransactions : [];
+    if (!rows.length) {
+      showPanelToast('Nenhuma transação avançada para exportar.', 'error');
+      return;
+    }
+
+    const escapeCsv = (value) => {
+      const text = String(value ?? '');
+      if (text.includes('"') || text.includes(',') || text.includes('\n')) {
+        return `"${text.replace(/"/g, '""')}"`;
+      }
+      return text;
+    };
+
+    const headers = [
+      'id',
+      'transactionCode',
+      'amount',
+      'currency',
+      'status',
+      'type',
+      'paymentType',
+      'cardType',
+      'timestamp',
+      'user',
+      'refundedAmount',
+    ];
+
+    const lines = [headers.join(',')];
+    rows.forEach((tx) => {
+      const line = headers.map((h) => escapeCsv(tx?.[h] ?? '')).join(',');
+      lines.push(line);
+    });
+
+    const csv = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    a.download = `mercadopago-transacoes-avancadas-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showPanelToast('CSV exportado com sucesso.', 'success');
+  }, [mpInsights.advancedTransactions, showPanelToast]);
 
   const closeAndResetModal = () => {
     setModalType(null);
@@ -799,6 +947,254 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                     </div>
                   ))}
                   {(!sumupInsights.advancedTransactions || sumupInsights.advancedTransactions.length === 0) && (
+                    <div style={{ padding: '10px', fontSize: '11px', opacity: 0.65 }}>Nenhuma transação encontrada com os filtros atuais.</div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {paymentProvider === 'mercadopago' && (
+        <div style={{ ...glassCard, marginBottom: '24px', borderLeft: '4px solid #0ea5e9' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
+            <h3 style={{ margin: 0, fontSize: '14px', color: activePalette.titleColor }}>
+              Insights Mercado Pago (SDK Oficial)
+            </h3>
+            <button
+              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.offset || 0)}
+              disabled={mpInsights.loading}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(14,165,233,0.35)',
+                color: '#0ea5e9',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: mpInsights.loading ? 'wait' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: mpInsights.loading ? 0.65 : 1,
+              }}
+            >
+              <RefreshCw size={14} className={mpInsights.loading ? 'animate-spin' : ''} />
+              {mpInsights.loading ? 'ATUALIZANDO...' : 'ATUALIZAR INSIGHTS'}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+            <select
+              value={mpFilters.statuses[0] || ''}
+              onChange={(e) => setMpFilters(prev => ({ ...prev, statuses: e.target.value ? [e.target.value] : [] }))}
+              style={{ ...styles.textInput, width: 'auto', minWidth: '180px', fontSize: '12px', padding: '8px 10px' }}
+            >
+              <option value="">Status (todos)</option>
+              <option value="approved">APPROVED</option>
+              <option value="pending">PENDING</option>
+              <option value="in_process">IN_PROCESS</option>
+              <option value="rejected">REJECTED</option>
+              <option value="refunded">REFUNDED</option>
+              <option value="cancelled">CANCELLED</option>
+              <option value="charged_back">CHARGED_BACK</option>
+            </select>
+
+            <select
+              value={mpFilters.types[0] || ''}
+              onChange={(e) => setMpFilters(prev => ({ ...prev, types: e.target.value ? [e.target.value] : [] }))}
+              style={{ ...styles.textInput, width: 'auto', minWidth: '180px', fontSize: '12px', padding: '8px 10px' }}
+            >
+              <option value="">Tipo (todos)</option>
+              <option value="credit_card">CREDIT_CARD</option>
+              <option value="debit_card">DEBIT_CARD</option>
+              <option value="pix">PIX</option>
+              <option value="ticket">TICKET</option>
+              <option value="account_money">ACCOUNT_MONEY</option>
+            </select>
+
+            <select
+              value={mpFilters.limit}
+              onChange={(e) => setMpFilters(prev => ({ ...prev, limit: Number(e.target.value) || 50 }))}
+              style={{ ...styles.textInput, width: 'auto', minWidth: '120px', fontSize: '12px', padding: '8px 10px' }}
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={75}>75</option>
+              <option value={100}>100</option>
+            </select>
+
+            <button
+              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.offset || 0)}
+              disabled={mpInsights.loading}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(14,165,233,0.35)',
+                color: '#0ea5e9',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: mpInsights.loading ? 'wait' : 'pointer',
+              }}
+            >
+              Aplicar Filtros
+            </button>
+
+            <button
+              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.prevOffset || 0)}
+              disabled={mpInsights.loading || mpAdvancedPagination.prevOffset === null}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(107,114,128,0.35)',
+                color: '#6b7280',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: (mpInsights.loading || mpAdvancedPagination.prevOffset === null) ? 'not-allowed' : 'pointer',
+                opacity: (mpInsights.loading || mpAdvancedPagination.prevOffset === null) ? 0.55 : 1,
+              }}
+            >
+              Página Anterior
+            </button>
+
+            <button
+              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.nextOffset || 0)}
+              disabled={mpInsights.loading || mpAdvancedPagination.nextOffset === null}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(14,165,233,0.35)',
+                color: '#0ea5e9',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: (mpInsights.loading || mpAdvancedPagination.nextOffset === null) ? 'not-allowed' : 'pointer',
+                opacity: (mpInsights.loading || mpAdvancedPagination.nextOffset === null) ? 0.55 : 1,
+              }}
+            >
+              Próxima Página
+            </button>
+
+            <button
+              onClick={() => fetchMercadoPagoInsights(mpFilters, 0)}
+              disabled={mpInsights.loading || mpAdvancedPagination.page === 1}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(56,189,248,0.35)',
+                color: '#38bdf8',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: (mpInsights.loading || mpAdvancedPagination.page === 1) ? 'not-allowed' : 'pointer',
+                opacity: (mpInsights.loading || mpAdvancedPagination.page === 1) ? 0.55 : 1,
+              }}
+            >
+              Voltar ao Início
+            </button>
+
+            <button
+              onClick={exportMpAdvancedCsv}
+              disabled={mpInsights.loading || !mpInsights.advancedTransactions?.length}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(16,185,129,0.35)',
+                color: '#10b981',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: (mpInsights.loading || !mpInsights.advancedTransactions?.length) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: (mpInsights.loading || !mpInsights.advancedTransactions?.length) ? 0.55 : 1,
+              }}
+            >
+              <Download size={14} /> Exportar CSV
+            </button>
+          </div>
+
+          {mpInsights.error ? (
+            <div style={{
+              background: 'rgba(239,68,68,0.12)',
+              border: '1px solid rgba(239,68,68,0.35)',
+              color: '#ef4444',
+              borderRadius: '10px',
+              padding: '10px 12px',
+              fontSize: '12px',
+            }}>
+              {mpInsights.error}
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '10px', padding: '10px' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Métodos disponíveis</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, color: activePalette.titleColor }}>
+                    {mpInsights.paymentMethods.length > 0 ? mpInsights.paymentMethods.join(', ') : '—'}
+                  </div>
+                </div>
+
+                <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '10px', padding: '10px' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Transações analisadas</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 800, color: activePalette.titleColor }}>
+                    {mpInsights.transactions?.scanned ?? 0}
+                  </div>
+                </div>
+
+                <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '10px', padding: '10px' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Volume transações</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 800, color: activePalette.titleColor }}>
+                    R$ {Number(mpInsights.transactions?.totalAmount || 0).toFixed(2)}
+                  </div>
+                </div>
+
+                <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '10px', padding: '10px' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Volume líquido</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 800, color: activePalette.titleColor }}>
+                    R$ {Number(mpInsights.transactions?.totalNetAmount || 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+                {Object.entries(mpInsights.transactions?.byStatus || {}).map(([status, count]) => (
+                  <span key={`mp-tx-${status}`} style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', border: '1px solid rgba(14,165,233,0.25)', background: isDarkBase ? 'rgba(14,165,233,0.12)' : 'rgba(14,165,233,0.08)', color: '#0ea5e9', fontWeight: 700 }}>
+                    TX {status}: {count}
+                  </span>
+                ))}
+                {Object.entries(mpInsights.transactions?.byType || {}).map(([type, count]) => (
+                  <span key={`mp-ty-${type}`} style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', border: '1px solid rgba(16,185,129,0.25)', background: isDarkBase ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)', color: '#10b981', fontWeight: 700 }}>
+                    TY {type}: {count}
+                  </span>
+                ))}
+              </div>
+
+              <div style={{ marginTop: '10px', fontSize: '10px', opacity: 0.55 }}>
+                Última atualização: {mpInsights.lastUpdated ? new Date(mpInsights.lastUpdated).toLocaleString('pt-BR') : '—'}
+              </div>
+              <div style={{ marginTop: '2px', fontSize: '10px', opacity: 0.55 }}>
+                Página atual: {mpAdvancedPagination.page}
+              </div>
+
+              <div style={{ marginTop: '12px', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, borderRadius: '10px', overflow: 'hidden' }}>
+                <div style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, opacity: 0.8, borderBottom: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}` }}>
+                  Transações Avançadas (filtro SDK)
+                </div>
+                <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                  {(mpInsights.advancedTransactions || []).slice(0, 25).map((tx, idx) => (
+                    <div key={`${tx.id || 'tx'}-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.7fr 0.7fr', gap: '8px', padding: '8px 10px', borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, fontSize: '11px' }}>
+                      <span style={{ fontFamily: 'monospace', opacity: 0.8 }}>{tx.transactionCode || tx.id || '—'}</span>
+                      <span style={{ fontWeight: 700 }}>R$ {Number(tx.amount || 0).toFixed(2)}</span>
+                      <span>{tx.type || '—'}</span>
+                      <span>{tx.status || '—'}</span>
+                    </div>
+                  ))}
+                  {(!mpInsights.advancedTransactions || mpInsights.advancedTransactions.length === 0) && (
                     <div style={{ padding: '10px', fontSize: '11px', opacity: 0.65 }}>Nenhuma transação encontrada com os filtros atuais.</div>
                   )}
                 </div>
