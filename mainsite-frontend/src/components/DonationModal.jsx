@@ -27,6 +27,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [brickKey, setBrickKey] = useState(0);
   const visibilityTimeoutRef = useRef(null);
   const [isProcessingCard, setIsProcessingCard] = useState(false);
+  const [isProcessingMpCard, setIsProcessingMpCard] = useState(false);
   const [sumupCard, setSumupCard] = useState({ holder: '', number: '', expiry: '', cvv: '' });
   const [sumupEmail, setSumupEmail] = useState('');
   const [sumupDocument, setSumupDocument] = useState('');
@@ -81,6 +82,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         setSumupDocumentType('CPF');
         setCoverFees(false);
         setIsProcessingCard(false);
+        setIsProcessingMpCard(false);
       }, 0);
     } else {
       setTimeout(() => setStep(1), 0);
@@ -212,9 +214,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       if (!payRes.ok) throw new Error(payData.error || 'Pagamento SumUp não aprovado.');
 
       setStep(3);
-      showToast('Pagamento via SumUp confirmado com sucesso!', 'success');
+      showToast('Pagamento aprovado com sucesso!', 'success');
     } catch (error) {
-      showToast(error.message || 'Falha no pagamento com SumUp.', 'error');
+      showToast(getStandardPaymentError(error?.message), 'error');
     } finally {
       setIsProcessingCard(false);
     }
@@ -269,6 +271,12 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       return false;
     }
     return true;
+  };
+
+  const getStandardPaymentError = (rawMessage) => {
+    const msg = String(rawMessage || '').trim();
+    if (!msg) return 'Pagamento não aprovado. Revise os dados e tente novamente.';
+    return `Pagamento não aprovado: ${msg}`;
   };
 
   const handleConfirmNativePix = (e) => {
@@ -330,6 +338,45 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     borderRadius: 'var(--shape-md)', color: activePalette.fontColor,
     fontSize: '14px', boxSizing: 'border-box'
   };
+
+  const cardHeaderTitleStyle = {
+    margin: '0',
+    color: activePalette.titleColor,
+    fontSize: '18px',
+    fontWeight: '700',
+    textAlign: 'right',
+  };
+
+  const cardSectionStyle = {
+    marginBottom: '12px',
+    padding: '12px',
+    borderRadius: '10px',
+    border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
+    background: isDarkBase ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+  };
+
+  const cardProviderBadgeStyle = (provider) => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '11px',
+    fontWeight: 800,
+    padding: '4px 8px',
+    borderRadius: '999px',
+    border: provider === 'sumup' ? '1px solid rgba(17,24,39,0.35)' : '1px solid rgba(0,158,227,0.35)',
+    color: provider === 'sumup' ? (isDarkBase ? '#e5e7eb' : '#111827') : '#009ee3',
+    background: provider === 'sumup' ? (isDarkBase ? 'rgba(229,231,235,0.12)' : 'rgba(17,24,39,0.06)') : 'rgba(0,158,227,0.10)',
+  });
+
+  const donationBase = getNumericAmount();
+  const donationGrossSumup = getGrossAmount('sumup');
+  const donationGrossMp = getGrossAmount('mercadopago');
+  const sumupBrandIcons = [
+    { key: 'mastercard', label: 'Mastercard', src: 'https://cdn.simpleicons.org/mastercard/EB001B' },
+    { key: 'visa', label: 'Visa', src: 'https://cdn.simpleicons.org/visa/1A1F71' },
+    { key: 'elo', label: 'Elo', src: 'https://cdn.simpleicons.org/elo/00A4E0' },
+    { key: 'amex', label: 'American Express', src: 'https://cdn.simpleicons.org/americanexpress/2E77BC' },
+  ];
 
   return (
     <div style={overlayStyle}>
@@ -459,23 +506,59 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
         {step === 5 && (
           <div style={{ animation: 'fadeIn 0.3s', textAlign: 'left' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: '0', color: activePalette.titleColor, fontSize: '18px', fontWeight: '600' }}>
-                Cartão de crédito ou débito
-              </h2>
-              <button type="button" onClick={() => setStep(4)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: 0.7 }}>&larr; Voltar</button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '20px', paddingRight: '54px' }}>
+              <button
+                type="button"
+                onClick={() => setStep(4)}
+                disabled={isProcessingCard}
+                style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: isProcessingCard ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: isProcessingCard ? 0.45 : 0.7, padding: 0, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                &larr; Voltar
+              </button>
+              <h2 style={cardHeaderTitleStyle}>Cartão de crédito ou débito</h2>
             </div>
 
-            {/* Ícones de bandeiras */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', justifyContent: 'flex-start' }}>
-              <div style={{ width: '40px', height: '25px', borderRadius: '4px', background: '#EB001B', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>MC</div>
-              <div style={{ width: '40px', height: '25px', borderRadius: '4px', background: '#1434CB', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>VISA</div>
-              <div style={{ width: '40px', height: '25px', borderRadius: '4px', background: '#FF5F00', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>ELO</div>
-              <div style={{ width: '40px', height: '25px', borderRadius: '4px', background: '#006FCF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>AMEX</div>
+            <div style={cardSectionStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                <span style={cardProviderBadgeStyle('sumup')}><CreditCard size={13} /> SUMUP</span>
+                <span style={{ fontSize: '11px', opacity: 0.75, fontWeight: 700 }}>Fluxo oficial do SDK</span>
+              </div>
+              <div style={{ fontSize: '12px', lineHeight: '1.6', opacity: 0.85 }}>
+                Valor base: <strong>R$ {formatBRL(donationBase || 0)}</strong><br />
+                Valor final na processadora: <strong>R$ {formatBRL(donationGrossSumup || 0)}</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+              {sumupBrandIcons.map((brand) => (
+                <span
+                  key={brand.key}
+                  title={brand.label}
+                  style={{
+                    width: '42px',
+                    height: '26px',
+                    borderRadius: '6px',
+                    border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.14)'}`,
+                    background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.75)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    padding: '4px',
+                  }}
+                >
+                  <img
+                    src={brand.src}
+                    alt={brand.label}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    style={{ width: '18px', height: '18px', objectFit: 'contain' }}
+                  />
+                </span>
+              ))}
             </div>
 
             <form onSubmit={handleSubmitSumupCard} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Número do cartão */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
                   Número do cartão
@@ -490,7 +573,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 />
               </div>
 
-              {/* Data de vencimento e CVV */}
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
@@ -520,7 +602,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 </div>
               </div>
 
-              {/* Nome do titular */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
                   Nome do titular como aparece no cartão
@@ -535,7 +616,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 />
               </div>
 
-              {/* Documento do titular */}
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div style={{ width: '100px' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
@@ -565,7 +645,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 </div>
               </div>
 
-              {/* Seção Preencha seus dados */}
               <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid rgba(128,128,128,0.2)` }}>
                 <h3 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor }}>
                   Preencha seus dados
@@ -580,19 +659,13 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 />
               </div>
 
-              {/* Botão Pagar */}
               <button
                 type="submit"
                 disabled={isProcessingCard}
-                style={{
-                  ...buttonStyle,
-                  background: '#0066ff',
-                  color: '#fff',
-                  marginTop: '8px'
-                }}
+                style={{ ...buttonStyle, background: '#0066ff', color: '#fff', marginTop: '8px' }}
               >
                 {isProcessingCard ? <Loader2 size={16} className="animate-spin" /> : null}
-                {isProcessingCard ? 'PROCESSANDO...' : 'PAGAR'}
+                {isProcessingCard ? 'PROCESSANDO...' : 'PAGAR COM SUMUP'}
               </button>
             </form>
           </div>
@@ -600,60 +673,87 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
         {step === 6 && (
           <div style={{ animation: 'fadeIn 0.3s', textAlign: 'left', minHeight: '300px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <button type="button" onClick={() => setStep(4)} style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>&larr; Voltar</button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '20px', paddingRight: '54px' }}>
+              <button
+                type="button"
+                onClick={() => setStep(4)}
+                disabled={isProcessingMpCard}
+                style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: isProcessingMpCard ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: isProcessingMpCard ? 0.45 : 0.7, padding: 0, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                &larr; Voltar
+              </button>
+              <h2 style={cardHeaderTitleStyle}>Cartão de crédito ou débito</h2>
             </div>
+
+            <div style={cardSectionStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                <span style={cardProviderBadgeStyle('mercadopago')}><CreditCard size={13} /> MERCADO PAGO</span>
+                <span style={{ fontSize: '11px', opacity: 0.75, fontWeight: 700 }}>Fluxo oficial do SDK</span>
+              </div>
+              <div style={{ fontSize: '12px', lineHeight: '1.6', opacity: 0.85 }}>
+                Valor base: <strong>R$ {formatBRL(donationBase || 0)}</strong><br />
+                Valor final na processadora: <strong>R$ {formatBRL(donationGrossMp || 0)}</strong>
+              </div>
+            </div>
+
             {!mpPublicKey ? (
               <div style={{ padding: '16px', borderRadius: '8px', background: isDarkBase ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', color: isDarkBase ? '#fecaca' : '#991b1b', fontSize: '13px', lineHeight: '1.5' }}>
                 Chave pública do Mercado Pago ausente. Configure <strong>VITE_MERCADOPAGO_PUBLIC_KEY</strong> no ambiente do frontend para habilitar pagamento com cartão.
               </div>
             ) : (
-            <CardPayment
-              key={`mp-card-brick-${brickKey}`}
-              initialization={{ amount: getGrossAmount('mercadopago') }}
-              customization={{ visual: { style: { theme: isDarkBase ? 'dark' : 'default' } } }}
+              <div style={{ ...cardSectionStyle, marginBottom: 0 }}>
+                <CardPayment
+                  key={`mp-card-brick-${brickKey}`}
+                  initialization={{ amount: donationGrossMp }}
+                  customization={{ visual: { style: { theme: isDarkBase ? 'dark' : 'default' } } }}
+                  onSubmit={(formData) => {
+                    setIsProcessingMpCard(true);
+                    return new Promise((resolve, reject) => {
+                      const processDonation = async () => {
+                        try {
+                          const payload = {
+                            ...formData,
+                            payer: {
+                              ...(formData.payer || {}),
+                              first_name: firstName.trim(),
+                              last_name: lastName.trim(),
+                            },
+                          };
 
-              onSubmit={(formData) => {
-                return new Promise((resolve, reject) => {
-                  const processDonation = async () => {
-                    try {
-                      const payload = {
-                        ...formData,
-                        payer: {
-                          ...(formData.payer || {}),
-                          first_name: firstName.trim(),
-                          last_name: lastName.trim()
+                          const res = await fetch(`${API_URL}/mp-payment`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
+                          });
+
+                          if (res.ok) {
+                            resolve();
+                            setStep(3);
+                            showToast('Pagamento aprovado com sucesso!', 'success');
+                          } else {
+                            const errorData = await res.json();
+                            console.error('🔴 MP Backend Rejeitou:', errorData);
+                            showToast(getStandardPaymentError(errorData?.error), 'error');
+                            reject();
+                          }
+                        } catch (error) {
+                          console.error('🔴 Falha Crítica no Frontend (Fetch):', error);
+                          showToast('Falha de conexão. Verifique sua rede e tente novamente.', 'error');
+                          reject();
+                        } finally {
+                          setIsProcessingMpCard(false);
                         }
                       };
-
-                      const res = await fetch(`${API_URL}/mp-payment`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                      });
-                      
-                      if (res.ok) {
-                        resolve(); 
-                        setStep(3);
-                      } else {
-                        const errorData = await res.json();
-                        console.error("🔴 MP Backend Rejeitou:", errorData);
-                        showToast(`Não aprovado: ${errorData.error || 'Verifique os dados.'}`, "error");
-                        reject(); 
-                      }
-                    } catch (error) {
-                      console.error("🔴 Falha Crítica no Frontend (Fetch):", error);
-                      showToast("Falha de conexão. Verifique sua rede e tente novamente.", "error");
-                      reject(); 
-                    }
-                  };
-                  processDonation(); // Execute the async function inside the standard Promise
-                });
-              }}
-              onError={(error) => {
-                console.error("🔴 Erro de Inicialização do SDK MP:", error);
-              }}
-            />
+                      processDonation();
+                    });
+                  }}
+                  onError={(error) => {
+                    setIsProcessingMpCard(false);
+                    console.error('🔴 Erro de Inicialização do SDK MP:', error);
+                    showToast('Não foi possível iniciar o formulário de cartão. Atualize a página e tente novamente.', 'error');
+                  }}
+                />
+              </div>
             )}
           </div>
         )}

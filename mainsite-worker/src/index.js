@@ -490,6 +490,29 @@ const normalizeSumupStatus = (status) => {
   return map[s] || s;
 };
 
+const FINANCIAL_CUTOFF_BRT = '2026-03-01T00:00:00-03:00';
+const FINANCIAL_CUTOFF_DATE = '2026-03-01';
+const FINANCIAL_CUTOFF_UTC = new Date(FINANCIAL_CUTOFF_BRT);
+const FINANCIAL_CUTOFF_ISO = FINANCIAL_CUTOFF_UTC.toISOString();
+const FINANCIAL_CUTOFF_DB_UTC = FINANCIAL_CUTOFF_ISO.slice(0, 19).replace('T', ' ');
+
+const getStartIsoWithCutoff = (rawDate) => {
+  if (!rawDate) return FINANCIAL_CUTOFF_ISO;
+  const parsed = new Date(rawDate);
+  if (Number.isNaN(parsed.getTime())) return FINANCIAL_CUTOFF_ISO;
+  return parsed.getTime() < FINANCIAL_CUTOFF_UTC.getTime() ? FINANCIAL_CUTOFF_ISO : parsed.toISOString();
+};
+
+const toDbDateTime = (isoString) => isoString.slice(0, 19).replace('T', ' ');
+const getStartDbWithCutoff = (rawDate) => toDbDateTime(getStartIsoWithCutoff(rawDate));
+
+const isOnOrAfterCutoff = (value) => {
+  if (!value) return false;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return parsed.getTime() >= FINANCIAL_CUTOFF_UTC.getTime();
+};
+
 app.post('/api/sumup/checkout', async (c) => {
   try {
     const { amount, firstName, lastName, email } = await c.req.json();
@@ -626,9 +649,16 @@ app.get('/api/sumup/transactions-summary', async (c) => {
     const limitRaw = Number(c.req.query('limit'));
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 50;
 
+    const changesSince = getStartIsoWithCutoff(c.req.query('changes_since') || c.req.query('start_date'));
+
     const client = new SumUp({ apiKey: token });
-    const txData = await client.transactions.list(merchantCode, { order: 'descending', limit });
-    const items = Array.isArray(txData?.items) ? txData.items : [];
+    const txData = await client.transactions.list(merchantCode, {
+      order: 'descending',
+      limit,
+      changes_since: changesSince,
+    });
+    const rawItems = Array.isArray(txData?.items) ? txData.items : [];
+    const items = rawItems.filter((tx) => isOnOrAfterCutoff(tx?.timestamp));
 
     const byStatus = {};
     const byType = {};
@@ -705,8 +735,8 @@ app.get('/api/sumup/transactions-advanced', async (c) => {
     if (paymentTypes.length) query.payment_types = paymentTypes;
     if (users.length) query.users = users;
 
-    const changesSince = c.req.query('changes_since');
-    if (changesSince) query.changes_since = changesSince;
+    const changesSince = getStartIsoWithCutoff(c.req.query('changes_since') || c.req.query('start_date'));
+    query.changes_since = changesSince;
 
     const newestTime = c.req.query('newest_time');
     const newestRef = c.req.query('newest_ref');
@@ -734,6 +764,7 @@ app.get('/api/sumup/transactions-advanced', async (c) => {
       user: tx?.user || null,
       refundedAmount: Number(tx?.refunded_amount || 0),
     }));
+    const filteredByDate = normalized.filter((tx) => isOnOrAfterCutoff(tx?.timestamp));
 
     const pickCursor = (href) => {
       try {
@@ -780,13 +811,13 @@ app.get('/api/sumup/transactions-advanced', async (c) => {
         oldestTime: oldestTime || null,
         oldestRef: oldestRef || null,
       },
-      total: normalized.length,
+      total: filteredByDate.length,
       hasMore: Array.isArray(txData?.links) && txData.links.length > 0,
       cursors: {
         next: nextCursor,
         prev: prevCursor,
       },
-      items: normalized,
+      items: filteredByDate,
     });
   } catch (err) {
     return c.json({ error: err.message || 'Falha ao listar transações avançadas SumUp.' }, 500);
@@ -801,10 +832,8 @@ app.get('/api/sumup/payouts-summary', async (c) => {
     if (!token || !merchantCode) throw new Error('SUMUP_API_KEY_PRIVATE ou SUMUP_MERCHANT_CODE ausentes.');
 
     const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(now.getDate() - 30);
-
-    const startDate = c.req.query('start_date') || thirtyDaysAgo.toISOString().slice(0, 10);
+    const requestedStartDate = c.req.query('start_date') || FINANCIAL_CUTOFF_DATE;
+    const startDate = requestedStartDate < FINANCIAL_CUTOFF_DATE ? FINANCIAL_CUTOFF_DATE : requestedStartDate;
     const endDate = c.req.query('end_date') || now.toISOString().slice(0, 10);
 
     const client = new SumUp({ apiKey: token });
@@ -854,12 +883,22 @@ app.get('/api/mp/payment-methods', async (c) => {
 
     const methods = [...new Set(methodsList.map((m) => m?.id).filter(Boolean))];
     const types = [...new Set(methodsList.map((m) => m?.payment_type_id).filter(Boolean))];
+    const methodAssets = methodsList.reduce((acc, m) => {
+      const id = String(m?.id || '').trim();
+      if (!id) return acc;
+      acc[id] = {
+        label: m?.name || id.toUpperCase(),
+        image: m?.secure_thumbnail || m?.thumbnail || null,
+      };
+      return acc;
+    }, {});
 
     return c.json({
       success: true,
       scanned: methodsList.length,
       methods,
       types,
+      methodAssets,
     });
   } catch (err) {
     return c.json({ error: err.message || 'Falha ao listar métodos Mercado Pago.' }, 500);
@@ -875,11 +914,9 @@ app.get('/api/mp/transactions-summary', async (c) => {
     const limitRaw = Number(c.req.query('limit'));
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 50;
 
-    // Calcular datas dos últimos 90 dias
     const now = new Date();
-    const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
-    const begin_date = ninetyDaysAgo.toISOString();
-    const end_date = now.toISOString();
+    const begin_date = getStartIsoWithCutoff(c.req.query('begin_date') || c.req.query('start_date'));
+    const end_date = c.req.query('end_date') ? new Date(c.req.query('end_date')).toISOString() : now.toISOString();
 
     const client = new MercadoPagoConfig({ accessToken: token });
     const paymentApi = new Payment(client);
@@ -948,11 +985,9 @@ app.get('/api/mp/transactions-advanced', async (c) => {
     const statuses = parseList(c.req.query('statuses'));
     const types = parseList(c.req.query('types'));
 
-    // Calcular datas dos últimos 90 dias
     const now = new Date();
-    const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
-    const begin_date = ninetyDaysAgo.toISOString();
-    const end_date = now.toISOString();
+    const begin_date = getStartIsoWithCutoff(c.req.query('begin_date') || c.req.query('start_date'));
+    const end_date = c.req.query('end_date') ? new Date(c.req.query('end_date')).toISOString() : now.toISOString();
 
     const client = new MercadoPagoConfig({ accessToken: token });
     const paymentApi = new Payment(client);
@@ -1084,18 +1119,17 @@ app.post('/api/mp-payment', async (c) => {
 app.get('/api/mp-balance', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const token = c.env.MP_ACCESS_TOKEN;
-    if (!token) throw new Error("MP_ACCESS_TOKEN ausente.");
-
-    const response = await fetch("https://api.mercadopago.com/v1/balance", {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` }
+    const startDb = getStartDbWithCutoff(c.req.query('start_date'));
+    const available = await c.env.DB.prepare(
+      "SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) AND lower(status) = 'approved'"
+    ).bind(startDb).first();
+    const unavailable = await c.env.DB.prepare(
+      "SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) AND lower(status) IN ('pending', 'in_process')"
+    ).bind(startDb).first();
+    return c.json({
+      available_balance: Number(available?.total || 0),
+      unavailable_balance: Number(unavailable?.total || 0),
     });
-
-    if (!response.ok) return c.json({ available_balance: 0, unavailable_balance: 0 });
-
-    const data = await response.json();
-    return c.json(data);
   } catch (err) {
     return c.json({ available_balance: 0, unavailable_balance: 0 });
   }
@@ -1217,7 +1251,8 @@ app.post('/api/webhooks/mercadopago', async (c) => {
 app.get('/api/financial-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const { results } = await c.env.DB.prepare("SELECT * FROM financial_logs WHERE method IS NULL OR method != 'sumup_card' ORDER BY created_at DESC LIMIT 100").all();
+    const startDb = getStartDbWithCutoff(c.req.query('start_date'));
+    const { results } = await c.env.DB.prepare("SELECT * FROM financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100").bind(startDb).all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -1225,7 +1260,8 @@ app.get('/api/financial-logs', async (c) => {
 app.get('/api/financial-logs/check', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM financial_logs WHERE method IS NULL OR method != 'sumup_card'").first();
+    const startDb = getStartDbWithCutoff(c.req.query('start_date'));
+    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?)").bind(startDb).first();
     return c.json({ count: result.total });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -1252,8 +1288,8 @@ app.post('/api/mp/sync', async (c) => {
 
     // 1) Atualiza primeiro tudo o que já existe no banco local.
     const { results: localLogs = [] } = await c.env.DB.prepare(
-      "SELECT payment_id FROM financial_logs WHERE payment_id IS NOT NULL AND (method IS NULL OR method != 'sumup_card') ORDER BY created_at DESC LIMIT 100"
-    ).all();
+      "SELECT payment_id FROM financial_logs WHERE payment_id IS NOT NULL AND (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100"
+    ).bind(FINANCIAL_CUTOFF_DB_UTC).all();
 
     let inserted = 0;
     let updated = 0;
@@ -1290,6 +1326,8 @@ app.post('/api/mp/sync', async (c) => {
           sort: 'date_created',
           criteria: 'desc',
           range: 'date_created',
+          begin_date: FINANCIAL_CUTOFF_ISO,
+          end_date: new Date().toISOString(),
           limit: 100,
         },
       });
@@ -1352,6 +1390,8 @@ app.post('/api/sumup/sync', async (c) => {
     let inserted = 0, updated = 0;
     for (const checkout of checkouts) {
       const tx = checkout.transactions?.[0];
+      const sourceTimestamp = tx?.timestamp || checkout?.timestamp || checkout?.date || checkout?.created_at || null;
+      if (sourceTimestamp && !isOnOrAfterCutoff(sourceTimestamp)) continue;
       // Usa transaction UUID quando disponível (pagamentos concluídos),
       // senão usa o checkout UUID (tentativas sem transação confirmada).
       const paymentId = tx?.id || checkout.id;
@@ -1435,7 +1475,8 @@ app.post('/api/sumup/reindex-statuses', async (c) => {
 app.get('/api/sumup-financial-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const { results } = await c.env.DB.prepare("SELECT * FROM financial_logs WHERE method = 'sumup_card' ORDER BY created_at DESC LIMIT 100").all();
+    const startDb = getStartDbWithCutoff(c.req.query('start_date'));
+    const { results } = await c.env.DB.prepare("SELECT * FROM financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100").bind(startDb).all();
     const rows = Array.isArray(results) ? results : [];
     const normalizedRows = rows.map((row) => {
       let payloadStatus = null;
@@ -1468,7 +1509,8 @@ app.get('/api/sumup-financial-logs', async (c) => {
 app.get('/api/sumup-financial-logs/check', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM financial_logs WHERE method = 'sumup_card'").first();
+    const startDb = getStartDbWithCutoff(c.req.query('start_date'));
+    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?)").bind(startDb).first();
     return c.json({ count: result.total });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -1485,8 +1527,9 @@ app.delete('/api/sumup-financial-logs/:id', async (c) => {
 app.get('/api/sumup-balance', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const available = await c.env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE method = 'sumup_card' AND UPPER(status) = 'SUCCESSFUL'").first();
-    const unavailable = await c.env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE method = 'sumup_card' AND UPPER(status) = 'PENDING'").first();
+    const startDb = getStartDbWithCutoff(c.req.query('start_date'));
+    const available = await c.env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?) AND UPPER(status) = 'SUCCESSFUL'").bind(startDb).first();
+    const unavailable = await c.env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?) AND UPPER(status) = 'PENDING'").bind(startDb).first();
     return c.json({
       available_balance: Number(available?.total || 0),
       unavailable_balance: Number(unavailable?.total || 0),

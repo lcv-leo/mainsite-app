@@ -8,6 +8,8 @@ import { X, DollarSign, RefreshCw, Loader2, RotateCcw, AlertCircle, Check, Ban, 
 
 const SUMUP_FILTERS_STORAGE_KEY = 'mainsite_sumup_filters_v1';
 const MP_FILTERS_STORAGE_KEY = 'mainsite_mp_filters_v1';
+const FINANCIAL_CUTOFF_DATE = '2026-03-01';
+const FINANCIAL_CUTOFF_BRT_ISO = '2026-03-01T00:00:00-03:00';
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);
@@ -43,6 +45,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     loading: false,
     error: '',
     paymentMethods: [],
+    paymentMethodAssets: {},
     paymentTypes: [],
     transactions: null,
     advancedTransactions: [],
@@ -53,6 +56,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     prevOffset: null,
     offset: 0,
     page: 1,
+    lastMove: 'initial',
   });
   const [sumupFilters, setSumupFilters] = useState(() => {
     const defaults = { statuses: [], types: [], limit: 50 };
@@ -86,11 +90,85 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       return defaults;
     }
   });
+  const [sumupStartDate, setSumupStartDate] = useState(FINANCIAL_CUTOFF_DATE);
+  const [mpStartDate, setMpStartDate] = useState(FINANCIAL_CUTOFF_DATE);
   const [toastTop, setToastTop] = useState(30);
   const [methodTooltip, setMethodTooltip] = useState({ visible: false, label: '', x: 0, y: 0 });
   const lastPointerYRef = useRef(null);
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+  const formatDateTimeBR = (value) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      hour12: false,
+    });
+  };
+
+  const formatDateBR = (value) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+    });
+  };
+
+  const formatBRL = (value) => `R$ ${Number(value || 0).toFixed(2)}`;
+
+  const clampStartDate = (dateStr) => {
+    if (!dateStr) return FINANCIAL_CUTOFF_DATE;
+    return dateStr < FINANCIAL_CUTOFF_DATE ? FINANCIAL_CUTOFF_DATE : dateStr;
+  };
+
+  const getPresetDate = (daysBack) => {
+    if (daysBack == null) return FINANCIAL_CUTOFF_DATE;
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - daysBack);
+    const dateStr = d.toISOString().slice(0, 10);
+    return clampStartDate(dateStr);
+  };
+
+  const renderDatePresets = (activeDate, setDate, accentColor) => {
+    const presets = [
+      { key: 'today', label: 'Hoje', value: getPresetDate(0) },
+      { key: '7d', label: '7 dias', value: getPresetDate(7) },
+      { key: '30d', label: '30 dias', value: getPresetDate(30) },
+      { key: 'cutoff', label: 'Desde 01/03/2026', value: FINANCIAL_CUTOFF_DATE },
+    ];
+
+    return (
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+        {presets.map((preset) => {
+          const selected = activeDate === preset.value;
+          return (
+            <button
+              key={preset.key}
+              type="button"
+              onClick={() => setDate(preset.value)}
+              style={{
+                background: selected ? `${accentColor}22` : 'transparent',
+                border: `1px solid ${selected ? `${accentColor}88` : `${accentColor}55`}`,
+                color: accentColor,
+                padding: '5px 9px',
+                borderRadius: '999px',
+                fontSize: '10px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                opacity: selected ? 1 : 0.85,
+              }}
+            >
+              {preset.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   const showPanelToast = useCallback((message, type = 'info') => {
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
@@ -117,15 +195,17 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     try {
       const logsEndpoint = paymentProvider === 'sumup' ? '/sumup-financial-logs' : '/financial-logs';
       const balanceEndpoint = paymentProvider === 'sumup' ? '/sumup-balance' : '/mp-balance';
+      const activeStartDate = paymentProvider === 'sumup' ? sumupStartDate : mpStartDate;
+      const query = new URLSearchParams({ start_date: activeStartDate });
 
-      const resLogs = await fetch(`${API_URL}${logsEndpoint}`, { headers: { 'Authorization': `Bearer ${secret}` } });
+      const resLogs = await fetch(`${API_URL}${logsEndpoint}?${query.toString()}`, { headers: { 'Authorization': `Bearer ${secret}` } });
       if (resLogs.ok) {
         const data = await resLogs.json();
         setLogs(data);
         setLogCount(data.length);
       }
 
-      const resBalance = await fetch(`${API_URL}${balanceEndpoint}`, { headers: { 'Authorization': `Bearer ${secret}` } });
+      const resBalance = await fetch(`${API_URL}${balanceEndpoint}?${query.toString()}`, { headers: { 'Authorization': `Bearer ${secret}` } });
       if (resBalance.ok) {
         const balData = await resBalance.json();
         setBalance({ available: balData.available_balance || 0, unavailable: balData.unavailable_balance || 0 });
@@ -136,7 +216,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       setLoading(false);
       if (isManual) setIsRefreshing(false);
     }
-  }, [API_URL, secret, paymentProvider]);
+  }, [API_URL, secret, paymentProvider, sumupStartDate, mpStartDate]);
 
   useEffect(() => { fetchFinanceData(); }, [fetchFinanceData]);
 
@@ -167,7 +247,8 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     const checkWebhook = async () => {
       try {
         const checkEndpoint = paymentProvider === 'sumup' ? '/sumup-financial-logs/check' : '/financial-logs/check';
-        const res = await fetch(`${API_URL}${checkEndpoint}`, { headers: { 'Authorization': `Bearer ${secret}` } });
+        const activeStartDate = paymentProvider === 'sumup' ? sumupStartDate : mpStartDate;
+        const res = await fetch(`${API_URL}${checkEndpoint}?start_date=${encodeURIComponent(activeStartDate)}`, { headers: { 'Authorization': `Bearer ${secret}` } });
         if (res.ok) {
           const data = await res.json();
           if (logCount !== 0 && data.count > logCount) {
@@ -182,7 +263,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     };
     const pingId = setInterval(checkWebhook, 15000);
     return () => clearInterval(pingId);
-  }, [API_URL, secret, logCount, fetchFinanceData, paymentProvider, showPanelToast]);
+  }, [API_URL, secret, logCount, fetchFinanceData, paymentProvider, showPanelToast, sumupStartDate, mpStartDate]);
 
   const executeAction = async () => {
     const { id, dbId } = activeTx;
@@ -272,7 +353,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     },
   };
 
-  const renderMethodIcons = (methods = [], provider = 'sumup') => {
+  const renderMethodIcons = (methods = [], provider = 'sumup', assets = {}) => {
     const palette = provider === 'sumup' ? methodLogoMap.sumup : methodLogoMap.mp;
     if (!Array.isArray(methods) || methods.length === 0) return <span>—</span>;
 
@@ -281,17 +362,20 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         {methods.map((m) => {
           const key = String(m || '').toLowerCase();
           const icon = palette[key];
+          const asset = provider === 'mp' ? assets?.[key] : null;
+          const iconSrc = asset?.image || icon?.src || null;
+          const iconLabel = asset?.label || icon?.label || key.toUpperCase();
 
           return (
             <span
               key={`${provider}-${key}`}
-              title={icon?.label || key.toUpperCase()}
+              title={iconLabel}
               tabIndex={0}
               onMouseEnter={(e) => {
                 const r = e.currentTarget.getBoundingClientRect();
                 setMethodTooltip({
                   visible: true,
-                  label: icon?.label || key.toUpperCase(),
+                  label: iconLabel,
                   x: r.left + (r.width / 2),
                   y: r.top - 8,
                 });
@@ -301,7 +385,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                 const r = e.currentTarget.getBoundingClientRect();
                 setMethodTooltip({
                   visible: true,
-                  label: icon?.label || key.toUpperCase(),
+                  label: iconLabel,
                   x: r.left + (r.width / 2),
                   y: r.top - 8,
                 });
@@ -321,10 +405,10 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                 outline: 'none',
               }}
             >
-              {icon?.src ? (
+              {iconSrc ? (
                 <img
-                  src={icon.src}
-                  alt={icon.label || key}
+                  src={iconSrc}
+                  alt={iconLabel}
                   style={{ width: '16px', height: '16px', objectFit: 'contain' }}
                   loading="lazy"
                   referrerPolicy="no-referrer"
@@ -371,6 +455,8 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       const qs = new URLSearchParams({
         limit: String(filters.limit || 50),
         order: 'descending',
+        start_date: sumupStartDate,
+        changes_since: `${sumupStartDate}T00:00:00-03:00`,
       });
       if (filters.statuses.length) qs.set('statuses', filters.statuses.join(','));
       if (filters.types.length) qs.set('types', filters.types.join(','));
@@ -381,9 +467,9 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
       const [methodsRes, txRes, txAdvRes, payoutsRes] = await Promise.all([
         fetch(`${API_URL}/sumup/payment-methods?amount=10&currency=BRL`, { headers }),
-        fetch(`${API_URL}/sumup/transactions-summary?limit=50`, { headers }),
+        fetch(`${API_URL}/sumup/transactions-summary?limit=50&start_date=${encodeURIComponent(sumupStartDate)}`, { headers }),
         fetch(`${API_URL}/sumup/transactions-advanced?${qs.toString()}`, { headers }),
-        fetch(`${API_URL}/sumup/payouts-summary`, { headers }),
+        fetch(`${API_URL}/sumup/payouts-summary?start_date=${encodeURIComponent(sumupStartDate)}`, { headers }),
       ]);
 
       const [methodsData, txData, txAdvancedData, payoutsData] = await Promise.all([
@@ -424,9 +510,9 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         error: err.message || 'Erro ao carregar insights SumUp.',
       }));
     }
-  }, [API_URL, secret, paymentProvider, sumupFilters]);
+  }, [API_URL, secret, paymentProvider, sumupFilters, sumupStartDate]);
 
-  const fetchMercadoPagoInsights = useCallback(async (filters = mpFilters, offset = 0) => {
+  const fetchMercadoPagoInsights = useCallback(async (filters = mpFilters, offset = 0, move = 'initial') => {
     if (paymentProvider !== 'mercadopago') return;
     setMpInsights(prev => ({ ...prev, loading: true, error: '' }));
     try {
@@ -435,13 +521,15 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         limit: String(filters.limit || 50),
         offset: String(Number(offset) || 0),
         order: 'desc',
+        start_date: mpStartDate,
+        begin_date: `${mpStartDate}T00:00:00-03:00`,
       });
       if (filters.statuses.length) qs.set('statuses', filters.statuses.join(','));
       if (filters.types.length) qs.set('types', filters.types.join(','));
 
       const [methodsRes, txRes, txAdvRes] = await Promise.all([
         fetch(`${API_URL}/mp/payment-methods?limit=100`, { headers }),
-        fetch(`${API_URL}/mp/transactions-summary?limit=50`, { headers }),
+        fetch(`${API_URL}/mp/transactions-summary?limit=50&start_date=${encodeURIComponent(mpStartDate)}`, { headers }),
         fetch(`${API_URL}/mp/transactions-advanced?${qs.toString()}`, { headers }),
       ]);
 
@@ -459,6 +547,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         loading: false,
         error: '',
         paymentMethods: methodsData.methods || [],
+        paymentMethodAssets: methodsData.methodAssets || {},
         paymentTypes: methodsData.types || [],
         transactions: txData,
         advancedTransactions: txAdvancedData.items || [],
@@ -473,6 +562,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         prevOffset: paging.hasPrev ? Number(paging.prevOffset) : null,
         offset: currentOffset,
         page: Math.floor(currentOffset / Math.max(1, currentLimit)) + 1,
+        lastMove: move,
       });
     } catch (err) {
       setMpInsights(prev => ({
@@ -481,7 +571,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
         error: err.message || 'Erro ao carregar insights Mercado Pago.',
       }));
     }
-  }, [API_URL, secret, paymentProvider, mpFilters]);
+  }, [API_URL, secret, paymentProvider, mpFilters, mpStartDate]);
 
   // Quando a aba for ativada, sincroniza automaticamente com a API
   // para garantir que transações recusadas, expiradas ou pendentes apareçam corretamente.
@@ -491,7 +581,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       fetchSumupInsights(sumupFilters, null, 'initial');
     } else if (paymentProvider === 'mercadopago') {
       syncMercadoPagoCheckouts();
-      fetchMercadoPagoInsights(mpFilters, 0);
+      fetchMercadoPagoInsights(mpFilters, 0, 'initial');
     }
   }, [paymentProvider, syncSumupCheckouts, syncMercadoPagoCheckouts, fetchSumupInsights, fetchMercadoPagoInsights, sumupFilters, mpFilters]);
 
@@ -855,6 +945,9 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
               {sumupInsights.loading ? 'ATUALIZANDO...' : 'ATUALIZAR INSIGHTS'}
             </button>
           </div>
+          <div style={{ marginTop: '-4px', marginBottom: '10px', fontSize: '11px', fontWeight: 700, color: '#4f46e5', opacity: 0.9 }}>
+            Período operacional ativo: desde {formatDateBR(`${sumupStartDate}T00:00:00-03:00`)} (Brasília, UTC-3)
+          </div>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
             <select
@@ -892,6 +985,19 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
               <option value={75}>75</option>
               <option value={100}>100</option>
             </select>
+
+            <input
+              type="date"
+              value={sumupStartDate}
+              min={FINANCIAL_CUTOFF_DATE}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setSumupStartDate(clampStartDate(e.target.value || FINANCIAL_CUTOFF_DATE))}
+              title="Período (início)"
+              aria-label="Período inicial SumUp"
+              style={{ ...styles.textInput, width: 'auto', minWidth: '170px', fontSize: '12px', padding: '8px 10px' }}
+            />
+
+            {renderDatePresets(sumupStartDate, setSumupStartDate, '#4f46e5')}
 
             <button
               onClick={() => fetchSumupInsights(sumupFilters, null, 'initial')}
@@ -1008,42 +1114,43 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                 </div>
 
                 <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(79,70,229,0.2)', borderRadius: '10px', padding: '10px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Transações analisadas</div>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Registros analisados</div>
                   <div style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 800, color: activePalette.titleColor }}>
                     {sumupInsights.transactions?.scanned ?? 0}
                   </div>
                 </div>
 
                 <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(79,70,229,0.2)', borderRadius: '10px', padding: '10px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Volume transações</div>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Volume bruto</div>
                   <div style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 800, color: activePalette.titleColor }}>
-                    R$ {Number(sumupInsights.transactions?.totalAmount || 0).toFixed(2)}
+                    {formatBRL(sumupInsights.transactions?.totalAmount)}
                   </div>
                 </div>
 
                 <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(79,70,229,0.2)', borderRadius: '10px', padding: '10px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Payouts (30 dias)</div>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Volume líquido operacional</div>
                   <div style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 800, color: activePalette.titleColor }}>
-                    R$ {Number(sumupInsights.payouts?.totalAmount || 0).toFixed(2)}
+                    {formatBRL(Number(sumupInsights.payouts?.totalAmount || 0) - Number(sumupInsights.payouts?.totalFee || 0))}
                   </div>
+                  <div style={{ fontSize: '10px', opacity: 0.55, marginTop: '2px' }}>Base: payouts líquidos</div>
                 </div>
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
                 {Object.entries(sumupInsights.transactions?.byStatus || {}).map(([status, count]) => (
                   <span key={`tx-${status}`} style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', border: '1px solid rgba(79,70,229,0.25)', background: isDarkBase ? 'rgba(79,70,229,0.12)' : 'rgba(79,70,229,0.08)', color: '#4f46e5', fontWeight: 700 }}>
-                    TX {status}: {count}
+                    STATUS {status}: {count}
                   </span>
                 ))}
                 {Object.entries(sumupInsights.payouts?.byStatus || {}).map(([status, count]) => (
                   <span key={`po-${status}`} style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', border: '1px solid rgba(16,185,129,0.25)', background: isDarkBase ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)', color: '#10b981', fontWeight: 700 }}>
-                    PO {status}: {count}
+                    PAYOUT {status}: {count}
                   </span>
                 ))}
               </div>
 
               <div style={{ marginTop: '10px', fontSize: '10px', opacity: 0.55 }}>
-                Última atualização: {sumupInsights.lastUpdated ? new Date(sumupInsights.lastUpdated).toLocaleString('pt-BR') : '—'}
+                Última atualização: {formatDateTimeBR(sumupInsights.lastUpdated)}
               </div>
               <div style={{ marginTop: '4px', fontSize: '10px', opacity: 0.55 }}>
                 Navegação: {sumupAdvancedPagination.lastMove === 'next' ? 'próxima página' : sumupAdvancedPagination.lastMove === 'prev' ? 'página anterior' : 'página inicial'}
@@ -1082,7 +1189,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
               Insights Mercado Pago (SDK Oficial)
             </h3>
             <button
-              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.offset || 0)}
+              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.offset || 0, 'current')}
               disabled={mpInsights.loading}
               style={{
                 background: 'transparent',
@@ -1102,6 +1209,9 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
               <RefreshCw size={14} className={mpInsights.loading ? 'animate-spin' : ''} />
               {mpInsights.loading ? 'ATUALIZANDO...' : 'ATUALIZAR INSIGHTS'}
             </button>
+          </div>
+          <div style={{ marginTop: '-4px', marginBottom: '10px', fontSize: '11px', fontWeight: 700, color: '#0ea5e9', opacity: 0.9 }}>
+            Período operacional ativo: desde {formatDateBR(`${mpStartDate}T00:00:00-03:00`)} (Brasília, UTC-3)
           </div>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
@@ -1144,8 +1254,21 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
               <option value={100}>100</option>
             </select>
 
+            <input
+              type="date"
+              value={mpStartDate}
+              min={FINANCIAL_CUTOFF_DATE}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setMpStartDate(clampStartDate(e.target.value || FINANCIAL_CUTOFF_DATE))}
+              title="Período (início)"
+              aria-label="Período inicial Mercado Pago"
+              style={{ ...styles.textInput, width: 'auto', minWidth: '170px', fontSize: '12px', padding: '8px 10px' }}
+            />
+
+            {renderDatePresets(mpStartDate, setMpStartDate, '#0ea5e9')}
+
             <button
-              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.offset || 0)}
+              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.offset || 0, 'current')}
               disabled={mpInsights.loading}
               style={{
                 background: 'transparent',
@@ -1162,7 +1285,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             </button>
 
             <button
-              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.prevOffset || 0)}
+              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.prevOffset || 0, 'prev')}
               disabled={mpInsights.loading || mpAdvancedPagination.prevOffset === null}
               style={{
                 background: 'transparent',
@@ -1180,7 +1303,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             </button>
 
             <button
-              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.nextOffset || 0)}
+              onClick={() => fetchMercadoPagoInsights(mpFilters, mpAdvancedPagination.nextOffset || 0, 'next')}
               disabled={mpInsights.loading || mpAdvancedPagination.nextOffset === null}
               style={{
                 background: 'transparent',
@@ -1198,7 +1321,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             </button>
 
             <button
-              onClick={() => fetchMercadoPagoInsights(mpFilters, 0)}
+              onClick={() => fetchMercadoPagoInsights(mpFilters, 0, 'initial')}
               disabled={mpInsights.loading || mpAdvancedPagination.page === 1}
               style={{
                 background: 'transparent',
@@ -1254,47 +1377,51 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                 <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '10px', padding: '10px' }}>
                   <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Métodos disponíveis</div>
                   <div style={{ fontSize: '12px', fontWeight: 700, color: activePalette.titleColor }}>
-                    {renderMethodIcons(mpInsights.paymentMethods, 'mp')}
+                    {renderMethodIcons(mpInsights.paymentMethods, 'mp', mpInsights.paymentMethodAssets)}
                   </div>
                 </div>
 
                 <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '10px', padding: '10px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Transações analisadas</div>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Registros analisados</div>
                   <div style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 800, color: activePalette.titleColor }}>
                     {mpInsights.transactions?.scanned ?? 0}
                   </div>
                 </div>
 
                 <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '10px', padding: '10px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Volume transações</div>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Volume bruto</div>
                   <div style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 800, color: activePalette.titleColor }}>
-                    R$ {Number(mpInsights.transactions?.totalAmount || 0).toFixed(2)}
+                    {formatBRL(mpInsights.transactions?.totalAmount)}
                   </div>
                 </div>
 
                 <div style={{ background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: '10px', padding: '10px' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Volume líquido</div>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.6, marginBottom: '4px' }}>Volume líquido operacional</div>
                   <div style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 800, color: activePalette.titleColor }}>
-                    R$ {Number(mpInsights.transactions?.totalNetAmount || 0).toFixed(2)}
+                    {formatBRL(mpInsights.transactions?.totalNetAmount)}
                   </div>
+                  <div style={{ fontSize: '10px', opacity: 0.55, marginTop: '2px' }}>Base: transações líquidas</div>
                 </div>
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
                 {Object.entries(mpInsights.transactions?.byStatus || {}).map(([status, count]) => (
                   <span key={`mp-tx-${status}`} style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', border: '1px solid rgba(14,165,233,0.25)', background: isDarkBase ? 'rgba(14,165,233,0.12)' : 'rgba(14,165,233,0.08)', color: '#0ea5e9', fontWeight: 700 }}>
-                    TX {status}: {count}
+                    STATUS {status}: {count}
                   </span>
                 ))}
                 {Object.entries(mpInsights.transactions?.byType || {}).map(([type, count]) => (
                   <span key={`mp-ty-${type}`} style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', border: '1px solid rgba(16,185,129,0.25)', background: isDarkBase ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)', color: '#10b981', fontWeight: 700 }}>
-                    TY {type}: {count}
+                    TIPO {type}: {count}
                   </span>
                 ))}
               </div>
 
               <div style={{ marginTop: '10px', fontSize: '10px', opacity: 0.55 }}>
-                Última atualização: {mpInsights.lastUpdated ? new Date(mpInsights.lastUpdated).toLocaleString('pt-BR') : '—'}
+                Última atualização: {formatDateTimeBR(mpInsights.lastUpdated)}
+              </div>
+              <div style={{ marginTop: '4px', fontSize: '10px', opacity: 0.55 }}>
+                Navegação: {mpAdvancedPagination.lastMove === 'next' ? 'próxima página' : mpAdvancedPagination.lastMove === 'prev' ? 'página anterior' : 'página inicial'}
               </div>
               <div style={{ marginTop: '2px', fontSize: '10px', opacity: 0.55 }}>
                 Página atual: {mpAdvancedPagination.page}
@@ -1329,18 +1456,21 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {paymentProvider === 'sumup' && (
               <button onClick={syncSumupCheckouts} disabled={isSyncing} style={{ background: 'transparent', border: '1px solid rgba(79,70,229,0.35)', color: '#4f46e5', padding: '6px 14px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: isSyncing ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase', opacity: isSyncing ? 0.6 : 1 }}>
-                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} /> {isSyncing ? 'SINCRONIZANDO...' : 'SINCRONIZAR SUMUP'}
+                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} /> {isSyncing ? 'SINCRONIZANDO...' : 'SINCRONIZAR DADOS SUMUP'}
               </button>
             )}
             {paymentProvider === 'mercadopago' && (
               <button onClick={syncMercadoPagoCheckouts} disabled={isSyncing} style={{ background: 'transparent', border: '1px solid rgba(0,158,85,0.35)', color: '#009e55', padding: '6px 14px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: isSyncing ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase', opacity: isSyncing ? 0.6 : 1 }}>
-                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} /> {isSyncing ? 'SINCRONIZANDO...' : 'SINCRONIZAR MERCADO PAGO'}
+                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} /> {isSyncing ? 'SINCRONIZANDO...' : 'SINCRONIZAR DADOS MERCADO PAGO'}
               </button>
             )}
             <button onClick={() => fetchFinanceData(true)} style={{ background: 'transparent', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, color: activePalette.fontColor, padding: '6px 14px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase' }}>
               <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} /> {isRefreshing ? 'ATUALIZANDO...' : 'ATUALIZAR AGORA'}
             </button>
           </div>
+        </div>
+        <div style={{ marginTop: '-8px', marginBottom: '12px', fontSize: '11px', fontWeight: 700, opacity: 0.78 }}>
+          Exibindo somente registros desde {paymentProvider === 'sumup' ? formatDateBR(`${sumupStartDate}T00:00:00-03:00`) : formatDateBR(`${mpStartDate}T00:00:00-03:00`)} (Brasília, UTC-3)
         </div>
 
         {/* Legenda de status */}
@@ -1410,7 +1540,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                         onClick={() => setExpandedRow(isExpanded ? null : log.id)}
                       >
                         <td style={{ padding: '12px', opacity: 0.8, whiteSpace: 'nowrap' }}>
-                          {new Date(log.created_at.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                          {formatDateTimeBR(log.created_at ? `${log.created_at.replace(' ', 'T')}Z` : null)}
                         </td>
                         <td style={{ padding: '12px', fontFamily: 'monospace', fontSize: '11px', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={txId}>
                           {txId}
@@ -1468,7 +1598,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                       {/* Painel de detalhes expansível */}
                       {isExpanded && (
                         <tr>
-                          <td colSpan={7} style={{ padding: '0', borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                          <td colSpan={8} style={{ padding: '0', borderBottom: `1px dashed ${isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
                             {paymentProvider === 'sumup' ? (
                               <div style={{ padding: '16px 20px', background: isDarkBase ? 'rgba(79,70,229,0.08)' : 'rgba(79,70,229,0.04)', borderLeft: '3px solid #4f46e5', margin: '0 12px 12px 12px', borderRadius: '0 8px 8px 0', fontSize: '12px' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
@@ -1484,7 +1614,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                                     ['Moeda', sumupInfo.currency],
                                     ['ID Interno', String(sumupInfo.internalId)],
                                     ['Checkout Ref', sumupInfo.checkoutRef],
-                                    ['Data TX (UTC)', sumupInfo.txTimestamp ? new Date(sumupInfo.txTimestamp).toLocaleString('pt-BR') : '—'],
+                                    ['Data TX (Brasília)', formatDateTimeBR(sumupInfo.txTimestamp)],
                                   ].map(([label, value]) => (
                                     <div key={label}>
                                       <div style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.5, letterSpacing: '0.5px', marginBottom: '2px' }}>{label}</div>
@@ -1517,8 +1647,8 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                                     ['Valor Total Pago', mpInfo.totalPaidAmount != null ? `R$ ${Number(mpInfo.totalPaidAmount).toFixed(2)}` : null],
                                     ['Valor Líquido Recebido', mpInfo.netReceivedAmount != null ? `R$ ${Number(mpInfo.netReceivedAmount).toFixed(2)}` : null],
                                     ['Taxa MP', mpInfo.feeAmount != null ? `R$ ${Number(mpInfo.feeAmount).toFixed(2)}` : null],
-                                    ['Data de Aprovação', mpInfo.dateApproved ? new Date(mpInfo.dateApproved).toLocaleString('pt-BR') : null],
-                                    ['Previsão de Liberação', mpInfo.moneyReleaseDate ? new Date(mpInfo.moneyReleaseDate).toLocaleDateString('pt-BR') : null],
+                                    ['Data de Aprovação', mpInfo.dateApproved ? formatDateTimeBR(mpInfo.dateApproved) : null],
+                                    ['Previsão de Liberação', mpInfo.moneyReleaseDate ? formatDateBR(mpInfo.moneyReleaseDate) : null],
                                     ['Status de Liberação', mpInfo.moneyReleaseStatus],
                                     ['Modo de Processamento', mpInfo.processingMode],
                                     ['Ref. Adquirente', mpInfo.acquirerRef],
