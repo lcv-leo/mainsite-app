@@ -26,7 +26,6 @@ export async function onRequest(context) {
   // 1. Pega a resposta original (o seu index.html estático do React)
   const response = await context.next();
   
-  const url = new URL(context.request.url);
   const queryPostId = url.searchParams.get('p');
   const pathMatch = url.pathname.match(/^\/(?:p|post|materia|m|s)\/(\d+)\/?$/i);
   const postId = queryPostId || (pathMatch ? pathMatch[1] : null);
