@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "include": ["/*"],
+  "exclude": [
+    "/assets/*",
+    "/image_0.png",
+    "/pubkey.asc",
+    "/robots.txt"
+  ]
+}

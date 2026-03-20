@@ -5,6 +5,24 @@
 /* global HTMLRewriter */
 
 export async function onRequest(context) {
+  const url = new URL(context.request.url);
+
+  // Se a URL aponta para um arquivo estático (assets, imagens, fontes etc.),
+  // bypass do middleware OG — o _routes.json já exclui /assets/*, mas este guard
+  // cobre quaisquer outros arquivos com extensão que passem pelo handler.
+  // Se o servidor retornar text/html para uma requisição de asset (arquivo ausente
+  // na deployment / fallback SPA), responde com 404 limpo em vez de entregar HTML
+  // com MIME errado, o que quebraria o carregamento dos módulos JS.
+  const isStaticFile = /\.(js|css|mjs|ts|jsx|tsx|ico|png|jpg|jpeg|gif|svg|webp|avif|woff2?|ttf|eot|map|json|txt|asc|xml|gz|br|pdf)$/i.test(url.pathname);
+  if (isStaticFile) {
+    const assetResponse = await context.next();
+    const contentType = assetResponse.headers.get('Content-Type') || '';
+    if (contentType.includes('text/html')) {
+      return new Response('Not Found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    }
+    return assetResponse;
+  }
+
   // 1. Pega a resposta original (o seu index.html estático do React)
   const response = await context.next();
   
