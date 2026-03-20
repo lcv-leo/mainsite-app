@@ -185,14 +185,19 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     setTimeout(() => setPanelToast(prev => ({ ...prev, show: false })), 4000);
   }, []);
 
-  // Rastreia a última posição de interação do usuário no viewport,
-  // para exibir o toast próximo à região em foco.
+  // Rastreia a última posição do usuário no viewport (clique ou hover),
+  // para exibir o toast próximo à região em foco — inclusive quando
+  // a notificação dispara automaticamente (ex.: auto-sync da aba MP no mount).
   useEffect(() => {
     const trackPointer = (e) => {
       if (typeof e?.clientY === 'number') lastPointerYRef.current = e.clientY;
     };
     window.addEventListener('pointerdown', trackPointer, { passive: true });
-    return () => window.removeEventListener('pointerdown', trackPointer);
+    window.addEventListener('pointermove', trackPointer, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', trackPointer);
+      window.removeEventListener('pointermove', trackPointer);
+    };
   }, []);
 
   const fetchFinanceData = useCallback(async (isManual = false) => {
