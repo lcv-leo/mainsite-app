@@ -408,11 +408,13 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <form>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
                 <input
+                  id="donation-first-name" name="donationFirstName"
                   type="text" required placeholder="Nome"
                   value={firstName} onChange={(e) => setFirstName(e.target.value)}
                   style={inputStyle}
                 />
                 <input
+                  id="donation-last-name" name="donationLastName"
                   type="text" required placeholder="Sobrenome"
                   value={lastName} onChange={(e) => setLastName(e.target.value)}
                   style={inputStyle}
@@ -422,6 +424,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
                 <span style={{ position: 'absolute', left: '20px', fontSize: '18px', fontWeight: 'bold', opacity: 0.5 }}>R$</span>
                 <input
+                  id="donation-amount" name="donationAmount"
                   type="text" required value={amountDisplay} onChange={handleAmountChange} placeholder="0,00"
                   style={{ width: '100%', padding: '15px 15px 15px 50px', backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: 'var(--shape-md)', color: activePalette.fontColor, fontSize: '22px', fontWeight: 'bold', boxSizing: 'border-box' }}
                 />
@@ -430,6 +433,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
               {/* Checkbox de repasse de taxa (apenas para cartão de crédito) */}
               <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', cursor: 'pointer', fontSize: '13px', opacity: 0.85, textAlign: 'left', userSelect: 'none' }}>
                 <input
+                  id="donation-cover-fees" name="donationCoverFees"
                   type="checkbox"
                   checked={coverFees}
                   onChange={(e) => setCoverFees(e.target.checked)}

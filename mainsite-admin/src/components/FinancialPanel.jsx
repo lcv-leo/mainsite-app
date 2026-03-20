@@ -839,7 +839,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             ) : (
               <div>
                 <p style={styles.modalText}>Estorno do pagamento <strong>{activeTx.id}</strong> ({paymentProvider === 'sumup' ? 'SumUp' : 'Mercado Pago'}).</p>
-                <input type="text" placeholder={`R$ Máximo: ${activeTx.amount.toFixed(2)}`} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value.replace(/[^0-9.,]/g, ''))} style={{ ...styles.textInput, width: '100%', marginBottom: '20px', textAlign: 'center', fontSize: '16px' }} />
+                <input id="refund-amount" name="refundAmount" type="text" placeholder={`R$ Máximo: ${activeTx.amount.toFixed(2)}`} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value.replace(/[^0-9.,]/g, ''))} style={{ ...styles.textInput, width: '100%', marginBottom: '20px', textAlign: 'center', fontSize: '16px' }} />
               </div>
             )}
 
@@ -956,12 +956,11 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
             <select
+              id="sumup-filter-status" name="sumupFilterStatus"
               value={sumupFilters.statuses[0] || ''}
               onChange={(e) => setSumupFilters(prev => ({ ...prev, statuses: e.target.value ? [e.target.value] : [] }))}
               style={{ ...styles.textInput, width: 'auto', minWidth: '180px', fontSize: '12px', padding: '8px 10px' }}
             >
-              <option value="">Status (todos)</option>
-              <option value="successful">SUCCESSFUL</option>
               <option value="pending">PENDING</option>
               <option value="failed">FAILED</option>
               <option value="cancelled">CANCELLED</option>
@@ -970,17 +969,17 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             </select>
 
             <select
+              id="sumup-filter-type" name="sumupFilterType"
               value={sumupFilters.types[0] || ''}
               onChange={(e) => setSumupFilters(prev => ({ ...prev, types: e.target.value ? [e.target.value] : [] }))}
               style={{ ...styles.textInput, width: 'auto', minWidth: '180px', fontSize: '12px', padding: '8px 10px' }}
             >
-              <option value="">Tipo (todos)</option>
-              <option value="payment">PAYMENT</option>
               <option value="refund">REFUND</option>
               <option value="charge_back">CHARGE_BACK</option>
             </select>
 
             <select
+              id="sumup-filter-limit" name="sumupFilterLimit"
               value={sumupFilters.limit}
               onChange={(e) => setSumupFilters(prev => ({ ...prev, limit: Number(e.target.value) || 50 }))}
               style={{ ...styles.textInput, width: 'auto', minWidth: '120px', fontSize: '12px', padding: '8px 10px' }}
@@ -992,6 +991,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             </select>
 
             <input
+              id="sumup-start-date" name="sumupStartDate"
               type="date"
               value={sumupStartDate}
               min={FINANCIAL_CUTOFF_DATE}
@@ -1221,12 +1221,11 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
             <select
+              id="mp-filter-status" name="mpFilterStatus"
               value={mpFilters.statuses[0] || ''}
               onChange={(e) => setMpFilters(prev => ({ ...prev, statuses: e.target.value ? [e.target.value] : [] }))}
               style={{ ...styles.textInput, width: 'auto', minWidth: '180px', fontSize: '12px', padding: '8px 10px' }}
             >
-              <option value="">Status (todos)</option>
-              <option value="approved">APPROVED</option>
               <option value="pending">PENDING</option>
               <option value="in_process">IN_PROCESS</option>
               <option value="rejected">REJECTED</option>
@@ -1236,12 +1235,11 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             </select>
 
             <select
+              id="mp-filter-type" name="mpFilterType"
               value={mpFilters.types[0] || ''}
               onChange={(e) => setMpFilters(prev => ({ ...prev, types: e.target.value ? [e.target.value] : [] }))}
               style={{ ...styles.textInput, width: 'auto', minWidth: '180px', fontSize: '12px', padding: '8px 10px' }}
             >
-              <option value="">Tipo (todos)</option>
-              <option value="credit_card">CREDIT_CARD</option>
               <option value="debit_card">DEBIT_CARD</option>
               <option value="pix">PIX</option>
               <option value="ticket">TICKET</option>
@@ -1249,6 +1247,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             </select>
 
             <select
+              id="mp-filter-limit" name="mpFilterLimit"
               value={mpFilters.limit}
               onChange={(e) => setMpFilters(prev => ({ ...prev, limit: Number(e.target.value) || 50 }))}
               style={{ ...styles.textInput, width: 'auto', minWidth: '120px', fontSize: '12px', padding: '8px 10px' }}
@@ -1260,6 +1259,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
             </select>
 
             <input
+              id="mp-start-date" name="mpStartDate"
               type="date"
               value={mpStartDate}
               min={FINANCIAL_CUTOFF_DATE}

@@ -66,7 +66,7 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
                 <p style={{ margin: '0 0 30px 0', fontSize: '14px', opacity: 0.8, lineHeight: '1.6', fontWeight: '500' }}>Insira o e-mail do destinatário para enviar o link deste fragmento.</p>
 
                 <form onSubmit={onSubmit} style={{ width: '100%' }}>
-                    <input type="email" required autoFocus placeholder="destinatario@exemplo.com" value={modalState.email} onChange={(e) => setModalState({ ...modalState, email: e.target.value })} style={inputStyle} />
+                    <input id="share-recipient-email" name="shareRecipientEmail" type="email" required autoFocus placeholder="destinatario@exemplo.com" value={modalState.email} onChange={(e) => setModalState({ ...modalState, email: e.target.value })} style={inputStyle} />
                     <button type="submit" style={buttonStyle} onMouseOver={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={(e) => (e.currentTarget.style.transform = 'translateY(0)')}>
                         <Send size={20} /> ENVIAR E-MAIL
                     </button>

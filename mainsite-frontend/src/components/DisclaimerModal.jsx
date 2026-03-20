@@ -66,6 +66,7 @@ const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigg
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
           <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '13px', opacity: 0.8, cursor: 'pointer', fontWeight: '700' }}>
             <input
+              id="disclaimer-dont-show" name="disclaimerDontShow"
               type="checkbox"
               checked={dontShowAgain}
               onChange={(e) => setDontShowAgain(e.target.checked)}

@@ -403,6 +403,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
 
         <form onSubmit={handleSend} style={inputAreaStyle}>
           <input
+            id="chat-message-input" name="chatMessageInput"
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}

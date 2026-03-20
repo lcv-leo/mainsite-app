@@ -60,6 +60,8 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
         <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)`, margin: '30px 24px 0 24px', paddingBottom: '16px' }}>
           <Search size={20} style={{ opacity: 0.6, marginRight: '16px' }} color={activePalette.fontColor} />
           <input
+            id="archive-keyword-search"
+            name="archiveKeywordSearch"
             type="text"
             placeholder="BUSCA EXATA POR PALAVRAS-CHAVE..."
             value={searchTerm}

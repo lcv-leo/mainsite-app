@@ -536,12 +536,12 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <h3 style={{ margin: '0 0 24px 0', fontSize: 'var(--type-label)', fontWeight: '700', textTransform: 'uppercase', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '12px', letterSpacing: '0.5px' }}>{promptModal.title}</h3>
-            <input autoFocus type="text" placeholder={promptModal.placeholder || 'https://...'} value={promptModal.value} onChange={e => setPromptModal({ ...promptModal, value: e.target.value })} style={styles.textInput} />
+            <input id="prompt-modal-url" name="promptModalUrl" autoFocus type="text" placeholder={promptModal.placeholder || 'https://...'} value={promptModal.value} onChange={e => setPromptModal({ ...promptModal, value: e.target.value })} style={styles.textInput} />
             {promptModal.isLink && editor.state.selection.empty && (
-              <input type="text" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({ ...promptModal, linkText: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
+              <input id="prompt-modal-link-text" name="promptModalLinkText" type="text" placeholder="Texto de exibição (opcional)" value={promptModal.linkText} onChange={e => setPromptModal({ ...promptModal, linkText: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
             )}
             {promptModal.showCaption && (
-              <input type="text" placeholder="Legenda (opcional)" value={promptModal.caption} onChange={e => setPromptModal({ ...promptModal, caption: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
+              <input id="prompt-modal-caption" name="promptModalCaption" type="text" placeholder="Legenda (opcional)" value={promptModal.caption} onChange={e => setPromptModal({ ...promptModal, caption: e.target.value })} style={{ ...styles.textInput, marginTop: '16px' }} />
             )}
             <div style={{ ...styles.modalActions, marginTop: '24px' }}>
               <button type="button" onClick={() => setPromptModal({ show: false })} style={styles.modalBtnCancel}>CANCELAR</button>
@@ -653,7 +653,7 @@ const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotificatio
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
       <button onClick={onCancel} style={styles.backButton}><ArrowLeft size={16} /> Cancelar Edição</button>
       <form onSubmit={handleSubmit} style={styles.form}>
-        <input style={styles.adminInput} placeholder="TÍTULO DO FRAGMENTO" value={title} onChange={e => setTitle(e.target.value)} required />
+        <input id="post-title" name="postTitle" style={styles.adminInput} placeholder="TÍTULO DO FRAGMENTO" value={title} onChange={e => setTitle(e.target.value)} required />
         <div style={styles.editorContainer}>
           <MenuBar editor={editor} secret={secret} showNotification={showNotification} API_URL={API_URL} styles={styles} />
           <div style={styles.tiptapWrapper}><EditorContent editor={editor} /></div>

@@ -166,7 +166,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
             <div style={{ padding: '14px 0 14px 20px', display: 'flex', alignItems: 'center' }}>
               {isTranslating ? <Loader2 size={18} className="animate-spin" /> : <Languages size={18} />}
             </div>
-            <select onChange={handleTranslate} className="ai-select" disabled={isAILoading} style={{ padding: '14px 0', marginLeft: '-18px' }}>
+            <select id="post-translate-language" name="postTranslateLanguage" onChange={handleTranslate} className="ai-select" disabled={isAILoading} style={{ padding: '14px 0', marginLeft: '-18px' }}>
               <option value="">{isTranslating ? 'TRADUZINDO...' : 'TRADUZIR PARA...'}</option>
               <option value="Inglês">English</option>
               <option value="Espanhol">Español</option>

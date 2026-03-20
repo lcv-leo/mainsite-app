@@ -558,7 +558,7 @@ const App = () => {
         </div>
       )}
 
-      <input type="file" accept="image/*" ref={fileInputBgRef} onChange={handleBgImageUpload} style={{ display: 'none' }} />
+      <input id="bg-image-upload" name="bgImageUpload" type="file" accept="image/*" ref={fileInputBgRef} onChange={handleBgImageUpload} style={{ display: 'none' }} />
 
       <div style={styles.adminContainer}>
         <header style={styles.adminHeader}>
