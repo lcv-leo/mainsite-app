@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.30.0
-// Descrição: Código INTEGRAL do backend Hono. Atualizado com as 4 rotas de exclusão (DELETE) para os logs de auditoria (financeiro, contatos, shares e chat). Preservadas as integrações do Gemini, Resend e Mercado Pago (Zero Trust).
+// Versão: v1.31.0
+// Descrição: Adicionado cabeçalho 'Access-Control-Allow-Origin' nas rotas de R2 para corrigir o erro de CORB que impedia o carregamento de imagens cross-domain. Código INTEGRAL do backend Hono preservado.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -1643,6 +1643,7 @@ app.get('/api/uploads/:filename', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    headers.set('Access-Control-Allow-Origin', '*'); // Permite o acesso cross-origin
     return new Response(object.body, { headers });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -1656,6 +1657,7 @@ app.get('/api/uploads/brands/:filename', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    headers.set('Access-Control-Allow-Origin', '*'); // Permite o acesso cross-origin
     return new Response(object.body, { headers });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
