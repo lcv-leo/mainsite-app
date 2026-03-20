@@ -10,7 +10,7 @@ const MP_PUBLIC_KEY_FALLBACK = 'APP_USR-6ab7dc5d-ed0a-484b-a569-057740f2f794';
 const mpPublicKey = (import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || MP_PUBLIC_KEY_FALLBACK)
   .trim()
   .replace(/^['"]|['"]$/g, '');
-const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || '')
+const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || 'https://mainsite-app.lcv.rio.br/api/uploads/brands')
   .trim()
   .replace(/^['"]|['"]$/g, '')
   .replace(/\/+$/, '');

@@ -3,6 +3,9 @@
   "include": ["/*"],
   "exclude": [
     "/assets/*",
+    "/favicon.ico",
+    "/favicon.svg",
+    "/icons.svg",
     "/image_0.png",
     "/pubkey.asc",
     "/robots.txt"

@@ -10,11 +10,11 @@ const SUMUP_FILTERS_STORAGE_KEY = 'mainsite_sumup_filters_v1';
 const MP_FILTERS_STORAGE_KEY = 'mainsite_mp_filters_v1';
 const FINANCIAL_CUTOFF_DATE = '2026-03-01';
 const FINANCIAL_CUTOFF_BRT_ISO = '2026-03-01T00:00:00-03:00';
-const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || '')
+const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || 'https://mainsite-app.lcv.rio.br/api/uploads/brands')
   .trim()
   .replace(/^['"]|['"]$/g, '')
   .replace(/\/+$/, '');
-const getBrandIconSrc = (fileName) => (brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : '');
+const getBrandIconSrc = (fileName) => `${brandIconsBaseUrl}/${fileName}`;
 
 const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDarkBase }) => {
   const [logs, setLogs] = useState([]);

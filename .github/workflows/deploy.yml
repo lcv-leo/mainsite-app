@@ -71,6 +71,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           VITE_API_SECRET: ${{ secrets.VITE_API_SECRET }}
+          VITE_BRAND_ICONS_BASE_URL: https://mainsite-app.lcv.rio.br/api/uploads/brands
         run: |
           set -e
 
@@ -106,6 +107,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VITE_BRAND_ICONS_BASE_URL: https://mainsite-app.lcv.rio.br/api/uploads/brands
         run: |
           set -e
 
