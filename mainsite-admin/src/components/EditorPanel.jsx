@@ -653,7 +653,7 @@ const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotificatio
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
       <button onClick={onCancel} style={styles.backButton}><ArrowLeft size={16} /> Cancelar Edição</button>
       <form onSubmit={handleSubmit} style={styles.form}>
-        <input id="post-title" name="postTitle" style={styles.adminInput} placeholder="TÍTULO DO FRAGMENTO" value={title} onChange={e => setTitle(e.target.value)} required />
+        <input id="post-title" name="postTitle" autoComplete="off" style={styles.adminInput} placeholder="TÍTULO DO FRAGMENTO" value={title} onChange={e => setTitle(e.target.value)} required />
         <div style={styles.editorContainer}>
           <MenuBar editor={editor} secret={secret} showNotification={showNotification} API_URL={API_URL} styles={styles} />
           <div style={styles.tiptapWrapper}><EditorContent editor={editor} /></div>
