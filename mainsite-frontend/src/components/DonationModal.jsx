@@ -42,6 +42,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
   const [toastTop, setToastTop] = useState(20);
+  const [brandImageFailed, setBrandImageFailed] = useState({});
   const lastPointerYRef = useRef(null);
 
   const showToast = (message, type = 'error') => {
@@ -83,6 +84,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         setCoverFees(false);
         setIsProcessingCard(false);
         setIsProcessingMpCard(false);
+        setBrandImageFailed({});
       }, 0);
     } else {
       setTimeout(() => setStep(1), 0);
@@ -374,7 +376,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const sumupBrandIcons = [
     { key: 'mastercard', label: 'Mastercard', src: 'https://cdn.simpleicons.org/mastercard/EB001B' },
     { key: 'visa', label: 'Visa', src: 'https://cdn.simpleicons.org/visa/1A1F71' },
-    { key: 'elo', label: 'Elo', src: 'https://cdn.simpleicons.org/elo/00A4E0' },
+    { key: 'elo', label: 'Elo', src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Elo_logo.svg/512px-Elo_logo.svg.png' },
     { key: 'amex', label: 'American Express', src: 'https://cdn.simpleicons.org/americanexpress/2E77BC' },
   ];
 
@@ -521,7 +523,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <div style={cardSectionStyle}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
                 <span style={cardProviderBadgeStyle('sumup')}><CreditCard size={13} /> SUMUP</span>
-                <span style={{ fontSize: '11px', opacity: 0.75, fontWeight: 700 }}>Fluxo oficial do SDK</span>
               </div>
               <div style={{ fontSize: '12px', lineHeight: '1.6', opacity: 0.85 }}>
                 Valor base: <strong>R$ {formatBRL(donationBase || 0)}</strong><br />
@@ -547,13 +548,20 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                     padding: '4px',
                   }}
                 >
-                  <img
-                    src={brand.src}
-                    alt={brand.label}
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    style={{ width: '18px', height: '18px', objectFit: 'contain' }}
-                  />
+                  {!brandImageFailed[brand.key] ? (
+                    <img
+                      src={brand.src}
+                      alt={brand.label}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={() => setBrandImageFailed((prev) => ({ ...prev, [brand.key]: true }))}
+                      style={{ width: '18px', height: '18px', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: '9px', fontWeight: 800, opacity: 0.85 }}>
+                      {brand.label.slice(0, 4).toUpperCase()}
+                    </span>
+                  )}
                 </span>
               ))}
             </div>
@@ -688,7 +696,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <div style={cardSectionStyle}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
                 <span style={cardProviderBadgeStyle('mercadopago')}><CreditCard size={13} /> MERCADO PAGO</span>
-                <span style={{ fontSize: '11px', opacity: 0.75, fontWeight: 700 }}>Fluxo oficial do SDK</span>
               </div>
               <div style={{ fontSize: '12px', lineHeight: '1.6', opacity: 0.85 }}>
                 Valor base: <strong>R$ {formatBRL(donationBase || 0)}</strong><br />
