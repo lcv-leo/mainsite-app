@@ -703,7 +703,20 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
           "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
         ).bind(checkoutId, 'FAILED', Number(amount), 'sumup_card', failedEmail, JSON.stringify({ error: updateErr.message })).run()
       );
-      throw updateErr;
+      // Extrai mensagem do SumUp SDK: formato "STATUS_CODE: {json}"
+      const rawMsg = updateErr.message || '';
+      const sdkMatch = rawMsg.match(/^(\d{3}):\s*(.+)$/s);
+      let userMessage = rawMsg;
+      let httpStatus = 500;
+      if (sdkMatch) {
+        const sdkStatus = parseInt(sdkMatch[1], 10);
+        httpStatus = sdkStatus >= 400 && sdkStatus < 500 ? 422 : 500;
+        try {
+          const parsed = JSON.parse(sdkMatch[2]);
+          userMessage = parsed.message || rawMsg;
+        } catch { userMessage = sdkMatch[2] || rawMsg; }
+      }
+      return c.json({ error: userMessage }, httpStatus);
     }
 
     // Extrai o transaction ID se disponível
