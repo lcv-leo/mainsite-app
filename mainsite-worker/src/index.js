@@ -169,8 +169,57 @@ app.post('/api/ai/public/chat', async (c) => {
     if (!apiKey) return c.json({ error: "GEMINI_API_KEY não configurada no Worker." }, 503);
     if (!message) return c.json({ error: "Mensagem ausente." }, 400);
 
-    const { results } = await c.env.DB.prepare("SELECT title, content FROM posts ORDER BY is_pinned DESC, created_at DESC LIMIT 30").all();
-    const dbContext = results.map(p => `TÍTULO: ${p.title}\nCONTEÚDO: ${p.content}`).join('\n\n---\n\n');
+    const { results } = await c.env.DB.prepare("SELECT id, title, content, created_at FROM posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC").all();
+
+    const normalizeForSearch = (value = '') => String(value)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
+    const safeMessage = String(message || '').trim();
+    const normalizedMessage = normalizeForSearch(safeMessage);
+    const terms = [...new Set(
+      normalizedMessage
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter((t) => t.length >= 3)
+    )].slice(0, 24);
+
+    const scoredPosts = (Array.isArray(results) ? results : []).map((post) => {
+      const title = String(post?.title || '');
+      const content = String(post?.content || '');
+      const titleNorm = normalizeForSearch(title);
+      const contentNorm = normalizeForSearch(content);
+
+      let score = 0;
+      if (normalizedMessage && titleNorm.includes(normalizedMessage)) score += 30;
+      if (normalizedMessage && contentNorm.includes(normalizedMessage)) score += 15;
+
+      for (const term of terms) {
+        if (titleNorm.includes(term)) score += 8;
+        if (contentNorm.includes(term)) score += 3;
+      }
+
+      return {
+        ...post,
+        score,
+      };
+    });
+
+    const relevantPosts = scoredPosts
+      .filter((post) => post.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 24);
+
+    const fallbackPosts = scoredPosts.slice(0, 12);
+    const contextPosts = relevantPosts.length > 0 ? relevantPosts : fallbackPosts;
+
+    const dbContext = contextPosts
+      .map((p) => `ID: ${p.id}\nTÍTULO: ${p.title}\nDATA: ${p.created_at || 'N/A'}\nCONTEÚDO: ${p.content}`)
+      .join('\n\n---\n\n');
+
+    const dbCoverageMeta = `ACERVO TOTAL INDEXADO NO BANCO: ${scoredPosts.length} PUBLICAÇÕES. TRECHOS DETALHADOS ENVIADOS AO MODELO NESTA REQUISIÇÃO: ${contextPosts.length}.`;
+    const selectedPostAudit = contextPosts.slice(0, 30).map((p) => ({ id: p.id, title: p.title, score: p.score, created_at: p.created_at || null }));
 
     let activeContextPrompt = "";
     const contextTitleLog = currentContext && currentContext.title ? currentContext.title : "Contexto Geral / Busca Global";
@@ -204,6 +253,8 @@ O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
 Como base de conhecimento secundária (para perguntas sobre outros assuntos do site), utilize os textos gerais fornecidos abaixo. 
 Se a resposta não estiver em nenhum dos textos, diga educadamente que o site ainda não abordou este tema.
 Forneça respostas diretas, limpas e cite o TÍTULO do texto quando for relevante.
+
+${dbCoverageMeta}
 
 TEXTOS GERAIS DO SITE:
 ${dbContext}
@@ -258,14 +309,72 @@ PERGUNTA DO USUÁRIO: ${message}`;
       replyText = replyText.replace(emailRegex, '').trim();
     }
 
-    // Registro na Telemetria
+    // Registro na Telemetria + Auditoria de Contexto
     const logPromise = c.env.DB.batch([
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('user', ?, ?)").bind(message, contextTitleLog),
       c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('bot', ?, ?)").bind(replyText, contextTitleLog)
     ]);
-    c.executionCtx.waitUntil(logPromise);
+
+    const auditPromise = (async () => {
+      await c.env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS chat_context_audit (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          question TEXT NOT NULL,
+          context_title TEXT,
+          total_posts_scanned INTEGER NOT NULL,
+          context_posts_used INTEGER NOT NULL,
+          selected_posts_json TEXT NOT NULL,
+          terms_json TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+
+      await c.env.DB.prepare(
+        "INSERT INTO chat_context_audit (question, context_title, total_posts_scanned, context_posts_used, selected_posts_json, terms_json) VALUES (?, ?, ?, ?, ?, ?)"
+      ).bind(
+        safeMessage,
+        contextTitleLog,
+        Number(scoredPosts.length || 0),
+        Number(contextPosts.length || 0),
+        JSON.stringify(selectedPostAudit),
+        JSON.stringify(terms)
+      ).run();
+    })();
+
+    c.executionCtx.waitUntil(Promise.all([logPromise, auditPromise]));
 
     return c.json({ success: true, reply: replyText });
+  } catch (err) { return c.json({ error: err.message }, 500); }
+});
+
+app.get('/api/chat-context-audit', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    await c.env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS chat_context_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question TEXT NOT NULL,
+        context_title TEXT,
+        total_posts_scanned INTEGER NOT NULL,
+        context_posts_used INTEGER NOT NULL,
+        selected_posts_json TEXT NOT NULL,
+        terms_json TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
+    const { results } = await c.env.DB.prepare("SELECT * FROM chat_context_audit ORDER BY created_at DESC LIMIT 200").all();
+    return c.json(results || []);
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+app.delete('/api/chat-context-audit/:id', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  try {
+    await c.env.DB.prepare("DELETE FROM chat_context_audit WHERE id = ?").bind(c.req.param('id')).run();
+    return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 

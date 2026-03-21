@@ -3,11 +3,13 @@
 // Descrição: Componente MD3 para o Botão de Voltar ao Topo, Troca de Tema e Chat.
 
 import React from 'react';
-import { ArrowUp, Monitor, Sun, Moon, Bot, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, Monitor, Sun, Moon, Bot, X } from 'lucide-react';
 
 const FloatingControls = ({
   showBackToTop,
+  showScrollToBottom,
   scrollToTop,
+  scrollToBottom,
   userTheme,
   cycleTheme,
   isChatOpen,
@@ -44,6 +46,12 @@ const FloatingControls = ({
           {showBackToTop && (
             <button onClick={scrollToTop} className="fab-btn" title="Voltar ao Topo">
               <ArrowUp size={24} />
+            </button>
+          )}
+
+          {showScrollToBottom && (
+            <button onClick={scrollToBottom} className="fab-btn" title="Ir para o Final">
+              <ArrowDown size={24} />
             </button>
           )}
 

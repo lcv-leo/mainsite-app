@@ -52,6 +52,7 @@ const App = () => {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showDisclaimerFlow, setShowDisclaimerFlow] = useState(false);
@@ -251,11 +252,27 @@ const App = () => {
     }
   }, [currentPost]);
 
-  // Back to top visibility trigger
+  // Floating scroll controls visibility trigger
   useEffect(() => {
-    const handleScroll = () => setShowBackToTop(window.scrollY > 400);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const viewportHeight = window.innerHeight;
+      const pageHeight = document.documentElement.scrollHeight;
+      const scrollableDistance = Math.max(0, pageHeight - viewportHeight);
+      const remainingToBottom = pageHeight - (scrollTop + viewportHeight);
+      const hasMeaningfulScroll = scrollableDistance > 650;
+
+      setShowBackToTop(hasMeaningfulScroll && scrollTop > 420);
+      setShowScrollToBottom(hasMeaningfulScroll && scrollTop > 120 && remainingToBottom > 420);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
   }, []);
 
   const activePalette = useMemo(() => {
@@ -382,7 +399,17 @@ const App = () => {
 
       <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={(p) => { window.history.pushState({}, '', `/p/${p.id}`); setCurrentPost(p); }} activePalette={activePalette} APP_VERSION={APP_VERSION} />
 
-      <FloatingControls showBackToTop={showBackToTop} scrollToTop={() => window.scrollTo({ top: 0, behavior: 'smooth' })} userTheme={userTheme} cycleTheme={cycleTheme} isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} activePalette={activePalette} />
+      <FloatingControls
+        showBackToTop={showBackToTop}
+        showScrollToBottom={showScrollToBottom}
+        scrollToTop={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        scrollToBottom={() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })}
+        userTheme={userTheme}
+        cycleTheme={cycleTheme}
+        isChatOpen={isChatOpen}
+        setIsChatOpen={setIsChatOpen}
+        activePalette={activePalette}
+      />
 
       <Suspense fallback={null}>
         <DisclaimerModal show={showDisclaimerFlow} onClose={() => setShowDisclaimerFlow(false)} activePalette={activePalette} config={disclaimers} onDonationTrigger={() => setShowDonationModal(true)} />

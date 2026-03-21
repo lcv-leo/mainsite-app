@@ -4,13 +4,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom'; // ADDED REACT PORTAL
-import { ArrowLeft, MessageSquare, Share2, Bot, Loader2, Calendar, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Share2, Bot, Loader2, Calendar, RefreshCw, Trash2, AlertCircle, BrainCog } from 'lucide-react';
+import TelemetryPanel from './TelemetryPanel';
 
 const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
-  const [data, setData] = useState({ contacts: [], shares: [], chatLogs: [] });
+  const [data, setData] = useState({ contacts: [], shares: [], chatLogs: [], chatContextAudit: [] });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [subview, setSubview] = useState(null);
 
   // State for the MD3 Confirmation Modal with dynamic Y positioning
   const [deleteModal, setDeleteModal] = useState({ show: false, type: '', id: null, posY: 0 });
@@ -22,18 +24,20 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
 
     try {
       const headers = { 'Authorization': `Bearer ${secret}` };
-      const [resContacts, resShares, resChat] = await Promise.all([
+      const [resContacts, resShares, resChat, resChatAudit] = await Promise.all([
         fetch(`${API_URL}/contact-logs`, { headers }),
         fetch(`${API_URL}/shares`, { headers }),
-        fetch(`${API_URL}/chat-logs`, { headers })
+        fetch(`${API_URL}/chat-logs`, { headers }),
+        fetch(`${API_URL}/chat-context-audit`, { headers })
       ]);
 
-      if (!resContacts.ok || !resShares.ok || !resChat.ok) throw new Error("Falha ao buscar dados de telemetria na API.");
+      if (!resContacts.ok || !resShares.ok || !resChat.ok || !resChatAudit.ok) throw new Error("Falha ao buscar dados de telemetria na API.");
 
       setData({
         contacts: await resContacts.json(),
         shares: await resShares.json(),
-        chatLogs: await resChat.json()
+        chatLogs: await resChat.json(),
+        chatContextAudit: await resChatAudit.json()
       });
     } catch (err) { setError(err.message); }
     finally { if (!isSilent) setLoading(false); else setIsRefreshing(false); }
@@ -54,6 +58,7 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
     if (type === 'contact') endpoint = `/contact-logs/${id}`;
     if (type === 'share') endpoint = `/shares/${id}`;
     if (type === 'chat') endpoint = `/chat-logs/${id}`;
+    if (type === 'audit') endpoint = `/chat-context-audit/${id}`;
 
     try {
       const res = await fetch(`${API_URL}${endpoint}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${secret}` } });
@@ -106,16 +111,37 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
   const formatDate = (dateString) => {
     try {
       return new Date(dateString.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    } catch { 
-      return dateString; 
+    } catch {
+      return dateString;
+    }
+  };
+
+  const parseJsonArray = (raw, fallback = []) => {
+    try {
+      const parsed = JSON.parse(raw || '[]');
+      return Array.isArray(parsed) ? parsed : fallback;
+    } catch {
+      return fallback;
     }
   };
 
   return (
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
 
+      {/* SUB-VIEW: TelemetryPanel drill-down para Auditoria de Contexto */}
+      {subview === 'audit' && (
+        <TelemetryPanel
+          type="audit"
+          logs={data.chatContextAudit}
+          loading={isRefreshing}
+          onRefresh={fetchAnalytics}
+          onClose={() => setSubview(null)}
+          styles={styles}
+        />
+      )}
+
       {/* MD3 CONFIRMATION MODAL USING REACT PORTALS (ESCAPES PARENT DOM) */}
-      {deleteModal.show && createPortal(
+      {!subview && deleteModal.show && createPortal(
         <div style={styles.modalOverlay}>
           <div style={{ ...styles.modalContent, margin: 0 }}>
             <AlertCircle size={56} color="var(--semantic-error)" style={{ margin: '0 auto 20px auto' }} />
@@ -131,7 +157,9 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
         document.body // Injects directly into the root HTML body
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+      {!subview && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <button onClick={onClose} style={styles.backButton}>
           <ArrowLeft size={16} /> Voltar ao Console
         </button>
@@ -214,8 +242,60 @@ const AnalyticsPanel = ({ onClose, secret, API_URL, styles }) => {
               ))
             }
           </div>
+
+          <div style={blockStyle}>
+            <h2 style={titleStyle}><MessageSquare size={20} /> Auditoria de Contexto do Chatbot
+              <button onClick={() => setSubview('audit')} style={{ ...styles.headerBtn, marginLeft: 'auto', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }} title="Ver lista completa no painel detalhado">
+                <BrainCog size={14} /> Ver Lista Completa
+              </button>
+            </h2>
+            {data.chatContextAudit.length === 0 ? <div style={{ opacity: 0.5, fontSize: '13px' }}>Nenhum registro de auditoria de contexto ainda.</div> :
+              data.chatContextAudit.map((item) => {
+                const selectedPosts = parseJsonArray(item.selected_posts_json);
+                const termList = parseJsonArray(item.terms_json);
+                return (
+                  <div key={item.id} style={{ ...cardStyle, borderLeft: '4px solid rgba(14,165,233,0.75)' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.01)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+                      <div>
+                        <strong style={{ opacity: 0.9, textTransform: 'uppercase', fontSize: '13px', background: 'rgba(14,165,233,0.2)', padding: '6px 12px', borderRadius: '100px', display: 'inline-block', marginBottom: '10px' }}>
+                          🧠 CONTEXTO IA
+                        </strong>
+                        <div style={{ opacity: 0.72, fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '0.5px' }}>
+                          Contexto Ativo: {item.context_title || 'Nenhum / Global'}
+                        </div>
+                      </div>
+                      <div style={actionContainerStyle}>
+                        <div style={dateBadge}><Calendar size={14} /> {formatDate(item.created_at)}</div>
+                        <button onClick={(e) => setDeleteModal({ show: true, type: 'audit', id: item.id, posY: e.clientY })} style={trashBtnStyle} title="Excluir Registro"><Trash2 size={16} /></button>
+                      </div>
+                    </div>
+
+                    {termList.length > 0 && (
+                      <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                        <strong>Termos relevantes:</strong> {termList.join(', ')}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                      <strong style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', opacity: 0.85 }}>Publicações selecionadas para contexto</strong>
+                      {selectedPosts.length === 0 ? (
+                        <div style={{ opacity: 0.6, fontSize: '12px' }}>Sem publicações selecionadas neste ciclo.</div>
+                      ) : selectedPosts.slice(0, 10).map((post, idx) => (
+                        <div key={`${item.id}-${post.id || idx}`} style={{ fontSize: '12px', lineHeight: '1.5', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(128,128,128,0.12)', borderRadius: '12px', padding: '10px 12px' }}>
+                          <div style={{ fontWeight: '700' }}>#{post.id ?? 'N/A'} — {post.title || 'Sem título'}</div>
+                          <div style={{ opacity: 0.72 }}>Score: {post.score ?? 0} {post.created_at ? `| ${formatDate(post.created_at)}` : ''}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            }
+          </div>
         </>
       )}
+      </>
+    )}
     </div>
   );
 };
