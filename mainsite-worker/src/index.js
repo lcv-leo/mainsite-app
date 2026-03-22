@@ -1765,7 +1765,7 @@ app.get('/api/uploads/:filename', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', '*'); // Permite o acesso cross-origin
+    headers.set('Access-Control-Allow-Origin', 'https://www.lcv.rio.br');
     return new Response(object.body, { headers });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -1779,7 +1779,7 @@ app.get('/api/uploads/brands/:filename', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', '*'); // Permite o acesso cross-origin
+    headers.set('Access-Control-Allow-Origin', 'https://www.lcv.rio.br');
     return new Response(object.body, { headers });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
