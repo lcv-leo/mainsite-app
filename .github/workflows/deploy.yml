@@ -1,139 +1,65 @@
-# Módulo: .github/workflows/deploy-mainsite.yml
-# Versão: v1.7.0
-# Descrição: Deploy unificado sequencial do Worker, Admin e Frontend em um único job. Injeção de VITE_API_SECRET preservada.
-
-name: Deploy Pipeline Cloudflare
+name: Deploy Mainsite Pipeline
 
 on:
   push:
-    branches: [ "main" ] # Gatilho de escuta no GitHub (Padrão GitHub)
+    branches: [main]
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 : 'true'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   NODE_OPTIONS: "--no-deprecation"
   WRANGLER_VERSION: "latest"
-  
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+
     steps:
-      - name: Checkout do código
-        uses: actions/checkout@v6.0.2
-      
-      - name: Setup Node.js com Inteligência de Cache (Monorepo)
-        uses: actions/setup-node@v6.3.0
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/setup-node@v6.3.0
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: 24
+          cache: npm
           cache-dependency-path: |
             ./mainsite-worker/package-lock.json
             ./mainsite-admin/package-lock.json
             ./mainsite-frontend/package-lock.json
-          
-      - name: Instalar e Publicar Worker
+
+      - name: Install e Deploy Worker
         working-directory: ./mainsite-worker
+        run: |
+          npm install
+          npx wrangler@${WRANGLER_VERSION} deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          set -e
 
-          retry_wrangler() {
-            local cmd="$1"
-            local attempts=3
-            local delay=12
-            local n=1
-            while [ $n -le $attempts ]; do
-              echo "[Wrangler] Tentativa $n/$attempts: $cmd"
-              if eval "$cmd"; then
-                return 0
-              fi
-              if [ $n -lt $attempts ]; then
-                echo "[Wrangler] Falhou na tentativa $n. Repetindo em ${delay}s..."
-                sleep $delay
-              fi
-              n=$((n+1))
-            done
-
-            echo "[Wrangler] Todas as tentativas falharam. Últimos logs:"
-            ls -1t /home/runner/.config/.wrangler/logs/*.log 2>/dev/null | head -n 1 | xargs -r tail -n 200 || true
-            return 1
-          }
-
-          npm install
-          npx wrangler@${WRANGLER_VERSION} --version
-          retry_wrangler "npx wrangler@${WRANGLER_VERSION} deploy"
-
-      - name: Instalar, Compilar e Publicar Admin
+      - name: Install, Build e Deploy Admin
         working-directory: ./mainsite-admin
-        # INJEÇÃO CRÍTICA DE SEGURANÇA: A senha é passada para a VM para que o Vite a encontre
+        run: |
+          npm install
+          npm run build
+          npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-admin --branch=production --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           VITE_API_SECRET: ${{ secrets.VITE_API_SECRET }}
           VITE_BRAND_ICONS_BASE_URL: https://mainsite-app.lcv.rio.br/api/uploads/brands
+
+      - name: Install, Build e Deploy Frontend
+        working-directory: ./mainsite-frontend
         run: |
-          set -e
-
-          retry_wrangler() {
-            local cmd="$1"
-            local attempts=3
-            local delay=12
-            local n=1
-            while [ $n -le $attempts ]; do
-              echo "[Wrangler] Tentativa $n/$attempts: $cmd"
-              if eval "$cmd"; then
-                return 0
-              fi
-              if [ $n -lt $attempts ]; then
-                echo "[Wrangler] Falhou na tentativa $n. Repetindo em ${delay}s..."
-                sleep $delay
-              fi
-              n=$((n+1))
-            done
-
-            echo "[Wrangler] Todas as tentativas falharam. Últimos logs:"
-            ls -1t /home/runner/.config/.wrangler/logs/*.log 2>/dev/null | head -n 1 | xargs -r tail -n 200 || true
-            return 1
-          }
-
           npm install
           npm run build
-          npx wrangler@${WRANGLER_VERSION} --version
-          retry_wrangler "npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-admin --branch production --commit-dirty=true"
-
-      - name: Instalar, Compilar e Publicar Frontend
-        working-directory: ./mainsite-frontend
+          npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-frontend --branch=production --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           VITE_BRAND_ICONS_BASE_URL: https://mainsite-app.lcv.rio.br/api/uploads/brands
-        run: |
-          set -e
-
-          retry_wrangler() {
-            local cmd="$1"
-            local attempts=3
-            local delay=12
-            local n=1
-            while [ $n -le $attempts ]; do
-              echo "[Wrangler] Tentativa $n/$attempts: $cmd"
-              if eval "$cmd"; then
-                return 0
-              fi
-              if [ $n -lt $attempts ]; then
-                echo "[Wrangler] Falhou na tentativa $n. Repetindo em ${delay}s..."
-                sleep $delay
-              fi
-              n=$((n+1))
-            done
-
-            echo "[Wrangler] Todas as tentativas falharam. Últimos logs:"
-            ls -1t /home/runner/.config/.wrangler/logs/*.log 2>/dev/null | head -n 1 | xargs -r tail -n 200 || true
-            return 1
-          }
-
-          npm install
-          npm run build
-          npx wrangler@${WRANGLER_VERSION} --version
-          retry_wrangler "npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-frontend --branch production --commit-dirty=true"
