@@ -1,6 +1,6 @@
 // Módulo: mainsite-admin/src/App.jsx
-// Versão: v3.36.0
-// Descrição: Monólito consolidado. Painel Financeiro integrado, exclusão mútua de abas ajustada. Envelopamento global em Glassmorphism + Material Design 3 e ícone de Refresh dinâmico.
+// Versão: v03.36.00
+// Descrição: Monólito consolidado. Painel Financeiro integrado, exclusão mútua de abas ajustada. Glassmorphism + Material Design 3.
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import {
@@ -16,7 +16,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
 // URL Oficial da API
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v3.36.0';
+const APP_VERSION = 'APP v03.36.00';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,

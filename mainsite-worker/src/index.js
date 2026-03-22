@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v1.31.0
-// Descrição: Adicionado cabeçalho 'Access-Control-Allow-Origin' nas rotas de R2 para corrigir o erro de CORB que impedia o carregamento de imagens cross-domain. Código INTEGRAL do backend Hono preservado.
+// Versão: v01.32.00
+// Descrição: Upgrade Gemini API — modelo gemini-pro-latest (auto-atualiza), v1beta, thinkingLevel HIGH, safetySettings, retry com 1 tentativa extra, parsing multi-part para modelos thinking. Código INTEGRAL do backend Hono preservado.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
