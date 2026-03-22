@@ -1,5 +1,5 @@
 # Módulo: .gitattributes (Raiz Global)
-# Versão: v1.0.0
+# Versão: v01.00.0
 # Descrição: Otimização de rastreamento do Git, normalização de quebras de linha (Windows/Linux) e classificação de binários.
 
 # 1. Normalização de Quebra de Linha (Crucial para CI/CD em Ubuntu)
