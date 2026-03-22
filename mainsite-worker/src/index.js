@@ -163,7 +163,7 @@ app.post('/api/ai/transform', async (c) => {
     for (let t = 0; t < 2; t++) {
       response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: `${promptContext}\n\n"${text}"` }] }], generationConfig: { temperature: 0.5, thinkingConfig: { thinkingBudget: -1 } }, safetySettings })
+        body: JSON.stringify({ contents: [{ parts: [{ text: `${promptContext}\n\n"${text}"` }] }], generationConfig: { temperature: 0.5, thinkingConfig: { thinkingLevel: 'HIGH' } }, safetySettings })
       });
       if (response.ok) break;
       if (t === 0) await new Promise(r => setTimeout(r, 800));
@@ -280,7 +280,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: { temperature: 0.3, thinkingConfig: { thinkingBudget: -1 } },
+          generationConfig: { temperature: 0.3, thinkingConfig: { thinkingLevel: 'HIGH' } },
           safetySettings: [
             { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
             { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -418,7 +418,7 @@ app.post('/api/ai/public/summarize', async (c) => {
     for (let t = 0; t < 2; t++) {
       response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, thinkingConfig: { thinkingBudget: -1 } }, safetySettings: [{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }, { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' }] })
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, thinkingConfig: { thinkingLevel: 'HIGH' } }, safetySettings: [{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }, { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' }] })
       });
       if (response.ok) break;
       if (t === 0) await new Promise(r => setTimeout(r, 800));
@@ -442,7 +442,7 @@ app.post('/api/ai/public/translate', async (c) => {
     for (let t = 0; t < 2; t++) {
       response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, thinkingConfig: { thinkingBudget: -1 } }, safetySettings: [{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }, { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' }] })
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, thinkingConfig: { thinkingLevel: 'HIGH' } }, safetySettings: [{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }, { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' }] })
       });
       if (response.ok) break;
       if (t === 0) await new Promise(r => setTimeout(r, 800));
