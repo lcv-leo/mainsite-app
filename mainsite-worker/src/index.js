@@ -152,13 +152,26 @@ app.post('/api/ai/transform', async (c) => {
       default: promptContext = "Melhore o seguinte texto:";
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: `${promptContext}\n\n"${text}"` }] }], generationConfig: { temperature: 0.5 } })
-    });
+    const safetySettings = [
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+    ];
+
+    let response;
+    for (let t = 0; t < 2; t++) {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: `${promptContext}\n\n"${text}"` }] }], generationConfig: { temperature: 0.5, thinkingConfig: { thinkingBudget: -1 } }, safetySettings })
+      });
+      if (response.ok) break;
+      if (t === 0) await new Promise(r => setTimeout(r, 800));
+    }
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "Falha na API Gemini.");
-    return c.json({ success: true, text: data.candidates[0].content.parts[0].text });
+    const textParts = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text);
+    return c.json({ success: true, text: textParts.join('') || data.candidates[0].content.parts[0].text });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
@@ -261,15 +274,30 @@ ${dbContext}
 
 PERGUNTA DO USUÁRIO: ${message}`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }], generationConfig: { temperature: 0.3 } })
-    });
+    let response;
+    for (let t = 0; t < 2; t++) {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }],
+          generationConfig: { temperature: 0.3, thinkingConfig: { thinkingBudget: -1 } },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+          ]
+        })
+      });
+      if (response.ok) break;
+      if (t === 0) await new Promise(r => setTimeout(r, 800));
+    }
 
     const data = await response.json();
     if (!response.ok) throw new Error("Falha na API Gemini.");
 
-    let replyText = data.candidates[0].content.parts[0].text;
+    const textParts = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text);
+    let replyText = textParts.join('') || data.candidates[0].content.parts[0].text;
 
     // Tratativa da Tag de E-mail Oculto
     const emailRegex = /\[\[ENVIAR_EMAIL\]\](.*?)\[\[\/ENVIAR_EMAIL\]\]/is;
@@ -386,13 +414,19 @@ app.post('/api/ai/public/summarize', async (c) => {
     if (!text) return c.json({ error: "Texto ausente." }, 400);
 
     const prompt = `Crie um resumo conciso (TL;DR) em um único parágrafo objetivo para o seguinte texto:\n\n${text}`;
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4 } })
-    });
+    let response;
+    for (let t = 0; t < 2; t++) {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, thinkingConfig: { thinkingBudget: -1 } }, safetySettings: [{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }, { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' }] })
+      });
+      if (response.ok) break;
+      if (t === 0) await new Promise(r => setTimeout(r, 800));
+    }
     const data = await response.json();
     if (!response.ok) throw new Error("Falha na API Gemini.");
-    return c.json({ success: true, summary: data.candidates[0].content.parts[0].text });
+    const textParts = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text);
+    return c.json({ success: true, summary: textParts.join('') || data.candidates[0].content.parts[0].text });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
@@ -404,13 +438,19 @@ app.post('/api/ai/public/translate', async (c) => {
     if (!text || !lang) return c.json({ error: "Parâmetros inválidos." }, 400);
 
     const prompt = `Traduza rigorosamente o texto abaixo para o idioma: ${lang}. Mantenha qualquer tag HTML ou formatação intacta. Texto:\n\n${text}`;
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2 } })
-    });
+    let response;
+    for (let t = 0; t < 2; t++) {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, thinkingConfig: { thinkingBudget: -1 } }, safetySettings: [{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }, { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' }] })
+      });
+      if (response.ok) break;
+      if (t === 0) await new Promise(r => setTimeout(r, 800));
+    }
     const data = await response.json();
     if (!response.ok) throw new Error("Falha na API Gemini.");
-    return c.json({ success: true, translation: data.candidates[0].content.parts[0].text });
+    const textParts = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text);
+    return c.json({ success: true, translation: textParts.join('') || data.candidates[0].content.parts[0].text });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
