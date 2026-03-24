@@ -1,5 +1,5 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v02.00.00
+// Versão: v01.33.00
 // Descrição: Modernização Gemini v1beta com 10 features: token counting, structured logging, improved safety settings, maxOutputTokens, usage metadata, JSDoc types, detailed retry handling, thinking support, centralized config, input validation. Código INTEGRAL do backend Hono preservado.
 
 import { Hono } from 'hono';
