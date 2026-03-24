@@ -15,8 +15,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "mainsite-db",
-      "database_id": "a1c24837-241f-4204-970b-54b430a942c4"
+      "database_name": "bigdata_db",
+      "database_id": "00000000-0000-0000-0000-000000000000"
     }
   ],
   "r2_buckets": [

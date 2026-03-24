@@ -1,5 +1,5 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v01.33.00
+// Versão: v01.34.00
 // Descrição: Modernização Gemini v1beta com 10 features: token counting, structured logging, improved safety settings, maxOutputTokens, usage metadata, JSDoc types, detailed retry handling, thinking support, centralized config, input validation. Código INTEGRAL do backend Hono preservado.
 
 import { Hono } from 'hono';
@@ -429,7 +429,7 @@ const getRateLimitConfig = async (c) => {
   const now = Date.now();
   if (!cachedRlConfig || now - rlConfigLastFetched > 60000) {
     try {
-      const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'ratelimit'").first();
+      const record = await c.env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/ratelimit'").first();
       const parsed = record ? JSON.parse(record.payload) : DEFAULT_RATE_LIMIT;
       cachedRlConfig = normalizeRateLimitConfig(parsed);
       rlConfigLastFetched = now;
@@ -566,7 +566,7 @@ app.post('/api/ai/public/chat', async (c) => {
     if (!apiKey) return c.json({ error: "GEMINI_API_KEY não configurada no Worker." }, 503);
     if (!message) return c.json({ error: "Mensagem ausente." }, 400);
 
-    const { results } = await c.env.DB.prepare("SELECT id, title, content, created_at FROM posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC").all();
+    const { results } = await c.env.DB.prepare("SELECT id, title, content, created_at FROM mainsite_posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC").all();
 
     const normalizeForSearch = (value = '') => String(value)
       .toLowerCase()
@@ -744,13 +744,13 @@ PERGUNTA DO USUÁRIO: ${message}`;
 
     // Registro na Telemetria + Auditoria de Contexto
     const logPromise = c.env.DB.batch([
-      c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('user', ?, ?)").bind(message, contextTitleLog),
-      c.env.DB.prepare("INSERT INTO chat_logs (role, message, context_title) VALUES ('bot', ?, ?)").bind(replyText, contextTitleLog)
+      c.env.DB.prepare("INSERT INTO mainsite_chat_logs (role, message, context_title) VALUES ('user', ?, ?)").bind(message, contextTitleLog),
+      c.env.DB.prepare("INSERT INTO mainsite_chat_logs (role, message, context_title) VALUES ('bot', ?, ?)").bind(replyText, contextTitleLog)
     ]);
 
     const auditPromise = (async () => {
       await c.env.DB.prepare(`
-        CREATE TABLE IF NOT EXISTS chat_context_audit (
+        CREATE TABLE IF NOT EXISTS mainsite_chat_context_audit (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           question TEXT NOT NULL,
           context_title TEXT,
@@ -763,7 +763,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
       `).run();
 
       await c.env.DB.prepare(
-        "INSERT INTO chat_context_audit (question, context_title, total_posts_scanned, context_posts_used, selected_posts_json, terms_json) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO mainsite_chat_context_audit (question, context_title, total_posts_scanned, context_posts_used, selected_posts_json, terms_json) VALUES (?, ?, ?, ?, ?, ?)"
       ).bind(
         safeMessage,
         contextTitleLog,
@@ -790,7 +790,7 @@ app.get('/api/chat-context-audit', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     await c.env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS chat_context_audit (
+      CREATE TABLE IF NOT EXISTS mainsite_chat_context_audit (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         question TEXT NOT NULL,
         context_title TEXT,
@@ -802,7 +802,7 @@ app.get('/api/chat-context-audit', async (c) => {
       )
     `).run();
 
-    const { results } = await c.env.DB.prepare("SELECT * FROM chat_context_audit ORDER BY created_at DESC LIMIT 200").all();
+    const { results } = await c.env.DB.prepare("SELECT * FROM mainsite_chat_context_audit ORDER BY created_at DESC LIMIT 200").all();
     return c.json(results || []);
   } catch (err) {
     return c.json({ error: err.message }, 500);
@@ -812,7 +812,7 @@ app.get('/api/chat-context-audit', async (c) => {
 app.delete('/api/chat-context-audit/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    await c.env.DB.prepare("DELETE FROM chat_context_audit WHERE id = ?").bind(c.req.param('id')).run();
+    await c.env.DB.prepare("DELETE FROM mainsite_chat_context_audit WHERE id = ?").bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -952,7 +952,7 @@ app.post('/api/ai/public/translate', async (c) => {
 app.get('/api/chat-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const { results } = await c.env.DB.prepare("SELECT * FROM chat_logs ORDER BY created_at DESC LIMIT 200").all();
+    const { results } = await c.env.DB.prepare("SELECT * FROM mainsite_chat_logs ORDER BY created_at DESC LIMIT 200").all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -960,7 +960,7 @@ app.get('/api/chat-logs', async (c) => {
 app.delete('/api/chat-logs/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    await c.env.DB.prepare("DELETE FROM chat_logs WHERE id = ?").bind(c.req.param('id')).run();
+    await c.env.DB.prepare("DELETE FROM mainsite_chat_logs WHERE id = ?").bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -968,7 +968,7 @@ app.delete('/api/chat-logs/:id', async (c) => {
 app.get('/api/contact-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const { results } = await c.env.DB.prepare("SELECT * FROM contact_logs ORDER BY created_at DESC LIMIT 200").all();
+    const { results } = await c.env.DB.prepare("SELECT * FROM mainsite_contact_logs ORDER BY created_at DESC LIMIT 200").all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -976,7 +976,7 @@ app.get('/api/contact-logs', async (c) => {
 app.delete('/api/contact-logs/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    await c.env.DB.prepare("DELETE FROM contact_logs WHERE id = ?").bind(c.req.param('id')).run();
+    await c.env.DB.prepare("DELETE FROM mainsite_contact_logs WHERE id = ?").bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -984,7 +984,7 @@ app.delete('/api/contact-logs/:id', async (c) => {
 app.get('/api/shares', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const { results } = await c.env.DB.prepare("SELECT * FROM shares ORDER BY created_at DESC LIMIT 200").all();
+    const { results } = await c.env.DB.prepare("SELECT * FROM mainsite_shares ORDER BY created_at DESC LIMIT 200").all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -992,7 +992,7 @@ app.get('/api/shares', async (c) => {
 app.delete('/api/shares/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    await c.env.DB.prepare("DELETE FROM shares WHERE id = ?").bind(c.req.param('id')).run();
+    await c.env.DB.prepare("DELETE FROM mainsite_shares WHERE id = ?").bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -1000,7 +1000,7 @@ app.delete('/api/shares/:id', async (c) => {
 app.post('/api/shares', async (c) => {
   try {
     const { post_id, post_title, platform, target } = await c.req.json();
-    await c.env.DB.prepare("INSERT INTO shares (post_id, post_title, platform, target) VALUES (?, ?, ?, ?)").bind(post_id, post_title, platform, target || null).run();
+    await c.env.DB.prepare("INSERT INTO mainsite_shares (post_id, post_title, platform, target) VALUES (?, ?, ?, ?)").bind(post_id, post_title, platform, target || null).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -1026,7 +1026,7 @@ app.post('/api/share/email', async (c) => {
     });
 
     if (!emailRes.ok) throw new Error("Erro no envio pelo Resend.");
-    c.executionCtx.waitUntil(c.env.DB.prepare("INSERT INTO shares (post_id, post_title, platform, target) VALUES (?, ?, 'email', ?)").bind(post_id, post_title, target_email).run());
+    c.executionCtx.waitUntil(c.env.DB.prepare("INSERT INTO mainsite_shares (post_id, post_title, platform, target) VALUES (?, ?, 'email', ?)").bind(post_id, post_title, target_email).run());
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -1072,7 +1072,7 @@ app.post('/api/contact', async (c) => {
       body: JSON.stringify({ from: 'Divagações Filosóficas <mainsite@lcv.app.br>', to: email, subject: 'Recebemos sua mensagem', html: userHtml })
     });
 
-    c.executionCtx.waitUntil(c.env.DB.prepare("INSERT INTO contact_logs (name, phone, email, message) VALUES (?, ?, ?, ?)").bind(name, phone || '', email, message).run());
+    c.executionCtx.waitUntil(c.env.DB.prepare("INSERT INTO mainsite_contact_logs (name, phone, email, message) VALUES (?, ?, ?, ?)").bind(name, phone || '', email, message).run());
     return c.json({ success: true });
   } catch (err) { return c.json({ error: "Falha ao processar contato." }, 500); }
 });
@@ -1255,7 +1255,7 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
       const failedEmail = (email || '').trim() || 'N/A';
       c.executionCtx.waitUntil(
         c.env.DB.prepare(
-          "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
+          "INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
         ).bind(checkoutId, 'FAILED', Number(amount), 'sumup_card', failedEmail, JSON.stringify({ error: updateErr.message })).run()
       );
       // Extrai mensagem do SumUp SDK: formato "STATUS_CODE: {json}"
@@ -1282,7 +1282,7 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
     const storedStatus = normalizeSumupStatus(result.status || 'SUCCESSFUL');
     c.executionCtx.waitUntil(
       c.env.DB.prepare(
-        "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
       ).bind(storedId, storedStatus, Number(amount), 'sumup_card', payerEmail, JSON.stringify(result)).run()
     );
 
@@ -1809,10 +1809,10 @@ app.get('/api/mp-balance', async (c) => {
   try {
     const startDb = getStartDbWithCutoff(c.req.query('start_date'));
     const available = await c.env.DB.prepare(
-      "SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) AND lower(status) = 'approved'"
+      "SELECT COALESCE(SUM(amount), 0) as total FROM mainsite_financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) AND lower(status) = 'approved'"
     ).bind(startDb).first();
     const unavailable = await c.env.DB.prepare(
-      "SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) AND lower(status) IN ('pending', 'in_process')"
+      "SELECT COALESCE(SUM(amount), 0) as total FROM mainsite_financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) AND lower(status) IN ('pending', 'in_process')"
     ).bind(startDb).first();
     return c.json({
       available_balance: Number(available?.total || 0),
@@ -1843,7 +1843,7 @@ app.post('/api/mp-payment/:id/refund', async (c) => {
     await refundApi.create(refundBody);
 
     const newStatus = refundBody.body?.amount ? 'partially_refunded' : 'refunded';
-    await c.env.DB.prepare("UPDATE financial_logs SET status = ? WHERE payment_id = ?").bind(newStatus, id).run();
+    await c.env.DB.prepare("UPDATE mainsite_financial_logs SET status = ? WHERE payment_id = ?").bind(newStatus, id).run();
 
     return c.json({ success: true, status: newStatus });
   } catch (err) { return c.json({ error: err.message }, 500); }
@@ -1861,7 +1861,7 @@ app.put('/api/mp-payment/:id/cancel', async (c) => {
 
     await paymentApi.cancel({ id: id });
 
-    await c.env.DB.prepare("UPDATE financial_logs SET status = 'cancelled' WHERE payment_id = ?").bind(id).run();
+    await c.env.DB.prepare("UPDATE mainsite_financial_logs SET status = 'cancelled' WHERE payment_id = ?").bind(id).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -1941,19 +1941,19 @@ app.post('/api/webhooks/mercadopago', async (c) => {
     const method = paymentData.payment_method_id || 'N/A';
     const extRef = paymentData.external_reference || 'N/A';
 
-    const existing = await c.env.DB.prepare("SELECT id, status FROM financial_logs WHERE payment_id = ?").bind(id).first();
+    const existing = await c.env.DB.prepare("SELECT id, status FROM mainsite_financial_logs WHERE payment_id = ?").bind(id).first();
     let shouldSendEmail = false;
 
     if (!existing) {
       shouldSendEmail = true;
       c.executionCtx.waitUntil(
-        c.env.DB.prepare("INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
+        c.env.DB.prepare("INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
           .bind(id, status, amount, method, email, JSON.stringify(paymentData)).run()
       );
     } else {
       if (existing.status !== status) shouldSendEmail = true;
       c.executionCtx.waitUntil(
-        c.env.DB.prepare("UPDATE financial_logs SET status = ?, amount = ?, method = ?, payer_email = ?, raw_payload = ? WHERE payment_id = ?")
+        c.env.DB.prepare("UPDATE mainsite_financial_logs SET status = ?, amount = ?, method = ?, payer_email = ?, raw_payload = ? WHERE payment_id = ?")
           .bind(status, amount, method, email, JSON.stringify(paymentData), id).run()
       );
     }
@@ -1990,7 +1990,7 @@ app.get('/api/financial-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const startDb = getStartDbWithCutoff(c.req.query('start_date'));
-    const { results } = await c.env.DB.prepare("SELECT * FROM financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100").bind(startDb).all();
+    const { results } = await c.env.DB.prepare("SELECT * FROM mainsite_financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100").bind(startDb).all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -1999,7 +1999,7 @@ app.get('/api/financial-logs/check', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const startDb = getStartDbWithCutoff(c.req.query('start_date'));
-    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?)").bind(startDb).first();
+    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM mainsite_financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?)").bind(startDb).first();
     return c.json({ count: result.total });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2008,7 +2008,7 @@ app.delete('/api/financial-logs/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   const id = c.req.param('id');
   try {
-    await c.env.DB.prepare("DELETE FROM financial_logs WHERE id = ? AND (method IS NULL OR method != 'sumup_card')").bind(id).run();
+    await c.env.DB.prepare("DELETE FROM mainsite_financial_logs WHERE id = ? AND (method IS NULL OR method != 'sumup_card')").bind(id).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2026,7 +2026,7 @@ app.post('/api/mp/sync', async (c) => {
 
     // 1) Atualiza primeiro tudo o que já existe no banco local.
     const { results: localLogs = [] } = await c.env.DB.prepare(
-      "SELECT payment_id FROM financial_logs WHERE payment_id IS NOT NULL AND (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100"
+      "SELECT payment_id FROM mainsite_financial_logs WHERE payment_id IS NOT NULL AND (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100"
     ).bind(FINANCIAL_CUTOFF_DB_UTC).all();
 
     let inserted = 0;
@@ -2046,7 +2046,7 @@ app.post('/api/mp/sync', async (c) => {
         const raw = JSON.stringify(paymentData);
 
         await c.env.DB.prepare(
-          "UPDATE financial_logs SET status = ?, amount = ?, method = ?, payer_email = ?, raw_payload = ? WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card')"
+          "UPDATE mainsite_financial_logs SET status = ?, amount = ?, method = ?, payer_email = ?, raw_payload = ? WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card')"
         ).bind(status, amount, method, email, raw, paymentId).run();
 
         tracked++;
@@ -2083,7 +2083,7 @@ app.post('/api/mp/sync', async (c) => {
         if (!looksLikeSiteDonation) continue;
 
         const existing = await c.env.DB.prepare(
-          "SELECT id FROM financial_logs WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card') LIMIT 1"
+          "SELECT id FROM mainsite_financial_logs WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card') LIMIT 1"
         ).bind(paymentId).first();
 
         if (existing) continue;
@@ -2095,7 +2095,7 @@ app.post('/api/mp/sync', async (c) => {
         const raw = JSON.stringify(paymentData);
 
         await c.env.DB.prepare(
-          "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
+          "INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
         ).bind(paymentId, status, amount, method, email, raw).run();
 
         inserted++;
@@ -2138,17 +2138,17 @@ app.post('/api/sumup/sync', async (c) => {
       const raw = JSON.stringify(tx ? checkout : checkout);
 
       const existing = await c.env.DB.prepare(
-        "SELECT id FROM financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
+        "SELECT id FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
       ).bind(paymentId).first();
 
       if (existing) {
         await c.env.DB.prepare(
-          "UPDATE financial_logs SET status = ?, raw_payload = ? WHERE payment_id = ? AND method = 'sumup_card'"
+          "UPDATE mainsite_financial_logs SET status = ?, raw_payload = ? WHERE payment_id = ? AND method = 'sumup_card'"
         ).bind(status, raw, paymentId).run();
         updated++;
       } else {
         await c.env.DB.prepare(
-          "INSERT INTO financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
+          "INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
         ).bind(paymentId, status, amount, 'sumup_card', 'N/A', raw).run();
         inserted++;
       }
@@ -2173,7 +2173,7 @@ app.post('/api/sumup/reindex-statuses', async (c) => {
 
     while (true) {
       const { results } = await c.env.DB.prepare(
-        "SELECT id, status, raw_payload FROM financial_logs WHERE method = 'sumup_card' ORDER BY id ASC LIMIT ? OFFSET ?"
+        "SELECT id, status, raw_payload FROM mainsite_financial_logs WHERE method = 'sumup_card' ORDER BY id ASC LIMIT ? OFFSET ?"
       ).bind(pageSize, offset).all();
 
       const rows = Array.isArray(results) ? results : [];
@@ -2193,7 +2193,7 @@ app.post('/api/sumup/reindex-statuses', async (c) => {
         const nextStatus = normalizeSumupStatus(payloadStatus || row?.status || 'UNKNOWN');
         if (nextStatus !== row?.status) {
           await c.env.DB.prepare(
-            "UPDATE financial_logs SET status = ? WHERE id = ? AND method = 'sumup_card'"
+            "UPDATE mainsite_financial_logs SET status = ? WHERE id = ? AND method = 'sumup_card'"
           ).bind(nextStatus, row.id).run();
           updated++;
         }
@@ -2214,7 +2214,7 @@ app.get('/api/sumup-financial-logs', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const startDb = getStartDbWithCutoff(c.req.query('start_date'));
-    const { results } = await c.env.DB.prepare("SELECT * FROM financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100").bind(startDb).all();
+    const { results } = await c.env.DB.prepare("SELECT * FROM mainsite_financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100").bind(startDb).all();
     const rows = Array.isArray(results) ? results : [];
     const normalizedRows = rows.map((row) => {
       let payloadStatus = null;
@@ -2228,7 +2228,7 @@ app.get('/api/sumup-financial-logs', async (c) => {
       const normalizedStatus = normalizeSumupStatus(payloadStatus || row?.status || 'UNKNOWN');
       if (row?.id && normalizedStatus !== row?.status) {
         c.executionCtx.waitUntil(
-          c.env.DB.prepare("UPDATE financial_logs SET status = ? WHERE id = ? AND method = 'sumup_card'")
+          c.env.DB.prepare("UPDATE mainsite_financial_logs SET status = ? WHERE id = ? AND method = 'sumup_card'")
             .bind(normalizedStatus, row.id)
             .run()
         );
@@ -2248,7 +2248,7 @@ app.get('/api/sumup-financial-logs/check', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const startDb = getStartDbWithCutoff(c.req.query('start_date'));
-    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?)").bind(startDb).first();
+    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM mainsite_financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?)").bind(startDb).first();
     return c.json({ count: result.total });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2257,7 +2257,7 @@ app.delete('/api/sumup-financial-logs/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   const id = c.req.param('id');
   try {
-    await c.env.DB.prepare("DELETE FROM financial_logs WHERE id = ? AND method = 'sumup_card'").bind(id).run();
+    await c.env.DB.prepare("DELETE FROM mainsite_financial_logs WHERE id = ? AND method = 'sumup_card'").bind(id).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2266,8 +2266,8 @@ app.get('/api/sumup-balance', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const startDb = getStartDbWithCutoff(c.req.query('start_date'));
-    const available = await c.env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?) AND UPPER(status) = 'SUCCESSFUL'").bind(startDb).first();
-    const unavailable = await c.env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?) AND UPPER(status) = 'PENDING'").bind(startDb).first();
+    const available = await c.env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM mainsite_financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?) AND UPPER(status) = 'SUCCESSFUL'").bind(startDb).first();
+    const unavailable = await c.env.DB.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM mainsite_financial_logs WHERE method = 'sumup_card' AND datetime(created_at) >= datetime(?) AND UPPER(status) = 'PENDING'").bind(startDb).first();
     return c.json({
       available_balance: Number(available?.total || 0),
       unavailable_balance: Number(unavailable?.total || 0),
@@ -2300,7 +2300,7 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
 
     try {
       const record = await c.env.DB.prepare(
-        "SELECT raw_payload FROM financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
+        "SELECT raw_payload FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
       ).bind(id).first();
       if (record?.raw_payload) {
         const payload = JSON.parse(record.raw_payload);
@@ -2324,7 +2324,7 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
 
     const newStatus = amount ? 'PARTIALLY_REFUNDED' : 'REFUNDED';
     await c.env.DB.prepare(
-      "UPDATE financial_logs SET status = ? WHERE payment_id = ? AND method = 'sumup_card'"
+      "UPDATE mainsite_financial_logs SET status = ? WHERE payment_id = ? AND method = 'sumup_card'"
     ).bind(newStatus, id).run();
 
     return c.json({ success: true, status: newStatus });
@@ -2346,7 +2346,7 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
     await client.checkouts.deactivate(id);
 
     await c.env.DB.prepare(
-      "UPDATE financial_logs SET status = 'CANCELLED' WHERE payment_id = ? AND method = 'sumup_card'"
+      "UPDATE mainsite_financial_logs SET status = 'CANCELLED' WHERE payment_id = ? AND method = 'sumup_card'"
     ).bind(id).run();
 
     return c.json({ success: true });
@@ -2404,7 +2404,7 @@ app.get('/api/uploads/brands/:filename', async (c) => {
 
 app.get('/api/posts', async (c) => {
   try {
-    const { results } = await c.env.DB.prepare("SELECT * FROM posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC").all();
+    const { results } = await c.env.DB.prepare("SELECT * FROM mainsite_posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC").all();
     return c.json(results || []);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2412,7 +2412,7 @@ app.get('/api/posts', async (c) => {
 app.get('/api/posts/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    const post = await c.env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(id).first();
+    const post = await c.env.DB.prepare("SELECT * FROM mainsite_posts WHERE id = ?").bind(id).first();
     if (!post) return c.json({ error: "Post não encontrado" }, 404);
     return c.json(post);
   } catch (err) { return c.json({ error: err.message }, 500); }
@@ -2422,7 +2422,7 @@ app.post('/api/posts', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const { title, content } = await c.req.json();
-    await c.env.DB.prepare("INSERT INTO posts (title, content, is_pinned, display_order) VALUES (?, ?, 0, 0)").bind(title, content).run();
+    await c.env.DB.prepare("INSERT INTO mainsite_posts (title, content, is_pinned, display_order) VALUES (?, ?, 0, 0)").bind(title, content).run();
     return c.json({ success: true }, 201);
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2431,10 +2431,10 @@ app.put('/api/posts/:id/pin', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   const id = c.req.param('id');
   try {
-    const post = await c.env.DB.prepare("SELECT is_pinned FROM posts WHERE id = ?").bind(id).first();
+    const post = await c.env.DB.prepare("SELECT is_pinned FROM mainsite_posts WHERE id = ?").bind(id).first();
     const newStatus = post && post.is_pinned ? 0 : 1;
-    if (newStatus === 1) await c.env.DB.prepare("UPDATE posts SET is_pinned = 0").run();
-    await c.env.DB.prepare("UPDATE posts SET is_pinned = ? WHERE id = ?").bind(newStatus, id).run();
+    if (newStatus === 1) await c.env.DB.prepare("UPDATE mainsite_posts SET is_pinned = 0").run();
+    await c.env.DB.prepare("UPDATE mainsite_posts SET is_pinned = ? WHERE id = ?").bind(newStatus, id).run();
     return c.json({ success: true, is_pinned: newStatus });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2443,7 +2443,7 @@ app.put('/api/posts/reorder', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const items = await c.req.json();
-    const statements = items.map(item => c.env.DB.prepare("UPDATE posts SET display_order = ? WHERE id = ?").bind(item.display_order, item.id));
+    const statements = items.map(item => c.env.DB.prepare("UPDATE mainsite_posts SET display_order = ? WHERE id = ?").bind(item.display_order, item.id));
     await c.env.DB.batch(statements);
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
@@ -2454,7 +2454,7 @@ app.put('/api/posts/:id', async (c) => {
   const id = c.req.param('id');
   try {
     const { title, content } = await c.req.json();
-    await c.env.DB.prepare("UPDATE posts SET title = ?, content = ? WHERE id = ?").bind(title, content, id).run();
+    await c.env.DB.prepare("UPDATE mainsite_posts SET title = ?, content = ? WHERE id = ?").bind(title, content, id).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2463,7 +2463,7 @@ app.delete('/api/posts/:id', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   const id = c.req.param('id');
   try {
-    await c.env.DB.prepare("DELETE FROM posts WHERE id = ?").bind(id).run();
+    await c.env.DB.prepare("DELETE FROM mainsite_posts WHERE id = ?").bind(id).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2472,7 +2472,7 @@ app.delete('/api/posts/:id', async (c) => {
 
 app.get('/api/settings', async (c) => {
   try {
-    const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'appearance'").first();
+    const record = await c.env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/appearance'").first();
     if (record) return c.json(JSON.parse(record.payload));
     return c.json({ allowAutoMode: true, light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' }, dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' }, shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' } });
   } catch (err) { return c.json({ error: err.message }, 500); }
@@ -2482,14 +2482,14 @@ app.put('/api/settings', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const payload = await c.req.text();
-    await c.env.DB.prepare("INSERT INTO settings (id, payload) VALUES ('appearance', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
+    await c.env.DB.prepare("INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/appearance', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
 app.get('/api/settings/rotation', async (c) => {
   try {
-    const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'rotation'").first();
+    const record = await c.env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/rotation'").first();
     if (record) return c.json(JSON.parse(record.payload));
     return c.json({ enabled: false, interval: 60, last_rotated_at: 0 });
   } catch (err) { return c.json({ error: err.message }, 500); }
@@ -2499,7 +2499,7 @@ app.put('/api/settings/rotation', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const payload = await c.req.text();
-    await c.env.DB.prepare("INSERT INTO settings (id, payload) VALUES ('rotation', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
+    await c.env.DB.prepare("INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/rotation', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2507,7 +2507,7 @@ app.put('/api/settings/rotation', async (c) => {
 app.get('/api/settings/ratelimit', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'ratelimit'").first();
+    const record = await c.env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/ratelimit'").first();
     if (record) return c.json(normalizeRateLimitConfig(JSON.parse(record.payload)));
     return c.json(DEFAULT_RATE_LIMIT);
   } catch (err) { return c.json({ error: err.message }, 500); }
@@ -2517,14 +2517,14 @@ app.put('/api/settings/ratelimit', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const payload = await c.req.text();
-    await c.env.DB.prepare("INSERT INTO settings (id, payload) VALUES ('ratelimit', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
+    await c.env.DB.prepare("INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/ratelimit', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
 
 app.get('/api/settings/disclaimers', async (c) => {
   try {
-    const record = await c.env.DB.prepare("SELECT payload FROM settings WHERE id = 'disclaimers'").first();
+    const record = await c.env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/disclaimers'").first();
     if (record) return c.json(JSON.parse(record.payload));
     return c.json({ enabled: true, items: [{ id: crypto.randomUUID(), title: 'Aviso', text: 'Texto de exemplo.', buttonText: 'Concordo' }] });
   } catch (err) { return c.json({ error: err.message }, 500); }
@@ -2534,7 +2534,7 @@ app.put('/api/settings/disclaimers', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
     const payload = await c.req.text();
-    await c.env.DB.prepare("INSERT INTO settings (id, payload) VALUES ('disclaimers', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
+    await c.env.DB.prepare("INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/disclaimers', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").bind(payload).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
@@ -2543,7 +2543,7 @@ app.put('/api/settings/disclaimers', async (c) => {
 
 app.get('/api/sitemap.xml', async (c) => {
   try {
-    const { results } = await c.env.DB.prepare("SELECT id, created_at FROM posts ORDER BY created_at DESC").all();
+    const { results } = await c.env.DB.prepare("SELECT id, created_at FROM mainsite_posts ORDER BY created_at DESC").all();
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
     xml += `\n  <url>\n    <loc>https://www.lcv.rio.br/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`;
     results.forEach(post => {
@@ -2561,12 +2561,12 @@ export default {
   fetch: app.fetch,
   async scheduled(event, env, ctx) {
     try {
-      const record = await env.DB.prepare("SELECT payload FROM settings WHERE id = 'rotation'").first();
+      const record = await env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/rotation'").first();
       if (!record) return;
       const config = JSON.parse(record.payload);
       if (!config.enabled) return;
 
-      const pinnedCheck = await env.DB.prepare("SELECT id FROM posts WHERE is_pinned = 1 LIMIT 1").first();
+      const pinnedCheck = await env.DB.prepare("SELECT id FROM mainsite_posts WHERE is_pinned = 1 LIMIT 1").first();
       if (pinnedCheck) return;
 
       const now = Date.now();
@@ -2574,17 +2574,17 @@ export default {
       const intervalMs = (config.interval || 60) * 60 * 1000;
       if (now - lastRotated < intervalMs) return;
 
-      const { results: posts } = await env.DB.prepare("SELECT id FROM posts ORDER BY display_order ASC, created_at DESC").all();
+      const { results: posts } = await env.DB.prepare("SELECT id FROM mainsite_posts ORDER BY display_order ASC, created_at DESC").all();
       if (!posts || posts.length <= 1) return;
 
       const topPost = posts.shift();
       posts.push(topPost);
 
-      const statements = posts.map((post, index) => env.DB.prepare("UPDATE posts SET display_order = ? WHERE id = ?").bind(index, post.id));
+      const statements = posts.map((post, index) => env.DB.prepare("UPDATE mainsite_posts SET display_order = ? WHERE id = ?").bind(index, post.id));
       await env.DB.batch(statements);
 
       config.last_rotated_at = now;
-      await env.DB.prepare("UPDATE settings SET payload = ? WHERE id = 'rotation'").bind(JSON.stringify(config)).run();
+      await env.DB.prepare("UPDATE mainsite_settings SET payload = ? WHERE id = 'mainsite/rotation'").bind(JSON.stringify(config)).run();
     } catch (err) { console.error("Falha no Job:", err); }
   }
 };
