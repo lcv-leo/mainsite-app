@@ -1,6 +1,6 @@
 // Módulo: mainsite-worker/src/index.js
-// Versão: v01.32.00
-// Descrição: Upgrade Gemini API — modelo gemini-pro-latest (auto-atualiza), v1beta, thinkingLevel HIGH, safetySettings, retry com 1 tentativa extra, parsing multi-part para modelos thinking. Código INTEGRAL do backend Hono preservado.
+// Versão: v02.00.00
+// Descrição: Modernização Gemini v1beta com 10 features: token counting, structured logging, improved safety settings, maxOutputTokens, usage metadata, JSDoc types, detailed retry handling, thinking support, centralized config, input validation. Código INTEGRAL do backend Hono preservado.
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -17,6 +17,227 @@ if (typeof Headers !== 'undefined' && !Headers.prototype.raw) {
 }
 
 const app = new Hono();
+
+// ========== CONFIGURAÇÃO CENTRALIZADA DO GEMINI V1BETA ==========
+
+/**
+ * @typedef {Object} GeminiConfig
+ * @property {string} model - Modelo Gemini (ex: 'gemini-pro-latest')
+ * @property {string} version - Versão da API (ex: 'v1beta')
+ * @property {number} maxTokensInput - Limite máximo de tokens na entrada (120000)
+ * @property {number} maxRetries - Número de tentativas (2)
+ * @property {number} retryDelayMs - Delay entre tentativas (800ms)
+ * @property {Object} defaultThinkingConfig - Configuração de thinking
+ */
+
+const GEMINI_CONFIG = {
+  model: 'gemini-pro-latest',
+  version: 'v1beta',
+  maxTokensInput: 120000,
+  maxRetries: 2,
+  retryDelayMs: 800,
+  defaultThinkingConfig: { thinkingLevel: 'HIGH' },
+  endpoints: {
+    transform: { maxOutputTokens: 6000, temperature: 0.5 },
+    chat: { maxOutputTokens: 8192, temperature: 0.3 },
+    summarize: { maxOutputTokens: 4096, temperature: 0.4 },
+    translate: { maxOutputTokens: 5000, temperature: 0.2 }
+  }
+};
+
+// ========== UTILITÁRIOS DE LOGGING ESTRUTURADO ==========
+
+/**
+ * Estrutura log em formato JSON com ISO timestamp
+ * @param {string} level - 'info' | 'warn' | 'error' | 'debug'
+ * @param {string} message - Mensagem principal
+ * @param {Object} context - Dados contextuais adicionais
+ */
+function structuredLog(level, message, context = {}) {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    level: level.toUpperCase(),
+    message,
+    ...context
+  };
+  console.log(JSON.stringify(logEntry));
+}
+
+// ========== UTILITÁRIOS DE TOKEN COUNTING ==========
+
+/**
+ * Estima contagem de tokens via countTokens API (pré-validação)
+ * @param {string} text - Texto para análise
+ * @param {string} apiKey - Chave de API Gemini
+ * @returns {Promise<number>} Número aproximado de tokens
+ */
+async function estimateTokenCount(text, apiKey) {
+  if (!text || !apiKey) return 0;
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/${GEMINI_CONFIG.version}/models/${GEMINI_CONFIG.model}:countTokens?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text }] }]
+        })
+      }
+    );
+    if (!response.ok) return 0;
+    const data = await response.json();
+    return data.totalTokens || 0;
+  } catch (err) {
+    structuredLog('warn', 'Failed to count tokens', { error: err.message });
+    return 0;
+  }
+}
+
+/**
+ * Validação de entrada: rejeita se tokens > 120k
+ * @param {number} tokenCount - Contagem de tokens
+ * @throws {Object} Status 413 com mensagem se exceder limite
+ */
+function validateInputTokens(tokenCount) {
+  if (tokenCount > GEMINI_CONFIG.maxTokensInput) {
+    return {
+      shouldReject: true,
+      status: 413,
+      error: `Input exceeds token limit: ${tokenCount} > ${GEMINI_CONFIG.maxTokensInput}`
+    };
+  }
+  return { shouldReject: false };
+}
+
+// ========== UTILITÁRIOS DE GERAÇÃO SEGURA ==========
+
+/**
+ * Cria configuração de safety settings modernizada (BLOCK_ONLY_HIGH para conteúdo perigoso)
+ * @returns {Object[]} Array de categorias com thresholds
+ */
+function getModernSafetySettings() {
+  return [
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+  ];
+}
+
+/**
+ * Retorna generationConfig com maxOutputTokens para o endpoint
+ * @param {string} endpoint - 'transform' | 'chat' | 'summarize' | 'translate'
+ * @returns {Object} Configuração com temperature, maxOutputTokens, thinkingConfig
+ */
+function getGenerationConfig(endpoint) {
+  const config = GEMINI_CONFIG.endpoints[endpoint] || GEMINI_CONFIG.endpoints.chat;
+  return {
+    temperature: config.temperature,
+    maxOutputTokens: config.maxOutputTokens,
+    thinkingConfig: GEMINI_CONFIG.defaultThinkingConfig
+  };
+}
+
+// ========== UTILITÁRIOS DE RETRY COM LOGGING ==========
+
+/**
+ * Executa fetch com retry automático e logging detalhado
+ * @param {string} url - URL do endpoint Gemini
+ * @param {Object} options - Opções de fetch
+ * @param {string} endpoint - Nome do endpoint (para logging)
+ * @returns {Promise<Response>} Response do Gemini
+ */
+async function fetchWithRetry(url, options, endpoint = 'unknown') {
+  let lastError;
+  for (let attempt = 1; attempt <= GEMINI_CONFIG.maxRetries; attempt++) {
+    try {
+      structuredLog('info', `Gemini API request attempt ${attempt}`, {
+        endpoint,
+        attempt,
+        url: url.split('?')[0]
+      });
+
+      const response = await fetch(url, options);
+
+      // Se sucesso, retorna imediatamente
+      if (response.ok) {
+        structuredLog('info', 'Gemini API request succeeded', {
+          endpoint,
+          attempt,
+          status: response.status
+        });
+        return response;
+      }
+
+      // Se erro, tenta próxima iteração
+      lastError = {
+        status: response.status,
+        statusText: response.statusText
+      };
+
+      structuredLog('warn', 'Gemini API request failed', {
+        endpoint,
+        attempt,
+        status: response.status,
+        message: response.statusText
+      });
+
+      // Aguarda backoff antes de retry (exceto na última tentativa)
+      if (attempt < GEMINI_CONFIG.maxRetries) {
+        await new Promise(r => setTimeout(r, GEMINI_CONFIG.retryDelayMs));
+      }
+    } catch (err) {
+      lastError = { message: err.message };
+
+      structuredLog('error', 'Gemini API request error', {
+        endpoint,
+        attempt,
+        error: err.message
+      });
+
+      if (attempt < GEMINI_CONFIG.maxRetries) {
+        await new Promise(r => setTimeout(r, GEMINI_CONFIG.retryDelayMs));
+      }
+    }
+  }
+
+  // Falhou em todas as tentativas
+  structuredLog('error', 'Gemini API request exhausted retries', {
+    endpoint,
+    totalAttempts: GEMINI_CONFIG.maxRetries,
+    lastError
+  });
+
+  throw new Error(`API request failed after ${GEMINI_CONFIG.maxRetries} attempts: ${JSON.stringify(lastError)}`);
+}
+
+/**
+ * Extrai usage metadata da resposta Gemini
+ * @param {Object} responseData - Dados da resposta do Gemini
+ * @returns {Object} { promptTokens, outputTokens, cachedTokens }
+ */
+function extractUsageMetadata(responseData) {
+  const usage = responseData?.usageMetadata || {};
+  return {
+    promptTokens: usage.promptTokenCount || 0,
+    outputTokens: usage.candidatesTokenCount || 0,
+    cachedTokens: usage.cachedContentTokenCount || 0
+  };
+}
+
+// ========== UTILITÁRIO PARA PARSING DE RESPOSTAS MULTI-PART ==========
+
+/**
+ * Filtra e concatena partes de texto de resposta thinking (sem thoughts)
+ * @param {Object[]} parts - Array de partes da resposta
+ * @returns {string} Texto concatenado
+ */
+function extractTextFromParts(parts) {
+  return (parts || [])
+    .filter(p => p.text && !p.thought)
+    .map(p => p.text)
+    .join('');
+}
 
 // Configuração estrita de CORS
 app.use('/api/*', cors({
@@ -143,6 +364,18 @@ app.post('/api/ai/transform', async (c) => {
     if (!apiKey) return c.json({ error: "GEMINI_API_KEY não configurada no Worker." }, 503);
     if (!text) return c.json({ error: "Texto ausente." }, 400);
 
+    // 1. CONTAGEM DE TOKENS PRÉ-VALIDAÇÃO
+    const inputTokens = await estimateTokenCount(text, apiKey);
+    const validation = validateInputTokens(inputTokens);
+    if (validation.shouldReject) {
+      structuredLog('warn', 'Input validation failed', {
+        endpoint: 'transform',
+        tokenCount: inputTokens,
+        limit: GEMINI_CONFIG.maxTokensInput
+      });
+      return c.json({ error: validation.error }, validation.status);
+    }
+
     let promptContext = "";
     switch (action) {
       case 'summarize': promptContext = "Resuma o seguinte texto de forma concisa e direta, mantendo a formatação e o idioma original:"; break;
@@ -152,27 +385,49 @@ app.post('/api/ai/transform', async (c) => {
       default: promptContext = "Melhore o seguinte texto:";
     }
 
-    const safetySettings = [
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-    ];
+    const url = `https://generativelanguage.googleapis.com/${GEMINI_CONFIG.version}/models/${GEMINI_CONFIG.model}:generateContent?key=${apiKey}`;
+    const generationConfig = getGenerationConfig('transform');
+    const safetySettings = getModernSafetySettings();
 
-    let response;
-    for (let t = 0; t < 2; t++) {
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: `${promptContext}\n\n"${text}"` }] }], generationConfig: { temperature: 0.5, thinkingConfig: { thinkingLevel: 'HIGH' } }, safetySettings })
-      });
-      if (response.ok) break;
-      if (t === 0) await new Promise(r => setTimeout(r, 800));
-    }
+    const requestBody = {
+      contents: [{ parts: [{ text: `${promptContext}\n\n"${text}"` }] }],
+      generationConfig,
+      safetySettings
+    };
+
+    // 2. FETCH COM RETRY E LOGGING DETALHADO
+    const response = await fetchWithRetry(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    }, 'transform');
+
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "Falha na API Gemini.");
-    const textParts = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text);
-    return c.json({ success: true, text: textParts.join('') || data.candidates[0].content.parts[0].text });
-  } catch (err) { return c.json({ error: err.message }, 500); }
+
+    // 3. LOGGING DE USAGE METADATA
+    const usage = extractUsageMetadata(data);
+    structuredLog('info', 'Gemini transform completed', {
+      endpoint: 'transform',
+      action,
+      promptTokens: usage.promptTokens,
+      outputTokens: usage.outputTokens,
+      cachedTokens: usage.cachedTokens
+    });
+
+    // 4. EXTRAÇÃO DE TEXTO (MULTI-PART SUPPORT)
+    const textContent = data.candidates?.[0]?.content?.parts || [];
+    const textParts = extractTextFromParts(textContent);
+    const finalText = textParts || textContent[0]?.text || '';
+
+    return c.json({ success: true, text: finalText });
+  } catch (err) {
+    structuredLog('error', 'Transform endpoint error', {
+      endpoint: 'transform',
+      error: err.message
+    });
+    return c.json({ error: err.message }, 500);
+  }
 });
 
 app.post('/api/ai/public/chat', async (c) => {
@@ -274,30 +529,51 @@ ${dbContext}
 
 PERGUNTA DO USUÁRIO: ${message}`;
 
-    let response;
-    for (let t = 0; t < 2; t++) {
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: { temperature: 0.3, thinkingConfig: { thinkingLevel: 'HIGH' } },
-          safetySettings: [
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-          ]
-        })
+    // 1. CONTAGEM DE TOKENS PRÉ-VALIDAÇÃO
+    const inputTokens = await estimateTokenCount(systemPrompt, apiKey);
+    const validation = validateInputTokens(inputTokens);
+    if (validation.shouldReject) {
+      structuredLog('warn', 'Chat input validation failed', {
+        endpoint: 'chat',
+        tokenCount: inputTokens,
+        limit: GEMINI_CONFIG.maxTokensInput
       });
-      if (response.ok) break;
-      if (t === 0) await new Promise(r => setTimeout(r, 800));
+      return c.json({ error: validation.error }, validation.status);
     }
+
+    const url = `https://generativelanguage.googleapis.com/${GEMINI_CONFIG.version}/models/${GEMINI_CONFIG.model}:generateContent?key=${apiKey}`;
+    const generationConfig = getGenerationConfig('chat');
+    const safetySettings = getModernSafetySettings();
+
+    const requestBody = {
+      contents: [{ parts: [{ text: systemPrompt }] }],
+      generationConfig,
+      safetySettings
+    };
+
+    // 2. FETCH COM RETRY E LOGGING DETALHADO
+    const response = await fetchWithRetry(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    }, 'chat');
 
     const data = await response.json();
     if (!response.ok) throw new Error("Falha na API Gemini.");
 
-    const textParts = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text);
-    let replyText = textParts.join('') || data.candidates[0].content.parts[0].text;
+    // 3. LOGGING DE USAGE METADATA
+    const usage = extractUsageMetadata(data);
+    structuredLog('info', 'Gemini chat completed', {
+      endpoint: 'chat',
+      context: contextTitleLog,
+      promptTokens: usage.promptTokens,
+      outputTokens: usage.outputTokens,
+      cachedTokens: usage.cachedTokens
+    });
+
+    // 4. EXTRAÇÃO DE TEXTO (MULTI-PART SUPPORT)
+    const textContent = data.candidates?.[0]?.content?.parts || [];
+    let replyText = extractTextFromParts(textContent) || textContent[0]?.text || '';
 
     // Tratativa da Tag de E-mail Oculto
     const emailRegex = /\[\[ENVIAR_EMAIL\]\](.*?)\[\[\/ENVIAR_EMAIL\]\]/is;
@@ -372,7 +648,13 @@ PERGUNTA DO USUÁRIO: ${message}`;
     c.executionCtx.waitUntil(Promise.all([logPromise, auditPromise]));
 
     return c.json({ success: true, reply: replyText });
-  } catch (err) { return c.json({ error: err.message }, 500); }
+  } catch (err) {
+    structuredLog('error', 'Chat endpoint error', {
+      endpoint: 'chat',
+      error: err.message
+    });
+    return c.json({ error: err.message }, 500);
+  }
 });
 
 app.get('/api/chat-context-audit', async (c) => {
@@ -413,21 +695,61 @@ app.post('/api/ai/public/summarize', async (c) => {
     if (!apiKey) return c.json({ error: "GEMINI_API_KEY não configurada no Worker." }, 503);
     if (!text) return c.json({ error: "Texto ausente." }, 400);
 
+    // 1. CONTAGEM DE TOKENS PRÉ-VALIDAÇÃO
     const prompt = `Crie um resumo conciso (TL;DR) em um único parágrafo objetivo para o seguinte texto:\n\n${text}`;
-    let response;
-    for (let t = 0; t < 2; t++) {
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, thinkingConfig: { thinkingLevel: 'HIGH' } }, safetySettings: [{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }, { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' }] })
+    const inputTokens = await estimateTokenCount(prompt, apiKey);
+    const validation = validateInputTokens(inputTokens);
+    if (validation.shouldReject) {
+      structuredLog('warn', 'Summarize input validation failed', {
+        endpoint: 'summarize',
+        tokenCount: inputTokens,
+        limit: GEMINI_CONFIG.maxTokensInput
       });
-      if (response.ok) break;
-      if (t === 0) await new Promise(r => setTimeout(r, 800));
+      return c.json({ error: validation.error }, validation.status);
     }
+
+    const url = `https://generativelanguage.googleapis.com/${GEMINI_CONFIG.version}/models/${GEMINI_CONFIG.model}:generateContent?key=${apiKey}`;
+    const generationConfig = getGenerationConfig('summarize');
+    const safetySettings = getModernSafetySettings();
+
+    const requestBody = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig,
+      safetySettings
+    };
+
+    // 2. FETCH COM RETRY E LOGGING DETALHADO
+    const response = await fetchWithRetry(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    }, 'summarize');
+
     const data = await response.json();
     if (!response.ok) throw new Error("Falha na API Gemini.");
-    const textParts = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text);
-    return c.json({ success: true, summary: textParts.join('') || data.candidates[0].content.parts[0].text });
-  } catch (err) { return c.json({ error: err.message }, 500); }
+
+    // 3. LOGGING DE USAGE METADATA
+    const usage = extractUsageMetadata(data);
+    structuredLog('info', 'Gemini summarize completed', {
+      endpoint: 'summarize',
+      promptTokens: usage.promptTokens,
+      outputTokens: usage.outputTokens,
+      cachedTokens: usage.cachedTokens
+    });
+
+    // 4. EXTRAÇÃO DE TEXTO (MULTI-PART SUPPORT)
+    const textContent = data.candidates?.[0]?.content?.parts || [];
+    const textParts = extractTextFromParts(textContent);
+    const finalText = textParts || textContent[0]?.text || '';
+
+    return c.json({ success: true, summary: finalText });
+  } catch (err) {
+    structuredLog('error', 'Summarize endpoint error', {
+      endpoint: 'summarize',
+      error: err.message
+    });
+    return c.json({ error: err.message }, 500);
+  }
 });
 
 app.post('/api/ai/public/translate', async (c) => {
@@ -437,21 +759,63 @@ app.post('/api/ai/public/translate', async (c) => {
     if (!apiKey) return c.json({ error: "GEMINI_API_KEY não configurada no Worker." }, 503);
     if (!text || !lang) return c.json({ error: "Parâmetros inválidos." }, 400);
 
+    // 1. CONTAGEM DE TOKENS PRÉ-VALIDAÇÃO
     const prompt = `Traduza rigorosamente o texto abaixo para o idioma: ${lang}. Mantenha qualquer tag HTML ou formatação intacta. Texto:\n\n${text}`;
-    let response;
-    for (let t = 0; t < 2; t++) {
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key=${apiKey}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, thinkingConfig: { thinkingLevel: 'HIGH' } }, safetySettings: [{ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }, { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' }] })
+    const inputTokens = await estimateTokenCount(prompt, apiKey);
+    const validation = validateInputTokens(inputTokens);
+    if (validation.shouldReject) {
+      structuredLog('warn', 'Translate input validation failed', {
+        endpoint: 'translate',
+        tokenCount: inputTokens,
+        limit: GEMINI_CONFIG.maxTokensInput,
+        targetLanguage: lang
       });
-      if (response.ok) break;
-      if (t === 0) await new Promise(r => setTimeout(r, 800));
+      return c.json({ error: validation.error }, validation.status);
     }
+
+    const url = `https://generativelanguage.googleapis.com/${GEMINI_CONFIG.version}/models/${GEMINI_CONFIG.model}:generateContent?key=${apiKey}`;
+    const generationConfig = getGenerationConfig('translate');
+    const safetySettings = getModernSafetySettings();
+
+    const requestBody = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig,
+      safetySettings
+    };
+
+    // 2. FETCH COM RETRY E LOGGING DETALHADO
+    const response = await fetchWithRetry(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    }, 'translate');
+
     const data = await response.json();
     if (!response.ok) throw new Error("Falha na API Gemini.");
-    const textParts = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text);
-    return c.json({ success: true, translation: textParts.join('') || data.candidates[0].content.parts[0].text });
-  } catch (err) { return c.json({ error: err.message }, 500); }
+
+    // 3. LOGGING DE USAGE METADATA
+    const usage = extractUsageMetadata(data);
+    structuredLog('info', 'Gemini translate completed', {
+      endpoint: 'translate',
+      targetLanguage: lang,
+      promptTokens: usage.promptTokens,
+      outputTokens: usage.outputTokens,
+      cachedTokens: usage.cachedTokens
+    });
+
+    // 4. EXTRAÇÃO DE TEXTO (MULTI-PART SUPPORT)
+    const textContent = data.candidates?.[0]?.content?.parts || [];
+    const textParts = extractTextFromParts(textContent);
+    const finalText = textParts || textContent[0]?.text || '';
+
+    return c.json({ success: true, translation: finalText });
+  } catch (err) {
+    structuredLog('error', 'Translate endpoint error', {
+      endpoint: 'translate',
+      error: err.message
+    });
+    return c.json({ error: err.message }, 500);
+  }
 });
 
 // --- ROTAS DE TELEMETRIA E AUDITORIA (GET / DELETE) ---
