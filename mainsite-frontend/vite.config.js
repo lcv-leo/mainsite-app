@@ -3,11 +3,15 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // Instrução para o motor nativo (esbuild) limpar o lixo de desenvolvimento em produção
-  esbuild: {
-    drop: ['console', 'debugger'],
-  },
   build: {
+    // Usa terser para remover logs em produção sem conflito com Oxc/esbuild do Vite 8
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
     target: 'esnext',
     // Desabilita lightningcss (problema de compatibilidade no Windows)
     cssCodeSplit: false,
