@@ -1,5 +1,12 @@
 # Changelog — Mainsite Frontend
 
+## [v02.12.00] — 2026-03-24
+### Alterado
+- Migração de binding D1 para `bigdata_db` no `wrangler.json`, mantendo binding lógico `DB`
+
+### Infra
+- Consolidação do versionamento para `APP v02.12.00` + `package.json` 2.12.0
+
 ## [v02.11.00] — 2026-03-23
 ### Corrigido
 - Remoção de fallback hardcoded da chave pública do Mercado Pago no formulário de doações

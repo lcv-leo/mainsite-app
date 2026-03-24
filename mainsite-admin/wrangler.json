@@ -7,8 +7,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "mainsite-db",
-      "database_id": "a1c24837-241f-4204-970b-54b430a942c4"
+      "database_name": "bigdata_db",
+      "database_id": "6a71b62e-8ab9-45e6-a867-c0d4e6a56269"
     }
   ]
 }

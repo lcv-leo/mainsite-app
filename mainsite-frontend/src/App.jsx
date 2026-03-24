@@ -1,5 +1,5 @@
 // Módulo: mainsite-frontend/src/App.jsx
-// Versão: v02.11.00
+// Versão: v02.12.00
 // Descrição: Frontend Orchestrator. Expanded reading frame to 960px for widescreen displays and reduced lateral padding.
 
 import React, { useState, useEffect, useMemo, Suspense, lazy, useRef } from 'react';
@@ -17,7 +17,7 @@ const DisclaimerModal = lazy(() => import('./components/DisclaimerModal'));
 const ChatWidget = lazy(() => import('./components/ChatWidget'));
 
 const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v02.11.00';
+const APP_VERSION = 'APP v02.12.00';
 const SITE_NAME = 'Divagações Filosóficas';
 const SITE_URL = 'https://www.lcv.rio.br';
 

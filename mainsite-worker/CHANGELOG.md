@@ -1,5 +1,15 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v01.34.00] — 2026-03-24
+### Alterado
+- Migração total de D1 para namespace `mainsite_*` no `bigdata_db`
+- Atualização de queries de `posts`, `settings`, `chat_logs`, `chat_context_audit`, `contact_logs`, `shares` e `financial_logs` para tabelas prefixadas
+- Chaves de configuração migradas para namespace contextual: `mainsite/appearance`, `mainsite/rotation`, `mainsite/ratelimit`, `mainsite/disclaimers`
+
+### Infra
+- `wrangler.json` atualizado para `bigdata_db` (binding mantido como `DB`)
+- Versionamento atualizado para `v01.34.00` + `package.json` 1.34.0
+
 ## [v01.33.00] — 2026-03-23
 ### Corrigido
 - Endpoints críticos de pagamento protegidos com autenticação Bearer (`/api/sumup/checkout`, `/api/sumup/checkout/:id/pay`, `/api/mp-payment`)
