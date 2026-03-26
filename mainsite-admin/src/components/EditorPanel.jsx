@@ -583,8 +583,14 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
 
   const getActiveStyle = (isActive) => ({
     ...styles.toolbarBtn,
-    background: isActive ? 'rgba(128, 128, 128, 0.22)' : 'transparent',
-    borderRadius: '12px'
+    borderRadius: '8px',
+    border: isActive ? '1px solid rgba(128,128,128,0.35)' : '1px solid rgba(128,128,128,0.15)',
+    background: isActive ? 'var(--tb-active-bg)' : 'var(--tb-idle-bg)',
+    boxShadow: isActive
+      ? 'inset 1px 1px 3px rgba(0,0,0,0.28), inset -1px -1px 1px rgba(255,255,255,0.06)'
+      : '0 1px 2px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08)',
+    color: isActive ? 'var(--tb-active-fg)' : styles.toolbarBtn.color,
+    transform: isActive ? 'translateY(0.5px)' : 'none',
   });
 
   return (
@@ -621,7 +627,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
       <button type="button" title="Itálico" onClick={() => editor.chain().focus().toggleItalic().run()} style={getActiveStyle(editor.isActive('italic'))}><Italic size={16} /></button>
       <button type="button" title="Sublinhado" onClick={() => editor.chain().focus().toggleUnderline().run()} style={getActiveStyle(editor.isActive('underline'))}><UnderlineIcon size={16} /></button>
       <button type="button" title="Tachado" onClick={() => editor.chain().focus().toggleStrike().run()} style={getActiveStyle(editor.isActive('strike'))}><Strikethrough size={16} /></button>
-      <button type="button" title="Marca-texto" onClick={() => editor.chain().focus().toggleHighlight().run()} style={{ ...styles.toolbarBtn, borderRadius: '12px', background: editor.isActive('highlight') ? 'rgba(255, 204, 0, 0.5)' : 'transparent' }}><Highlighter size={16} /></button>
+      <button type="button" title="Marca-texto" onClick={() => editor.chain().focus().toggleHighlight().run()} style={{ ...getActiveStyle(editor.isActive('highlight')), ...(editor.isActive('highlight') ? { background: 'rgba(255, 204, 0, 0.35)', color: '#b8860b' } : {}) }}><Highlighter size={16} /></button>
 
       <div style={styles.toolbarDivider}></div>
       <button type="button" title="Subscrito" onClick={() => editor.chain().focus().toggleSubscript().run()} style={getActiveStyle(editor.isActive('subscript'))}><SubIcon size={16} /></button>
