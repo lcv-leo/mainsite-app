@@ -2454,7 +2454,7 @@ app.put('/api/posts/:id', async (c) => {
   const id = c.req.param('id');
   try {
     const { title, content } = await c.req.json();
-    await c.env.DB.prepare("UPDATE mainsite_posts SET title = ?, content = ? WHERE id = ?").bind(title, content, id).run();
+    await c.env.DB.prepare("UPDATE mainsite_posts SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(title, content, id).run();
     return c.json({ success: true });
   } catch (err) { return c.json({ error: err.message }, 500); }
 });
