@@ -393,7 +393,7 @@ const ResizableYoutube = YoutubeExtension.extend({
   },
 });
 
-const MenuBar = ({ editor, secret, showNotification, API_URL, styles, isDarkBase, activePalette }) => {
+const MenuBar = ({ editor, editorReady, secret, showNotification, API_URL, styles, isDarkBase, activePalette }) => {
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -411,7 +411,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles, isDarkBase
   const [aiChatInput, setAiChatInput] = useState('');
   const aiChatBtnRef = useRef(null);
 
-  if (!editor) return null;
+  if (!editor || !editorReady) return null;
 
   const handleAIFreeform = async () => {
     const instruction = aiChatInput.trim();
@@ -861,7 +861,8 @@ const EditorFloatingMenu = ({ editor }) => {
       } catch { setPos(null); }
     };
     // Hide floating menu during scroll to prevent stale position
-    const wrapper = editor.view.dom.closest('.tiptap-wrapper');
+    let wrapper = null;
+    try { wrapper = editor.view?.dom?.closest('.tiptap-wrapper'); } catch { /* view not mounted yet */ }
     const hideOnScroll = () => setPos(null);
     editor.on('selectionUpdate', update);
     editor.on('focus', update);
@@ -890,10 +891,13 @@ const EditorFloatingMenu = ({ editor }) => {
 
 const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotification, styles, API_URL, isDarkBase, activePalette }) => {
   const [title, setTitle] = useState(post ? post.title : '');
+  const [editorReady, setEditorReady] = useState(false);
 
   const editor = useEditor({
     extensions: STATIC_EXTENSIONS,
     content: post ? post.content : '',
+    onCreate: () => setEditorReady(true),
+    onDestroy: () => setEditorReady(false),
   });
 
   const handleSubmit = (e) => {
@@ -918,7 +922,7 @@ const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotificatio
       <form onSubmit={handleSubmit} style={{ ...styles.form, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <input id="post-title" name="postTitle" autoComplete="off" style={{ ...styles.adminInput, flexShrink: 0 }} placeholder="TÍTULO DO FRAGMENTO" value={title} onChange={e => setTitle(e.target.value)} required />
         <div style={{ ...styles.editorContainer, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <MenuBar editor={editor} secret={secret} showNotification={showNotification} API_URL={API_URL} styles={styles} isDarkBase={isDarkBase} activePalette={activePalette} />
+          <MenuBar editor={editor} editorReady={editorReady} secret={secret} showNotification={showNotification} API_URL={API_URL} styles={styles} isDarkBase={isDarkBase} activePalette={activePalette} />
           <div className="tiptap-wrapper" style={{ ...styles.tiptapWrapper, flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <EditorBubbleMenu editor={editor} />
             <EditorFloatingMenu editor={editor} />
