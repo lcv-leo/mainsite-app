@@ -393,7 +393,7 @@ const ResizableYoutube = YoutubeExtension.extend({
   },
 });
 
-const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
+const MenuBar = ({ editor, secret, showNotification, API_URL, styles, isDarkBase, activePalette }) => {
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -581,15 +581,19 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
     });
   };
 
+  const tbIdleBg = isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)';
+  const tbActiveBg = isDarkBase ? 'rgba(192,132,252,0.18)' : 'rgba(170,59,255,0.12)';
+  const tbActiveFg = activePalette?.titleColor || '#aa3bff';
+
   const getActiveStyle = (isActive) => ({
     ...styles.toolbarBtn,
     borderRadius: '8px',
     border: isActive ? '1px solid rgba(128,128,128,0.35)' : '1px solid rgba(128,128,128,0.15)',
-    background: isActive ? 'var(--tb-active-bg)' : 'var(--tb-idle-bg)',
+    background: isActive ? tbActiveBg : tbIdleBg,
     boxShadow: isActive
       ? 'inset 1px 1px 3px rgba(0,0,0,0.28), inset -1px -1px 1px rgba(255,255,255,0.06)'
       : '0 1px 2px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08)',
-    color: isActive ? 'var(--tb-active-fg)' : styles.toolbarBtn.color,
+    color: isActive ? tbActiveFg : styles.toolbarBtn.color,
     transform: isActive ? 'translateY(0.5px)' : 'none',
   });
 
@@ -717,19 +721,26 @@ const EditorBubbleMenu = ({ editor }) => {
     if (!editor) return;
     const update = () => {
       const { from, to, empty } = editor.state.selection;
-      // Hide if no text selected or if a node (image/video) is selected
       if (empty || editor.state.selection instanceof NodeSelection) { setPos(null); return; }
-      const domRange = editor.view.domAtPos(from);
-      const range = document.createRange();
       try {
+        const domRange = editor.view.domAtPos(from);
+        const range = document.createRange();
         range.setStart(domRange.node, domRange.offset);
         const endDom = editor.view.domAtPos(to);
         range.setEnd(endDom.node, endDom.offset);
-      } catch { setPos(null); return; }
-      const rect = range.getBoundingClientRect();
-      const editorRect = editor.view.dom.closest('.tiptap-wrapper')?.getBoundingClientRect() || editor.view.dom.parentElement?.getBoundingClientRect();
-      if (!editorRect || rect.width === 0) { setPos(null); return; }
-      setPos({ top: rect.top - editorRect.top - 48, left: rect.left - editorRect.left + rect.width / 2 });
+        const rect = range.getBoundingClientRect();
+        if (rect.width === 0) { setPos(null); return; }
+        const menuH = 44;
+        const menuW = 340;
+        // Use viewport coords directly (fixed positioning)
+        let top = rect.top - menuH - 8;
+        let left = rect.left + rect.width / 2;
+        // If no room above, flip below the selection
+        if (top < 4) top = rect.bottom + 8;
+        // Clamp horizontally within viewport
+        left = Math.max(menuW / 2 + 4, Math.min(left, window.innerWidth - menuW / 2 - 4));
+        setPos({ top, left });
+      } catch { setPos(null); }
     };
     editor.on('selectionUpdate', update);
     editor.on('blur', () => setPos(null));
@@ -738,7 +749,7 @@ const EditorBubbleMenu = ({ editor }) => {
 
   if (!pos || !editor) return null;
   return (
-    <div ref={ref} className="bubble-menu" style={{ position: 'absolute', top: `${pos.top}px`, left: `${pos.left}px`, transform: 'translateX(-50%)', zIndex: 50 }}>
+    <div ref={ref} className="bubble-menu" style={{ position: 'fixed', top: `${pos.top}px`, left: `${pos.left}px`, transform: 'translateX(-50%)', zIndex: 99999 }}>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} className={editor.isActive('bold') ? 'is-active' : ''} title="Negrito"><Bold size={14} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} className={editor.isActive('italic') ? 'is-active' : ''} title="It\u00e1lico"><Italic size={14} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }} className={editor.isActive('underline') ? 'is-active' : ''} title="Sublinhado"><UnderlineIcon size={14} /></button>
@@ -765,10 +776,9 @@ const EditorFloatingMenu = ({ editor }) => {
       const isEmptyTextBlock = $anchor.parent.isTextblock && $anchor.parent.content.size === 0;
       if (!isEmptyTextBlock || !editor.state.selection.empty) { setPos(null); return; }
       try {
-        const coordsAtPos = editor.view.coordsAtPos($anchor.pos);
-        const editorRect = editor.view.dom.closest('.tiptap-wrapper')?.getBoundingClientRect() || editor.view.dom.parentElement?.getBoundingClientRect();
-        if (!editorRect) { setPos(null); return; }
-        setPos({ top: coordsAtPos.top - editorRect.top - 4, left: -8 });
+        const coords = editor.view.coordsAtPos($anchor.pos);
+        // Use viewport coords directly (fixed positioning)
+        setPos({ top: coords.top - 4, left: coords.left - 16 });
       } catch { setPos(null); }
     };
     editor.on('selectionUpdate', update);
@@ -778,7 +788,7 @@ const EditorFloatingMenu = ({ editor }) => {
 
   if (!pos || !editor) return null;
   return (
-    <div className="floating-menu" style={{ position: 'absolute', top: `${pos.top}px`, left: `${pos.left}px`, transform: 'translateX(-100%)', zIndex: 50 }}>
+    <div className="floating-menu" style={{ position: 'fixed', top: `${pos.top}px`, left: `${pos.left}px`, transform: 'translateX(-100%)', zIndex: 99999 }}>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }} className={editor.isActive('heading', { level: 1 }) ? 'is-active' : ''} title="T\u00edtulo 1"><H1Icon size={16} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }} className={editor.isActive('heading', { level: 2 }) ? 'is-active' : ''} title="T\u00edtulo 2"><H2Icon size={16} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); }} className={editor.isActive('heading', { level: 3 }) ? 'is-active' : ''} title="T\u00edtulo 3"><Heading3 size={16} /></button>
@@ -795,7 +805,7 @@ const EditorFloatingMenu = ({ editor }) => {
   );
 };
 
-const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotification, styles, API_URL }) => {
+const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotification, styles, API_URL, isDarkBase, activePalette }) => {
   const [title, setTitle] = useState(post ? post.title : '');
 
   const editor = useEditor({
@@ -819,13 +829,13 @@ const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotificatio
         </div>
         <button type="button" disabled={isSaving} onClick={handleSubmit} style={styles.adminButton}>
           {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-          {post ? 'ATUALIZAR FRAGMENTO' : 'CONSOLIDAR FRAGMENTO'}
+          SALVAR
         </button>
       </div>
       <form onSubmit={handleSubmit} style={{ ...styles.form, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <input id="post-title" name="postTitle" autoComplete="off" style={{ ...styles.adminInput, flexShrink: 0 }} placeholder="TÍTULO DO FRAGMENTO" value={title} onChange={e => setTitle(e.target.value)} required />
         <div style={{ ...styles.editorContainer, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <MenuBar editor={editor} secret={secret} showNotification={showNotification} API_URL={API_URL} styles={styles} />
+          <MenuBar editor={editor} secret={secret} showNotification={showNotification} API_URL={API_URL} styles={styles} isDarkBase={isDarkBase} activePalette={activePalette} />
           <div className="tiptap-wrapper" style={{ ...styles.tiptapWrapper, flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <EditorBubbleMenu editor={editor} />
             <EditorFloatingMenu editor={editor} />

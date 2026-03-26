@@ -18,7 +18,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
 // Rota relativa — admin é servido pelo mesmo worker
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.45.00';
+const APP_VERSION = 'APP v03.45.01';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -117,7 +117,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   adminInput: { border: 'none', borderBottom: `2px solid ${activePalette.titleColor}`, backgroundColor: 'transparent', color: activePalette.titleColor, padding: '15px 0', fontSize: '28px', fontWeight: '800', marginBottom: '10px' },
   editorContainer: { border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)', borderRadius: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', backdropFilter: 'blur(12px)' },
   toolbar: { display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '16px', borderBottom: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' },
-  toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--tb-idle-bg)', color: activePalette.fontColor, border: '1px solid rgba(128,128,128,0.15)', padding: '7px', cursor: 'pointer', borderRadius: '8px', width: '36px', height: '36px', transition: 'all 0.15s ease', boxShadow: '0 1px 2px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08)' },
+  toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', color: activePalette.fontColor, border: '1px solid rgba(128,128,128,0.15)', padding: '7px', cursor: 'pointer', borderRadius: '8px', width: '36px', height: '36px', transition: 'all 0.15s ease', boxShadow: '0 1px 2px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08)' },
   toolbarDivider: { width: '1px', backgroundColor: glassBorder, margin: '0 8px' },
   tiptapWrapper: { position: 'relative', backgroundColor: 'transparent', color: activePalette.fontColor, cursor: 'text' },
   statusBar: { padding: '12px 20px', borderTop: `1px solid ${glassBorder}`, fontSize: '13px', color: activePalette.fontColor, opacity: 0.6, textAlign: 'right', background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)' },
@@ -721,7 +721,7 @@ const App = () => {
 
       <PopupPortal isOpen={isEditorOpen} onClose={() => { setIsEditorOpen(false); setEditingPost(null); fetchData(); }} title={editingPost ? `Editando: ${editingPost.title}` : 'Novo Fragmento'}>
         <Suspense fallback={<div style={{ padding: '50px', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" size={32} /></div>}>
-          <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); setEditingPost(null); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
+          <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); setEditingPost(null); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} isDarkBase={isDarkBase} activePalette={activePalette} />
         </Suspense>
       </PopupPortal>
     </div>
