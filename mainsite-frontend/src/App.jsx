@@ -17,7 +17,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v02.19.01';
+const APP_VERSION = 'APP v02.20.00';
 const SITE_NAME = 'Divagações Filosóficas';
 const SITE_URL = 'https://www.lcv.rio.br';
 

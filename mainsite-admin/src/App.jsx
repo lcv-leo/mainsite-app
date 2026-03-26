@@ -18,7 +18,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
 // Rota relativa — admin é servido pelo mesmo worker
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.44.00';
+const APP_VERSION = 'APP v03.45.00';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -117,7 +117,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   adminInput: { border: 'none', borderBottom: `2px solid ${activePalette.titleColor}`, backgroundColor: 'transparent', color: activePalette.titleColor, padding: '15px 0', fontSize: '28px', fontWeight: '800', marginBottom: '10px' },
   editorContainer: { border: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)', borderRadius: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', backdropFilter: 'blur(12px)' },
   toolbar: { display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '16px', borderBottom: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' },
-  toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: activePalette.fontColor, border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '10px', width: '36px', height: '36px', transition: 'all 0.2s' },
+  toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--tb-idle-bg)', color: activePalette.fontColor, border: '1px solid rgba(128,128,128,0.15)', padding: '7px', cursor: 'pointer', borderRadius: '8px', width: '36px', height: '36px', transition: 'all 0.15s ease', boxShadow: '0 1px 2px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08)' },
   toolbarDivider: { width: '1px', backgroundColor: glassBorder, margin: '0 8px' },
   tiptapWrapper: { position: 'relative', backgroundColor: 'transparent', color: activePalette.fontColor, cursor: 'text' },
   statusBar: { padding: '12px 20px', borderTop: `1px solid ${glassBorder}`, fontSize: '13px', color: activePalette.fontColor, opacity: 0.6, textAlign: 'right', background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)' },
@@ -404,6 +404,8 @@ const App = () => {
           from { opacity: 0; transform: translateY(-2px) scale(0.92); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
+        /* Toolbar 3D button custom properties */
+        :root { --tb-idle-bg: ${isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'}; --tb-active-bg: ${isDarkBase ? 'rgba(192,132,252,0.18)' : 'rgba(170,59,255,0.12)'}; --tb-active-fg: ${activePalette.titleColor}; }
         .animate-spin { animation: spin 1s linear infinite; }
         .ProseMirror { min-height: 400px; padding: 30px; outline: none; line-height: 1.6; font-size: 16px; }
         .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: ${isDarkBase ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}; pointer-events: none; height: 0; }
@@ -571,15 +573,20 @@ const App = () => {
           animation: fadeIn 0.15s ease-out;
         }
         .bubble-menu button {
-          background: transparent; border: none; cursor: pointer;
-          padding: 6px 8px; border-radius: 10px;
+          background: ${isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'}; border: 1px solid rgba(128,128,128,0.15); cursor: pointer;
+          padding: 5px 7px; border-radius: 7px;
           color: ${activePalette.fontColor}; display: flex; align-items: center; justify-content: center;
-          transition: background 0.14s, color 0.14s;
+          transition: all 0.15s ease;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08);
         }
-        .bubble-menu button:hover { background: ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+        .bubble-menu button:hover { background: ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; box-shadow: 0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.1); }
+        .bubble-menu button:active { box-shadow: inset 1px 1px 3px rgba(0,0,0,0.28); transform: translateY(0.5px); }
         .bubble-menu button.is-active {
-          background: ${isDarkBase ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)'};
+          background: ${isDarkBase ? 'rgba(192,132,252,0.18)' : 'rgba(170,59,255,0.12)'};
           color: ${activePalette.titleColor};
+          border-color: rgba(128,128,128,0.35);
+          box-shadow: inset 1px 1px 3px rgba(0,0,0,0.28), inset -1px -1px 1px rgba(255,255,255,0.06);
+          transform: translateY(0.5px);
         }
         .bubble-divider {
           width: 1px; height: 20px;
@@ -598,17 +605,22 @@ const App = () => {
           animation: fadeIn 0.15s ease-out;
         }
         .floating-menu button {
-          background: transparent; border: none; cursor: pointer;
-          padding: 6px 8px; border-radius: 10px;
+          background: ${isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'}; border: 1px solid rgba(128,128,128,0.15); cursor: pointer;
+          padding: 5px 7px; border-radius: 7px;
           color: ${activePalette.fontColor}; opacity: 0.7;
           display: flex; align-items: center; justify-content: center;
-          transition: background 0.14s, color 0.14s, opacity 0.14s;
+          transition: all 0.15s ease;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08);
         }
-        .floating-menu button:hover { opacity: 1; background: ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+        .floating-menu button:hover { opacity: 1; background: ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; box-shadow: 0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.1); }
+        .floating-menu button:active { box-shadow: inset 1px 1px 3px rgba(0,0,0,0.28); transform: translateY(0.5px); }
         .floating-menu button.is-active {
           opacity: 1;
-          background: ${isDarkBase ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)'};
+          background: ${isDarkBase ? 'rgba(192,132,252,0.18)' : 'rgba(170,59,255,0.12)'};
           color: ${activePalette.titleColor};
+          border-color: rgba(128,128,128,0.35);
+          box-shadow: inset 1px 1px 3px rgba(0,0,0,0.28), inset -1px -1px 1px rgba(255,255,255,0.06);
+          transform: translateY(0.5px);
         }
         .floating-divider {
           width: 1px; height: 20px;

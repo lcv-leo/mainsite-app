@@ -1,5 +1,10 @@
 # Changelog — Mainsite Admin
 
+## [v03.45.00] — 26/03/2026
+### Alterado
+- **Toolbar Word-like 3D**: botões da toolbar principal, BubbleMenu e FloatingMenu ganham aparência 3D com sombra outward (raised) no estado padrão e sombra inset (depressed) + cor accent no estado ativo/toggled. Feedback visual claro de `:active` e `:hover`. CSS custom properties `--tb-idle-bg`, `--tb-active-bg`, `--tb-active-fg` controlam o tema
+- **Highlighter unificado**: botão Marca-texto migrado para o mesmo sistema `getActiveStyle`, com accent amarelo quando ativo
+
 ## [v03.44.00] — 26/03/2026
 ### Adicionado
 - **Editor em popup nativo do SO**: `PopupPortal.jsx` abre editor em janela separada via `window.open()` + `ReactDOM.createPortal`. Auto-sizing ~92% da tela, cópia de stylesheets, monitoramento de close via polling

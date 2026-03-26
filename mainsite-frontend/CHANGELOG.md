@@ -1,5 +1,10 @@
 # Changelog — Mainsite Frontend
 
+## [v02.20.00] — 26/03/2026
+### Removido
+- **Hardcoded text-indent e paragraphSpacing em `.html-content p`**: removidos os defaults forçados de `text-indent: 3.5rem` e `margin-bottom: 2.2rem` para posts HTML (TipTap). Agora o `text-indent` vem exclusivamente do inline style definido pelo editor, e o espaçamento entre parágrafos usa `1.2rem` neutro. Posts legados (`.p-content`) mantêm os valores configuráveis do admin
+- **Override `text-indent: 0` em parágrafos alinhados** (`p[style*="text-align"]`): regra CSS removida — o editor agora controla o recuo por parágrafo individualmente
+
 ## [v02.19.01] — 26/03/2026
 ### Corrigido
 - **ArchiveMenu — datas completas nos cards quadrados**: cards da primeira fileira (rotação) exibiam apenas data curta (`dd/mm/aaaa`). Corrigido para "Publicado em dd/mm/aaaa, hh:mm:ss | Atualizado em dd/mm/aaaa, hh:mm:ss", consistente com os cards do acervo histórico. Helper `fmtDate` extraído para escopo de componente.
