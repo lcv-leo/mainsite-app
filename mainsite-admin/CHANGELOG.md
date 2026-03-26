@@ -1,5 +1,14 @@
 # Changelog — Mainsite Admin
 
+## [v03.41.00] — 26/03/2026
+### Corrigido
+- **Todas as chamadas `/api/*` falhavam com 405**: Admin não tinha Service Binding nem proxy para o Worker. Criado `functions/api/[[path]].js` + binding `WORKER` → `mainsite-app`
+- **Brand icons usavam URL externa**: `.env` apontava para `https://mainsite-app.lcv.rio.br/...`. Corrigido para rota relativa `/api/uploads/brands`
+
+### Adicionado
+- **[NEW]** `functions/api/[[path]].js` — Catch-all proxy via Service Binding interno
+- Service Binding `WORKER` → `mainsite-app` no `wrangler.json`
+
 ## [v03.40.00] — 26/03/2026
 ### Adicionado
 - BubbleMenu customizado: barra de formatação contextual ao selecionar texto (negrito, itálico, sublinhado, tachado, marca-texto, sub/sobrescrito, código inline, link)
