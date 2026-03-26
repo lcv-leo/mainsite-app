@@ -656,7 +656,7 @@ const MenuBar = ({ editor, editorReady, secret, showNotification, API_URL, style
             </div>
           </div>
         </div>,
-        document.body
+        editor.view?.dom?.ownerDocument?.body || document.body
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(2, 132, 199, 0.1)', padding: '6px 12px', borderRadius: '100px', border: '1px solid rgba(2, 132, 199, 0.3)', marginRight: '10px' }} title="Inteligência Artificial (Gemini 2.5 Pro)">
@@ -884,7 +884,7 @@ const EditorBubbleMenu = ({ editor }) => {
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleSuperscript().run(); }} className={editor.isActive('superscript') ? 'is-active' : ''} title="Sobrescrito"><SuperIcon size={14} /></button>
       <span className="bubble-divider" />
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleCode().run(); }} className={editor.isActive('code') ? 'is-active' : ''} title="C\u00f3digo inline"><Code size={14} /></button>
-      <button type="button" onMouseDown={e => { e.preventDefault(); if (editor.isActive('link')) { editor.chain().focus().unsetLink().run(); } else { const url = window.prompt('URL do link:'); if (url) editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run(); } }} className={editor.isActive('link') ? 'is-active' : ''} title="Link"><LinkIcon size={14} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); if (editor.isActive('link')) { editor.chain().focus().unsetLink().run(); } else { const popupWin = editor.view.dom.ownerDocument.defaultView || window; const url = popupWin.prompt('URL do link:'); if (url) editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run(); } }} className={editor.isActive('link') ? 'is-active' : ''} title="Link"><LinkIcon size={14} /></button>
     </div>,
     portalTarget
   );
