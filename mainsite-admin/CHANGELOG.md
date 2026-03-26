@@ -1,5 +1,9 @@
 # Changelog — Mainsite Admin
 
+## [v03.46.05] — 26/03/2026
+### Corrigido
+- **Itálico/formatação não renderiza visualmente**: Google Fonts carregava Inter sem variante itálica (`ital` ausente na URL). Combinado com `font-synthesis: none` no CSS, o browser era proibido de sintetizar itálico — `<em>` ficava visualmente normal apesar do HTML correto. URL atualizada para `Inter:ital,wght@0,...;1,...` com todas as variantes itálicas.
+
 ## [v03.46.04] — 26/03/2026
 ### Corrigido
 - **Diálogos suprimidos no PopupPortal**: `window.prompt()` e `ReactDOM.createPortal(document.body)` referenciavam a janela principal (inativa), causando supressão pelo browser com erro "not the active tab". Prompt modal agora renderiza em `editor.view.dom.ownerDocument.body` (body da popup). Link prompt no BubbleMenu usa `ownerDocument.defaultView.prompt()`.
