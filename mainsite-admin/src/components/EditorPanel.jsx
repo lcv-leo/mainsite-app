@@ -397,6 +397,14 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles, isDarkBase
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  // Force re-render on every editor transaction so getActiveStyle() reads fresh isActive() values
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!editor) return;
+    const onTransaction = () => setTick(t => t + 1);
+    editor.on('transaction', onTransaction);
+    return () => editor.off('transaction', onTransaction);
+  }, [editor]);
   const [promptModal, setPromptModal] = useState({ show: false, title: '', placeholder: 'https://...', value: '', callback: null, isLink: false, linkText: '', showCaption: false, caption: '' });
 
   if (!editor) return null;
@@ -724,7 +732,9 @@ const EditorBubbleMenu = ({ editor }) => {
       if (empty || editor.state.selection instanceof NodeSelection) { setPos(null); return; }
       try {
         const domRange = editor.view.domAtPos(from);
-        const range = document.createRange();
+        const ownerDoc = editor.view.dom.ownerDocument;
+        const popupWin = ownerDoc.defaultView;
+        const range = ownerDoc.createRange();
         range.setStart(domRange.node, domRange.offset);
         const endDom = editor.view.domAtPos(to);
         range.setEnd(endDom.node, endDom.offset);
@@ -732,13 +742,11 @@ const EditorBubbleMenu = ({ editor }) => {
         if (rect.width === 0) { setPos(null); return; }
         const menuH = 44;
         const menuW = 340;
-        // Use viewport coords directly (fixed positioning)
+        const vpWidth = popupWin?.innerWidth || 800;
         let top = rect.top - menuH - 8;
         let left = rect.left + rect.width / 2;
-        // If no room above, flip below the selection
         if (top < 4) top = rect.bottom + 8;
-        // Clamp horizontally within viewport
-        left = Math.max(menuW / 2 + 4, Math.min(left, window.innerWidth - menuW / 2 - 4));
+        left = Math.max(menuW / 2 + 4, Math.min(left, vpWidth - menuW / 2 - 4));
         setPos({ top, left });
       } catch { setPos(null); }
     };
@@ -777,13 +785,16 @@ const EditorFloatingMenu = ({ editor }) => {
       if (!isEmptyTextBlock || !editor.state.selection.empty) { setPos(null); return; }
       try {
         const coords = editor.view.coordsAtPos($anchor.pos);
-        // Use viewport coords directly (fixed positioning)
         setPos({ top: coords.top - 4, left: coords.left - 16 });
       } catch { setPos(null); }
     };
+    // Hide floating menu during scroll to prevent stale position
+    const wrapper = editor.view.dom.closest('.tiptap-wrapper');
+    const hideOnScroll = () => setPos(null);
     editor.on('selectionUpdate', update);
     editor.on('focus', update);
-    return () => { editor.off('selectionUpdate', update); editor.off('focus', update); };
+    wrapper?.addEventListener('scroll', hideOnScroll);
+    return () => { editor.off('selectionUpdate', update); editor.off('focus', update); wrapper?.removeEventListener('scroll', hideOnScroll); };
   }, [editor]);
 
   if (!pos || !editor) return null;
