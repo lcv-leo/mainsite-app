@@ -3,6 +3,7 @@
 // Descrição: Editor Tiptap integrado às classes globais de UI (modalOverlay/modalContent) e estética MD3.
 
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Extension } from '@tiptap/core';
 import { useEditor, EditorContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import { NodeSelection } from 'prosemirror-state';
@@ -37,7 +38,7 @@ import {
   Highlighter, Subscript as SubIcon, Superscript as SuperIcon, Quote, Minus, Code, Table as TableIcon,
   CheckSquare, Palette, Type, WrapText, Upload, Sparkles, Image as ImageIcon, Youtube, ZoomIn, ZoomOut,
   MessageSquare, MousePointer2, Heading1 as H1Icon, Heading2 as H2Icon, Heading3, ListChecks, LayoutGrid,
-  PilcrowSquare, CornerDownLeft
+  PilcrowSquare, CornerDownLeft, Indent, Outdent, X, Eraser
 } from 'lucide-react';
 
 const FontSize = Extension.create({
@@ -64,6 +65,60 @@ const FontSize = Extension.create({
     return {
       setFontSize: fontSize => ({ chain }) => chain().setMark('textStyle', { fontSize }).run(),
       unsetFontSize: () => ({ chain }) => chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run(),
+    };
+  },
+});
+
+// Extensão customizada: recuo de primeira linha (text-indent) como atributo de parágrafo
+const INDENT_LEVELS = ['0', '1.5rem', '2.5rem', '3.5rem'];
+const TextIndent = Extension.create({
+  name: 'textIndent',
+  addGlobalAttributes() {
+    return [{
+      types: ['paragraph'],
+      attributes: {
+        textIndent: {
+          default: null,
+          parseHTML: element => {
+            const val = element.style.textIndent;
+            return val && val !== '0px' && val !== '0' ? val : null;
+          },
+          renderHTML: attributes => {
+            if (!attributes.textIndent) return {};
+            return { style: `text-indent: ${attributes.textIndent}` };
+          },
+        },
+      },
+    }];
+  },
+  addCommands() {
+    return {
+      // Avança para o próximo nível de recuo
+      increaseIndent: () => ({ tr, state, dispatch }) => {
+        const { from, to } = state.selection;
+        state.doc.nodesBetween(from, to, (node, pos) => {
+          if (node.type.name === 'paragraph') {
+            const current = node.attrs.textIndent || '0';
+            const idx = INDENT_LEVELS.indexOf(current);
+            const next = INDENT_LEVELS[Math.min(idx + 1, INDENT_LEVELS.length - 1)];
+            if (dispatch) tr.setNodeMarkup(pos, undefined, { ...node.attrs, textIndent: next === '0' ? null : next });
+          }
+        });
+        return true;
+      },
+      // Recua para o nível anterior de recuo
+      decreaseIndent: () => ({ tr, state, dispatch }) => {
+        const { from, to } = state.selection;
+        state.doc.nodesBetween(from, to, (node, pos) => {
+          if (node.type.name === 'paragraph') {
+            const current = node.attrs.textIndent || '0';
+            const idx = INDENT_LEVELS.indexOf(current);
+            const next = idx <= 0 ? '0' : INDENT_LEVELS[idx - 1];
+            if (dispatch) tr.setNodeMarkup(pos, undefined, { ...node.attrs, textIndent: next === '0' ? null : next });
+          }
+        });
+        return true;
+      },
     };
   },
 });
@@ -534,7 +589,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
 
   return (
     <div style={styles.toolbar}>
-      {promptModal.show && (
+      {promptModal.show && ReactDOM.createPortal(
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <h3 style={{ margin: '0 0 24px 0', fontSize: 'var(--type-label)', fontWeight: '700', textTransform: 'uppercase', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '12px', letterSpacing: '0.5px' }}>{promptModal.title}</h3>
@@ -550,7 +605,8 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
               <button type="button" onClick={() => { promptModal.callback(promptModal.value, promptModal.linkText, promptModal.caption); setPromptModal({ show: false }); }} style={styles.modalBtnConfirm}>INSERIR</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(2, 132, 199, 0.1)', padding: '6px 12px', borderRadius: '100px', border: '1px solid rgba(2, 132, 199, 0.3)', marginRight: '10px' }} title="Inteligência Artificial (Gemini 2.5 Pro)">
@@ -588,6 +644,8 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
       <button type="button" title="Linha" onClick={() => editor.chain().focus().setHorizontalRule().run()} style={styles.toolbarBtn}><Minus size={16} /></button>
       <button type="button" title="Tabela" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} style={styles.toolbarBtn}><TableIcon size={16} /></button>
       <button type="button" title="Quebra" onClick={() => editor.chain().focus().setHardBreak().run()} style={styles.toolbarBtn}><WrapText size={16} /></button>
+      <button type="button" title="Aumentar recuo da primeira linha" onClick={() => editor.chain().focus().increaseIndent().run()} style={styles.toolbarBtn}><Indent size={16} /></button>
+      <button type="button" title="Diminuir recuo da primeira linha" onClick={() => editor.chain().focus().decreaseIndent().run()} style={styles.toolbarBtn}><Outdent size={16} /></button>
 
       <div style={styles.toolbarDivider}></div>
       <button type="button" title="Link" onClick={addLink} style={getActiveStyle(editor.isActive('link'))}><LinkIcon size={16} /></button>
@@ -630,6 +688,7 @@ const STATIC_EXTENSIONS = [
   Color,
   FontFamily,
   FontSize,
+  TextIndent,
   Typography,
   TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'justify' }),
   ResizableImage.configure({ inline: false }),
@@ -745,13 +804,23 @@ const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotificatio
   };
 
   return (
-    <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-      <button onClick={onCancel} style={styles.backButton}><ArrowLeft size={16} /> Cancelar Edição</button>
-      <form onSubmit={handleSubmit} style={styles.form}>
+    <div style={{ animation: 'fadeIn 0.4s ease-out', display: 'flex', flexDirection: 'column', flex: 1 }}>
+      {/* Barra de controle do popup */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button type="button" onClick={onCancel} style={{ ...styles.backButton, marginBottom: 0, background: 'var(--semantic-error-soft, rgba(211,47,47,0.1))', border: '1px solid var(--semantic-error-border, rgba(211,47,47,0.3))', color: 'var(--semantic-error, #d32f2f)' }} title="Fechar popup"><X size={16} /> Fechar</button>
+          <button type="button" onClick={() => { if (editor) { editor.commands.clearContent(); setTitle(''); } }} style={{ ...styles.backButton, marginBottom: 0 }} title="Limpar área de edição"><Eraser size={16} /> Limpar</button>
+        </div>
+        <button type="button" disabled={isSaving} onClick={handleSubmit} style={styles.adminButton}>
+          {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+          {post ? 'ATUALIZAR FRAGMENTO' : 'CONSOLIDAR FRAGMENTO'}
+        </button>
+      </div>
+      <form onSubmit={handleSubmit} style={{ ...styles.form, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <input id="post-title" name="postTitle" autoComplete="off" style={styles.adminInput} placeholder="TÍTULO DO FRAGMENTO" value={title} onChange={e => setTitle(e.target.value)} required />
-        <div style={styles.editorContainer}>
+        <div style={{ ...styles.editorContainer, flex: 1, display: 'flex', flexDirection: 'column' }}>
           <MenuBar editor={editor} secret={secret} showNotification={showNotification} API_URL={API_URL} styles={styles} />
-          <div className="tiptap-wrapper" style={styles.tiptapWrapper}>
+          <div className="tiptap-wrapper" style={{ ...styles.tiptapWrapper, flex: 1, minHeight: '400px', overflowY: 'auto' }}>
             <EditorBubbleMenu editor={editor} />
             <EditorFloatingMenu editor={editor} />
             <EditorContent editor={editor} />
@@ -760,10 +829,6 @@ const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotificatio
             {editor ? `${editor.storage.characterCount.characters()} caracteres | ${editor.storage.characterCount.words()} palavras` : ''}
           </div>
         </div>
-        <button type="submit" disabled={isSaving} style={styles.adminButton}>
-          {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-          {post ? 'ATUALIZAR FRAGMENTO' : 'CONSOLIDAR FRAGMENTO'}
-        </button>
       </form>
     </div>
   );

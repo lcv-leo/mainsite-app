@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 
 import PostList from './components/PostList';
+import PopupPortal from './components/PopupPortal';
 
 const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
 const EditorPanel = lazy(() => import('./components/EditorPanel'));
@@ -16,7 +17,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
 // Rota relativa — admin é servido pelo mesmo worker
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.43.00';
+const APP_VERSION = 'APP v03.44.00';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -628,7 +629,7 @@ const App = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <Database size={28} color={activePalette.titleColor} />
             <h1 style={styles.adminTitle}>{APP_VERSION.replace('APP', 'ADMIN')}</h1>
-            {!isEditorOpen && !isSettingsOpen && !isAnalyticsOpen && !isFinancialOpen && (
+            {!isSettingsOpen && !isAnalyticsOpen && !isFinancialOpen && (
               <button onClick={() => openEditor()} style={styles.plusButton}><PlusCircle size={18} /> NOVO</button>
             )}
           </div>
@@ -653,8 +654,6 @@ const App = () => {
             <FinancialPanel onClose={() => { setIsFinancialOpen(false); fetchData(); }} secret={secret} API_URL={API_URL} styles={styles} activePalette={activePalette} isDarkBase={isDarkBase} />
           ) : isSettingsOpen ? (
             <SettingsPanel settings={settings} setSettings={setSettings} rateLimit={rateLimit} setRateLimit={setRateLimit} hasUnsavedRateLimit={hasUnsavedRateLimit} rotation={rotation} setRotation={setRotation} disclaimers={disclaimers} setDisclaimers={setDisclaimers} isSaving={isSaving} onSave={handleSaveSettings} onClose={() => { setIsSettingsOpen(false); fetchData(); }} triggerBgUpload={triggerBgUpload} isUploadingBg={isUploadingBg} uploadTarget={uploadTarget} styles={styles} />
-          ) : isEditorOpen ? (
-            <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
           ) : (
             <PostList
               posts={posts}
@@ -671,6 +670,12 @@ const App = () => {
         </Suspense>
         <footer style={styles.versionFooterAdmin}>{APP_VERSION}</footer>
       </div>
+
+      <PopupPortal isOpen={isEditorOpen} onClose={() => { setIsEditorOpen(false); setEditingPost(null); fetchData(); }} title={editingPost ? `Editando: ${editingPost.title}` : 'Novo Fragmento'}>
+        <Suspense fallback={<div style={{ padding: '50px', display: 'flex', justifyContent: 'center' }}><Loader2 className="animate-spin" size={32} /></div>}>
+          <EditorPanel key={editingPost ? editingPost.id : 'new'} post={editingPost} isSaving={isSaving} onSave={handleSavePost} onCancel={() => { setIsEditorOpen(false); setEditingPost(null); fetchData(); }} secret={secret} showNotification={showNotification} styles={styles} API_URL={API_URL} />
+        </Suspense>
+      </PopupPortal>
     </div>
   );
 };

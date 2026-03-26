@@ -1,5 +1,12 @@
 # Changelog — Mainsite Admin
 
+## [v03.44.00] — 26/03/2026
+### Adicionado
+- **Editor em popup nativo do SO**: `PopupPortal.jsx` abre editor em janela separada via `window.open()` + `ReactDOM.createPortal`. Auto-sizing ~92% da tela, cópia de stylesheets, monitoramento de close via polling
+- **Botões Fechar/Limpar no popup**: "Fechar" (X vermelho) fecha a janela, "Limpar" (borracha) reseta título e conteúdo do editor
+- **Recuo de primeira linha (text-indent)**: extensão customizada TipTap com 4 níveis (0 / 1.5rem / 2.5rem / 3.5rem). Botões de indent/outdent na toolbar com tooltips
+- **Diálogos do editor em portal**: `promptModal` (imagem URL, link, legenda, YouTube) agora renderiza via `ReactDOM.createPortal(document.body)` para centralização perfeita na viewport
+
 ## [v03.43.00] — 26/03/2026
 ### Adicionado
 - **Seção "Configurações Globais" expandida** de 3 para 11 controles: família da fonte (com Inter recomendada), tamanhos de fonte, peso corpo/títulos, altura de linha (range slider com labels), alinhamento do texto, recuo de parágrafo, espaçamento, largura de leitura, cor dos links
