@@ -2,8 +2,8 @@
 
 ## [v02.18.00] — 26/03/2026
 ### Adicionado
-- **Rodapé de metadados nas postagens**: exibe "Publicação: dd/mm/aaaa, hh:mm:ss · Atualizado em dd/mm/aaaa, hh:mm:ss" de forma elegante e discreta (opacity 0.45, 11px) entre o conteúdo e a barra de compartilhamento
-- **Datas completas nos cards do arquivo**: cards mostram data+hora de criação e linha "Atualizado" quando diferente, substituindo a exibição anterior que era apenas data
+- **Rodapé de metadados nas postagens**: exibe "Publicado em dd/mm/aaaa, hh:mm:ss | Atualizado em dd/mm/aaaa, hh:mm:ss" de forma elegante e discreta (opacity 0.45, 11px) entre o conteúdo e a barra de compartilhamento
+- **Datas completas nos cards do arquivo**: formato "Publicado em dd/mm/aaaa, hh:mm:ss" com linha "Atualizado em" quando diferente, substituindo a exibição anterior que era apenas data
 
 ### Alterado
 - **Cards do arquivo reduzidos ~30%**: padding 24→16px, squares 220→154px, grid min 200→140px, border-radius 24→16px, gap 24→16px
