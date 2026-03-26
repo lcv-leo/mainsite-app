@@ -11,6 +11,12 @@
       "database_id": "6a71b62e-8ab9-45e6-a867-c0d4e6a56269"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "mainsite-media"
+    }
+  ],
   "services": [
     {
       "binding": "WORKER",
