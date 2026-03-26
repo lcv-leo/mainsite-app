@@ -2,7 +2,7 @@
 // Versão: v1.2.0
 // Descrição: Componente isolado para a listagem e busca. Atualizado 100% para métricas Glassmorphism + MD3 e Timezone America/Sao_Paulo cravado.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ChevronUp, Search } from 'lucide-react';
 
 const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VERSION }) => {
@@ -10,10 +10,6 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
   const [searchTerm, setSearchTerm] = useState('');
   const [showOlderYears, setShowOlderYears] = useState(false);
   const [selectedYear, setSelectedYear] = useState(null);
-
-  if (!activePalette) return null;
-
-  const isDarkBase = activePalette.bgColor && (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1'));
 
   const parsePostDate = (post) => {
     if (!post?.created_at) return new Date(0);
@@ -23,15 +19,15 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
 
   const monthFormatter = useMemo(() => new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'America/Sao_Paulo' }), []);
 
-  const filteredArchive = posts.filter(post => {
+  const filteredArchive = useMemo(() => posts.filter(post => {
     const safeTitle = post.title || '';
     const safeContent = post.content || '';
     const matchesSearch = searchTerm === '' || safeTitle.toLowerCase().includes(searchTerm.toLowerCase()) || safeContent.toLowerCase().includes(searchTerm.toLowerCase());
     return searchTerm ? matchesSearch : (matchesSearch && post.id !== currentPost?.id);
-  });
+  }), [posts, searchTerm, currentPost?.id]);
 
   const latestByRotation = filteredArchive.slice(0, 4);
-  const historicalArchive = filteredArchive.slice(4);
+  const historicalArchive = useMemo(() => filteredArchive.slice(4), [filteredArchive]);
 
   const groupedHistory = useMemo(() => {
     const years = [];
@@ -77,18 +73,18 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
     return allYearGroups.find((group) => group.year === resolvedSelectedYear) || null;
   }, [allYearGroups, resolvedSelectedYear]);
 
-  useEffect(() => {
-    if (!isHistoryOpen) setShowOlderYears(false);
-  }, [isHistoryOpen]);
+  // Derived: reset showOlderYears when history closes or no older years exist
+  const effectiveShowOlderYears = showOlderYears && isHistoryOpen && hasOlderYears;
 
-  useEffect(() => {
-    if (!hasOlderYears) setShowOlderYears(false);
-  }, [hasOlderYears]);
+  if (!activePalette) return null;
+
+  const isDarkBase = activePalette.bgColor && (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1'));
 
   const handleSelectPost = (post) => {
     setCurrentPost(post);
     setIsHistoryOpen(false);
     setSearchTerm('');
+    setShowOlderYears(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -101,12 +97,13 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
     expandBar: { width: '100%', minHeight: '92px', borderRadius: '20px', cursor: 'pointer', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.1em', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', background: 'none', color: activePalette.fontColor }
   };
 
+  const fmtDate = (raw) => {
+    if (!raw) return null;
+    const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
+    return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
+
   const renderPostCard = (post) => {
-    const fmtDate = (raw) => {
-      if (!raw) return null;
-      const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
-      return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    };
     const criado = fmtDate(post.created_at);
     const atualizado = fmtDate(post.updated_at);
     const showUpdated = atualizado && atualizado !== criado;
@@ -208,20 +205,26 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
             {latestByRotation.length > 0 && (
               <div className="archive-row-container">
                 <div className="archive-square-row">
-                  {latestByRotation.map((post) => (
-                    <div key={post.id} className="archive-square-item">
-                      <div
-                        onClick={() => handleSelectPost(post)}
-                        className="glass-card-md3 archive-square-hover"
-                        style={styles.squareBlock}
-                      >
-                        <div style={{ ...styles.cardDate, marginBottom: '12px' }}>
-                          {parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                  {latestByRotation.map((post) => {
+                    const criado = fmtDate(post.created_at);
+                    const atualizado = fmtDate(post.updated_at);
+                    const showUpdated = atualizado && atualizado !== criado;
+                    return (
+                      <div key={post.id} className="archive-square-item">
+                        <div
+                          onClick={() => handleSelectPost(post)}
+                          className="glass-card-md3 archive-square-hover"
+                          style={styles.squareBlock}
+                        >
+                          <div style={{ ...styles.cardDate, marginBottom: '12px' }}>
+                            Publicado em {criado || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                            {showUpdated && <div style={{ marginTop: '2px', fontSize: '10px', opacity: 0.8 }}>Atualizado em {atualizado}</div>}
+                          </div>
+                          <div style={{ fontSize: '13px', fontWeight: '600', color: activePalette.titleColor, lineHeight: '1.35' }}>{post.title}</div>
                         </div>
-                        <div style={{ fontSize: '13px', fontWeight: '600', color: activePalette.titleColor, lineHeight: '1.35' }}>{post.title}</div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -256,12 +259,12 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
                     <button
                       type="button"
                       onClick={() => setShowOlderYears((prev) => !prev)}
-                      aria-expanded={showOlderYears}
+                      aria-expanded={effectiveShowOlderYears}
                       aria-controls="archive-older-years"
                       className="glass-card-md3 archive-square-hover"
                       style={styles.expandBar}
                     >
-                      ANOS ANTERIORES {showOlderYears ? '▲' : '▼'}
+                      ANOS ANTERIORES {effectiveShowOlderYears ? '▲' : '▼'}
                     </button>
                   </div>
                 )}
@@ -269,8 +272,8 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
                 {hasOlderYears && (
                   <div
                     id="archive-older-years"
-                    className={`archive-older-years-wrap ${showOlderYears ? 'open' : 'closed'}`}
-                    aria-hidden={!showOlderYears}
+                    className={`archive-older-years-wrap ${effectiveShowOlderYears ? 'open' : 'closed'}`}
+                    aria-hidden={!effectiveShowOlderYears}
                   >
                     <div className="archive-square-row" style={{ marginTop: '16px' }}>
                       {olderYears.map((yearGroup, index) => (
@@ -282,8 +285,8 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
                               ...styles.squareBlock,
                               borderColor: resolvedSelectedYear === yearGroup.year ? `${activePalette.titleColor}90` : undefined,
                               boxShadow: resolvedSelectedYear === yearGroup.year ? `0 0 0 2px ${activePalette.titleColor}35 inset` : undefined,
-                              opacity: showOlderYears ? 1 : 0,
-                              transform: showOlderYears ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.985)',
+                              opacity: effectiveShowOlderYears ? 1 : 0,
+                              transform: effectiveShowOlderYears ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.985)',
                               transition: `opacity 0.3s ease ${60 + (index * 45)}ms, transform 0.36s cubic-bezier(0.16, 1, 0.3, 1) ${60 + (index * 45)}ms`,
                             }}
                           >
