@@ -1,5 +1,12 @@
 # Changelog — Mainsite Admin
 
+## [v03.46.01] — 26/03/2026
+### Corrigido
+- **TipTap v3 — `Cannot access view['dom']`**: editor toolbar (`MenuBar`) e `EditorFloatingMenu` acessavam `editor.view.dom` antes do editor montar. `MenuBar` agora só renderiza após `onCreate` do editor (`editorReady` flag). `EditorFloatingMenu` wrapa `editor.view.dom` em try/catch no setup do `useEffect`.
+
+### Removido
+- **`_headers`**: arquivo removido — mainsite-admin não precisa de headers de segurança adicionais (Cloudflare Access protege o app). O ruído CSP Report-Only no console vem de regra no edge Cloudflare, não do app.
+
 ## [v03.46.00] — 26/03/2026
 ### Adicionado
 - **IA: Instrução Livre (Gemini Freeform)**: novo botão ✨ (Wand2) no final da toolbar. Abre popover glassmorphic com textarea para instrução em linguagem natural. Gemini recebe o texto selecionado (ou todo o conteúdo se não houver seleção) e executa a instrução como um copilot Word-class com preservação HTML. Enter envia, Escape fecha.
