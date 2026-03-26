@@ -1,18 +1,10 @@
 # Módulo: public/_headers
-# Versão: v1.5.0
-# Descrição: Regras estritas de segurança global, políticas de cache agressivo para otimização de LCP e liberação de CSP atualizada para SDK, Iframes e domínios de infraestrutura do Mercado Pago/Mercado Libre.
+# Versão: v1.6.0
+# Descrição: Regras de segurança global e CSP. Cache gerenciado nativamente pelo Cloudflare.
 
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   X-XSS-Protection: 1; mode=block
   Referrer-Policy: strict-origin-when-cross-origin
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com https://sdk.mercadopago.com https://*.mercadopago.com https://*.mlstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://cloudflareinsights.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com https://*.mlstatic.com; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com;
-
-# Cache Estrito para a Imagem de Fundo Dinâmica
-/image_0.png
-  Cache-Control: public, max-age=31536000, immutable
-
-# Cache Estrito para os artefatos JavaScript e CSS empacotados pelo Vite (Hashes imutáveis)
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com https://sdk.mercadopago.com https://*.mercadopago.com https://*.mlstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data: blob:; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://cloudflareinsights.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com https://*.mlstatic.com; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com;
