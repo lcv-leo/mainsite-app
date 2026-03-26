@@ -1,5 +1,11 @@
 # Changelog — Mainsite Admin
 
+## [v03.46.02] — 26/03/2026
+### Corrigido
+- **Botão Justify sempre pressionado**: `TextAlign` usava `defaultAlignment: 'justify'`, fazendo todos os parágrafos ativarem o botão permanentemente. Removido — default volta a `'left'` (padrão do TipTap). Justify agora só fica ativo quando explicitamente selecionado pelo usuário.
+- **Indicador visual de botão ativo insuficiente**: `getActiveStyle()` agora usa borda inferior colorida de 2px (`inset 0 -2px 0 accent`), fundo mais contrastante e borda com cor do accent, tornando o estado ativo claramente distinto do idle.
+- **FloatingMenu / BubbleMenu cortados pelas bordas do editor**: ambos os menus usavam `position: fixed` mas estavam renderizados dentro de `tiptap-wrapper`, cujo pai `editorContainer` com `backdropFilter` criava um containing block CSS. Migrados para `ReactDOM.createPortal(ownerDocument.body)`, eliminando o clipping.
+
 ## [v03.46.01] — 26/03/2026
 ### Corrigido
 - **TipTap v3 — `Cannot access view['dom']`**: editor toolbar (`MenuBar`) e `EditorFloatingMenu` acessavam `editor.view.dom` antes do editor montar. `MenuBar` agora só renderiza após `onCreate` do editor (`editorReady` flag). `EditorFloatingMenu` wrapa `editor.view.dom` em try/catch no setup do `useEffect`.

@@ -621,16 +621,15 @@ const MenuBar = ({ editor, editorReady, secret, showNotification, API_URL, style
   };
 
   const tbIdleBg = isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)';
-  const tbActiveBg = isDarkBase ? 'rgba(192,132,252,0.18)' : 'rgba(170,59,255,0.12)';
   const tbActiveFg = activePalette?.titleColor || '#aa3bff';
 
   const getActiveStyle = (isActive) => ({
     ...styles.toolbarBtn,
     borderRadius: '8px',
-    border: isActive ? '1px solid rgba(128,128,128,0.35)' : '1px solid rgba(128,128,128,0.15)',
-    background: isActive ? tbActiveBg : tbIdleBg,
+    border: isActive ? `1px solid ${tbActiveFg}66` : '1px solid rgba(128,128,128,0.15)',
+    background: isActive ? (isDarkBase ? 'rgba(192,132,252,0.22)' : 'rgba(170,59,255,0.16)') : tbIdleBg,
     boxShadow: isActive
-      ? 'inset 1px 1px 3px rgba(0,0,0,0.28), inset -1px -1px 1px rgba(255,255,255,0.06)'
+      ? `inset 0 -2px 0 ${tbActiveFg}, inset 1px 1px 3px rgba(0,0,0,0.18)`
       : '0 1px 2px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08)',
     color: isActive ? tbActiveFg : styles.toolbarBtn.color,
     transform: isActive ? 'translateY(0.5px)' : 'none',
@@ -780,7 +779,7 @@ const STATIC_EXTENSIONS = [
   FontSize,
   TextIndent,
   Typography,
-  TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'justify' }),
+  TextAlign.configure({ types: ['heading', 'paragraph'] }),
   ResizableImage.configure({ inline: false }),
   ResizableYoutube.configure({ inline: false, width: 840, height: 472.5 }),
   Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
@@ -828,7 +827,8 @@ const EditorBubbleMenu = ({ editor }) => {
   }, [editor]);
 
   if (!pos || !editor) return null;
-  return (
+  const portalTarget = editor.view?.dom?.ownerDocument?.body || document.body;
+  return ReactDOM.createPortal(
     <div ref={ref} className="bubble-menu" style={{ position: 'fixed', top: `${pos.top}px`, left: `${pos.left}px`, transform: 'translateX(-50%)', zIndex: 99999 }}>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} className={editor.isActive('bold') ? 'is-active' : ''} title="Negrito"><Bold size={14} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} className={editor.isActive('italic') ? 'is-active' : ''} title="It\u00e1lico"><Italic size={14} /></button>
@@ -841,7 +841,8 @@ const EditorBubbleMenu = ({ editor }) => {
       <span className="bubble-divider" />
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleCode().run(); }} className={editor.isActive('code') ? 'is-active' : ''} title="C\u00f3digo inline"><Code size={14} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); if (editor.isActive('link')) { editor.chain().focus().unsetLink().run(); } else { const url = window.prompt('URL do link:'); if (url) editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run(); } }} className={editor.isActive('link') ? 'is-active' : ''} title="Link"><LinkIcon size={14} /></button>
-    </div>
+    </div>,
+    portalTarget
   );
 };
 
@@ -871,7 +872,8 @@ const EditorFloatingMenu = ({ editor }) => {
   }, [editor]);
 
   if (!pos || !editor) return null;
-  return (
+  const portalTarget = editor.view?.dom?.ownerDocument?.body || document.body;
+  return ReactDOM.createPortal(
     <div className="floating-menu" style={{ position: 'fixed', top: `${pos.top}px`, left: `${pos.left}px`, transform: 'translateX(-100%)', zIndex: 99999 }}>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }} className={editor.isActive('heading', { level: 1 }) ? 'is-active' : ''} title="T\u00edtulo 1"><H1Icon size={16} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }} className={editor.isActive('heading', { level: 2 }) ? 'is-active' : ''} title="T\u00edtulo 2"><H2Icon size={16} /></button>
@@ -885,7 +887,8 @@ const EditorFloatingMenu = ({ editor }) => {
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleCodeBlock().run(); }} title="Bloco de C\u00f3digo"><Code size={16} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().setHorizontalRule().run(); }} title="Linha Horizontal"><Minus size={16} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); }} title="Tabela"><LayoutGrid size={16} /></button>
-    </div>
+    </div>,
+    portalTarget
   );
 };
 
