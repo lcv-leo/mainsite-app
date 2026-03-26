@@ -7,7 +7,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly" # Reduzido para semanal: Actions mudam com menor frequência
+      interval: "weekly"
       day: "monday"
       time: "09:00"
       timezone: "America/Sao_Paulo"
@@ -16,55 +16,109 @@ updates:
       - "github-actions"
       - "security"
     assignees:
-      - "lcv-leo" # Atribui o PR diretamente ao seu usuário
+      - "lcv-leo"
     commit-message:
       prefix: "ci"
       include: "scope"
     open-pull-requests-limit: 5
 
   # ---------------------------------------------------------
-  # 2. SOFTWARE: Dependências do Projeto (NPM/Node.js)
+  # 2. SOFTWARE: mainsite-frontend (NPM)
   # ---------------------------------------------------------
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/mainsite-frontend"
     schedule:
       interval: "daily"
-      time: "06:00" # Roda antes do início do seu dia útil
+      time: "06:00"
       timezone: "America/Sao_Paulo"
     labels:
       - "dependencies"
       - "npm"
+      - "frontend"
     assignees:
       - "lcv-leo"
-    
-    # Padronização de Commits
     commit-message:
       prefix: "chore"
       include: "scope"
-    
-    # Estratégia de Versionamento: Altera o package.json apenas se o range não cobrir a versão nova
     versioning-strategy: increase
-    
-    # Agrupamento: Consolida atualizações em lotes lógicos
     groups:
-      # Grupo 1: Ferramentas de desenvolvimento e tipagem rodam juntas em 1 único PR
       dev-dependencies:
         patterns:
           - "eslint*"
           - "vite*"
           - "typescript"
           - "@types/*"
-          - "wrangler"
         update-types:
           - "minor"
           - "patch"
-      
-    # Controle Anti-Regressão (Zero Trust)
     ignore:
-      # Ignora atualizações Major do React e React-DOM para evitar quebra de interface autônoma
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-dom"
         update-types: ["version-update:semver-major"]
-
     open-pull-requests-limit: 10
+
+  # ---------------------------------------------------------
+  # 3. SOFTWARE: mainsite-admin (NPM)
+  # ---------------------------------------------------------
+  - package-ecosystem: "npm"
+    directory: "/mainsite-admin"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "admin"
+    assignees:
+      - "lcv-leo"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    versioning-strategy: increase
+    groups:
+      dev-dependencies:
+        patterns:
+          - "eslint*"
+          - "vite*"
+          - "typescript"
+          - "@types/*"
+        update-types:
+          - "minor"
+          - "patch"
+      # TipTap editor — 29 pacotes sempre atualizados juntos
+      tiptap-editor:
+        patterns:
+          - "@tiptap/*"
+          - "tiptap-markdown"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 10
+
+  # ---------------------------------------------------------
+  # 4. SOFTWARE: mainsite-worker (NPM)
+  # ---------------------------------------------------------
+  - package-ecosystem: "npm"
+    directory: "/mainsite-worker"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "worker"
+    assignees:
+      - "lcv-leo"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    versioning-strategy: increase
+    open-pull-requests-limit: 5
