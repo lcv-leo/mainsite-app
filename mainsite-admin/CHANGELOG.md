@@ -1,5 +1,14 @@
 # Changelog — Mainsite Admin
 
+## [v03.46.03] — 26/03/2026
+### Adicionado
+- **Menus flutuantes arrastáveis**: BubbleMenu e FloatingMenu agora suportam drag-and-drop para reposicionamento. Arrastar pelo fundo do menu move-o livremente; clicar nos botões continua disparando ações normalmente. Cursor `grab`/`grabbing` como feedback visual. Menu reseta para posição automática quando a seleção muda.
+- **Viewport clamping**: ambos os menus são agora automaticamente contidos dentro da janela, sem corte pelas bordas. FloatingMenu reposiciona-se à direita do cursor quando não cabe na esquerda.
+
+### Corrigido
+- **Toolbar dinâmica (Word-like)**: MenuBar agora escuta `selectionUpdate` além de `transaction`, garantindo que os botões de formatação reflitam dinamicamente o estado do texto na posição corrente do cursor, como no Microsoft Word.
+
+
 ## [v03.46.02] — 26/03/2026
 ### Corrigido
 - **Botão Justify sempre pressionado**: `TextAlign` usava `defaultAlignment: 'justify'`, fazendo todos os parágrafos ativarem o botão permanentemente. Removido — default volta a `'left'` (padrão do TipTap). Justify agora só fica ativo quando explicitamente selecionado pelo usuário.

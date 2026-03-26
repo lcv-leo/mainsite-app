@@ -18,7 +18,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
 // Rota relativa — admin é servido pelo mesmo worker
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.46.02';
+const APP_VERSION = 'APP v03.46.03';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -571,6 +571,7 @@ const App = () => {
           border-radius: 14px; padding: 4px 6px;
           box-shadow: 0 8px 28px rgba(0,0,0,0.18);
           animation: fadeIn 0.15s ease-out;
+          cursor: grab;
         }
         .bubble-menu button {
           background: ${isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'}; border: 1px solid rgba(128,128,128,0.15); cursor: pointer;
@@ -603,7 +604,9 @@ const App = () => {
           border-radius: 14px; padding: 4px 6px;
           box-shadow: 0 8px 28px rgba(0,0,0,0.18);
           animation: fadeIn 0.15s ease-out;
+          cursor: grab;
         }
+        .floating-menu.dragging, .bubble-menu.dragging { cursor: grabbing; user-select: none; }
         .floating-menu button {
           background: ${isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'}; border: 1px solid rgba(128,128,128,0.15); cursor: pointer;
           padding: 5px 7px; border-radius: 7px;
