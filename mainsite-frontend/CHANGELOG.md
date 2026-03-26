@@ -1,5 +1,17 @@
 # Changelog — Mainsite Frontend
 
+## [v02.18.00] — 26/03/2026
+### Adicionado
+- **Rodapé de metadados nas postagens**: exibe "Publicação: dd/mm/aaaa, hh:mm:ss · Atualizado em dd/mm/aaaa, hh:mm:ss" de forma elegante e discreta (opacity 0.45, 11px) entre o conteúdo e a barra de compartilhamento
+- **Datas completas nos cards do arquivo**: cards mostram data+hora de criação e linha "Atualizado" quando diferente, substituindo a exibição anterior que era apenas data
+
+### Alterado
+- **Cards do arquivo reduzidos ~30%**: padding 24→16px, squares 220→154px, grid min 200→140px, border-radius 24→16px, gap 24→16px
+- **Fonte das datas nos cards +20%**: 10→12px para melhor legibilidade
+
+### Removido
+- **Terser removido**: substituído por esbuild nativo do Vite 8 com `drop: ['console', 'debugger']`. Build acelerou de ~3s para ~460ms e elimina warning `[PLUGIN_TIMINGS] vite:terser`
+
 ## [v02.17.00] — 26/03/2026
 ### Adicionado
 - **11 controles configuráveis na seção "Configurações Globais"**: peso do corpo/títulos, altura de linha (slider), alinhamento de texto, recuo de parágrafo, espaçamento entre parágrafos, largura máxima de leitura, cor dos links

@@ -1,3 +1,10 @@
+/* ProseMirror base — suprime warning de white-space */
+.ProseMirror {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  outline: none;
+}
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
