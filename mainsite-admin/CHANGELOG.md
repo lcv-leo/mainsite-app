@@ -8,6 +8,10 @@
 - **Diálogos do editor em portal**: `promptModal` (imagem URL, link, legenda, YouTube) agora renderiza via `ReactDOM.createPortal(document.body)` para centralização perfeita na viewport
 - **Botões scroll-to-top/bottom**: FABs flutuantes com glassmorphism no canto inferior direito, com exibição condicional baseada na posição de scroll (mesmo padrão do frontend)
 - **Scroll independente na área de edição**: toolbar e controles ficam fixos no topo do popup enquanto apenas o conteúdo do editor rola, via cadeia flex com `overflow:hidden` + `min-height:0`
+- **Datas completas no PostList**: formato "Publicado em dd/mm/aaaa, hh:mm:ss | Atualizado em dd/mm/aaaa, hh:mm:ss" com exibição condicional
+
+### Corrigido
+- **ProseMirror CSS white-space**: adicionada regra `.ProseMirror { white-space: pre-wrap }` no `index.css` para suprimir warning de console
 
 ## [v03.43.00] — 26/03/2026
 ### Adicionado
