@@ -43,7 +43,24 @@ const PostList = ({
             </div>
             <div>
               <div style={styles.cardDate}>
-                {new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                {(() => {
+                  // Formata data+hora em pt-BR (dd/mm/aaaa, hh:mm:ss)
+                  const fmt = (raw) => {
+                    if (!raw) return null;
+                    const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
+                    return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                  };
+                  const criado = fmt(post.created_at);
+                  const atualizado = fmt(post.updated_at);
+                  // Exibe "Atualizado em" apenas quando diferente de created_at
+                  const showUpdated = atualizado && atualizado !== criado;
+                  return (
+                    <span>
+                      Publicação: {criado || '—'}
+                      {showUpdated && <> | Atualizado em {atualizado}</>}
+                    </span>
+                  );
+                })()}
                 {post.is_pinned && <span style={styles.pinnedBadge}>FIXADO</span>}
               </div>
               <h2 style={styles.cardTitle}>{post.title}</h2>
