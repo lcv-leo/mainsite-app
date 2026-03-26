@@ -76,13 +76,13 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
   };
 
   return (
-    <div style={overlayStyle}>
+    <div style={overlayStyle} role="dialog" aria-modal="true" aria-labelledby="comment-title">
       <div style={modalStyle}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(128,128,128,0.1)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '100px', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <button type="button" onClick={onClose} aria-label="Fechar" style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(128,128,128,0.1)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '100px', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
           <X size={20} />
         </button>
 
-        <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '800', color: activePalette.titleColor, letterSpacing: '-0.02em' }}>
+        <h2 id="comment-title" style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '800', color: activePalette.titleColor, letterSpacing: '-0.02em' }}>
           Deixar um Comentário
         </h2>
         <p style={{ fontSize: '13px', opacity: 0.7, marginBottom: '25px', marginTop: 0, fontWeight: '500' }}>
@@ -91,22 +91,26 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
 
         <form onSubmit={handleSubmit} autoComplete="on" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
           <div style={{ position: 'relative' }}>
+            <label htmlFor="comment-name" className="sr-only">Seu Nome</label>
             <User size={18} style={iconStyle} />
             <input id="comment-name" type="text" name="name" placeholder="Seu Nome (Opcional)" autoComplete="name" value={formData.name} onChange={handleChange} style={inputStyle} />
           </div>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
+              <label htmlFor="comment-phone" className="sr-only">Telefone</label>
               <Phone size={18} style={iconStyle} />
               <input id="comment-phone" type="tel" name="phone" placeholder="Telefone (Opcional)" autoComplete="tel-national" inputMode="tel" value={formData.phone} onChange={handleChange} maxLength={16} style={inputStyle} />
             </div>
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
+              <label htmlFor="comment-email" className="sr-only">Seu E-mail</label>
               <Mail size={18} style={iconStyle} />
               <input id="comment-email" type="email" name="email" placeholder="Seu E-mail (Opcional)" autoComplete="email" value={formData.email} onChange={handleChange} style={inputStyle} />
             </div>
           </div>
 
           <div style={{ position: 'relative' }}>
+            <label htmlFor="comment-message" className="sr-only">Comentário</label>
             <textarea id="comment-message" name="message" required maxLength={1000} autoComplete="off" placeholder="Escreva seu comentário aqui (Obrigatório)..." value={formData.message} onChange={handleChange} style={{ ...inputStyle, padding: '16px', minHeight: '140px', resize: 'vertical' }} />
             <div style={{ position: 'absolute', bottom: '16px', right: '16px', fontSize: '11px', fontWeight: '800', color: charsLeft < 50 ? 'var(--semantic-error)' : activePalette.fontColor, opacity: charsLeft < 50 ? 1 : 0.5 }}>
               {charsLeft} restantes

@@ -14,9 +14,9 @@ const EditorPanel = lazy(() => import('./components/EditorPanel'));
 const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel'));
 const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
-// URL Oficial da API
-const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v03.37.00';
+// Rota relativa — admin é servido pelo mesmo worker
+const API_URL = '/api';
+const APP_VERSION = 'APP v03.40.00';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
@@ -117,7 +117,7 @@ const getStyles = (activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse
   toolbar: { display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '16px', borderBottom: `1px solid ${glassBorder}`, backgroundColor: isDarkBase ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' },
   toolbarBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: activePalette.fontColor, border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '10px', width: '36px', height: '36px', transition: 'all 0.2s' },
   toolbarDivider: { width: '1px', backgroundColor: glassBorder, margin: '0 8px' },
-  tiptapWrapper: { backgroundColor: 'transparent', color: activePalette.fontColor, cursor: 'text' },
+  tiptapWrapper: { position: 'relative', backgroundColor: 'transparent', color: activePalette.fontColor, cursor: 'text' },
   statusBar: { padding: '12px 20px', borderTop: `1px solid ${glassBorder}`, fontSize: '13px', color: activePalette.fontColor, opacity: 0.6, textAlign: 'right', background: isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)' },
   adminButton: { backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none', borderRadius: '16px', padding: '18px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', letterSpacing: '0.5px', marginTop: '20px', transition: 'all 0.2s', boxShadow: `0 8px 24px ${activePalette.titleColor}40` },
   list: { display: 'flex', flexDirection: 'column', gap: '16px' },
@@ -371,7 +371,7 @@ const App = () => {
     getStyles(activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse),
     [activePalette, isDarkBase, glassBg, glassBorder, bgImageToUse]);
 
-  if (loading) return <div style={styles.center}><Loader2 className="animate-spin" color={activePalette.fontColor} size={32} /></div>;
+  if (loading) return <div role="status" aria-label="Carregando" style={styles.center}><Loader2 className="animate-spin" color={activePalette.fontColor} size={32} /><span className="sr-only">Carregando painel administrativo…</span></div>;
 
   return (
     <div style={styles.adminBody}>
@@ -536,20 +536,83 @@ const App = () => {
         ul[data-type="taskList"] { list-style: none; padding: 0; }
         ul[data-type="taskList"] li { display: flex; align-items: center; }
         ul[data-type="taskList"] li label { margin-right: 8px; }
+
+        /* TipTap BubbleMenu — contextual formatting toolbar on text selection */
+        .bubble-menu {
+          display: flex; align-items: center; gap: 2px;
+          background: ${isDarkBase ? 'rgba(18,18,22,0.96)' : 'rgba(255,255,255,0.96)'};
+          backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+          border: 1px solid ${glassBorder};
+          border-radius: 14px; padding: 4px 6px;
+          box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+          animation: fadeIn 0.15s ease-out;
+        }
+        .bubble-menu button {
+          background: transparent; border: none; cursor: pointer;
+          padding: 6px 8px; border-radius: 10px;
+          color: ${activePalette.fontColor}; display: flex; align-items: center; justify-content: center;
+          transition: background 0.14s, color 0.14s;
+        }
+        .bubble-menu button:hover { background: ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+        .bubble-menu button.is-active {
+          background: ${isDarkBase ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)'};
+          color: ${activePalette.titleColor};
+        }
+        .bubble-divider {
+          width: 1px; height: 20px;
+          background: ${glassBorder};
+          margin: 0 2px;
+        }
+
+        /* TipTap FloatingMenu — quick-insert toolbar on empty lines */
+        .floating-menu {
+          display: flex; align-items: center; gap: 2px;
+          background: ${isDarkBase ? 'rgba(18,18,22,0.96)' : 'rgba(255,255,255,0.96)'};
+          backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+          border: 1px solid ${glassBorder};
+          border-radius: 14px; padding: 4px 6px;
+          box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+          animation: fadeIn 0.15s ease-out;
+        }
+        .floating-menu button {
+          background: transparent; border: none; cursor: pointer;
+          padding: 6px 8px; border-radius: 10px;
+          color: ${activePalette.fontColor}; opacity: 0.7;
+          display: flex; align-items: center; justify-content: center;
+          transition: background 0.14s, color 0.14s, opacity 0.14s;
+        }
+        .floating-menu button:hover { opacity: 1; background: ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}; }
+        .floating-menu button.is-active {
+          opacity: 1;
+          background: ${isDarkBase ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)'};
+          color: ${activePalette.titleColor};
+        }
+        .floating-divider {
+          width: 1px; height: 20px;
+          background: ${glassBorder};
+          margin: 0 2px;
+        }
+
+        /* TipTap Focus — visual feedback on currently focused node */
+        .ProseMirror .has-focus {
+          border-radius: 4px;
+          box-shadow: inset 0 0 0 2px ${isDarkBase ? 'rgba(192,132,252,0.15)' : 'rgba(170,59,255,0.08)'};
+        }
+
         .log-card { padding: 24px; border-radius: 20px; border: 1px solid ${glassBorder}; background: ${isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)'}; backdrop-filter: blur(8px); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .log-card:hover { transform: translateY(-3px); box-shadow: 0 16px 32px rgba(0,0,0,0.08); }
         button:hover { opacity: 0.9; }
       `}</style>
 
-      <div style={{ ...styles.toast, top: `${toastTop}px`, transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : (isDarkBase ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor }}>
+      <div role="alert" aria-live="assertive" aria-atomic="true" style={{ ...styles.toast, top: `${toastTop}px`, transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : (isDarkBase ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor }}>
         {toast.type === 'error' ? <AlertCircle size={20} /> : <Check size={20} />} <span>{toast.message}</span>
       </div>
 
       {modal.show && (
-        <div style={styles.modalOverlay}>
+        <div role="dialog" aria-modal="true" aria-labelledby="delete-modal-title" style={styles.modalOverlay}>
           <div style={styles.modalContent}>
-            <AlertCircle size={56} color="var(--semantic-error)" style={{ marginBottom: '24px' }} />
-            <p style={styles.modalText}>Deseja apagar permanentemente este registro?</p>
+            <AlertCircle size={56} color="var(--semantic-error)" style={{ marginBottom: '24px' }} aria-hidden="true" />
+            <p id="delete-modal-title" style={styles.modalText}>Deseja apagar permanentemente este registro?</p>
             <div style={styles.modalActions}>
               <button onClick={() => setModal({ show: false, id: null })} style={styles.modalBtnCancel}>CANCELAR</button>
               <button onClick={confirmDelete} style={styles.modalBtnConfirm}>EXCLUIR</button>
@@ -570,11 +633,11 @@ const App = () => {
             )}
           </div>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <button onClick={cycleTheme} style={styles.headerBtn} title="Alternar Tema">
-              {userTheme === 'auto' ? <Settings size={16} /> : userTheme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
+            <button onClick={cycleTheme} style={styles.headerBtn} title="Alternar Tema" aria-label={`Alternar tema: modo ${userTheme} ativo`}>
+              {userTheme === 'auto' ? <Settings size={16} aria-hidden="true" /> : userTheme === 'dark' ? <Moon size={16} aria-hidden="true" /> : <Sun size={16} aria-hidden="true" />}
             </button>
-            <button onClick={() => { setIsAnalyticsOpen(false); setIsSettingsOpen(false); setIsFinancialOpen(false); fetchData(); }} style={styles.headerBtn} title="Sincronizar Banco">
-              <RefreshCw size={16} className={isRefreshingGlobal ? "animate-spin" : ""} />
+            <button onClick={() => { setIsAnalyticsOpen(false); setIsSettingsOpen(false); setIsFinancialOpen(false); fetchData(); }} style={styles.headerBtn} title="Sincronizar Banco" aria-label="Sincronizar dados">
+              <RefreshCw size={16} className={isRefreshingGlobal ? "animate-spin" : ""} aria-hidden="true" />
             </button>
 
             <button onClick={() => { setIsAnalyticsOpen(true); setIsSettingsOpen(false); setIsFinancialOpen(false); setIsEditorOpen(false); }} style={styles.headerBtn}><BarChart2 size={16} /> Auditoria</button>

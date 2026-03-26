@@ -1,6 +1,7 @@
 // Módulo: mainsite-frontend/functions/[[path]].js
 // Descrição: Middleware nativo do Cloudflare Pages (HTMLRewriter).
 // Intercepta a resposta do HTML estático e injeta dinamicamente as Open Graph Tags para SEO (WhatsApp, Facebook, etc.)
+// Lê dados diretamente do D1 via binding DB, sem chamada a URL externa.
 
 /* global HTMLRewriter */
 
@@ -23,6 +24,11 @@ export async function onRequest(context) {
     return assetResponse;
   }
 
+  // Bypass para rotas de API — o catch-all proxy cuida dessas
+  if (url.pathname.startsWith('/api/')) {
+    return context.next();
+  }
+
   // 1. Pega a resposta original (o seu index.html estático do React)
   const response = await context.next();
   
@@ -34,11 +40,10 @@ export async function onRequest(context) {
   if (!postId) return response;
 
   try {
-    // 3. Consulta a nova rota rápida do Worker para pegar APENAS os dados deste texto.
-    const apiRes = await fetch(`https://mainsite-app.lcv.rio.br/api/posts/${postId}`);
-    if (!apiRes.ok) return response;
-    
-    const post = await apiRes.json();
+    // 3. Consulta direta ao D1 via binding — sem chamada a URL externa
+    const db = context.env.DB;
+    const post = await db.prepare('SELECT id, title, content FROM posts WHERE id = ?').bind(postId).first();
+    if (!post) return response;
     
     // 4. Limpa o conteúdo de tags HTML para gerar uma descrição limpa para o card do WhatsApp.
     const cleanBase = (post.content || '').replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();

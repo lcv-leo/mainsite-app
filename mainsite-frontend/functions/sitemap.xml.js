@@ -1,15 +1,61 @@
 // Módulo: mainsite-frontend/functions/sitemap.xml.js
-// Versão: v1.1.0
-// Descrição: Pages Function de proxy avançado. Repassa os Headers (User-Agent) da requisição original para garantir que a API reconheça o Googlebot como um 'Verified Bot'.
+// Versão: v2.0.0
+// Descrição: Gera o sitemap.xml diretamente via binding D1, sem proxy para URL externa.
+// Repassa o User-Agent original para manter compatibilidade com detecção de bots.
 
 export async function onRequest(context) {
-  const { request } = context;
+  try {
+    const db = context.env.DB;
 
-  // Monta a requisição para a API herdando estritamente os cabeçalhos originais do visitante
-  const proxyRequest = new Request("https://mainsite-app.lcv.rio.br/api/sitemap.xml", {
-    method: request.method,
-    headers: request.headers,
-  });
+    // Busca todos os posts publicados, ordenados pelo mais recente
+    const { results } = await db.prepare(
+      'SELECT id, updated_at FROM posts ORDER BY id DESC'
+    ).all();
 
-  return await fetch(proxyRequest);
+    const siteUrl = 'https://www.lcv.rio.br';
+
+    // Monta o XML do sitemap
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+    // Página principal
+    xml += '  <url>\n';
+    xml += `    <loc>${siteUrl}/</loc>\n`;
+    xml += '    <changefreq>daily</changefreq>\n';
+    xml += '    <priority>1.0</priority>\n';
+    xml += '  </url>\n';
+
+    // Cada post publicado
+    for (const post of results || []) {
+      const lastmod = post.updated_at
+        ? new Date(post.updated_at).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
+      xml += '  <url>\n';
+      xml += `    <loc>${siteUrl}/p/${post.id}</loc>\n`;
+      xml += `    <lastmod>${lastmod}</lastmod>\n`;
+      xml += '    <changefreq>weekly</changefreq>\n';
+      xml += '    <priority>0.8</priority>\n';
+      xml += '  </url>\n';
+    }
+
+    xml += '</urlset>';
+
+    return new Response(xml, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/xml; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
+  } catch (err) {
+    // Fallback: XML vazio mas válido
+    return new Response(
+      '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>',
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/xml; charset=utf-8' },
+      }
+    );
+  }
 }

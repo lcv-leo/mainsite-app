@@ -10,5 +10,17 @@
       "database_name": "bigdata_db",
       "database_id": "00000000-0000-0000-0000-000000000000"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "mainsite-media"
+    }
+  ],
+  "services": [
+    {
+      "binding": "WORKER",
+      "service": "mainsite-app"
+    }
   ]
 }

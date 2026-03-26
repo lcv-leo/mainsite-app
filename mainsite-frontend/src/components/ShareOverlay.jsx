@@ -52,9 +52,9 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
     };
 
     return (
-        <div style={overlayStyle}>
+        <div style={overlayStyle} role="dialog" aria-modal="true" aria-labelledby="share-title">
             <div style={modalStyle}>
-                <button type="button" onClick={() => setModalState({ show: false, email: '' })} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(128,128,128,0.1)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '100px', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
+                <button type="button" onClick={() => setModalState({ show: false, email: '' })} aria-label="Fechar" style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(128,128,128,0.1)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '100px', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
                     <X size={20} />
                 </button>
 
@@ -62,7 +62,7 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
                     <Mail size={40} strokeWidth={1.5} style={{ opacity: 0.9 }} />
                 </div>
 
-                <h2 style={{ margin: '0 0 12px 0', fontSize: '24px', fontWeight: '800', color: activePalette.titleColor, letterSpacing: '-0.02em' }}>Compartilhar Leitura</h2>
+                <h2 id="share-title" style={{ margin: '0 0 12px 0', fontSize: '24px', fontWeight: '800', color: activePalette.titleColor, letterSpacing: '-0.02em' }}>Compartilhar Leitura</h2>
                 <p style={{ margin: '0 0 30px 0', fontSize: '14px', opacity: 0.8, lineHeight: '1.6', fontWeight: '500' }}>Insira o e-mail do destinatário para enviar o link deste fragmento.</p>
 
                 <form onSubmit={onSubmit} autoComplete="on" style={{ width: '100%' }}>

@@ -41,25 +41,25 @@ const FloatingControls = ({
         }
       `}</style>
 
-      <div className="floating-controls">
+      <div className="floating-controls" role="toolbar" aria-label="Controles do leitor">
         <div className={`fab-bottom-cluster${isChatOpen ? ' chat-open' : ''}`}>
           {showBackToTop && (
-            <button onClick={scrollToTop} className="fab-btn" title="Voltar ao Topo">
+            <button onClick={scrollToTop} className="fab-btn" title="Voltar ao Topo" aria-label="Voltar ao topo">
               <ArrowUp size={24} />
             </button>
           )}
 
           {showScrollToBottom && (
-            <button onClick={scrollToBottom} className="fab-btn" title="Ir para o Final">
+            <button onClick={scrollToBottom} className="fab-btn" title="Ir para o Final" aria-label="Ir para o final">
               <ArrowDown size={24} />
             </button>
           )}
 
-          <button onClick={cycleTheme} className="fab-btn" title={`Modo do Tema: ${userTheme.toUpperCase()}`}>
+          <button onClick={cycleTheme} className="fab-btn" title={`Modo do Tema: ${userTheme.toUpperCase()}`} aria-label={`Alternar tema: modo ${userTheme} ativo`}>
             {userTheme === 'auto' ? <Monitor size={24} /> : userTheme === 'dark' ? <Moon size={24} /> : <Sun size={24} />}
           </button>
 
-          <button onClick={() => setIsChatOpen(!isChatOpen)} className={`fab-btn chat-trigger ${isChatOpen ? 'chat-active' : ''}`} title="Busca Semântica / Conversar">
+          <button onClick={() => setIsChatOpen(!isChatOpen)} className={`fab-btn chat-trigger ${isChatOpen ? 'chat-active' : ''}`} title="Busca Semântica / Conversar" aria-label={isChatOpen ? 'Fechar busca semântica' : 'Abrir busca semântica'}>
             {isChatOpen ? <X size={28} /> : <Bot size={28} />}
           </button>
         </div>
