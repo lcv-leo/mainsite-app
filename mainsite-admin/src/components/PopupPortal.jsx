@@ -90,7 +90,7 @@ const PopupPortal = ({ isOpen, onClose, title = 'LCV Admin — Editor', children
         height: 100vh;
         display: flex;
         flex-direction: column;
-        overflow-y: auto;
+        overflow: hidden;
       }
       #popup-root {
         max-width: 1100px;
@@ -99,12 +99,16 @@ const PopupPortal = ({ isOpen, onClose, title = 'LCV Admin — Editor', children
         display: flex;
         flex-direction: column;
         flex: 1;
+        min-height: 0;
+        overflow: hidden;
       }
       .popup-portal-dialog {
         outline: none;
         display: flex;
         flex-direction: column;
         flex: 1;
+        min-height: 0;
+        overflow: hidden;
       }
     `;
     popup.document.head.appendChild(popupStyle);

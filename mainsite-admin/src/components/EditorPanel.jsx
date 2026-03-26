@@ -588,7 +588,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles }) => {
   });
 
   return (
-    <div style={styles.toolbar}>
+    <div style={{ ...styles.toolbar, flexShrink: 0 }}>
       {promptModal.show && ReactDOM.createPortal(
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -804,9 +804,9 @@ const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotificatio
   };
 
   return (
-    <div style={{ animation: 'fadeIn 0.4s ease-out', display: 'flex', flexDirection: 'column', flex: 1 }}>
+    <div style={{ animation: 'fadeIn 0.4s ease-out', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       {/* Barra de controle do popup */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button type="button" onClick={onCancel} style={{ ...styles.backButton, marginBottom: 0, background: 'var(--semantic-error-soft, rgba(211,47,47,0.1))', border: '1px solid var(--semantic-error-border, rgba(211,47,47,0.3))', color: 'var(--semantic-error, #d32f2f)' }} title="Fechar popup"><X size={16} /> Fechar</button>
           <button type="button" onClick={() => { if (editor) { editor.commands.clearContent(); setTitle(''); } }} style={{ ...styles.backButton, marginBottom: 0 }} title="Limpar área de edição"><Eraser size={16} /> Limpar</button>
@@ -816,16 +816,16 @@ const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotificatio
           {post ? 'ATUALIZAR FRAGMENTO' : 'CONSOLIDAR FRAGMENTO'}
         </button>
       </div>
-      <form onSubmit={handleSubmit} style={{ ...styles.form, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <input id="post-title" name="postTitle" autoComplete="off" style={styles.adminInput} placeholder="TÍTULO DO FRAGMENTO" value={title} onChange={e => setTitle(e.target.value)} required />
-        <div style={{ ...styles.editorContainer, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <form onSubmit={handleSubmit} style={{ ...styles.form, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <input id="post-title" name="postTitle" autoComplete="off" style={{ ...styles.adminInput, flexShrink: 0 }} placeholder="TÍTULO DO FRAGMENTO" value={title} onChange={e => setTitle(e.target.value)} required />
+        <div style={{ ...styles.editorContainer, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <MenuBar editor={editor} secret={secret} showNotification={showNotification} API_URL={API_URL} styles={styles} />
-          <div className="tiptap-wrapper" style={{ ...styles.tiptapWrapper, flex: 1, minHeight: '400px', overflowY: 'auto' }}>
+          <div className="tiptap-wrapper" style={{ ...styles.tiptapWrapper, flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <EditorBubbleMenu editor={editor} />
             <EditorFloatingMenu editor={editor} />
             <EditorContent editor={editor} />
           </div>
-          <div style={styles.statusBar}>
+          <div style={{ ...styles.statusBar, flexShrink: 0 }}>
             {editor ? `${editor.storage.characterCount.characters()} caracteres | ${editor.storage.characterCount.words()} palavras` : ''}
           </div>
         </div>

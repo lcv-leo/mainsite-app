@@ -6,6 +6,8 @@
 - **Botões Fechar/Limpar no popup**: "Fechar" (X vermelho) fecha a janela, "Limpar" (borracha) reseta título e conteúdo do editor
 - **Recuo de primeira linha (text-indent)**: extensão customizada TipTap com 4 níveis (0 / 1.5rem / 2.5rem / 3.5rem). Botões de indent/outdent na toolbar com tooltips
 - **Diálogos do editor em portal**: `promptModal` (imagem URL, link, legenda, YouTube) agora renderiza via `ReactDOM.createPortal(document.body)` para centralização perfeita na viewport
+- **Botões scroll-to-top/bottom**: FABs flutuantes com glassmorphism no canto inferior direito, com exibição condicional baseada na posição de scroll (mesmo padrão do frontend)
+- **Scroll independente na área de edição**: toolbar e controles ficam fixos no topo do popup enquanto apenas o conteúdo do editor rola, via cadeia flex com `overflow:hidden` + `min-height:0`
 
 ## [v03.43.00] — 26/03/2026
 ### Adicionado
