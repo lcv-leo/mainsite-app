@@ -201,6 +201,23 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         {renderContent(post.content)}
       </div>
 
+      {/* Rodapé de metadados com datas de publicação/atualização */}
+      {post.created_at && (() => {
+        const fmt = (raw) => {
+          if (!raw) return null;
+          const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
+          return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        };
+        const criado = fmt(post.created_at);
+        const atualizado = fmt(post.updated_at);
+        const showUpdated = atualizado && atualizado !== criado;
+        return (
+          <div style={{ marginTop: '48px', paddingTop: '20px', borderTop: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.06)`, fontSize: '11px', fontWeight: '500', letterSpacing: '0.3px', opacity: 0.45, textAlign: 'center' }}>
+            Publicação: {criado}{showUpdated && <> · Atualizado em {atualizado}</>}
+          </div>
+        );
+      })()}
+
       <nav aria-label="Compartilhamento e interação" className="share-bar">
         <button onClick={() => onShare('whatsapp')} className="share-btn share-whatsapp" title="Compartilhar no WhatsApp">
           <MessageCircle size={18} /> WhatsApp

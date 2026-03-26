@@ -95,28 +95,41 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
   const styles = {
     footer: { marginTop: '60px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '40px' },
     archiveToggle: { background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', opacity: 0.8, transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' },
-    card: { padding: '24px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', borderRadius: '24px' },
-    cardDate: { fontSize: '10px', opacity: 0.7, marginBottom: '16px', fontWeight: '600', letterSpacing: '0.3px' },
-    squareBlock: { width: 'min(100%, 220px)', aspectRatio: '1 / 1', borderRadius: '24px', padding: '18px', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', boxSizing: 'border-box', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' },
+    card: { padding: '16px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', borderRadius: '16px' },
+    cardDate: { fontSize: '12px', opacity: 0.7, marginBottom: '10px', fontWeight: '600', letterSpacing: '0.3px' },
+    squareBlock: { width: 'min(100%, 154px)', aspectRatio: '1 / 1', borderRadius: '16px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', boxSizing: 'border-box', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' },
     expandBar: { width: '100%', minHeight: '92px', borderRadius: '20px', cursor: 'pointer', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.1em', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', background: 'none', color: activePalette.fontColor }
   };
 
-  const renderPostCard = (post) => (
-    <div
-      key={post.id}
-      onClick={() => handleSelectPost(post)}
-      className="glass-card-md3"
-      style={styles.card}
-    >
-      <div style={styles.cardDate}>{parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</div>
-      <div style={{ fontSize: '13px', fontWeight: '600', color: activePalette.titleColor, transition: 'color 0.5s ease', lineHeight: '1.4' }}>{post.title}</div>
-    </div>
-  );
+  const renderPostCard = (post) => {
+    const fmtDate = (raw) => {
+      if (!raw) return null;
+      const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
+      return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+    const criado = fmtDate(post.created_at);
+    const atualizado = fmtDate(post.updated_at);
+    const showUpdated = atualizado && atualizado !== criado;
+    return (
+      <div
+        key={post.id}
+        onClick={() => handleSelectPost(post)}
+        className="glass-card-md3"
+        style={styles.card}
+      >
+        <div style={styles.cardDate}>
+          {criado || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+          {showUpdated && <div style={{ marginTop: '2px', fontSize: '10px', opacity: 0.8 }}>Atualizado: {atualizado}</div>}
+        </div>
+        <div style={{ fontSize: '13px', fontWeight: '600', color: activePalette.titleColor, transition: 'color 0.5s ease', lineHeight: '1.4' }}>{post.title}</div>
+      </div>
+    );
+  };
 
   return (
     <footer style={styles.footer}>
       <style>{`
-        .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; padding: 0; width: 100%; box-sizing: border-box; }
+        .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; padding: 0; width: 100%; box-sizing: border-box; }
         .archive-group { margin: 12px 24px 0 24px; padding-top: 18px; border-top: 1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.08); }
         .archive-year-title { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; margin: 0 0 14px 0; opacity: 0.85; text-transform: uppercase; }
         .archive-month-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; margin: 0 0 10px 0; opacity: 0.7; }
@@ -130,7 +143,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
           padding: 0;
         }
         .archive-square-item {
-          width: min(100%, 220px);
+          width: min(100%, 154px);
         }
         .archive-row-container {
           margin: 14px 24px 0 24px;

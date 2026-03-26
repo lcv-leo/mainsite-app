@@ -4,13 +4,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   build: {
-    // Usa terser para remover logs em produção sem conflito com Oxc/esbuild do Vite 8
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
+    // esbuild nativo do Vite 8 — remove console/debugger sem necessidade do Terser
+    esbuild: {
+      drop: ['console', 'debugger'],
     },
     target: 'esnext',
     // Desabilita lightningcss (problema de compatibilidade no Windows)
