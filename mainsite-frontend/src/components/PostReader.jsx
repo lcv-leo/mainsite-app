@@ -213,7 +213,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         const showUpdated = atualizado && atualizado !== criado;
         return (
           <div style={{ marginTop: '48px', paddingTop: '20px', borderTop: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.06)`, fontSize: '11px', fontWeight: '500', letterSpacing: '0.3px', opacity: 0.45, textAlign: 'center' }}>
-            Publicação: {criado}{showUpdated && <> · Atualizado em {atualizado}</>}
+            Publicado em {criado}{showUpdated && <> | Atualizado em {atualizado}</>}
           </div>
         );
       })()}

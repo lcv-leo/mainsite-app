@@ -56,7 +56,7 @@ const PostList = ({
                   const showUpdated = atualizado && atualizado !== criado;
                   return (
                     <span>
-                      Publicação: {criado || '—'}
+                      Publicado em {criado || '—'}
                       {showUpdated && <> | Atualizado em {atualizado}</>}
                     </span>
                   );
