@@ -4,7 +4,8 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import {
-  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2, Moon, Sun, DollarSign
+  Database, PlusCircle, Check, AlertCircle, Settings, RefreshCw, Loader2, BarChart2, Moon, Sun, DollarSign,
+  ArrowUp, ArrowDown
 } from 'lucide-react';
 
 import PostList from './components/PostList';
@@ -152,6 +153,10 @@ const App = () => {
   const [modal, setModal] = useState({ show: false, id: null });
   const [draggedIndex, setDraggedIndex] = useState(null);
 
+  // Scroll-to-top/bottom state
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [rotation, setRotation] = useState({ enabled: false, interval: 60, last_rotated_at: 0 });
   const [rateLimit, setRateLimit] = useState(DEFAULT_RATE_LIMIT);
@@ -201,6 +206,23 @@ const App = () => {
     window.addEventListener('pointerdown', trackPointer, { passive: true });
     return () => window.removeEventListener('pointerdown', trackPointer);
   }, []);
+
+  // Scroll tracking para botões ir ao topo / ir ao final
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY || window.pageYOffset;
+      const docH = document.documentElement.scrollHeight;
+      const winH = window.innerHeight;
+      setShowBackToTop(scrollY > 300);
+      setShowScrollToBottom(scrollY + winH < docH - 200);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  const scrollToBottom = () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -669,6 +691,20 @@ const App = () => {
           )}
         </Suspense>
         <footer style={styles.versionFooterAdmin}>{APP_VERSION}</footer>
+      </div>
+
+      {/* Floating scroll-to-top/bottom buttons */}
+      <div style={{ position: 'fixed', right: '30px', bottom: '30px', display: 'flex', flexDirection: 'column', gap: '12px', zIndex: 9999 }}>
+        {showBackToTop && (
+          <button onClick={scrollToTop} title="Voltar ao Topo" aria-label="Voltar ao topo" style={{ width: '52px', height: '52px', borderRadius: '100px', border: `1px solid ${glassBorder}`, background: glassBg, color: activePalette.fontColor, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <ArrowUp size={22} />
+          </button>
+        )}
+        {showScrollToBottom && (
+          <button onClick={scrollToBottom} title="Ir para o Final" aria-label="Ir para o final" style={{ width: '52px', height: '52px', borderRadius: '100px', border: `1px solid ${glassBorder}`, background: glassBg, color: activePalette.fontColor, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <ArrowDown size={22} />
+          </button>
+        )}
       </div>
 
       <PopupPortal isOpen={isEditorOpen} onClose={() => { setIsEditorOpen(false); setEditingPost(null); fetchData(); }} title={editingPost ? `Editando: ${editingPost.title}` : 'Novo Fragmento'}>
