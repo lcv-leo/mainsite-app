@@ -1,5 +1,13 @@
 # Changelog — Mainsite Admin
 
+## [v03.43.00] — 26/03/2026
+### Adicionado
+- **Seção "Configurações Globais" expandida** de 3 para 11 controles: família da fonte (com Inter recomendada), tamanhos de fonte, peso corpo/títulos, altura de linha (range slider com labels), alinhamento do texto, recuo de parágrafo, espaçamento, largura de leitura, cor dos links
+
+## [v03.42.00] — 26/03/2026
+### Adicionado
+- **Tipografia Inter** (Google Fonts) como fonte primária, alinhamento visual com tiptap.dev
+
 ## [v03.41.00] — 26/03/2026
 ### Corrigido
 - **Todas as chamadas `/api/*` falhavam com 405**: Admin não tinha Service Binding nem proxy para o Worker. Criado `functions/api/[[path]].js` + binding `WORKER` → `mainsite-app`

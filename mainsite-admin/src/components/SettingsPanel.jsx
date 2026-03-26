@@ -191,17 +191,93 @@ const SettingsPanel = ({
 
         <h3 style={{ fontSize: 'var(--type-label)', marginTop: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)', paddingBottom: '8px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Configurações Globais (Ambos os Temas)</h3>
         <div style={styles.settingsGrid}>
-          <label style={styles.label}>Tamanho da Fonte Base (p): <input id="shared-font-size" name="sharedFontSize" type="text" autoComplete="off" placeholder="Ex: 1.15rem" value={settings.shared.fontSize} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, fontSize: e.target.value } })} style={styles.textInput} /></label>
-          <label style={styles.label}>Tamanho da Fonte Títulos (H1): <input id="shared-title-font-size" name="sharedTitleFontSize" type="text" autoComplete="off" placeholder="Ex: 1.8rem" value={settings.shared.titleFontSize} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, titleFontSize: e.target.value } })} style={styles.textInput} /></label>
+          {/* ─── Tipografia ─── */}
           <label style={styles.label}>Família da Fonte:
             <select id="shared-font-family" name="sharedFontFamily" autoComplete="off" value={settings.shared.fontFamily} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, fontFamily: e.target.value } })} style={styles.textInput}>
-              <option value="sans-serif">Sans-Serif (Estilo Google)</option>
-              <option value="monospace">Monospace</option>
-              <option value="serif">Serif</option>
-              <option value="'Courier New', Courier, monospace">Courier New</option>
+              <option value="'Inter', system-ui, -apple-system, sans-serif">Inter (Recomendada)</option>
+              <option value="system-ui, -apple-system, sans-serif">System UI (Nativa)</option>
+              <option value="sans-serif">Sans-Serif (Genérica)</option>
+              <option value="'Georgia', serif">Georgia (Serifada)</option>
               <option value="'Times New Roman', Times, serif">Times New Roman</option>
-              <option value="system-ui, -apple-system, sans-serif">System UI (Moderno)</option>
+              <option value="'Courier New', Courier, monospace">Courier New</option>
+              <option value="monospace">Monospace</option>
             </select>
+          </label>
+
+          <label style={styles.label}>Tamanho da Fonte Base (Corpo):
+            <input id="shared-font-size" name="sharedFontSize" type="text" autoComplete="off" placeholder="Ex: 1.15rem" value={settings.shared.fontSize} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, fontSize: e.target.value } })} style={styles.textInput} />
+          </label>
+
+          <label style={styles.label}>Tamanho da Fonte dos Títulos (H1):
+            <input id="shared-title-font-size" name="sharedTitleFontSize" type="text" autoComplete="off" placeholder="Ex: 1.8rem" value={settings.shared.titleFontSize} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, titleFontSize: e.target.value } })} style={styles.textInput} />
+          </label>
+
+          <label style={styles.label}>Peso do Corpo de Texto:
+            <select id="shared-body-weight" name="sharedBodyWeight" autoComplete="off" value={settings.shared.bodyWeight || '500'} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, bodyWeight: e.target.value } })} style={styles.textInput}>
+              <option value="300">Light (300)</option>
+              <option value="400">Regular (400)</option>
+              <option value="500">Medium (500) — Recomendado</option>
+              <option value="600">Semibold (600)</option>
+              <option value="700">Bold (700)</option>
+            </select>
+          </label>
+
+          <label style={styles.label}>Peso dos Títulos:
+            <select id="shared-title-weight" name="sharedTitleWeight" autoComplete="off" value={settings.shared.titleWeight || '700'} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, titleWeight: e.target.value } })} style={styles.textInput}>
+              <option value="500">Medium (500)</option>
+              <option value="600">Semibold (600)</option>
+              <option value="700">Bold (700) — Recomendado</option>
+              <option value="800">Extrabold (800)</option>
+              <option value="900">Black (900)</option>
+            </select>
+          </label>
+
+          <label style={styles.label}>
+            Altura de Linha (Corpo): <strong style={{ fontSize: '13px', opacity: 0.7 }}>{settings.shared.lineHeight || '1.9'}</strong>
+            <input id="shared-line-height" name="sharedLineHeight" type="range" min="1.4" max="2.4" step="0.1" autoComplete="off" value={settings.shared.lineHeight || '1.9'} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, lineHeight: e.target.value } })} style={{ width: '100%', cursor: 'pointer' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', opacity: 0.5, marginTop: '-8px' }}>
+              <span>Compacto</span><span>Confortável</span><span>Espaçoso</span>
+            </div>
+          </label>
+
+          {/* ─── Layout de Leitura ─── */}
+          <label style={styles.label}>Alinhamento do Texto:
+            <select id="shared-text-align" name="sharedTextAlign" autoComplete="off" value={settings.shared.textAlign || 'justify'} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, textAlign: e.target.value } })} style={styles.textInput}>
+              <option value="justify">Justificado (Clássico)</option>
+              <option value="left">Alinhado à Esquerda (Moderno)</option>
+            </select>
+          </label>
+
+          <label style={styles.label}>Recuo da Primeira Linha (Parágrafo):
+            <select id="shared-text-indent" name="sharedTextIndent" autoComplete="off" value={settings.shared.textIndent || '3.5rem'} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, textIndent: e.target.value } })} style={styles.textInput}>
+              <option value="0">Sem recuo (Moderno)</option>
+              <option value="1.5rem">Sutil (1.5rem)</option>
+              <option value="2.5rem">Médio (2.5rem)</option>
+              <option value="3.5rem">Clássico (3.5rem)</option>
+            </select>
+          </label>
+
+          <label style={styles.label}>Espaçamento entre Parágrafos:
+            <select id="shared-paragraph-spacing" name="sharedParagraphSpacing" autoComplete="off" value={settings.shared.paragraphSpacing || '2.2rem'} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, paragraphSpacing: e.target.value } })} style={styles.textInput}>
+              <option value="1.2rem">Compacto (1.2rem)</option>
+              <option value="1.8rem">Normal (1.8rem)</option>
+              <option value="2.2rem">Generoso (2.2rem) — Recomendado</option>
+              <option value="3rem">Amplo (3rem)</option>
+            </select>
+          </label>
+
+          <label style={styles.label}>Largura Máxima de Leitura:
+            <select id="shared-content-max-width" name="sharedContentMaxWidth" autoComplete="off" value={settings.shared.contentMaxWidth || '1126px'} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, contentMaxWidth: e.target.value } })} style={styles.textInput}>
+              <option value="680px">Estreita (680px) — Foco total</option>
+              <option value="800px">Média (800px)</option>
+              <option value="960px">Larga (960px)</option>
+              <option value="1126px">Ampla (1126px) — Padrão</option>
+              <option value="100%">Tela cheia</option>
+            </select>
+          </label>
+
+          <label style={styles.label}>Cor dos Links (Conteúdo):
+            <input id="shared-link-color" name="sharedLinkColor" type="color" autoComplete="off" value={settings.shared.linkColor || '#4da6ff'} onChange={e => setSettings({ ...settings, shared: { ...settings.shared, linkColor: e.target.value } })} style={styles.colorInput} />
           </label>
         </div>
 

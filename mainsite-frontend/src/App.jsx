@@ -17,15 +17,22 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v02.15.00';
+const APP_VERSION = 'APP v02.17.00';
 const SITE_NAME = 'Divagações Filosóficas';
 const SITE_URL = 'https://www.lcv.rio.br';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
   light: { bgColor: '#f8f9fa', bgImage: '', fontColor: '#202124', titleColor: '#1a73e8' },
-  dark: { bgColor: '#131314', bgImage: '', fontColor: '#e3e3e3', titleColor: '#8ab4f8' },
-  shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'system-ui, -apple-system, sans-serif' }
+  dark: { bgColor: '#16171d', bgImage: '', fontColor: '#d1d5db', titleColor: '#8ab4f8' },
+  shared: {
+    fontSize: '1.15rem', titleFontSize: '1.8rem',
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+    bodyWeight: '500', titleWeight: '700', lineHeight: '1.9',
+    textAlign: 'justify', textIndent: '3.5rem',
+    paragraphSpacing: '2.2rem', contentMaxWidth: '1126px',
+    linkColor: '#4da6ff'
+  }
 };
 
 const App = () => {
@@ -196,6 +203,14 @@ const App = () => {
     };
     fetchData();
   }, []);
+
+  // Largura de leitura configurável via painel admin
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (root && settings.shared.contentMaxWidth) {
+      root.style.width = settings.shared.contentMaxWidth;
+    }
+  }, [settings.shared.contentMaxWidth]);
 
   useEffect(() => {
     const upsertMeta = (selector, attrs, content) => {

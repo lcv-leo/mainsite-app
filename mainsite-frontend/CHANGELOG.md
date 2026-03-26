@@ -1,5 +1,27 @@
 # Changelog — Mainsite Frontend
 
+## [v02.17.00] — 26/03/2026
+### Adicionado
+- **11 controles configuráveis na seção "Configurações Globais"**: peso do corpo/títulos, altura de linha (slider), alinhamento de texto, recuo de parágrafo, espaçamento entre parágrafos, largura máxima de leitura, cor dos links
+- **Largura de leitura dinâmica**: `#root` width agora é controlável via admin (680px a tela cheia)
+
+### Corrigido
+- **Separação Editor vs. Settings**: `.html-content p` mantém `text-align` e `text-indent` como defaults configuráveis pelo admin (preserva posts legados). Quando o TipTap define alinhamento explícito via inline `style`, o CSS de maior especificidade sobrescreve o default, e `text-indent` é zerado automaticamente
+- Conteúdo plaintext (`.p-content`) mantém os valores configuráveis do admin
+
+## [v02.16.00] — 26/03/2026
+### Adicionado
+- **Tipografia Inter** (Google Fonts) como fonte primária, inspirada no design do tiptap.dev
+- **Títulos editoriais**: removido `text-transform: uppercase` e `letter-spacing: 0.3em`, substituído por estilo editorial com `letter-spacing: -0.02em` e `font-weight: 700`
+- **Espaçamento generoso**: margem entre parágrafos aumentada de 1.8rem para 2.2rem
+- **Hierarquia tipográfica por peso**: headings H1-H3 com `line-height` explícito e letter-spacing negativo
+- **Dark mode refinado**: background de `#131314` (preto puro) para `#16171d` (azul-charcoal sutil)
+
+### Corrigido
+- Peso do corpo de texto reduzido de 700 para 500 (mais confortável para leitura longa)
+- Letter-spacing dos botões reduzido de 1.5px para 0.8px (mais refinado)
+- Glassmorphism removido dos botões de ação AI (mantido apenas em toasts/modais/floating)
+
 ## [v02.15.00] — 26/03/2026
 ### Corrigido
 - **Brand icons usavam URL externa**: `.env` apontava para `https://mainsite-app.lcv.rio.br/api/uploads/brands`. Corrigido para rota relativa `/api/uploads/brands` via proxy + Service Binding interno
