@@ -41,7 +41,7 @@ const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigg
   const isDonationMode = currentDisclaimer.isDonationTrigger;
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={currentDisclaimer.title || 'Aviso'} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
+    <div role="dialog" aria-modal="true" aria-labelledby="disclaimer-title" aria-describedby="disclaimer-body" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
 
       <div key={`bg-${currentIndex}`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: isDarkBase ? 'rgba(15,15,20,0.85)' : 'rgba(240,240,244,0.56)', backdropFilter: 'blur(var(--glass-blur-subtle))', WebkitBackdropFilter: 'blur(var(--glass-blur-subtle))', animation: 'fadeIn 0.3s ease-out' }}></div>
 
@@ -56,10 +56,10 @@ const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigg
         <div style={{ display: 'flex', justifyContent: 'center', color: isDonationMode ? '#ec4899' : activePalette.titleColor, opacity: 0.9 }}>
           {isDonationMode ? <Heart size={48} /> : <AlertTriangle size={48} />}
         </div>
-        <h3 style={{ margin: 0, fontSize: '22px', color: activePalette.titleColor, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '800' }}>
+        <h3 id="disclaimer-title" style={{ margin: 0, fontSize: '22px', color: activePalette.titleColor, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '800' }}>
           {currentDisclaimer.title || 'Aviso'}
         </h3>
-        <p style={{ margin: 0, fontSize: '15px', lineHeight: '1.8', opacity: 0.85, whiteSpace: 'pre-wrap', fontWeight: '500' }}>
+        <p id="disclaimer-body" style={{ margin: 0, fontSize: '15px', lineHeight: '1.8', opacity: 0.85, whiteSpace: 'pre-wrap', fontWeight: '500' }}>
           {currentDisclaimer.text}
         </p>
 

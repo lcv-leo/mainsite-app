@@ -64,14 +64,14 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       const ytMatch = text.match(/^\[YT:(.+?)(\|(.*?))?\]$/);
       if (ytMatch) return (
         <div key={index} className="media-container">
-          <iframe className="media-iframe" src={`https://www.youtube-nocookie.com/embed/${ytMatch[1].trim()}`} frameBorder="0" allowFullScreen></iframe>
+          <iframe className="media-iframe" src={`https://www.youtube-nocookie.com/embed/${ytMatch[1].trim()}`} title={ytMatch[3] ? ytMatch[3].trim() : `Vídeo incorporado ${index + 1}`} frameBorder="0" allowFullScreen></iframe>
           {ytMatch[3] && <div className="media-caption">{ytMatch[3].trim()}</div>}
         </div>
       );
       const imgMatch = text.match(/^\[IMG:(.+?)(\|(.*?))?\]$/);
       if (imgMatch) return (
         <div key={index} className="media-container">
-          <img src={imgMatch[1].trim()} alt="Visual" className="media-image" loading="lazy" />
+          <img src={imgMatch[1].trim()} alt={imgMatch[3] ? imgMatch[3].trim() : `Ilustração do artigo`} className="media-image" loading="lazy" />
           {imgMatch[3] && <div className="media-caption">{imgMatch[3].trim()}</div>}
         </div>
       );
@@ -92,7 +92,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
 
   return (
-    <div>
+    <article aria-label={post.title}>
       <style>{`
         @keyframes pulseGlow { 0% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } 50% { box-shadow: 0 0 20px rgba(77, 166, 255, 0.8); border-color: rgba(77, 166, 255, 1); } 100% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } }
         .processing-active { animation: pulseGlow 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; color: #4da6ff !important; }
@@ -146,7 +146,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px', animation: 'fadeIn 0.5s ease-out' }}>
           <button onClick={() => window.location.href = '/'} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: activePalette.titleColor, opacity: 0.7, transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }} onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.08)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.transform = 'scale(1)'; }} title="Voltar para a postagem principal" >
             <div style={{ padding: '10px', borderRadius: '100px', background: `rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.05)`, border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.1)`, boxShadow: '0 12px 32px rgba(0,0,0,0.1)', backdropFilter: 'blur(12px)' }}>
-              <Home size={16} />
+           <Home size={16} aria-hidden="true" />
             </div>
             <span style={{ fontSize: '7px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>Home Page</span>
           </button>
@@ -162,11 +162,11 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
             {isSummarizing ? 'GERANDO RESUMO...' : 'RESUMO POR IA'}
           </button>
 
-          <div className={`ai-btn ${isTranslating ? 'processing-active' : ''}`} style={{ padding: '0', background: isTranslating ? `rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)` : '' }}>
+          <div className={`ai-btn ${isTranslating ? 'processing-active' : ''}`} role="group" aria-label="Traduzir artigo" style={{ padding: '0', background: isTranslating ? `rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)` : '' }}>
             <div style={{ padding: '14px 0 14px 20px', display: 'flex', alignItems: 'center' }}>
               {isTranslating ? <Loader2 size={18} className="animate-spin" /> : <Languages size={18} />}
             </div>
-            <select id="post-translate-language" name="postTranslateLanguage" autoComplete="off" onChange={handleTranslate} className="ai-select" disabled={isAILoading} style={{ padding: '14px 0', marginLeft: '-18px' }}>
+            <select id="post-translate-language" name="postTranslateLanguage" autoComplete="off" onChange={handleTranslate} className="ai-select" disabled={isAILoading} aria-label="Selecionar idioma de tradução" style={{ padding: '14px 0', marginLeft: '-18px' }}>
               <option value="">{isTranslating ? 'TRADUZINDO...' : 'TRADUZIR PARA...'}</option>
               <option value="Inglês">English</option>
               <option value="Espanhol">Español</option>
@@ -182,7 +182,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
           )}
         </div>
         {aiError && (
-          <div className="ai-error-msg"><AlertTriangle size={16} /> {aiError}</div>
+          <div className="ai-error-msg" role="alert"><AlertTriangle size={16} /> {aiError}</div>
         )}
       </div>
 
@@ -200,7 +200,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         {renderContent(post.content)}
       </div>
 
-      <div className="share-bar">
+      <nav aria-label="Compartilhamento e interação" className="share-bar">
         <button onClick={() => onShare('whatsapp')} className="share-btn share-whatsapp" title="Compartilhar no WhatsApp">
           <MessageCircle size={18} /> WhatsApp
         </button>
@@ -219,8 +219,8 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         <button onClick={onDonation} className="share-btn share-donate" title="Apoiar este Espaço">
           <Heart size={18} /> Doação
         </button>
-      </div>
-    </div>
+      </nav>
+    </article>
   );
 };
 

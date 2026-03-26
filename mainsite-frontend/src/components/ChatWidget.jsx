@@ -265,7 +265,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
         }
       `}</style>
 
-      <div style={panelStyle}>
+      <div role="complementary" aria-label="Assistente de busca semântica" style={panelStyle}>
         <div style={headerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
@@ -330,7 +330,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={statusPillStyle}>{aiStatusMeta.text}</span>
-            <button onClick={onClose} style={{ background: 'rgba(128,128,128,0.1)', borderRadius: '100px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
+            <button type="button" onClick={onClose} aria-label="Fechar chat" style={{ background: 'rgba(128,128,128,0.1)', borderRadius: '100px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
               <X size={20} />
             </button>
           </div>
@@ -357,7 +357,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
           )}
         </div>
 
-        <div style={messageAreaStyle}>
+        <div role="log" aria-live="polite" aria-label="Histórico de mensagens" style={messageAreaStyle}>
           {messages.map((msg, idx) => (
             <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
               <div style={{
@@ -389,7 +389,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
             </div>
           ))}
           {isLoading && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: activePalette.fontColor, opacity: 0.76, fontSize: '13px', padding: '10px 0', fontWeight: '600' }}>
+            <div role="status" aria-label="Processando resposta" style={{ display: 'flex', alignItems: 'center', gap: '10px', color: activePalette.fontColor, opacity: 0.76, fontSize: '13px', padding: '10px 0', fontWeight: '600' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '8px 12px', borderRadius: '100px', background: isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', border: '1px solid rgba(128,128,128,0.18)' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: aiVisualStatus === 'thinking' ? 'rgba(77,166,255,0.95)' : 'rgba(46,125,50,0.95)', animation: 'typingDot 1.1s ease-in-out infinite' }} />
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: aiVisualStatus === 'thinking' ? 'rgba(77,166,255,0.95)' : 'rgba(46,125,50,0.95)', animation: 'typingDot 1.1s ease-in-out 0.15s infinite' }} />
@@ -402,6 +402,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
         </div>
 
         <form onSubmit={handleSend} style={inputAreaStyle}>
+          <label htmlFor="chat-message-input" className="sr-only">Mensagem para o assistente</label>
           <input
             id="chat-message-input" name="chatMessageInput"
             type="text"
@@ -413,7 +414,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
             disabled={isLoading}
             autoFocus
           />
-          <button type="submit" disabled={isLoading || !input.trim()} style={sendButtonStyle} onMouseOver={(e) => !isLoading && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={(e) => !isLoading && (e.currentTarget.style.transform = 'translateY(0)')}>
+          <button type="submit" disabled={isLoading || !input.trim()} aria-label="Enviar mensagem" style={sendButtonStyle} onMouseOver={(e) => !isLoading && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={(e) => !isLoading && (e.currentTarget.style.transform = 'translateY(0)')}>
             <Send size={18} />
           </button>
         </form>

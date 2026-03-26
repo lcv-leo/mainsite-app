@@ -8,16 +8,16 @@ import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import PostReader from './components/PostReader';
 import ArchiveMenu from './components/ArchiveMenu';
 import FloatingControls from './components/FloatingControls';
-import DonationModal from './components/DonationModal';
 
 const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
 const ContactModal = lazy(() => import('./components/ContactModal'));
 const CommentModal = lazy(() => import('./components/CommentModal'));
 const DisclaimerModal = lazy(() => import('./components/DisclaimerModal'));
 const ChatWidget = lazy(() => import('./components/ChatWidget'));
+const DonationModal = lazy(() => import('./components/DonationModal'));
 
-const API_URL = 'https://mainsite-app.lcv.rio.br/api';
-const APP_VERSION = 'APP v02.12.00';
+const API_URL = '/api';
+const APP_VERSION = 'APP v02.14.00';
 const SITE_NAME = 'Divagações Filosóficas';
 const SITE_URL = 'https://www.lcv.rio.br';
 
@@ -371,15 +371,16 @@ const App = () => {
     } catch { showNotification("Falha ao enviar comentário.", "error"); } finally { setIsSubmittingComment(false); }
   };
 
-  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#131314', color: '#fff' }}><Loader2 size={32} className="animate-spin" /></div>;
+  if (loading) return <div role="status" aria-label="Carregando conteúdo" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#131314', color: '#fff' }}><Loader2 size={32} className="animate-spin" /><span className="sr-only">Carregando conteúdo do site…</span></div>;
 
   return (
     <div style={appStyle}>
-      <div style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : (isDarkBase ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor, padding: '16px 32px', borderRadius: '100px', zIndex: 11005, boxShadow: '0 12px 36px rgba(0,0,0,0.2)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: '700', fontSize: '14px' }}>
+      <a href="#conteudo-principal" className="sr-only" style={{ position: 'absolute', top: '-40px', left: 0, zIndex: 99999, padding: '8px 16px', background: '#000', color: '#fff' }} onFocus={(e) => e.currentTarget.style.top = '0'} onBlur={(e) => e.currentTarget.style.top = '-40px'}>Ir para o conteúdo principal</a>
+      <div role="alert" aria-live="assertive" aria-atomic="true" style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : (isDarkBase ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor, padding: '16px 32px', borderRadius: '100px', zIndex: 11005, boxShadow: '0 12px 36px rgba(0,0,0,0.2)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: '700', fontSize: '14px' }}>
         {toast.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle size={18} />} {toast.message}
       </div>
 
-      <main style={containerStyle}>
+      <main id="conteudo-principal" style={containerStyle}>
         {error ? (<div style={{ textAlign: 'center', color: 'var(--semantic-error)', padding: '40px', fontWeight: 'bold' }}>{error}</div>) :
           currentPost ? (
             <PostReader

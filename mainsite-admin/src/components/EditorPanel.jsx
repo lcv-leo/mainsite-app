@@ -28,6 +28,7 @@ import { CharacterCount } from '@tiptap/extension-character-count';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { Dropcursor } from '@tiptap/extension-dropcursor';
 import { Typography } from '@tiptap/extension-typography';
+import { Focus } from '@tiptap/extension-focus';
 import { Markdown } from 'tiptap-markdown';
 
 import {
@@ -35,7 +36,8 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Link as LinkIcon, Unlink, Underline as UnderlineIcon,
   Highlighter, Subscript as SubIcon, Superscript as SuperIcon, Quote, Minus, Code, Table as TableIcon,
   CheckSquare, Palette, Type, WrapText, Upload, Sparkles, Image as ImageIcon, Youtube, ZoomIn, ZoomOut,
-  MessageSquare, MousePointer2
+  MessageSquare, MousePointer2, Heading1 as H1Icon, Heading2 as H2Icon, Heading3, ListChecks, LayoutGrid,
+  PilcrowSquare, CornerDownLeft
 } from 'lucide-react';
 
 const FontSize = Extension.create({
@@ -636,9 +638,97 @@ const STATIC_EXTENSIONS = [
   TaskList, TaskItem.configure({ nested: true }),
   Dropcursor.configure({ color: '#ff0000', width: 2 }),
   CharacterCount,
+  Focus.configure({ className: 'has-focus', mode: 'deepest' }),
   Placeholder.configure({ placeholder: 'O fluxo da consciência (Aceita Markdown na colagem)...' }),
   LinkExtension.configure({ openOnClick: false, autolink: true, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' } })
 ];
+
+// BubbleMenu — contextual formatting toolbar on text selection
+const EditorBubbleMenu = ({ editor }) => {
+  const ref = useRef(null);
+  const [pos, setPos] = useState(null);
+
+  useEffect(() => {
+    if (!editor) return;
+    const update = () => {
+      const { from, to, empty } = editor.state.selection;
+      // Hide if no text selected or if a node (image/video) is selected
+      if (empty || editor.state.selection instanceof NodeSelection) { setPos(null); return; }
+      const domRange = editor.view.domAtPos(from);
+      const range = document.createRange();
+      try {
+        range.setStart(domRange.node, domRange.offset);
+        const endDom = editor.view.domAtPos(to);
+        range.setEnd(endDom.node, endDom.offset);
+      } catch { setPos(null); return; }
+      const rect = range.getBoundingClientRect();
+      const editorRect = editor.view.dom.closest('.tiptap-wrapper')?.getBoundingClientRect() || editor.view.dom.parentElement?.getBoundingClientRect();
+      if (!editorRect || rect.width === 0) { setPos(null); return; }
+      setPos({ top: rect.top - editorRect.top - 48, left: rect.left - editorRect.left + rect.width / 2 });
+    };
+    editor.on('selectionUpdate', update);
+    editor.on('blur', () => setPos(null));
+    return () => { editor.off('selectionUpdate', update); editor.off('blur', () => setPos(null)); };
+  }, [editor]);
+
+  if (!pos || !editor) return null;
+  return (
+    <div ref={ref} className="bubble-menu" style={{ position: 'absolute', top: `${pos.top}px`, left: `${pos.left}px`, transform: 'translateX(-50%)', zIndex: 50 }}>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} className={editor.isActive('bold') ? 'is-active' : ''} title="Negrito"><Bold size={14} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} className={editor.isActive('italic') ? 'is-active' : ''} title="It\u00e1lico"><Italic size={14} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }} className={editor.isActive('underline') ? 'is-active' : ''} title="Sublinhado"><UnderlineIcon size={14} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleStrike().run(); }} className={editor.isActive('strike') ? 'is-active' : ''} title="Tachado"><Strikethrough size={14} /></button>
+      <span className="bubble-divider" />
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHighlight().run(); }} className={editor.isActive('highlight') ? 'is-active' : ''} title="Marca-texto"><Highlighter size={14} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleSubscript().run(); }} className={editor.isActive('subscript') ? 'is-active' : ''} title="Subscrito"><SubIcon size={14} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleSuperscript().run(); }} className={editor.isActive('superscript') ? 'is-active' : ''} title="Sobrescrito"><SuperIcon size={14} /></button>
+      <span className="bubble-divider" />
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleCode().run(); }} className={editor.isActive('code') ? 'is-active' : ''} title="C\u00f3digo inline"><Code size={14} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); if (editor.isActive('link')) { editor.chain().focus().unsetLink().run(); } else { const url = window.prompt('URL do link:'); if (url) editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run(); } }} className={editor.isActive('link') ? 'is-active' : ''} title="Link"><LinkIcon size={14} /></button>
+    </div>
+  );
+};
+
+// FloatingMenu — quick-insert toolbar on empty paragraph lines
+const EditorFloatingMenu = ({ editor }) => {
+  const [pos, setPos] = useState(null);
+
+  useEffect(() => {
+    if (!editor) return;
+    const update = () => {
+      const { $anchor } = editor.state.selection;
+      const isEmptyTextBlock = $anchor.parent.isTextblock && $anchor.parent.content.size === 0;
+      if (!isEmptyTextBlock || !editor.state.selection.empty) { setPos(null); return; }
+      try {
+        const coordsAtPos = editor.view.coordsAtPos($anchor.pos);
+        const editorRect = editor.view.dom.closest('.tiptap-wrapper')?.getBoundingClientRect() || editor.view.dom.parentElement?.getBoundingClientRect();
+        if (!editorRect) { setPos(null); return; }
+        setPos({ top: coordsAtPos.top - editorRect.top - 4, left: -8 });
+      } catch { setPos(null); }
+    };
+    editor.on('selectionUpdate', update);
+    editor.on('focus', update);
+    return () => { editor.off('selectionUpdate', update); editor.off('focus', update); };
+  }, [editor]);
+
+  if (!pos || !editor) return null;
+  return (
+    <div className="floating-menu" style={{ position: 'absolute', top: `${pos.top}px`, left: `${pos.left}px`, transform: 'translateX(-100%)', zIndex: 50 }}>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }} className={editor.isActive('heading', { level: 1 }) ? 'is-active' : ''} title="T\u00edtulo 1"><H1Icon size={16} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }} className={editor.isActive('heading', { level: 2 }) ? 'is-active' : ''} title="T\u00edtulo 2"><H2Icon size={16} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); }} className={editor.isActive('heading', { level: 3 }) ? 'is-active' : ''} title="T\u00edtulo 3"><Heading3 size={16} /></button>
+      <span className="floating-divider" />
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); }} title="Marcadores"><List size={16} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); }} title="Numera\u00e7\u00e3o"><ListOrdered size={16} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleTaskList().run(); }} title="Tarefas"><ListChecks size={16} /></button>
+      <span className="floating-divider" />
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBlockquote().run(); }} title="Cita\u00e7\u00e3o"><Quote size={16} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleCodeBlock().run(); }} title="Bloco de C\u00f3digo"><Code size={16} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().setHorizontalRule().run(); }} title="Linha Horizontal"><Minus size={16} /></button>
+      <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); }} title="Tabela"><LayoutGrid size={16} /></button>
+    </div>
+  );
+};
 
 const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotification, styles, API_URL }) => {
   const [title, setTitle] = useState(post ? post.title : '');
@@ -661,7 +751,11 @@ const EditorPanel = ({ post, isSaving, onSave, onCancel, secret, showNotificatio
         <input id="post-title" name="postTitle" autoComplete="off" style={styles.adminInput} placeholder="TÍTULO DO FRAGMENTO" value={title} onChange={e => setTitle(e.target.value)} required />
         <div style={styles.editorContainer}>
           <MenuBar editor={editor} secret={secret} showNotification={showNotification} API_URL={API_URL} styles={styles} />
-          <div style={styles.tiptapWrapper}><EditorContent editor={editor} /></div>
+          <div className="tiptap-wrapper" style={styles.tiptapWrapper}>
+            <EditorBubbleMenu editor={editor} />
+            <EditorFloatingMenu editor={editor} />
+            <EditorContent editor={editor} />
+          </div>
           <div style={styles.statusBar}>
             {editor ? `${editor.storage.characterCount.characters()} caracteres | ${editor.storage.characterCount.words()} palavras` : ''}
           </div>

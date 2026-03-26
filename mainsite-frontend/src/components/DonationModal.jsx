@@ -12,7 +12,7 @@ import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 const mpPublicKey = (import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || '')
   .trim()
   .replace(/^['"]|['"]$/g, '');
-const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || 'https://mainsite-app.lcv.rio.br/api/uploads/brands')
+const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || '/api/uploads/brands')
   .trim()
   .replace(/^['"]|['"]$/g, '')
   .replace(/\/+$/, '');
@@ -389,12 +389,12 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
   return (
     <div style={overlayStyle}>
-      <div style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : 'var(--semantic-success)', color: '#fff', padding: '12px 20px', borderRadius: '100px', zIndex: 10005, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: 'bold', fontSize: '13px' }}>
+      <div role="alert" aria-live="assertive" aria-atomic="true" style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : 'var(--semantic-success)', color: '#fff', padding: '12px 20px', borderRadius: '100px', zIndex: 10005, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: 'bold', fontSize: '13px' }}>
         {toast.type === 'error' ? <AlertTriangle size={16} /> : <CheckCircle size={16} />} {toast.message}
       </div>
 
-      <div style={modalStyle}>
-        <button onClick={() => { setStep(1); onClose(); }} style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="donation-title" style={modalStyle}>
+        <button type="button" onClick={() => { setStep(1); onClose(); }} aria-label="Fechar" style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
           <X size={24} />
         </button>
 
@@ -403,12 +403,13 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <div style={{ display: 'inline-flex', padding: '15px', borderRadius: '50%', backgroundColor: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', marginBottom: '15px' }}>
               <Heart size={36} />
             </div>
-            <h2 style={{ margin: '0 0 15px 0', fontSize: 'var(--type-title-md)', fontWeight: '700', color: activePalette.titleColor }}>Apoie este Espaço</h2>
+            <h2 id="donation-title" style={{ margin: '0 0 15px 0', fontSize: 'var(--type-title-md)', fontWeight: '700', color: activePalette.titleColor }}>Apoie este Espaço</h2>
             <p style={{ fontSize: '14px', opacity: 0.8, lineHeight: '1.6', marginBottom: '25px' }}>
               Insira seus dados reais, o valor desejado e escolha a plataforma.
             </p>
             <form autoComplete="on">
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <label htmlFor="donation-first-name" className="sr-only">Nome</label>
                 <input
                   id="donation-first-name" name="firstName"
                   type="text" required placeholder="Nome"
@@ -416,6 +417,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                   value={firstName} onChange={(e) => setFirstName(e.target.value)}
                   style={inputStyle}
                 />
+                <label htmlFor="donation-last-name" className="sr-only">Sobrenome</label>
                 <input
                   id="donation-last-name" name="lastName"
                   type="text" required placeholder="Sobrenome"
@@ -427,6 +429,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
                 <span style={{ position: 'absolute', left: '20px', fontSize: '18px', fontWeight: 'bold', opacity: 0.5 }}>R$</span>
+                <label htmlFor="donation-amount" className="sr-only">Valor da doação</label>
                 <input
                   id="donation-amount" name="donationAmount"
                   type="text" required value={amountDisplay} onChange={handleAmountChange} placeholder="0,00"

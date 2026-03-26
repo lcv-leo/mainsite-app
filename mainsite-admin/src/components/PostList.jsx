@@ -34,10 +34,11 @@ const PostList = ({
           onDragEnd={onDragEnd}
           onDragOver={onDragOver}
           onDrop={(e) => onDrop(e, index)}
+          aria-roledescription="item arrastável"
           style={{ ...styles.postCard, borderLeft: post.is_pinned ? `4px solid ${styles.pinnedBadge.backgroundColor}` : `1px solid rgba(128,128,128,0.1)` }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div style={{ cursor: 'grab', opacity: 0.4 }} title="Reordenar">
+            <div style={{ cursor: 'grab', opacity: 0.4 }} title="Reordenar" aria-hidden="true">
               <GripVertical size={24} />
             </div>
             <div>
@@ -53,13 +54,14 @@ const PostList = ({
               onClick={() => onPin(post.id)}
               style={{ ...styles.actionBtnPin, background: post.is_pinned ? `${styles.pinnedBadge.backgroundColor}22` : 'transparent', borderColor: post.is_pinned ? `${styles.pinnedBadge.backgroundColor}55` : styles.actionBtnPin.border }}
               title="Fixar/Desafixar"
+              aria-label={post.is_pinned ? `Desafixar "${post.title}"` : `Fixar "${post.title}"`}
             >
               <Pin size={18} />
             </button>
-            <button onClick={() => onEdit(post)} style={styles.actionBtnEdit} title="Editar">
+            <button onClick={() => onEdit(post)} style={styles.actionBtnEdit} title="Editar" aria-label={`Editar "${post.title}"`}>
               <Edit3 size={18} />
             </button>
-            <button onClick={() => onDelete(post.id)} style={styles.actionBtnDelete} title="Excluir">
+            <button onClick={() => onDelete(post.id)} style={styles.actionBtnDelete} title="Excluir" aria-label={`Excluir "${post.title}"`}>
               <Trash2 size={18} />
             </button>
           </div>
