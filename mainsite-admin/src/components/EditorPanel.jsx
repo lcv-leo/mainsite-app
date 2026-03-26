@@ -38,7 +38,7 @@ import {
   Highlighter, Subscript as SubIcon, Superscript as SuperIcon, Quote, Minus, Code, Table as TableIcon,
   CheckSquare, Palette, Type, WrapText, Upload, Sparkles, Image as ImageIcon, Youtube, ZoomIn, ZoomOut,
   MessageSquare, MousePointer2, Heading1 as H1Icon, Heading2 as H2Icon, Heading3, ListChecks, LayoutGrid,
-  PilcrowSquare, CornerDownLeft, Indent, Outdent, X, Eraser
+  PilcrowSquare, CornerDownLeft, Indent, Outdent, X, Eraser, Wand2, Send
 } from 'lucide-react';
 
 const FontSize = Extension.create({
@@ -406,8 +406,39 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles, isDarkBase
     return () => editor.off('transaction', onTransaction);
   }, [editor]);
   const [promptModal, setPromptModal] = useState({ show: false, title: '', placeholder: 'https://...', value: '', callback: null, isLink: false, linkText: '', showCaption: false, caption: '' });
+  // AI Freeform Command
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [aiChatInput, setAiChatInput] = useState('');
+  const aiChatBtnRef = useRef(null);
 
   if (!editor) return null;
+
+  const handleAIFreeform = async () => {
+    const instruction = aiChatInput.trim();
+    if (!instruction) return;
+    const { from, to, empty } = editor.state.selection;
+    const text = empty ? editor.getHTML() : editor.state.doc.textBetween(from, to, ' ');
+    if (!text) { showNotification('O editor está vazio.', 'error'); return; }
+    setIsGeneratingAI(true);
+    setAiChatOpen(false);
+    showNotification('Gemini está processando sua instrução...', 'info');
+    try {
+      const res = await fetch(`${API_URL}/ai/transform`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` },
+        body: JSON.stringify({ action: 'freeform', text, instruction })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro na geração por IA.');
+      if (empty) {
+        editor.commands.setContent(data.text);
+      } else {
+        editor.chain().focus().deleteSelection().insertContent(data.text).run();
+      }
+      showNotification('Instrução aplicada com sucesso.', 'success');
+      setAiChatInput('');
+    } catch (err) { showNotification(err.message, 'error'); }
+    finally { setIsGeneratingAI(false); }
+  };
 
   const handleAITransform = async (action) => {
     const { from, to, empty } = editor.state.selection;
@@ -686,6 +717,47 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles, isDarkBase
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px' }}>
         <select id="editor-font-size" name="fontSize" autoComplete="off" onChange={e => editor.chain().focus().setFontSize(e.target.value).run()} value={editor.getAttributes('textStyle').fontSize || ''} style={{ fontSize: '13px', padding: '4px', background: 'transparent', color: 'inherit', border: 'none', fontWeight: '600' }}><option value="">Tam.</option><option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="20px">20px</option><option value="24px">24px</option><option value="30px">30px</option></select>
+      </div>
+
+      <div style={styles.toolbarDivider}></div>
+      <div style={{ position: 'relative' }}>
+        <button ref={aiChatBtnRef} type="button" title="IA: Instrução Livre (Gemini)" onClick={() => setAiChatOpen(!aiChatOpen)} style={{ ...styles.toolbarBtn, background: aiChatOpen ? 'rgba(2,132,199,0.15)' : styles.toolbarBtn.background, color: aiChatOpen ? '#0284c7' : styles.toolbarBtn.color }} disabled={isGeneratingAI}>
+          {isGeneratingAI ? <Loader2 className="animate-spin" size={16} /> : <Wand2 size={16} />}
+        </button>
+        {aiChatOpen && (() => {
+          const btnRect = aiChatBtnRef.current?.getBoundingClientRect();
+          const popupWin = aiChatBtnRef.current?.ownerDocument?.defaultView;
+          const vpW = popupWin?.innerWidth || 800;
+          let popLeft = btnRect ? btnRect.left : 0;
+          const popW = 340;
+          if (popLeft + popW > vpW - 8) popLeft = vpW - popW - 8;
+          if (popLeft < 8) popLeft = 8;
+          return ReactDOM.createPortal(
+            <div style={{ position: 'fixed', top: btnRect ? btnRect.bottom + 6 : 100, left: popLeft, width: `${popW}px`, zIndex: 99999, background: isDarkBase ? 'rgba(18,18,22,0.96)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'}`, borderRadius: '16px', padding: '14px', boxShadow: '0 12px 40px rgba(0,0,0,0.25)', animation: 'fadeIn 0.15s ease-out' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <Wand2 size={14} color="#0284c7" />
+                <span style={{ fontSize: '12px', fontWeight: '700', color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.5px' }}>IA: Instrução Livre</span>
+                <span style={{ fontSize: '10px', opacity: 0.5, marginLeft: 'auto' }}>{editor.state.selection.empty ? 'Texto inteiro' : 'Seleção'}</span>
+              </div>
+              <textarea
+                autoFocus
+                rows={3}
+                placeholder="Ex: Traduza para inglês, resuma em 3 bullets, torne poético..."
+                value={aiChatInput}
+                onChange={e => setAiChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAIFreeform(); } if (e.key === 'Escape') setAiChatOpen(false); }}
+                style={{ width: '100%', resize: 'vertical', padding: '10px 12px', fontSize: '13px', lineHeight: '1.5', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, borderRadius: '10px', background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', color: 'inherit', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', gap: '8px' }}>
+                <button type="button" onClick={() => setAiChatOpen(false)} style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '600', border: 'none', borderRadius: '8px', cursor: 'pointer', background: 'transparent', color: 'inherit', opacity: 0.6 }}>Cancelar</button>
+                <button type="button" onClick={handleAIFreeform} disabled={!aiChatInput.trim()} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 16px', fontSize: '12px', fontWeight: '700', border: 'none', borderRadius: '8px', cursor: 'pointer', background: '#0284c7', color: '#fff', opacity: aiChatInput.trim() ? 1 : 0.5, transition: 'opacity 0.15s' }}>
+                  <Send size={12} /> Enviar
+                </button>
+              </div>
+            </div>,
+            aiChatBtnRef.current?.ownerDocument?.body || document.body
+          );
+        })()}
       </div>
     </div>
   );

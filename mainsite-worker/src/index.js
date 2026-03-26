@@ -488,7 +488,7 @@ app.use('/api/comment', createRateLimiterMiddleware('email'));
 app.post('/api/ai/transform', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   try {
-    const { action, text } = await c.req.json();
+    const { action, text, instruction } = await c.req.json();
     const apiKey = c.env.GEMINI_API_KEY;
     if (!apiKey) return c.json({ error: "GEMINI_API_KEY não configurada no Worker." }, 503);
     if (!text) return c.json({ error: "Texto ausente." }, 400);
@@ -507,6 +507,10 @@ app.post('/api/ai/transform', async (c) => {
 
     let promptContext = "";
     switch (action) {
+      case 'freeform':
+        if (!instruction) return c.json({ error: "Instrução ausente." }, 400);
+        promptContext = `Você é um assistente de edição de documentos de nível profissional, equivalente ao Microsoft Word Copilot. Execute a seguinte instrução do usuário sobre o texto fornecido:\n\nINSTRUÇÃO: ${instruction}\n\nREGRAS ABSOLUTAS:\n1. Retorne APENAS o texto transformado, sem explicações, comentários, preâmbulos ou metadados.\n2. Preserve e utilize formatação HTML (negrito, itálico, listas, headings, links) quando apropriado para o resultado.\n3. Mantenha o idioma original do texto, a menos que a instrução peça tradução.\n4. Se a instrução pedir formatação (bullets, tabela, lista numerada), use as tags HTML correspondentes.\n5. Execute a instrução com precisão cirúrgica — nem mais, nem menos do que foi pedido.\n\nTexto:`;
+        break;
       case 'summarize': promptContext = "Resuma o seguinte texto de forma concisa e direta, mantendo a formatação e o idioma original:"; break;
       case 'expand': promptContext = "Expanda o seguinte texto, adicionando mais profundidade, contexto e detalhes técnicos, mantendo o idioma original:"; break;
       case 'grammar': promptContext = "Corrija os erros gramaticais e melhore a fluidez e coesão do seguinte texto, sem alterar seu significado central:"; break;

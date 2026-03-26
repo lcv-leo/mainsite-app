@@ -1,6 +1,11 @@
 # Changelog — Mainsite Admin
 
-## [v03.45.02] — 26/03/2026
+## [v03.46.00] — 26/03/2026
+### Adicionado
+- **IA: Instrução Livre (Gemini Freeform)**: novo botão ✨ (Wand2) no final da toolbar. Abre popover glassmorphic com textarea para instrução em linguagem natural. Gemini recebe o texto selecionado (ou todo o conteúdo se não houver seleção) e executa a instrução como um copilot Word-class com preservação HTML. Enter envia, Escape fecha.
+- **Worker — ação `freeform`**: `POST /api/ai/transform` agora aceita `action: 'freeform'` + `instruction`, reutilizando toda a infra existente (token counting, retry, safety, logging). System prompt instrui o modelo a retornar apenas texto transformado sem explicações.
+
+
 ### Corrigido
 - **Toolbar — botões não reagiam ao clique**: `MenuBar` não re-renderizava quando o estado do editor mudava (ex.: toggling Bold). Adicionado `editor.on('transaction')` com forceUpdate para que `getActiveStyle(editor.isActive(...))` leia valores atualizados a cada transação
 - **BubbleMenu — `window` errado no PopupPortal**: `window.innerWidth` e `document.createRange()` referenciavam a janela principal, não o popup. Substituídos por `editor.view.dom.ownerDocument.defaultView` e `ownerDocument.createRange()`
