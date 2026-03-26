@@ -96,9 +96,9 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
     footer: { marginTop: '60px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '40px' },
     archiveToggle: { background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', opacity: 0.8, transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' },
     card: { padding: '24px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', borderRadius: '24px' },
-    cardDate: { fontSize: '10px', opacity: 0.7, marginBottom: '16px', fontWeight: '800', letterSpacing: '0.5px' },
+    cardDate: { fontSize: '10px', opacity: 0.7, marginBottom: '16px', fontWeight: '600', letterSpacing: '0.3px' },
     squareBlock: { width: 'min(100%, 220px)', aspectRatio: '1 / 1', borderRadius: '24px', padding: '18px', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', boxSizing: 'border-box', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' },
-    expandBar: { width: '100%', minHeight: '92px', borderRadius: '20px', cursor: 'pointer', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.2em', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', background: 'none', color: activePalette.fontColor }
+    expandBar: { width: '100%', minHeight: '92px', borderRadius: '20px', cursor: 'pointer', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.1em', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', background: 'none', color: activePalette.fontColor }
   };
 
   const renderPostCard = (post) => (
@@ -109,7 +109,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
       style={styles.card}
     >
       <div style={styles.cardDate}>{parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</div>
-      <div style={{ fontSize: '13px', textTransform: 'uppercase', fontWeight: '800', color: activePalette.titleColor, transition: 'color 0.5s ease', lineHeight: '1.4' }}>{post.title}</div>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: activePalette.titleColor, transition: 'color 0.5s ease', lineHeight: '1.4' }}>{post.title}</div>
     </div>
   );
 
@@ -118,8 +118,8 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
       <style>{`
         .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; padding: 0; width: 100%; box-sizing: border-box; }
         .archive-group { margin: 12px 24px 0 24px; padding-top: 18px; border-top: 1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.08); }
-        .archive-year-title { font-size: 12px; font-weight: 900; letter-spacing: 0.22em; margin: 0 0 14px 0; opacity: 0.85; text-transform: uppercase; }
-        .archive-month-title { font-size: 11px; font-weight: 800; letter-spacing: 0.18em; margin: 0 0 10px 0; opacity: 0.7; }
+        .archive-year-title { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; margin: 0 0 14px 0; opacity: 0.85; text-transform: uppercase; }
+        .archive-month-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; margin: 0 0 10px 0; opacity: 0.7; }
         .archive-month-block + .archive-month-block { margin-top: 20px; }
         .archive-square-row {
           display: flex;
@@ -169,7 +169,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
       `}</style>
 
       <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={styles.archiveToggle} className="archive-btn">
-        <span style={{ letterSpacing: '0.28em', color: activePalette.fontColor, transition: 'color 0.5s ease', fontWeight: '800' }}>
+        <span style={{ letterSpacing: '0.12em', color: activePalette.fontColor, transition: 'color 0.5s ease', fontWeight: '600' }}>
           FRAGMENTOS ANTERIORES
         </span>
         <ChevronUp size={20} color={activePalette.fontColor} style={{ transform: isHistoryOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }} />
@@ -186,7 +186,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
             placeholder="BUSCA EXATA POR PALAVRAS-CHAVE..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ background: 'none', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: '13px', width: '100%', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700' }}
+            style={{ background: 'none', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: '13px', width: '100%', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: '500' }}
           />
         </div>
 
@@ -205,7 +205,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
                         <div style={{ ...styles.cardDate, marginBottom: '12px' }}>
                           {parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                         </div>
-                        <div style={{ fontSize: '13px', textTransform: 'uppercase', fontWeight: '800', color: activePalette.titleColor, lineHeight: '1.35' }}>{post.title}</div>
+                        <div style={{ fontSize: '13px', fontWeight: '600', color: activePalette.titleColor, lineHeight: '1.35' }}>{post.title}</div>
                       </div>
                     </div>
                   ))}
@@ -230,7 +230,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
                         <div style={{ fontSize: '34px', lineHeight: 1, fontWeight: '900', color: activePalette.titleColor, letterSpacing: '0.06em' }}>
                           {yearGroup.year}
                         </div>
-                        <div style={{ marginTop: '14px', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.72, fontWeight: '800' }}>
+                        <div style={{ marginTop: '14px', fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.72, fontWeight: '600' }}>
                           {yearGroup.months.length} MESES
                         </div>
                       </div>
@@ -277,7 +277,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
                             <div style={{ fontSize: '34px', lineHeight: 1, fontWeight: '900', color: activePalette.titleColor, letterSpacing: '0.06em' }}>
                               {yearGroup.year}
                             </div>
-                            <div style={{ marginTop: '14px', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.72, fontWeight: '800' }}>
+                            <div style={{ marginTop: '14px', fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.72, fontWeight: '600' }}>
                               {yearGroup.months.length} MESES
                             </div>
                           </div>
@@ -311,7 +311,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
           )}
 
       </div>
-      <div style={{ marginTop: '40px', fontSize: '11px', opacity: 0.5, letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '800' }}>{APP_VERSION}</div>
+      <div style={{ marginTop: '40px', fontSize: '11px', opacity: 0.5, letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: '600' }}>{APP_VERSION}</div>
     </footer>
   );
 };

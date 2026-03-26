@@ -16,7 +16,7 @@ const FinancialPanel = lazy(() => import('./components/FinancialPanel'));
 
 // Rota relativa — admin é servido pelo mesmo worker
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.41.00';
+const APP_VERSION = 'APP v03.43.00';
 
 const DEFAULT_SETTINGS = {
   allowAutoMode: true,
