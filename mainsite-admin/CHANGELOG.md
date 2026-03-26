@@ -1,5 +1,12 @@
 # Changelog — Mainsite Admin
 
+## [v03.45.01] — 26/03/2026
+### Corrigido
+- **Toolbar — botões sem mudança de estado no PopupPortal**: `toolbarBtn.background` e `getActiveStyle` usavam CSS custom properties (`var(--tb-*)`) que não resolviam na janela popup (domínio separado). Substituídos por valores diretos computados a partir de `isDarkBase`/`activePalette`
+- **BubbleMenu cortado sob a toolbar**: posicionamento mudou de `position: absolute` (relativo ao tiptap-wrapper com `overflow-y: auto` que clipava) para `position: fixed` com coordenadas de viewport + clamping + flip-below automático quando não há espaço acima
+- **FloatingMenu deslocado**: mesma migração para `position: fixed` com coordenadas de viewport
+- **Botão SALVAR**: texto alterado de "CONSOLIDAR FRAGMENTO"/"ATUALIZAR FRAGMENTO" para "SALVAR"
+
 ## [v03.45.00] — 26/03/2026
 ### Alterado
 - **Toolbar Word-like 3D**: botões da toolbar principal, BubbleMenu e FloatingMenu ganham aparência 3D com sombra outward (raised) no estado padrão e sombra inset (depressed) + cor accent no estado ativo/toggled. Feedback visual claro de `:active` e `:hover`. CSS custom properties `--tb-idle-bg`, `--tb-active-bg`, `--tb-active-fg` controlam o tema
