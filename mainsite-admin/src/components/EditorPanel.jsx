@@ -401,7 +401,7 @@ const MenuBar = ({ editor, secret, showNotification, API_URL, styles, isDarkBase
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!editor) return;
-    const onTransaction = () => setTick(t => t + 1);
+    const onTransaction = () => { try { if (editor.view?.dom) setTick(t => t + 1); } catch { /* view not ready */ } };
     editor.on('transaction', onTransaction);
     return () => editor.off('transaction', onTransaction);
   }, [editor]);
