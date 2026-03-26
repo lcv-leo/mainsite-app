@@ -1,6 +1,7 @@
-// Módulo: mainsite-frontend/functions/api/media/[filename].js
+// Módulo: mainsite-frontend/functions/api/mainsite/media/[filename].js
 // Descrição: Serve objetos do R2 (imagens de posts) diretamente no frontend
 // via binding MEDIA_BUCKET, sem depender de URL externa do worker.
+// Espelha a rota /api/mainsite/media/:filename do admin-app.
 
 // Mapa de extensões para Content-Type
 const MIME_TYPES = {
