@@ -1,5 +1,9 @@
 # Changelog — Mainsite Admin
 
+## [v03.46.04] — 26/03/2026
+### Corrigido
+- **Diálogos suprimidos no PopupPortal**: `window.prompt()` e `ReactDOM.createPortal(document.body)` referenciavam a janela principal (inativa), causando supressão pelo browser com erro "not the active tab". Prompt modal agora renderiza em `editor.view.dom.ownerDocument.body` (body da popup). Link prompt no BubbleMenu usa `ownerDocument.defaultView.prompt()`.
+
 ## [v03.46.03] — 26/03/2026
 ### Adicionado
 - **Menus flutuantes arrastáveis**: BubbleMenu e FloatingMenu agora suportam drag-and-drop para reposicionamento. Arrastar pelo fundo do menu move-o livremente; clicar nos botões continua disparando ações normalmente. Cursor `grab`/`grabbing` como feedback visual. Menu reseta para posição automática quando a seleção muda.
