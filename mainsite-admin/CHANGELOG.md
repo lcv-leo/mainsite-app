@@ -1,6 +1,10 @@
 # Changelog — Mainsite Admin
 
-## [v03.45.01] — 26/03/2026
+## [v03.45.02] — 26/03/2026
+### Corrigido
+- **Toolbar — botões não reagiam ao clique**: `MenuBar` não re-renderizava quando o estado do editor mudava (ex.: toggling Bold). Adicionado `editor.on('transaction')` com forceUpdate para que `getActiveStyle(editor.isActive(...))` leia valores atualizados a cada transação
+- **BubbleMenu — `window` errado no PopupPortal**: `window.innerWidth` e `document.createRange()` referenciavam a janela principal, não o popup. Substituídos por `editor.view.dom.ownerDocument.defaultView` e `ownerDocument.createRange()`
+- **FloatingMenu — posição viciada durante scroll**: adicionado listener de scroll no tiptap-wrapper que esconde o menu durante rolagem, evitando posição estática residual
 ### Corrigido
 - **Toolbar — botões sem mudança de estado no PopupPortal**: `toolbarBtn.background` e `getActiveStyle` usavam CSS custom properties (`var(--tb-*)`) que não resolviam na janela popup (domínio separado). Substituídos por valores diretos computados a partir de `isDarkBase`/`activePalette`
 - **BubbleMenu cortado sob a toolbar**: posicionamento mudou de `position: absolute` (relativo ao tiptap-wrapper com `overflow-y: auto` que clipava) para `position: fixed` com coordenadas de viewport + clamping + flip-below automático quando não há espaço acima
