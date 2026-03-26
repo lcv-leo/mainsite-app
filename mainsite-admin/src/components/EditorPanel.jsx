@@ -397,13 +397,15 @@ const MenuBar = ({ editor, editorReady, secret, showNotification, API_URL, style
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  // Force re-render on every editor transaction so getActiveStyle() reads fresh isActive() values
+  // Force re-render on every editor transaction AND selection change
+  // so getActiveStyle() reads fresh isActive() values (Word-like dynamic state)
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!editor) return;
-    const onTransaction = () => { try { if (editor.view?.dom) setTick(t => t + 1); } catch { /* view not ready */ } };
-    editor.on('transaction', onTransaction);
-    return () => editor.off('transaction', onTransaction);
+    const forceUpdate = () => { try { if (editor.view?.dom) setTick(t => t + 1); } catch { /* view not ready */ } };
+    editor.on('transaction', forceUpdate);
+    editor.on('selectionUpdate', forceUpdate);
+    return () => { editor.off('transaction', forceUpdate); editor.off('selectionUpdate', forceUpdate); };
   }, [editor]);
   const [promptModal, setPromptModal] = useState({ show: false, title: '', placeholder: 'https://...', value: '', callback: null, isLink: false, linkText: '', showCaption: false, caption: '' });
   // AI Freeform Command
@@ -791,16 +793,18 @@ const STATIC_EXTENSIONS = [
   LinkExtension.configure({ openOnClick: false, autolink: true, HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' } })
 ];
 
-// BubbleMenu — contextual formatting toolbar on text selection
+// BubbleMenu — contextual formatting toolbar on text selection (draggable + viewport-clamped)
 const EditorBubbleMenu = ({ editor }) => {
   const ref = useRef(null);
-  const [pos, setPos] = useState(null);
+  const [autoPos, setAutoPos] = useState(null);
+  const [dragPos, setDragPos] = useState(null);
+  const dragRef = useRef({ active: false, offsetX: 0, offsetY: 0 });
 
   useEffect(() => {
     if (!editor) return;
     const update = () => {
       const { from, to, empty } = editor.state.selection;
-      if (empty || editor.state.selection instanceof NodeSelection) { setPos(null); return; }
+      if (empty || editor.state.selection instanceof NodeSelection) { setAutoPos(null); setDragPos(null); return; }
       try {
         const domRange = editor.view.domAtPos(from);
         const ownerDoc = editor.view.dom.ownerDocument;
@@ -810,26 +814,66 @@ const EditorBubbleMenu = ({ editor }) => {
         const endDom = editor.view.domAtPos(to);
         range.setEnd(endDom.node, endDom.offset);
         const rect = range.getBoundingClientRect();
-        if (rect.width === 0) { setPos(null); return; }
+        if (rect.width === 0) { setAutoPos(null); return; }
         const menuH = 44;
         const menuW = 340;
-        const vpWidth = popupWin?.innerWidth || 800;
+        const vpW = popupWin?.innerWidth || 800;
+        const vpH = popupWin?.innerHeight || 600;
         let top = rect.top - menuH - 8;
-        let left = rect.left + rect.width / 2;
+        let left = rect.left + rect.width / 2 - menuW / 2;
+        // Flip below selection if would go above viewport
         if (top < 4) top = rect.bottom + 8;
-        left = Math.max(menuW / 2 + 4, Math.min(left, vpWidth - menuW / 2 - 4));
-        setPos({ top, left });
-      } catch { setPos(null); }
+        // Clamp to viewport bounds
+        left = Math.max(4, Math.min(left, vpW - menuW - 4));
+        top = Math.max(4, Math.min(top, vpH - menuH - 4));
+        setAutoPos({ top, left });
+        setDragPos(null); // Reset drag on selection change
+      } catch { setAutoPos(null); }
     };
     editor.on('selectionUpdate', update);
-    editor.on('blur', () => setPos(null));
-    return () => { editor.off('selectionUpdate', update); editor.off('blur', () => setPos(null)); };
+    const onBlur = () => { setAutoPos(null); setDragPos(null); };
+    editor.on('blur', onBlur);
+    return () => { editor.off('selectionUpdate', update); editor.off('blur', onBlur); };
   }, [editor]);
 
-  if (!pos || !editor) return null;
+  // Drag handlers — attached to popup window
+  const startDrag = (e) => {
+    if (e.target.closest('button')) return; // Don't drag when clicking buttons
+    e.preventDefault();
+    const menuEl = ref.current;
+    if (!menuEl) return;
+    const rect = menuEl.getBoundingClientRect();
+    dragRef.current = { active: true, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
+    menuEl.classList.add('dragging');
+    const ownerDoc = menuEl.ownerDocument;
+    const popupWin = ownerDoc.defaultView;
+    const menuW = rect.width;
+    const menuH = rect.height;
+    const onMove = (ev) => {
+      if (!dragRef.current.active) return;
+      const vpW = popupWin?.innerWidth || 800;
+      const vpH = popupWin?.innerHeight || 600;
+      let nx = ev.clientX - dragRef.current.offsetX;
+      let ny = ev.clientY - dragRef.current.offsetY;
+      nx = Math.max(0, Math.min(nx, vpW - menuW));
+      ny = Math.max(0, Math.min(ny, vpH - menuH));
+      setDragPos({ top: ny, left: nx });
+    };
+    const onUp = () => {
+      dragRef.current.active = false;
+      menuEl.classList.remove('dragging');
+      ownerDoc.removeEventListener('mousemove', onMove);
+      ownerDoc.removeEventListener('mouseup', onUp);
+    };
+    ownerDoc.addEventListener('mousemove', onMove);
+    ownerDoc.addEventListener('mouseup', onUp);
+  };
+
+  if (!autoPos || !editor) return null;
+  const pos = dragPos || autoPos;
   const portalTarget = editor.view?.dom?.ownerDocument?.body || document.body;
   return ReactDOM.createPortal(
-    <div ref={ref} className="bubble-menu" style={{ position: 'fixed', top: `${pos.top}px`, left: `${pos.left}px`, transform: 'translateX(-50%)', zIndex: 99999 }}>
+    <div ref={ref} className="bubble-menu" onMouseDown={startDrag} style={{ position: 'fixed', top: `${pos.top}px`, left: `${pos.left}px`, zIndex: 99999, cursor: 'grab' }}>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} className={editor.isActive('bold') ? 'is-active' : ''} title="Negrito"><Bold size={14} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} className={editor.isActive('italic') ? 'is-active' : ''} title="It\u00e1lico"><Italic size={14} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }} className={editor.isActive('underline') ? 'is-active' : ''} title="Sublinhado"><UnderlineIcon size={14} /></button>
@@ -846,35 +890,86 @@ const EditorBubbleMenu = ({ editor }) => {
   );
 };
 
-// FloatingMenu — quick-insert toolbar on empty paragraph lines
+// FloatingMenu — quick-insert toolbar on empty paragraph lines (draggable + viewport-clamped)
 const EditorFloatingMenu = ({ editor }) => {
-  const [pos, setPos] = useState(null);
+  const menuRef = useRef(null);
+  const [autoPos, setAutoPos] = useState(null);
+  const [dragPos, setDragPos] = useState(null);
+  const dragRef = useRef({ active: false, offsetX: 0, offsetY: 0 });
 
   useEffect(() => {
     if (!editor) return;
     const update = () => {
       const { $anchor } = editor.state.selection;
       const isEmptyTextBlock = $anchor.parent.isTextblock && $anchor.parent.content.size === 0;
-      if (!isEmptyTextBlock || !editor.state.selection.empty) { setPos(null); return; }
+      if (!isEmptyTextBlock || !editor.state.selection.empty) { setAutoPos(null); setDragPos(null); return; }
       try {
         const coords = editor.view.coordsAtPos($anchor.pos);
-        setPos({ top: coords.top - 4, left: coords.left - 16 });
-      } catch { setPos(null); }
+        const ownerDoc = editor.view.dom.ownerDocument;
+        const popupWin = ownerDoc.defaultView;
+        const vpW = popupWin?.innerWidth || 800;
+        const vpH = popupWin?.innerHeight || 600;
+        const menuW = 380; // approximate width
+        const menuH = 40;
+        // Position to the left of cursor; clamp to viewport
+        let left = coords.left - 16 - menuW;
+        let top = coords.top - 4;
+        // If would go off-screen left, position to the right of cursor instead
+        if (left < 4) left = coords.left + 16;
+        left = Math.max(4, Math.min(left, vpW - menuW - 4));
+        top = Math.max(4, Math.min(top, vpH - menuH - 4));
+        setAutoPos({ top, left });
+        setDragPos(null); // Reset drag on cursor move
+      } catch { setAutoPos(null); }
     };
     // Hide floating menu during scroll to prevent stale position
     let wrapper = null;
     try { wrapper = editor.view?.dom?.closest('.tiptap-wrapper'); } catch { /* view not mounted yet */ }
-    const hideOnScroll = () => setPos(null);
+    const hideOnScroll = () => { setAutoPos(null); setDragPos(null); };
     editor.on('selectionUpdate', update);
     editor.on('focus', update);
     wrapper?.addEventListener('scroll', hideOnScroll);
     return () => { editor.off('selectionUpdate', update); editor.off('focus', update); wrapper?.removeEventListener('scroll', hideOnScroll); };
   }, [editor]);
 
-  if (!pos || !editor) return null;
+  // Drag handlers
+  const startDrag = (e) => {
+    if (e.target.closest('button')) return;
+    e.preventDefault();
+    const menuEl = menuRef.current;
+    if (!menuEl) return;
+    const rect = menuEl.getBoundingClientRect();
+    dragRef.current = { active: true, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
+    menuEl.classList.add('dragging');
+    const ownerDoc = menuEl.ownerDocument;
+    const popupWin = ownerDoc.defaultView;
+    const menuW = rect.width;
+    const menuH = rect.height;
+    const onMove = (ev) => {
+      if (!dragRef.current.active) return;
+      const vpW = popupWin?.innerWidth || 800;
+      const vpH = popupWin?.innerHeight || 600;
+      let nx = ev.clientX - dragRef.current.offsetX;
+      let ny = ev.clientY - dragRef.current.offsetY;
+      nx = Math.max(0, Math.min(nx, vpW - menuW));
+      ny = Math.max(0, Math.min(ny, vpH - menuH));
+      setDragPos({ top: ny, left: nx });
+    };
+    const onUp = () => {
+      dragRef.current.active = false;
+      menuEl.classList.remove('dragging');
+      ownerDoc.removeEventListener('mousemove', onMove);
+      ownerDoc.removeEventListener('mouseup', onUp);
+    };
+    ownerDoc.addEventListener('mousemove', onMove);
+    ownerDoc.addEventListener('mouseup', onUp);
+  };
+
+  if (!autoPos || !editor) return null;
+  const pos = dragPos || autoPos;
   const portalTarget = editor.view?.dom?.ownerDocument?.body || document.body;
   return ReactDOM.createPortal(
-    <div className="floating-menu" style={{ position: 'fixed', top: `${pos.top}px`, left: `${pos.left}px`, transform: 'translateX(-100%)', zIndex: 99999 }}>
+    <div ref={menuRef} className="floating-menu" onMouseDown={startDrag} style={{ position: 'fixed', top: `${pos.top}px`, left: `${pos.left}px`, zIndex: 99999, cursor: 'grab' }}>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }} className={editor.isActive('heading', { level: 1 }) ? 'is-active' : ''} title="T\u00edtulo 1"><H1Icon size={16} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }} className={editor.isActive('heading', { level: 2 }) ? 'is-active' : ''} title="T\u00edtulo 2"><H2Icon size={16} /></button>
       <button type="button" onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); }} className={editor.isActive('heading', { level: 3 }) ? 'is-active' : ''} title="T\u00edtulo 3"><Heading3 size={16} /></button>
