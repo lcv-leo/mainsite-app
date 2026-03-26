@@ -1,5 +1,9 @@
 # Changelog — Mainsite Frontend
 
+## [v02.15.00] — 26/03/2026
+### Corrigido
+- **Brand icons usavam URL externa**: `.env` apontava para `https://mainsite-app.lcv.rio.br/api/uploads/brands`. Corrigido para rota relativa `/api/uploads/brands` via proxy + Service Binding interno
+
 ## [v02.14.00] — 26/03/2026
 ### Adicionado
 - Conformidade WCAG 2.1 AA + eMAG em todos os componentes
