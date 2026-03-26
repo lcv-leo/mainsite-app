@@ -118,8 +118,8 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
         style={styles.card}
       >
         <div style={styles.cardDate}>
-          {criado || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-          {showUpdated && <div style={{ marginTop: '2px', fontSize: '10px', opacity: 0.8 }}>Atualizado: {atualizado}</div>}
+          Publicado em {criado || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+          {showUpdated && <div style={{ marginTop: '2px', fontSize: '10px', opacity: 0.8 }}>Atualizado em {atualizado}</div>}
         </div>
         <div style={{ fontSize: '13px', fontWeight: '600', color: activePalette.titleColor, transition: 'color 0.5s ease', lineHeight: '1.4' }}>{post.title}</div>
       </div>
