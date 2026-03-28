@@ -2306,6 +2306,25 @@ app.get('/api/sumup-balance', async (c) => {
   }
 });
 
+// --- ENPOINT PÚBLICO (POLLING DO 3DS) ---
+app.get('/api/sumup/checkout/:id/status', async (c) => {
+  const paymentId = c.req.param('id');
+  if (!paymentId || paymentId.length < 10) return c.json({ status: 'PENDING' });
+  
+  try {
+    const row = await c.env.DB.prepare(
+      "SELECT status FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
+    ).bind(paymentId).first();
+    
+    // Se não encontrou, talvez ainda não sincronizou. Assumimos PENDING
+    if (!row) return c.json({ status: 'PENDING' });
+    
+    return c.json({ status: String(row.status).toUpperCase() });
+  } catch(e) {
+    return c.json({ status: 'PENDING' }); // Em caso de falha de conexão D1, mantenha PENDING
+  }
+});
+
 app.post('/api/sumup-payment/:id/refund', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   const id = c.req.param('id');
@@ -2397,6 +2416,7 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
       await client.checkouts.deactivate(id);
     } catch (apiErr) {
       console.error('Erro SumUp SDK (Cancel):', apiErr);
+      let isConflict = false;
       let errMsg = apiErr.message || '';
       try {
         if (errMsg.includes('{')) {
@@ -2405,10 +2425,30 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
           if (parsed.message) errMsg = parsed.message;
           if (parsed.detail) errMsg = parsed.detail;
           if (parsed.error_code === 'NOT FOUND') errMsg = 'Checkout não encontrado.';
-          if (parsed.error_code === 'CONFLICT') errMsg = 'Este checkout não pode ser cancelado no estado atual.';
+          if (parsed.error_code === 'CONFLICT') {
+            errMsg = 'Este checkout não pode ser cancelado no estado atual.';
+            isConflict = true;
+          }
         }
       } catch (e) { }
-      return c.json({ error: `Cancelamento recusado pela SumUp: ${errMsg}` }, 400);
+
+      if (isConflict || (apiErr.message && apiErr.message.includes('409'))) {
+        // Fetch real status
+        try {
+          const checkRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (checkRes.ok) {
+            const checkoutData = await checkRes.json();
+            if (checkoutData.status === 'PAID') {
+              return c.json({ error: 'Não é possível cancelar uma transação que já foi paga. Utilize o estorno (Refund).' }, 400);
+            }
+            // Se já falhou, apenas segue e forçamos o cancelamento local no SQLite
+          }
+        } catch(e) { /* ignore secondary error */ }
+      } else {
+        return c.json({ error: `Cancelamento recusado pela SumUp: ${errMsg}` }, 400);
+      }
     }
 
     await c.env.DB.prepare(
