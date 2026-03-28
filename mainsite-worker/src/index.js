@@ -1284,14 +1284,19 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
     const storedId = transactionId || result.id || checkoutId;
 
     const payerEmail = (email || '').trim() || 'N/A';
-    const storedStatus = normalizeSumupStatus(result.status || 'SUCCESSFUL');
+    
+    // Se response contiver next_step (Ex: 3DS Challenge), a transação está PENDENTE aguardando ação do usuário.
+    // Se omitido, assumimos PENDING por segurança até que o webhook retorne a confirmação real.
+    const implicitStatus = result.next_step ? 'PENDING' : 'PENDING';
+    const storedStatus = normalizeSumupStatus(result.status || implicitStatus);
+    
     c.executionCtx.waitUntil(
       c.env.DB.prepare(
         "INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
       ).bind(storedId, storedStatus, Number(amount), 'sumup_card', payerEmail, JSON.stringify(result)).run()
     );
 
-    return c.json({ success: true, id: storedId, status: storedStatus });
+    return c.json({ success: true, id: storedId, status: storedStatus, next_step: result.next_step });
   } catch (err) {
     console.error('Erro ao processar pagamento SumUp:', err);
     return c.json({ error: err.message || 'Falha no pagamento SumUp.' }, 500);
@@ -2327,8 +2332,28 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
     }
 
     // Processa o reembolso
-    const refundPayload = amount ? { amount } : {};
-    const result = await client.transactions.refund(txnId, refundPayload);
+    let result;
+    try {
+      const refundPayload = amount ? { amount } : undefined;
+      result = await client.transactions.refund(txnId, refundPayload);
+    } catch (apiErr) {
+      console.error('Erro SumUp SDK (Refund):', apiErr);
+      let errMsg = apiErr.message || '';
+      
+      // Try to parse SumUp JSON message to make it user friendly
+      try {
+        if (errMsg.includes('{')) {
+          const jsonStr = errMsg.substring(errMsg.indexOf('{'));
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.message) errMsg = parsed.message;
+          if (parsed.detail) errMsg = parsed.detail;
+          if (parsed.error_code === 'NOT FOUND') errMsg = 'Transação não encontrada ou aguardando compensação.';
+          if (parsed.error_code === 'CONFLICT') errMsg = 'A transação não pode ser estornada em seu estado atual (Ex: Já estornada ou ainda pendente).';
+        }
+      } catch (e) { }
+
+      return c.json({ error: `Estorno recusado pela SumUp: ${errMsg}` }, 400);
+    }
 
     const newStatus = amount ? 'PARTIALLY_REFUNDED' : 'REFUNDED';
     await c.env.DB.prepare(
@@ -2337,8 +2362,8 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
 
     return c.json({ success: true, status: newStatus });
   } catch (err) {
-    console.error('Erro ao processar reembolso SumUp:', err);
-    return c.json({ error: err.message || 'Reembolso SumUp falhou.' }, 502);
+    console.error('Erro estrutural ao processar reembolso SumUp:', err);
+    return c.json({ error: err.message || 'Erro interno no provedor de pagamento.' }, 500);
   }
 });
 
@@ -2351,7 +2376,24 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
 
     const client = new SumUp({ apiKey: token });
 
-    await client.checkouts.deactivate(id);
+    let result;
+    try {
+      await client.checkouts.deactivate(id);
+    } catch (apiErr) {
+      console.error('Erro SumUp SDK (Cancel):', apiErr);
+      let errMsg = apiErr.message || '';
+      try {
+        if (errMsg.includes('{')) {
+          const jsonStr = errMsg.substring(errMsg.indexOf('{'));
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.message) errMsg = parsed.message;
+          if (parsed.detail) errMsg = parsed.detail;
+          if (parsed.error_code === 'NOT FOUND') errMsg = 'Checkout não encontrado.';
+          if (parsed.error_code === 'CONFLICT') errMsg = 'Este checkout não pode ser cancelado no estado atual.';
+        }
+      } catch (e) { }
+      return c.json({ error: `Cancelamento recusado pela SumUp: ${errMsg}` }, 400);
+    }
 
     await c.env.DB.prepare(
       "UPDATE mainsite_financial_logs SET status = 'CANCELLED' WHERE payment_id = ? AND method = 'sumup_card'"
@@ -2360,7 +2402,7 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
     return c.json({ success: true });
   } catch (err) {
     console.error('Erro ao cancelar pagamento SumUp:', err);
-    return c.json({ error: err.message || 'Falha ao cancelar pagamento SumUp.' }, 502);
+    return c.json({ error: err.message || 'Falha estrutural ao cancelar.' }, 500);
   }
 });
 
