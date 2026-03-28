@@ -1303,6 +1303,22 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
   }
 });
 
+app.get('/api/sumup/checkout/:id/status', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const result = await c.env.DB.prepare(
+      "SELECT status FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
+    ).bind(id).first();
+    
+    if (!result) return c.json({ error: 'Checkout não encontrado.' }, 404);
+    
+    return c.json({ status: result.status });
+  } catch (err) {
+    console.error('Erro ao consultar status do checkout:', err);
+    return c.json({ error: 'Falha interna ao consultar status.' }, 500);
+  }
+});
+
 app.get('/api/sumup/payment-methods', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: '401' }, 401);
   try {

@@ -40,6 +40,10 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [sumupDocument, setSumupDocument] = useState('');
   const [sumupDocumentType, setSumupDocumentType] = useState('CPF');
   const [coverFees, setCoverFees] = useState(false);
+  
+  const [sumupNextStep, setSumupNextStep] = useState(null);
+  const [checkoutId, setCheckoutId] = useState(null);
+  const pollingIntervalRef = useRef(null);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -92,18 +96,33 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         setIsProcessingCard(false);
         setIsProcessingMpCard(false);
         setBrandImageFailed({});
+        
+        setSumupNextStep(null);
+        setCheckoutId(null);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
       }, 0);
     } else {
       setTimeout(() => setStep(1), 0);
       visibilityTimeoutRef.current = setTimeout(() => {
         setIsVisible(false);
       }, 400);
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
     }
 
     return () => {
       if (visibilityTimeoutRef.current) {
         clearTimeout(visibilityTimeoutRef.current);
         visibilityTimeoutRef.current = null;
+      }
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
     };
   }, [show]);
@@ -198,7 +217,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.error || 'Falha ao iniciar checkout SumUp.');
 
-      const grossAmount = getGrossAmount('sumup');
       const payRes = await fetch(`${API_URL}/sumup/checkout/${createData.checkoutId}/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -222,8 +240,14 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       const payData = await payRes.json();
       if (!payRes.ok) throw new Error(payData.error || 'Pagamento SumUp não aprovado.');
 
-      setStep(3);
-      showToast('Pagamento aprovado com sucesso!', 'success');
+      if (payData.next_step) {
+        setSumupNextStep(payData.next_step);
+        setCheckoutId(createData.checkoutId);
+        setStep(7);
+      } else {
+        setStep(3);
+        showToast('Pagamento aprovado com sucesso!', 'success');
+      }
     } catch (error) {
       showToast(getStandardPaymentError(error?.message), 'error');
     } finally {
@@ -719,6 +743,87 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 {isProcessingCard ? 'PROCESSANDO...' : 'PAGAR COM SUMUP'}
               </button>
             </form>
+          </div>
+        )}
+
+        {step === 7 && sumupNextStep && (
+          <div style={{ animation: 'fadeIn 0.3s', textAlign: 'center', minHeight: '350px' }}>
+            <h2 style={{ margin: '0 0 10px 0', fontSize: '18px', fontWeight: '700', color: activePalette.titleColor }}>Autenticação Segura (3DS)</h2>
+            <p style={{ fontSize: '13px', opacity: 0.8, marginBottom: '20px' }}>
+              Finalize a verificação diretamente com o banco emissor do seu cartão.
+            </p>
+            
+            <div style={{ position: 'relative', width: '100%', height: '400px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(128,128,128,0.2)', backgroundColor: '#fff' }}>
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', color: '#000' }}>
+                <Loader2 size={32} className="animate-spin" color={activePalette.titleColor} />
+                <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Carregando ambiente seguro...</span>
+              </div>
+              
+              <iframe
+                name="sumup-3ds-frame"
+                title="Autenticação 3D Secure"
+                style={{ width: '100%', height: '100%', border: 'none', position: 'relative', zIndex: 10 }}
+                onLoad={() => {
+                  // The iframe loaded either the bank page, or the final redirect step
+                  if (!pollingIntervalRef.current && checkoutId) {
+                    pollingIntervalRef.current = setInterval(async () => {
+                      try {
+                        const res = await fetch(`${API_URL}/sumup/checkout/${checkoutId}/status`);
+                        if (res.ok) {
+                          const data = await res.json();
+                          const st = (data.status || '').toUpperCase();
+                          if (st === 'SUCCESSFUL' || st === 'PAID') {
+                            clearInterval(pollingIntervalRef.current);
+                            pollingIntervalRef.current = null;
+                            setStep(3); // Success
+                            showToast('Pagamento aprovado com sucesso!', 'success');
+                          } else if (st === 'FAILED') {
+                            clearInterval(pollingIntervalRef.current);
+                            pollingIntervalRef.current = null;
+                            setStep(5); // Go back to payment form
+                            setIsProcessingCard(false);
+                            showToast('A transação foi recusada ou falhou.', 'error');
+                          }
+                        }
+                      } catch(err) {
+                        console.error('Polling error', err);
+                      }
+                    }, 4000);
+                  }
+                }}
+              />
+              <form
+                method={sumupNextStep.method || "POST"}
+                action={sumupNextStep.url}
+                target="sumup-3ds-frame"
+                ref={(el) => {
+                  if (el && !el.dataset.submitted) {
+                    el.dataset.submitted = 'true';
+                    setTimeout(() => el.submit(), 100);
+                  }
+                }}
+                style={{ display: 'none' }}
+              >
+                {sumupNextStep.payload && Object.entries(sumupNextStep.payload).map(([k, v]) => (
+                  <input key={k} type="hidden" name={k} value={v} />
+                ))}
+              </form>
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => {
+                if (pollingIntervalRef.current) {
+                  clearInterval(pollingIntervalRef.current);
+                  pollingIntervalRef.current = null;
+                }
+                setStep(5);
+                setIsProcessingCard(false);
+              }}
+              style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: 0.6, marginTop: '20px', textDecoration: 'underline' }}
+            >
+              Cancelar e Voltar
+            </button>
           </div>
         )}
 
