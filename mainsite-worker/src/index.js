@@ -1172,8 +1172,15 @@ app.post('/api/sumup/checkout', async (c) => {
   }
 
   try {
-    const { amount, firstName, lastName, email } = await c.req.json();
-    if (!amount || Number(amount) <= 0) return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
+    const { baseAmount, coverFees, firstName, lastName, email } = await c.req.json();
+    if (!baseAmount || Number(baseAmount) <= 0) return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
+
+    const SUMUP_FEE_RATE = 0.0267;
+    const SUMUP_FEE_FIXED = 0;
+    let amount = Number(baseAmount);
+    if (coverFees) {
+      amount = parseFloat(((amount + SUMUP_FEE_FIXED) / (1 - SUMUP_FEE_RATE)).toFixed(2));
+    }
 
     const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
     const merchantCode = c.env.SUMUP_MERCHANT_CODE;
@@ -1218,12 +1225,19 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
 
   try {
     const checkoutId = c.req.param('id');
-    const { amount, card, firstName, lastName, email, document } = await c.req.json();
+    const { baseAmount, coverFees, card, firstName, lastName, email, document } = await c.req.json();
 
     if (!checkoutId) return c.json({ error: 'Checkout inválido.' }, 400);
-    if (!amount || Number(amount) <= 0) return c.json({ error: 'Valor inválido para pagamento SumUp.' }, 400);
+    if (!baseAmount || Number(baseAmount) <= 0) return c.json({ error: 'Valor inválido para pagamento SumUp.' }, 400);
     if (!card?.name || !card?.number || !card?.expiryMonth || !card?.expiryYear || !card?.cvv) {
       return c.json({ error: 'Dados de cartão incompletos.' }, 400);
+    }
+
+    const SUMUP_FEE_RATE = 0.0267;
+    const SUMUP_FEE_FIXED = 0;
+    let amount = Number(baseAmount);
+    if (coverFees) {
+      amount = parseFloat(((amount + SUMUP_FEE_FIXED) / (1 - SUMUP_FEE_RATE)).toFixed(2));
     }
 
     const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
@@ -1754,12 +1768,26 @@ app.post('/api/mp-payment', async (c) => {
     const token = c.env.MP_ACCESS_TOKEN;
     if (!token) throw new Error("MP_ACCESS_TOKEN ausente.");
 
+    const { baseAmount, coverFees, ...mpPayload } = body;
+    
+    let transactionAmount = Number(mpPayload.transaction_amount);
+    if (baseAmount && Number(baseAmount) > 0) {
+      const MP_FEE_RATE = 0.0499;
+      const MP_FEE_FIXED = 0.40;
+      let finalAmount = Number(baseAmount);
+      if (coverFees) {
+        finalAmount = parseFloat(((finalAmount + MP_FEE_FIXED) / (1 - MP_FEE_RATE)).toFixed(2));
+      }
+      transactionAmount = finalAmount;
+      mpPayload.transaction_amount = transactionAmount;
+    }
+
     const client = new MercadoPagoConfig({ accessToken: token });
     const paymentApi = new Payment(client);
 
     const extRef = `DON-${crypto.randomUUID()}`;
-    const realFirstName = body.payer?.first_name;
-    const realLastName = body.payer?.last_name;
+    const realFirstName = mpPayload.payer?.first_name;
+    const realLastName = mpPayload.payer?.last_name;
 
     if (!realFirstName || !realLastName) {
       return c.json({ error: "Nome e sobrenome reais são obrigatórios para validação antifraude." }, 400);
@@ -1769,13 +1797,13 @@ app.post('/api/mp-payment', async (c) => {
     const donationDescriptor = `Doação de ${donorFullName} - Divagações Filosóficas`;
 
     const enhancedPayload = {
-      ...body,
+      ...mpPayload,
       description: donationDescriptor,
       external_reference: extRef,
       statement_descriptor: "DIVAGAC FILOSOF",
       notification_url: "https://mainsite-app.lcv.rio.br/api/webhooks/mercadopago",
       payer: {
-        ...(body.payer || {}),
+        ...(mpPayload.payer || {}),
         first_name: realFirstName,
         last_name: realLastName
       },
@@ -1787,7 +1815,7 @@ app.post('/api/mp-payment', async (c) => {
             description: donationDescriptor,
             category_id: "donations",
             quantity: 1,
-            unit_price: Number(body.transaction_amount)
+            unit_price: transactionAmount
           }
         ],
         payer: {
