@@ -1,5 +1,10 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v01.35.00] — 28/03/2026
+### Adicionado/Alterado
+- **Integração SumUp via MCP / Flow 3DS**: Implementados novos endpoints backend de `checkout` e processamento SumUp em lote com captura do `next_step` do desafio de Autorização 3DS (`ACTION_REQUIRED`). 
+- **Bypass e Polling**: Enpoints para sinalização de bypass na transição do `iframe` e um webhook/público robusto para recebimento (polling de success/failed fallback) atrelados à arquitetura global MCP.
+
 ## [v01.34.00] — 2026-03-24
 ### Alterado
 - Migração total de D1 para namespace `mainsite_*` no `bigdata_db`

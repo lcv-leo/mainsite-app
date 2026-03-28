@@ -1,5 +1,13 @@
 # Changelog — Mainsite Frontend
 
+## [v02.21.00] — 28/03/2026
+### Adicionado
+- **Integração de Pagamentos SumUp/MP via MCP**: Implementado sistema de pagamentos avançados integrados (SumUp/MercadoPago), com destaque para o processamento robusto do desafio de Autenticação Segura (3DS). O layout do `DonationModal` foi adequado com manipuladores de redirecionamento dinâmico via `iframe` para a captura da etapa `next_step` e confirmações do banco emissor.
+
+### Corrigido/Alterado
+- **Ajuste flexível na Content-Security-Policy (CSP)**: As regras do `public/_headers` foram relaxadas (`https:`) para transpor as limitações de bloqueio que ocorriam na renderização de gateways terceirizados, scripts embarcados do SumUp/Mercado Pago, e redirecionamentos cross-origin complexos do fluxo emissor 3DS.
+
+
 ## [v02.20.00] — 26/03/2026
 ### Removido
 - **Hardcoded text-indent e paragraphSpacing em `.html-content p`**: removidos os defaults forçados de `text-indent: 3.5rem` e `margin-bottom: 2.2rem` para posts HTML (TipTap). Agora o `text-indent` vem exclusivamente do inline style definido pelo editor, e o espaçamento entre parágrafos usa `1.2rem` neutro. Posts legados (`.p-content`) mantêm os valores configuráveis do admin
