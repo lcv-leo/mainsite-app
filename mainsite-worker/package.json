@@ -12,7 +12,7 @@
   "type": "module",
   "dependencies": {
     "@sumup/sdk": "^0.1.2",
-    "hono": "^4.12.8",
+    "hono": "^4.12.9",
     "mercadopago": "^2.12.0"
   }
 }
