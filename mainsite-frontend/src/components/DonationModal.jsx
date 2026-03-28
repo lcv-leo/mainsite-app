@@ -269,43 +269,31 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     }
   };
 
-  const generatePix = (amountStr) => {
-    const key = "c9328705-fa51-44c0-b972-bca71e2d06bd";
-    const name = "LEONARDO VARGAS";
-    const city = "RIO DE JANEIRO";
-    const amount = amountStr.replace(/\./g, '').replace(',', '.');
+  const generatePix = async (amountStr) => {
+    try {
+      const res = await fetch('/api/pix/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amountStr }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao gerar PIX');
+      return data.payload;
+    } catch (err) {
+      showToast(err.message || 'Falha ao gerar código PIX.', 'error');
+      return null;
+    }
+  };
 
-    const formatField = (id, value) => {
-      const len = value.length.toString().padStart(2, '0');
-      return `${id}${len}${value}`;
-    };
-
-    let payload = "";
-    payload += formatField("00", "01");
-    const merchantAccountInfo = formatField("00", "BR.GOV.BCB.PIX") + formatField("01", key);
-    payload += formatField("26", merchantAccountInfo);
-    payload += formatField("52", "0000");
-    payload += formatField("53", "986");
-    if (parseFloat(amount) > 0) payload += formatField("54", amount);
-    payload += formatField("58", "BR");
-    payload += formatField("59", name);
-    payload += formatField("60", city);
-    payload += formatField("62", formatField("05", "***"));
-    payload += "6304";
-
-    const calcCRC16 = (str) => {
-      let crc = 0xFFFF;
-      for (let i = 0; i < str.length; i++) {
-        crc ^= str.charCodeAt(i) << 8;
-        for (let j = 0; j < 8; j++) {
-          if ((crc & 0x8000) !== 0) crc = (crc << 1) ^ 0x1021;
-          else crc = crc << 1;
-        }
-      }
-      return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
-    };
-
-    return payload + calcCRC16(payload);
+  const handleConfirmNativePix = async (e) => {
+    e.preventDefault();
+    if (!validateBaseForm()) return;
+    const finalAmount = amountDisplay === '' ? '0,00' : amountDisplay;
+    const payload = await generatePix(finalAmount);
+    if (payload) {
+      setPixPayload(payload);
+      setStep(2);
+    }
   };
 
   const validateBaseForm = () => {
@@ -326,13 +314,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     return `Pagamento não aprovado: ${msg}`;
   };
 
-  const handleConfirmNativePix = (e) => {
-    e.preventDefault();
-    if (!validateBaseForm()) return;
-    const finalAmount = amountDisplay === '' ? '0,00' : amountDisplay;
-    setPixPayload(generatePix(finalAmount));
-    setStep(2);
-  };
 
   const handleConfirmCreditCard = (e) => {
     e.preventDefault();
