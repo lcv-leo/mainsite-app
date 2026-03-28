@@ -1200,6 +1200,7 @@ app.post('/api/sumup/checkout', async (c) => {
       currency: 'BRL',
       merchant_code: merchantCode,
       description: `Doação de ${fullName} - Divagações Filosóficas`,
+      return_url: `${new URL(c.req.url).origin}/api/sumup/checkout/${checkoutReference}/return`
     });
 
     console.log(`[SumUp Checkout] Checkout criado com sucesso na SumUp! ID: ${checkout.id}, Ref: ${checkoutReference}`);
@@ -2352,6 +2353,34 @@ app.get('/api/sumup-balance', async (c) => {
   }
 });
 
+// --- ENDPOINT DE RETURN 3DS (BYPASS DE TRANSIÇÃO DO IFRAME SUMUP) ---
+app.get('/api/sumup/checkout/:ref/return', async (c) => {
+  const ref = c.req.param('ref');
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Verificação Concluída</title>
+  <style>
+    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: transparent; }
+    .loader { border: 3px solid rgba(0, 0, 0, 0.1); border-left-color: #000; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+    <div class="loader"></div>
+    <span style="font-size: 13px; font-weight: bold;">Redirecionando...</span>
+  </div>
+  <script>
+    // Envia sinal bypass pro modal fechar a janela 3DS e pular pro fluxo de successo no front
+    window.parent.postMessage({ type: "sumup-3ds-success", ref: "${ref}" }, "*");
+  </script>
+</body>
+</html>`;
+  return c.html(html);
+});
+
 // --- ENPOINT PÚBLICO (POLLING DO 3DS) ---
 app.get('/api/sumup/checkout/:id/status', async (c) => {
   const paymentId = c.req.param('id');
@@ -2370,16 +2399,14 @@ app.get('/api/sumup/checkout/:id/status', async (c) => {
     
     let currentStatus = String(row.status).toUpperCase();
 
-    // Lazy sync se estiver em PENDING (Para destravar o frontend caso a janela 3DS feche com sucesso na Sumup mas sem webhook local)
-    if (currentStatus === 'PENDING') {
+    // Lazy sync se a transação não estiver nos status finais
+    if (currentStatus !== 'SUCCESSFUL' && currentStatus !== 'FAILED' && currentStatus !== 'CANCELLED' && currentStatus !== 'REFUNDED') {
       const token = c.env.SUMUP_API_KEY_PRIVATE;
       if (token) {
         try {
-          const checkRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${paymentId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (checkRes.ok) {
-            const checkoutData = await checkRes.json();
+          const client = new SumUp({ apiKey: token });
+          const checkoutData = await client.checkouts.get(paymentId);
+          if (checkoutData) {
             const txStatus = checkoutData.transactions?.[0]?.status;
             
             // Re-implementação lite local de normalizeSumupStatus do utils caso não esteja importado
