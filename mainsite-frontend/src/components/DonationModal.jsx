@@ -255,7 +255,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
       if (payData.next_step) {
         setSumupNextStep(payData.next_step);
-        setCheckoutId(createData.checkoutId);
+        // Usa o ID canônico retornado no pay (pode ser transaction UUID); fallback para checkoutId.
+        setCheckoutId(payData.id || createData.checkoutId);
         setStep(7);
       } else {
         setStep(3);
