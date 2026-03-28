@@ -1161,8 +1161,15 @@ const isOnOrAfterCutoff = (value) => {
 
 app.post('/api/sumup/checkout', async (c) => {
   try {
-    const { baseAmount, coverFees, firstName, lastName, email } = await c.req.json();
-    if (!baseAmount || Number(baseAmount) <= 0) return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
+    console.log('[SumUp Checkout] Iniciando criação de checkout via /api/sumup/checkout');
+    const payload = await c.req.json();
+    console.log('[SumUp Checkout] Payload recebido:', JSON.stringify(payload));
+    
+    const { baseAmount, coverFees, firstName, lastName, email } = payload;
+    if (!baseAmount || Number(baseAmount) <= 0) {
+      console.warn('[SumUp Checkout] Abortado: Valor baseAmount inválido', { baseAmount });
+      return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
+    }
 
     const SUMUP_FEE_RATE = 0.0267;
     const SUMUP_FEE_FIXED = 0;
@@ -1174,6 +1181,7 @@ app.post('/api/sumup/checkout', async (c) => {
     const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
     const merchantCode = c.env.SUMUP_MERCHANT_CODE;
     if (!sumupToken || !merchantCode) {
+      console.error('[SumUp Checkout] Erro crítico: credenciais ausentes (SUMUP_API_KEY_PRIVATE ou SUMUP_MERCHANT_CODE)');
       return c.json({ error: 'SUMUP_API_KEY_PRIVATE ou SUMUP_MERCHANT_CODE não configurados.' }, 503);
     }
 
@@ -1181,6 +1189,10 @@ app.post('/api/sumup/checkout', async (c) => {
     
     const checkoutReference = `SUMUP-DON-${crypto.randomUUID()}`;
     const fullName = `${(firstName || '').trim()} ${(lastName || '').trim()}`.trim() || 'Doador';
+
+    console.log(`[SumUp Checkout] Enviando requisição SDK create() para ref: ${checkoutReference}`, {
+      amount: Number(amount), currency: 'BRL', merchantCode, fullName
+    });
 
     const checkout = await client.checkouts.create({
       checkout_reference: checkoutReference,
@@ -1190,12 +1202,15 @@ app.post('/api/sumup/checkout', async (c) => {
       description: `Doação de ${fullName} - Divagações Filosóficas`,
     });
 
+    console.log(`[SumUp Checkout] Checkout criado com sucesso na SumUp! ID: ${checkout.id}, Ref: ${checkoutReference}`);
+
     return c.json({
       checkoutId: checkout.id,
       checkoutReference,
     }, 201);
   } catch (err) {
-    console.error('Erro ao criar checkout SumUp:', err);
+    console.error('[SumUp Checkout] Erro cítrico ao criar checkout SumUp:', err);
+    try { console.error('[SumUp Checkout] Detalhes do erro SDK:', JSON.stringify(err)); } catch(e) {}
     return c.json({ error: err.message || 'Falha ao iniciar checkout SumUp.' }, 500);
   }
 });
@@ -1203,11 +1218,25 @@ app.post('/api/sumup/checkout', async (c) => {
 app.post('/api/sumup/checkout/:id/pay', async (c) => {
   try {
     const checkoutId = c.req.param('id');
-    const { baseAmount, coverFees, card, firstName, lastName, email, document } = await c.req.json();
+    console.log(`[SumUp Pay] Iniciando pagamento via /api/sumup/checkout/${checkoutId}/pay`);
+    
+    const payloadReq = await c.req.json();
+    const safeLogPayload = { ...payloadReq };
+    if (safeLogPayload.card) safeLogPayload.card = { ...safeLogPayload.card, number: '***', cvv: '***' };
+    console.log('[SumUp Pay] Payload recebido (ofuscado):', JSON.stringify(safeLogPayload));
 
-    if (!checkoutId) return c.json({ error: 'Checkout inválido.' }, 400);
-    if (!baseAmount || Number(baseAmount) <= 0) return c.json({ error: 'Valor inválido para pagamento SumUp.' }, 400);
+    const { baseAmount, coverFees, card, firstName, lastName, email, document } = payloadReq;
+
+    if (!checkoutId) {
+      console.warn('[SumUp Pay] Abortado: ID de checkout ausente');
+      return c.json({ error: 'Checkout inválido.' }, 400);
+    }
+    if (!baseAmount || Number(baseAmount) <= 0) {
+      console.warn('[SumUp Pay] Abortado: Valor inválido', { baseAmount });
+      return c.json({ error: 'Valor inválido para pagamento SumUp.' }, 400);
+    }
     if (!card?.name || !card?.number || !card?.expiryMonth || !card?.expiryYear || !card?.cvv) {
+      console.warn('[SumUp Pay] Abortado: Dados de cartão incompletos ou ausentes');
       return c.json({ error: 'Dados de cartão incompletos.' }, 400);
     }
 
@@ -1245,14 +1274,19 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
     // Processa o checkout com os dados de cartão
     let result;
     try {
+      console.log(`[SumUp Pay] Disparando client.checkouts.process para ${checkoutId} | Payload SDK:`, JSON.stringify({ ...payload, card: { ...payload.card, number: '***', cvv: '***' } }));
       result = await client.checkouts.process(checkoutId, payload);
+      console.log(`[SumUp Pay] Transação processada pela SDK! Status:`, result?.status);
     } catch (updateErr) {
+      console.error(`[SumUp Pay] SDK_PROCESS_ERROR (${checkoutId}):`, updateErr?.message || updateErr);
+      try { console.error(`[SumUp Pay] Erro estrutural do updateErr SDK:`, JSON.stringify(updateErr)); } catch(e) {}
+      
       // Se falhar na atualização, registra tentativa fracassada
       const failedEmail = (email || '').trim() || 'N/A';
       c.executionCtx.waitUntil(
         c.env.DB.prepare(
           "INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
-        ).bind(checkoutId, 'FAILED', Number(amount), 'sumup_card', failedEmail, JSON.stringify({ error: updateErr.message })).run()
+        ).bind(checkoutId, 'FAILED', Number(amount), 'sumup_card', failedEmail, JSON.stringify({ error: updateErr.message, json: updateErr })).run()
       );
       // Extrai mensagem do SumUp SDK: formato "STATUS_CODE: {json}"
       const rawMsg = updateErr.message || '';
@@ -1290,6 +1324,9 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
     const implicitStatus = result.next_step ? 'PENDING' : 'PENDING';
     const storedStatus = normalizeSumupStatus(result.status || implicitStatus);
     
+    console.log(`[SumUp Pay] Preparando insert D1 para transação SDK ${storedId} => status: ${storedStatus}`);
+    if(result.next_step) console.log(`[SumUp Pay] ACTION_REQUIRED: Challenge 3DS next_step detectado.`);
+
     c.executionCtx.waitUntil(
       c.env.DB.prepare(
         "INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
@@ -1298,7 +1335,7 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
 
     return c.json({ success: true, id: storedId, status: storedStatus, next_step: result.next_step });
   } catch (err) {
-    console.error('Erro ao processar pagamento SumUp:', err);
+    console.error('[SumUp Pay] Erro crítico não esperado no pipeline main de pagamento:', err);
     return c.json({ error: err.message || 'Falha no pagamento SumUp.' }, 500);
   }
 });
@@ -1310,11 +1347,14 @@ app.get('/api/sumup/checkout/:id/status', async (c) => {
       "SELECT status FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
     ).bind(id).first();
     
-    if (!result) return c.json({ error: 'Checkout não encontrado.' }, 404);
+    if (!result) {
+      console.warn(`[SumUp Status] /api/sumup/checkout/${id}/status -> 404 Not Found (Internal Route)`);
+      return c.json({ error: 'Checkout não encontrado.' }, 404);
+    }
     
     return c.json({ status: result.status });
   } catch (err) {
-    console.error('Erro ao consultar status do checkout:', err);
+    console.error('[SumUp Status] Erro ao consultar status do checkout no BD:', err);
     return c.json({ error: 'Falha interna ao consultar status.' }, 500);
   }
 });
@@ -2146,13 +2186,18 @@ app.post('/api/mp/sync', async (c) => {
 app.post('/api/sumup/sync', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: '401' }, 401);
   try {
+    console.log('[SumUp Sync] Iniciando /api/sumup/sync via Admin Panel');
     const token = c.env.SUMUP_API_KEY_PRIVATE;
     if (!token) throw new Error('SUMUP_API_KEY_PRIVATE ausente.');
 
     const client = new SumUp({ apiKey: token });
 
     const checkouts = await client.checkouts.list();
-    if (!Array.isArray(checkouts)) throw new Error('Resposta inesperada da SumUp.');
+    if (!Array.isArray(checkouts)) {
+      console.error('[SumUp Sync] Resposta inesperada da SumUp (não é array):', typeof checkouts);
+      throw new Error('Resposta inesperada da SumUp.');
+    }
+    console.log(`[SumUp Sync] Foram recuperados ${checkouts.length} checkouts da base da SumUp para processamento.`);
 
     let inserted = 0, updated = 0;
     for (const checkout of checkouts) {
@@ -2183,9 +2228,10 @@ app.post('/api/sumup/sync', async (c) => {
       }
     }
 
+    console.log(`[SumUp Sync] Finalizado: ${inserted} inseridos, ${updated} atualizados. Total checados: ${checkouts.length}`);
     return c.json({ success: true, inserted, updated, total: checkouts.length });
   } catch (err) {
-    console.error('Erro ao sincronizar checkouts SumUp:', err);
+    console.error('[SumUp Sync] Erro global ao sincronizar checkouts SumUp:', err);
     return c.json({ error: err.message }, 500);
   }
 });
@@ -2309,7 +2355,10 @@ app.get('/api/sumup-balance', async (c) => {
 // --- ENPOINT PÚBLICO (POLLING DO 3DS) ---
 app.get('/api/sumup/checkout/:id/status', async (c) => {
   const paymentId = c.req.param('id');
-  if (!paymentId || paymentId.length < 10) return c.json({ status: 'PENDING' });
+  if (!paymentId || paymentId.length < 10) {
+    console.debug(`[SumUp Polling] ID inválido ou nulo (${paymentId}), retornando PENDING default`);
+    return c.json({ status: 'PENDING' });
+  }
   
   try {
     const row = await c.env.DB.prepare(
