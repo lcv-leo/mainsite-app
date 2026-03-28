@@ -712,20 +712,20 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
       
       // Fallbacks para compatibilidade SDK oficial vs REST API legada
       const transactionId = tx?.id || tx?.transaction_id || p?.id;
-      const paymentType = tx?.payment_type || tx?.paymentType || p?.payment_type || '—';
-      const txStatus = tx?.status || p?.status || '—';
+      const paymentType = tx?.payment_type || tx?.paymentType || p?.payment_type || null;
+      const txStatus = tx?.status || p?.status || null;
       
       return {
-        checkoutStatus: p?.status || '—',
-        checkoutRef: p?.checkout_reference || p?.checkoutReference || '—',
-        transactionCode: tx?.transaction_code || tx?.transactionCode || p?.transaction_code || '—',
-        transactionUUID: transactionId || '—',
+        checkoutStatus: p?.status || null,
+        checkoutRef: p?.checkout_reference || p?.checkoutReference || null,
+        transactionCode: tx?.transaction_code || tx?.transactionCode || p?.transaction_code || null,
+        transactionUUID: transactionId || null,
         paymentType: paymentType,
-        authCode: tx?.auth_code || tx?.authCode || '—',
-        entryMode: tx?.entry_mode || tx?.entryMode || '—',
+        authCode: tx?.auth_code || tx?.authCode || null,
+        entryMode: tx?.entry_mode || tx?.entryMode || null,
         currency: tx?.currency || p?.currency || 'BRL',
         txTimestamp: tx?.timestamp || tx?.created_at || null,
-        internalId: tx?.internal_id || tx?.internalId || '—',
+        internalId: tx?.internal_id || tx?.internalId || null,
         txStatus: txStatus,
       };
     } catch { return {}; }
@@ -1569,12 +1569,12 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                         </td>
                         {paymentProvider === 'sumup' && (
                           <td style={{ padding: '12px', fontFamily: 'monospace', fontWeight: 'bold', color: activePalette.titleColor }}>
-                            {sumupInfo.transactionCode}
+                            {sumupInfo.transactionCode || '—'}
                           </td>
                         )}
                         {paymentProvider === 'sumup' && (
                           <td style={{ padding: '12px', fontSize: '11px', opacity: 0.8 }}>
-                            {sumupInfo.paymentType}
+                            {sumupInfo.paymentType || '—'}
                           </td>
                         )}
                         {paymentProvider === 'mercadopago' && (
