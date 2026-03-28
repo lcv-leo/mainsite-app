@@ -1160,17 +1160,6 @@ const isOnOrAfterCutoff = (value) => {
 };
 
 app.post('/api/sumup/checkout', async (c) => {
-  // 🔐 VALIDAÇÃO DE BEARER TOKEN (CRÍTICO)
-  if (!validateBearerToken(c.req.header('Authorization'), c.env.API_SECRET)) {
-    structuredLog('warn', 'Unauthorized checkout creation attempt', {
-      endpoint: '/api/sumup/checkout',
-      ip: c.req.header('cf-connecting-ip'),
-      severity: 'CRITICAL',
-      reason: 'Missing or invalid Bearer token'
-    });
-    return c.json({ error: 'Unauthorized - Bearer token required' }, 401);
-  }
-
   try {
     const { baseAmount, coverFees, firstName, lastName, email } = await c.req.json();
     if (!baseAmount || Number(baseAmount) <= 0) return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
@@ -1212,17 +1201,6 @@ app.post('/api/sumup/checkout', async (c) => {
 });
 
 app.post('/api/sumup/checkout/:id/pay', async (c) => {
-  // 🔐 VALIDAÇÃO DE BEARER TOKEN (CRÍTICO)
-  if (!validateBearerToken(c.req.header('Authorization'), c.env.API_SECRET)) {
-    structuredLog('warn', 'Unauthorized payment processing attempt', {
-      endpoint: '/api/sumup/checkout/:id/pay',
-      ip: c.req.header('cf-connecting-ip'),
-      severity: 'CRITICAL',
-      reason: 'Missing or invalid Bearer token'
-    });
-    return c.json({ error: 'Unauthorized - Bearer token required' }, 401);
-  }
-
   try {
     const checkoutId = c.req.param('id');
     const { baseAmount, coverFees, card, firstName, lastName, email, document } = await c.req.json();
@@ -1752,17 +1730,6 @@ app.get('/api/mp/transactions-advanced', async (c) => {
 });
 
 app.post('/api/mp-payment', async (c) => {
-  // 🔐 VALIDAÇÃO DE BEARER TOKEN (CRÍTICO)
-  if (!validateBearerToken(c.req.header('Authorization'), c.env.API_SECRET)) {
-    structuredLog('warn', 'Unauthorized MP payment creation attempt', {
-      endpoint: '/api/mp-payment',
-      ip: c.req.header('cf-connecting-ip'),
-      severity: 'CRITICAL',
-      reason: 'Missing or invalid Bearer token'
-    });
-    return c.json({ error: 'Unauthorized - Bearer token required' }, 401);
-  }
-
   try {
     const body = await c.req.json();
     const token = c.env.MP_ACCESS_TOKEN;
