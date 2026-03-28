@@ -1267,6 +1267,15 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
           userMessage = parsed.message || rawMsg;
         } catch { userMessage = sdkMatch[2] || rawMsg; }
       }
+
+      const lowerMsg = userMessage.toLowerCase();
+      if (lowerMsg.includes('card is expired')) userMessage = 'Cartão expirado. Verifique a validade.';
+      else if (lowerMsg.includes('insufficient funds')) userMessage = 'Saldo insuficiente no cartão.';
+      else if (lowerMsg.includes('do not honor')) userMessage = 'Pagamento recusado pelo banco emissor.';
+      else if (lowerMsg.includes('invalid card')) userMessage = 'Número de cartão inválido ou não suportado.';
+      else if (lowerMsg.includes('invalid security code')) userMessage = 'Código de segurança (CVV) inválido.';
+      else if (lowerMsg.includes('failed to validate request')) userMessage = 'Dados de pagamento rejeitados pela operadora. Revise os dados.';
+
       return c.json({ error: userMessage }, httpStatus);
     }
 
