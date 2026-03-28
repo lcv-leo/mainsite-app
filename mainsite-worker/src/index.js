@@ -1226,7 +1226,7 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
     const cardData = {
       number: card.number.replace(/\s/g, ''),
       expiry_month: String(card.expiryMonth).padStart(2, '0'),
-      expiry_year: `20${card.expiryYear}`,
+      expiry_year: String(card.expiryYear).length === 2 ? `20${card.expiryYear}` : String(card.expiryYear),
       cvv: card.cvv,
       name: card.name.trim(),
     };
