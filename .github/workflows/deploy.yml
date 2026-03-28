@@ -29,7 +29,6 @@ jobs:
           cache: npm
           cache-dependency-path: |
             ./mainsite-worker/package-lock.json
-            ./mainsite-admin/package-lock.json
             ./mainsite-frontend/package-lock.json
 
       - name: Install e Deploy Worker
@@ -40,18 +39,6 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Install, Build e Deploy Admin
-        working-directory: ./mainsite-admin
-        run: |
-          npm install
-          npm run build
-          npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-admin --branch=production --commit-dirty=true
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          VITE_API_SECRET: ${{ secrets.VITE_API_SECRET }}
-          VITE_BRAND_ICONS_BASE_URL: https://mainsite-app.lcv.rio.br/api/uploads/brands
 
       - name: Install, Build e Deploy Frontend
         working-directory: ./mainsite-frontend

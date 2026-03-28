@@ -58,49 +58,6 @@ updates:
         update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 10
 
-  # ---------------------------------------------------------
-  # 3. SOFTWARE: mainsite-admin (NPM)
-  # ---------------------------------------------------------
-  - package-ecosystem: "npm"
-    directory: "/mainsite-admin"
-    schedule:
-      interval: "daily"
-      time: "06:00"
-      timezone: "America/Sao_Paulo"
-    labels:
-      - "dependencies"
-      - "npm"
-      - "admin"
-    assignees:
-      - "lcv-leo"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    versioning-strategy: increase
-    groups:
-      dev-dependencies:
-        patterns:
-          - "eslint*"
-          - "vite*"
-          - "typescript"
-          - "@types/*"
-        update-types:
-          - "minor"
-          - "patch"
-      # TipTap editor — 29 pacotes sempre atualizados juntos
-      tiptap-editor:
-        patterns:
-          - "@tiptap/*"
-          - "tiptap-markdown"
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "react"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react-dom"
-        update-types: ["version-update:semver-major"]
-    open-pull-requests-limit: 10
 
   # ---------------------------------------------------------
   # 4. SOFTWARE: mainsite-worker (NPM)
