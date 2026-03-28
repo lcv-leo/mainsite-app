@@ -40,9 +40,22 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const [sumupDocument, setSumupDocument] = useState('');
   const [sumupDocumentType, setSumupDocumentType] = useState('CPF');
   const [coverFees, setCoverFees] = useState(false);
-  
   const [sumupNextStep, setSumupNextStep] = useState(null);
   const [checkoutId, setCheckoutId] = useState(null);
+  
+  // Escuta o redirect_url do iframe para bypass final
+  useEffect(() => {
+    const handleFrameMessage = (e) => {
+      if (e.data && e.data.type === 'sumup-3ds-success') {
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        setStep(3);
+        showToast('Pagamento aprovado com sucesso!', 'success');
+      }
+    };
+    window.addEventListener('message', handleFrameMessage);
+    return () => window.removeEventListener('message', handleFrameMessage);
+  }, [setStep]);
+
   const pollingIntervalRef = useRef(null);
 
   const [firstName, setFirstName] = useState('');
