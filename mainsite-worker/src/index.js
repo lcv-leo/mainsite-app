@@ -2362,14 +2362,49 @@ app.get('/api/sumup/checkout/:id/status', async (c) => {
   
   try {
     const row = await c.env.DB.prepare(
-      "SELECT status FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
+      "SELECT id, status FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
     ).bind(paymentId).first();
     
     // Se não encontrou, talvez ainda não sincronizou. Assumimos PENDING
     if (!row) return c.json({ status: 'PENDING' });
     
-    return c.json({ status: String(row.status).toUpperCase() });
+    let currentStatus = String(row.status).toUpperCase();
+
+    // Lazy sync se estiver em PENDING (Para destravar o frontend caso a janela 3DS feche com sucesso na Sumup mas sem webhook local)
+    if (currentStatus === 'PENDING') {
+      const token = c.env.SUMUP_API_KEY_PRIVATE;
+      if (token) {
+        try {
+          const checkRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${paymentId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (checkRes.ok) {
+            const checkoutData = await checkRes.json();
+            const txStatus = checkoutData.transactions?.[0]?.status;
+            
+            // Re-implementação lite local de normalizeSumupStatus do utils caso não esteja importado
+            const rawStatus = String(txStatus || checkoutData.status || 'PENDING').toUpperCase();
+            let realStatus = rawStatus === 'SUCCESSFUL' || rawStatus === 'PAID' ? 'SUCCESSFUL' : rawStatus;
+            
+            if (realStatus !== 'PENDING' && realStatus !== 'UNKNOWN') {
+              console.log(`[SumUp Polling] Lazy sync efetuado: STATUS ${paymentId} atualizado para ${realStatus} via getSumupCheckout()`);
+              c.executionCtx.waitUntil(
+                c.env.DB.prepare(
+                  "UPDATE mainsite_financial_logs SET status = ?, raw_payload = ? WHERE id = ?"
+                ).bind(realStatus, JSON.stringify(checkoutData), row.id).run()
+              );
+              currentStatus = realStatus;
+            }
+          }
+        } catch(apiErr) {
+          console.error(`[SumUp Polling] Falha no lazy sync para ${paymentId}:`, apiErr);
+        }
+      }
+    }
+    
+    return c.json({ status: currentStatus });
   } catch(e) {
+    console.error(`[SumUp Polling] Erro geral:`, e);
     return c.json({ status: 'PENDING' }); // Em caso de falha de conexão D1, mantenha PENDING
   }
 });
@@ -2489,8 +2524,18 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
           });
           if (checkRes.ok) {
             const checkoutData = await checkRes.json();
-            if (checkoutData.status === 'PAID') {
-              return c.json({ error: 'Não é possível cancelar uma transação que já foi paga. Utilize o estorno (Refund).' }, 400);
+            const txStatus = checkoutData.transactions?.[0]?.status;
+            const rawStatus = String(txStatus || checkoutData.status || 'UNKNOWN').toUpperCase();
+            const realStatus = rawStatus === 'PAID' ? 'SUCCESSFUL' : rawStatus;
+
+            // Transação confirmada no Provider, atualizar o local.
+            if (checkoutData.status === 'PAID' || realStatus === 'SUCCESSFUL') {
+              c.executionCtx.waitUntil(
+                c.env.DB.prepare(
+                  "UPDATE mainsite_financial_logs SET status = ?, raw_payload = ? WHERE payment_id = ? AND method = 'sumup_card'"
+                ).bind('SUCCESSFUL', JSON.stringify(checkoutData), id).run()
+              );
+              return c.json({ error: 'A transação foi confirmada/paga (PAID) com sucesso na SumUp e foi sincronizada localmente no BD.\n\nPor favor, atualize o Painel Financeiro e utilize o botão verde "Estornar Transação (Refund)" ao invés de cancelar.' }, 400);
             }
             // Se já falhou, apenas segue e forçamos o cancelamento local no SQLite
           }
