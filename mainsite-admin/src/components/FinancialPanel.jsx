@@ -731,6 +731,22 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
     } catch { return {}; }
   };
 
+  const getEffectiveSumupStatus = (dbStatus, sumupInfo) => {
+    const normalize = (value) => String(value || '').trim().toUpperCase();
+    const row = normalize(dbStatus);
+    const tx = normalize(sumupInfo?.txStatus);
+    const checkout = normalize(sumupInfo?.checkoutStatus);
+
+    const terminalPriority = ['PARTIALLY_REFUNDED', 'REFUNDED', 'CANCELLED', 'CHARGE_BACK', 'FAILED', 'EXPIRED'];
+    for (const st of terminalPriority) {
+      if (row === st || tx === st || checkout === st) return st;
+    }
+
+    if (tx) return tx;
+    if (checkout) return checkout;
+    return row || 'UNKNOWN';
+  };
+
   // Config de status para todos os estados SumUp conhecidos (normalizado para MAIÚSCULAS)
   const getSumupStatusConfig = (status) => {
     const s = (status || '').toUpperCase();
@@ -1548,7 +1564,7 @@ const FinancialPanel = ({ onClose, secret, API_URL, styles, activePalette, isDar
                   // Config de status por provedor
                   const mpInfo = paymentProvider === 'mercadopago' ? parseMPPayload(log.raw_payload) : {};
                   const sumupInfo = paymentProvider === 'sumup' ? parseSumupPayload(log.raw_payload) : {};
-                  const effectiveSumupStatus = sumupInfo.txStatus || sumupInfo.checkoutStatus || log.status;
+                  const effectiveSumupStatus = getEffectiveSumupStatus(log.status, sumupInfo);
                   const statusCfg = paymentProvider === 'sumup'
                     ? getSumupStatusConfig(effectiveSumupStatus)
                     : getMPStatusConfig(log.status, mpInfo.statusDetail);

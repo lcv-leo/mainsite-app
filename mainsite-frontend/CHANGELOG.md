@@ -1,5 +1,10 @@
 # Changelog — Mainsite Frontend
 
+## [v02.21.01] — 28/03/2026
+### Corrigido
+- **DonationModal — polling 3DS com ID não canônico**: o fluxo de status do SumUp passou a priorizar `payData.id` (retornado no processamento do pagamento) com fallback para `checkoutId`, evitando inconsistência entre ID de polling e `payment_id` persistido no backend.
+- **Transição 3DS → sucesso**: reduzidos cenários em que o modal aguardava apenas o retorno tardio do iframe para avançar, melhorando o tempo de confirmação visual após autenticação.
+
 ## [v02.21.00] — 28/03/2026
 ### Adicionado
 - **Integração de Pagamentos SumUp/MP via MCP**: Implementado sistema de pagamentos avançados integrados (SumUp/MercadoPago), com destaque para o processamento robusto do desafio de Autenticação Segura (3DS). O layout do `DonationModal` foi adequado com manipuladores de redirecionamento dinâmico via `iframe` para a captura da etapa `next_step` e confirmações do banco emissor.

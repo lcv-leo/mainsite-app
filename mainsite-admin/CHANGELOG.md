@@ -1,5 +1,9 @@
 # Changelog — Mainsite Admin
 
+## [v03.46.06] — 28/03/2026
+### Corrigido
+- **Financeiro/SumUp — status efetivo inconsistente**: o painel podia priorizar `raw_payload` antigo e exibir transações estornadas/canceladas como autorizadas. Adicionada reconciliação de status com precedência para estados terminais (`PARTIALLY_REFUNDED`, `REFUNDED`, `CANCELLED`, `CHARGE_BACK`, `FAILED`, `EXPIRED`) no `FinancialPanel`, evitando botões de ação indevidos e erros operacionais em cascata.
+
 ## [v03.46.05] — 26/03/2026
 ### Corrigido
 - **Itálico/formatação não renderiza visualmente**: Google Fonts carregava Inter sem variante itálica (`ital` ausente na URL). Combinado com `font-synthesis: none` no CSS, o browser era proibido de sintetizar itálico — `<em>` ficava visualmente normal apesar do HTML correto. URL atualizada para `Inter:ital,wght@0,...;1,...` com todas as variantes itálicas.
