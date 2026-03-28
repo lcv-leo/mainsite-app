@@ -1,5 +1,9 @@
 # Changelog — Mainsite Admin
 
+## [v03.46.07] — 28/03/2026
+### Corrigido
+- **Financeiro/SumUp — estornos não refletiam no grid**: o painel passou a operar sobre o `checkout.id` como chave canônica do registro financeiro, compatibilizando linhas legadas gravadas com `transaction.id` e impedindo que um sync posterior restaurasse badges para `SUCCESSFUL`.
+
 ## [v03.46.06] — 28/03/2026
 ### Corrigido
 - **Financeiro/SumUp — status efetivo inconsistente**: o painel podia priorizar `raw_payload` antigo e exibir transações estornadas/canceladas como autorizadas. Adicionada reconciliação de status com precedência para estados terminais (`PARTIALLY_REFUNDED`, `REFUNDED`, `CANCELLED`, `CHARGE_BACK`, `FAILED`, `EXPIRED`) no `FinancialPanel`, evitando botões de ação indevidos e erros operacionais em cascata.
