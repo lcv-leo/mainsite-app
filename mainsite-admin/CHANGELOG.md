@@ -1,5 +1,9 @@
 # Changelog — Mainsite Admin
 
+## [v03.46.08] — 28/03/2026
+### Removido
+- **Painel Desativado**: As rotinas automáticas de deploy (GitHub Actions) e o escaneamento de dependências (Dependabot) foram encerrados permanentemente. O projeto central `admin-app` assumiu 100% de paridade das funções de edição e financeiro. Este repositório encontra-se isolado e com entregas congeladas.
+
 ## [v03.46.07] — 28/03/2026
 ### Corrigido
 - **Financeiro/SumUp — estornos não refletiam no grid**: o painel passou a operar sobre o `checkout.id` como chave canônica do registro financeiro, compatibilizando linhas legadas gravadas com `transaction.id` e impedindo que um sync posterior restaurasse badges para `SUCCESSFUL`.
