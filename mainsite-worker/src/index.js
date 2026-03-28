@@ -2201,26 +2201,29 @@ app.post('/api/sumup/sync', async (c) => {
       const tx = checkout.transactions?.[0];
       const sourceTimestamp = tx?.timestamp || checkout?.timestamp || checkout?.date || checkout?.created_at || null;
       if (sourceTimestamp && !isOnOrAfterCutoff(sourceTimestamp)) continue;
-      // Usa transaction UUID quando disponível (pagamentos concluídos),
-      // senão usa o checkout UUID (tentativas sem transação confirmada).
-      const paymentId = tx?.id || checkout.id;
-      const status = normalizeSumupStatus(tx?.status || checkout.status || 'UNKNOWN');
+      const checkoutId = checkout.id;
+      const transactionId = tx?.id || checkout.id;
       const amount = Number(checkout.amount || 0);
       const raw = JSON.stringify(tx ? checkout : checkout);
 
       const existing = await c.env.DB.prepare(
-        "SELECT id FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
-      ).bind(paymentId).first();
+        "SELECT id, status FROM mainsite_financial_logs WHERE method = 'sumup_card' AND (payment_id = ? OR payment_id = ?) LIMIT 1"
+      ).bind(checkoutId, transactionId).first();
+
+      const effectiveStatus = resolveSumupStatusFromSources({
+        rowStatus: existing?.status || 'UNKNOWN',
+        payloadStatus: tx?.status || checkout.status || 'UNKNOWN',
+      });
 
       if (existing) {
         await c.env.DB.prepare(
-          "UPDATE mainsite_financial_logs SET status = ?, raw_payload = ? WHERE payment_id = ? AND method = 'sumup_card'"
-        ).bind(status, raw, paymentId).run();
+          "UPDATE mainsite_financial_logs SET payment_id = ?, status = ?, raw_payload = ? WHERE method = 'sumup_card' AND (payment_id = ? OR payment_id = ?)"
+        ).bind(checkoutId, effectiveStatus, raw, checkoutId, transactionId).run();
         updated++;
       } else {
         await c.env.DB.prepare(
           "INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
-        ).bind(paymentId, status, amount, 'sumup_card', 'N/A', raw).run();
+        ).bind(checkoutId, effectiveStatus, amount, 'sumup_card', 'N/A', raw).run();
         inserted++;
       }
     }
@@ -2505,8 +2508,8 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
 
     const newStatus = amount ? 'PARTIALLY_REFUNDED' : 'REFUNDED';
     await c.env.DB.prepare(
-      "UPDATE mainsite_financial_logs SET status = ? WHERE payment_id = ? AND method = 'sumup_card'"
-    ).bind(newStatus, id).run();
+      "UPDATE mainsite_financial_logs SET payment_id = ?, status = ? WHERE method = 'sumup_card' AND (payment_id = ? OR payment_id = ?)"
+    ).bind(id, newStatus, id, txnId).run();
 
     return c.json({ success: true, status: newStatus });
   } catch (err) {
@@ -2574,8 +2577,8 @@ app.post('/api/financeiro/sumup-refund', async (c) => {
 
     const newStatus = amount ? 'PARTIALLY_REFUNDED' : 'REFUNDED';
     await c.env.DB.prepare(
-      "UPDATE mainsite_financial_logs SET status = ? WHERE payment_id = ? AND method = 'sumup_card'"
-    ).bind(newStatus, id).run();
+      "UPDATE mainsite_financial_logs SET payment_id = ?, status = ? WHERE method = 'sumup_card' AND (payment_id = ? OR payment_id = ?)"
+    ).bind(id, newStatus, id, txnId).run();
 
     return c.json({ success: true, status: newStatus });
   } catch (err) {
@@ -2592,6 +2595,7 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
     if (!token) throw new Error("SUMUP_API_KEY_PRIVATE ausente.");
 
     const client = new SumUp({ apiKey: token });
+    let transactionId = id;
 
     let result;
     try {
@@ -2622,6 +2626,7 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
           });
           if (checkRes.ok) {
             const checkoutData = await checkRes.json();
+            transactionId = checkoutData.transactions?.[0]?.id || transactionId;
             const txStatus = checkoutData.transactions?.[0]?.status;
             const rawStatus = String(txStatus || checkoutData.status || 'UNKNOWN').toUpperCase();
             const realStatus = rawStatus === 'PAID' ? 'SUCCESSFUL' : rawStatus;
@@ -2630,8 +2635,8 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
             if (checkoutData.status === 'PAID' || realStatus === 'SUCCESSFUL') {
               c.executionCtx.waitUntil(
                 c.env.DB.prepare(
-                  "UPDATE mainsite_financial_logs SET status = ?, raw_payload = ? WHERE payment_id = ? AND method = 'sumup_card'"
-                ).bind('SUCCESSFUL', JSON.stringify(checkoutData), id).run()
+                  "UPDATE mainsite_financial_logs SET payment_id = ?, status = ?, raw_payload = ? WHERE method = 'sumup_card' AND (payment_id = ? OR payment_id = ?)"
+                ).bind(id, 'SUCCESSFUL', JSON.stringify(checkoutData), id, transactionId).run()
               );
               return c.json({ error: 'A transação foi confirmada/paga (PAID) com sucesso na SumUp e foi sincronizada localmente no BD.\n\nPor favor, atualize o Painel Financeiro e utilize o botão verde "Estornar Transação (Refund)" ao invés de cancelar.' }, 400);
             }
@@ -2644,8 +2649,8 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
     }
 
     await c.env.DB.prepare(
-      "UPDATE mainsite_financial_logs SET status = 'CANCELLED' WHERE payment_id = ? AND method = 'sumup_card'"
-    ).bind(id).run();
+      "UPDATE mainsite_financial_logs SET payment_id = ?, status = 'CANCELLED' WHERE method = 'sumup_card' AND (payment_id = ? OR payment_id = ?)"
+    ).bind(id, id, transactionId).run();
 
     return c.json({ success: true });
   } catch (err) {
@@ -2665,6 +2670,7 @@ app.post('/api/financeiro/sumup-cancel', async (c) => {
     if (!token) throw new Error("SUMUP_API_KEY_PRIVATE ausente.");
 
     const client = new SumUp({ apiKey: token });
+    let transactionId = id;
 
     try {
       await client.checkouts.deactivate(id);
@@ -2693,6 +2699,7 @@ app.post('/api/financeiro/sumup-cancel', async (c) => {
           });
           if (checkRes.ok) {
             const checkoutData = await checkRes.json();
+            transactionId = checkoutData.transactions?.[0]?.id || transactionId;
             const txStatus = checkoutData.transactions?.[0]?.status;
             const rawStatus = String(txStatus || checkoutData.status || 'UNKNOWN').toUpperCase();
             const realStatus = rawStatus === 'PAID' ? 'SUCCESSFUL' : rawStatus;
@@ -2700,8 +2707,8 @@ app.post('/api/financeiro/sumup-cancel', async (c) => {
             if (checkoutData.status === 'PAID' || realStatus === 'SUCCESSFUL') {
               c.executionCtx.waitUntil(
                 c.env.DB.prepare(
-                  "UPDATE mainsite_financial_logs SET status = ?, raw_payload = ? WHERE payment_id = ? AND method = 'sumup_card'"
-                ).bind('SUCCESSFUL', JSON.stringify(checkoutData), id).run()
+                  "UPDATE mainsite_financial_logs SET payment_id = ?, status = ?, raw_payload = ? WHERE method = 'sumup_card' AND (payment_id = ? OR payment_id = ?)"
+                ).bind(id, 'SUCCESSFUL', JSON.stringify(checkoutData), id, transactionId).run()
               );
               return c.json({ success: false, error: 'A transação foi confirmada/paga (PAID) com sucesso na SumUp e foi sincronizada localmente no BD.\n\nPor favor, atualize o Painel Financeiro e utilize o botão verde "Estornar Transação (Refund)" ao invés de cancelar.' }, 400);
             }
@@ -2713,8 +2720,8 @@ app.post('/api/financeiro/sumup-cancel', async (c) => {
     }
 
     await c.env.DB.prepare(
-      "UPDATE mainsite_financial_logs SET status = 'CANCELLED' WHERE payment_id = ? AND method = 'sumup_card'"
-    ).bind(id).run();
+      "UPDATE mainsite_financial_logs SET payment_id = ?, status = 'CANCELLED' WHERE method = 'sumup_card' AND (payment_id = ? OR payment_id = ?)"
+    ).bind(id, id, transactionId).run();
 
     return c.json({ success: true });
   } catch (err) {

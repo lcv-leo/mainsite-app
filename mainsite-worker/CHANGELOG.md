@@ -1,5 +1,10 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v01.35.02] — 28/03/2026
+### Corrigido
+- **SumUp — chave canônica em `mainsite_financial_logs`**: o sync histórico passou a normalizar `payment_id` para `checkout.id`, mantendo compatibilidade com registros legados originalmente persistidos com `transaction.id`.
+- **SumUp — estorno/cancelamento agora atingem registros legados**: rotas canônicas e aliases retroativos passaram a atualizar o status usando tanto o checkout UUID quanto o transaction UUID legado, eliminando casos em que o painel permanecia em `SUCCESSFUL` após operação concluída no provider.
+
 ## [v01.35.01] — 28/03/2026
 ### Corrigido
 - **SumUp — reconciliação de status no financeiro**: implementada resolução de status com precedência para estados terminais (`PARTIALLY_REFUNDED`, `REFUNDED`, `CANCELLED`, `CHARGE_BACK`, `FAILED`, `EXPIRED`) em `sumup-financial-logs` e `sumup/reindex-statuses`, evitando regressão para `SUCCESSFUL` por payload legado.
