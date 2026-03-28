@@ -188,7 +188,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: getGrossAmount('sumup'),
           baseAmount: getNumericAmount(),
           coverFees,
           firstName: firstName.trim(),
@@ -204,7 +203,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: grossAmount,
+          baseAmount: getNumericAmount(),
+          coverFees,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: sumupEmail.trim(),
@@ -763,6 +763,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                         try {
                           const payload = {
                             ...formData,
+                            baseAmount: getNumericAmount(),
+                            coverFees,
                             payer: {
                               ...(formData.payer || {}),
                               first_name: firstName.trim(),
