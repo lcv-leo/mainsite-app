@@ -1136,6 +1136,21 @@ const normalizeSumupStatus = (status) => {
   return map[s] || s;
 };
 
+const resolveSumupStatusFromSources = ({ rowStatus, payloadStatus }) => {
+  const row = normalizeSumupStatus(rowStatus || 'UNKNOWN');
+  const payload = normalizeSumupStatus(payloadStatus || 'UNKNOWN');
+
+  // Estados terminais devem sempre prevalecer sobre snapshots antigos do payload.
+  const terminalPriority = ['PARTIALLY_REFUNDED', 'REFUNDED', 'CANCELLED', 'CHARGE_BACK', 'FAILED', 'EXPIRED'];
+  for (const st of terminalPriority) {
+    if (row === st || payload === st) return st;
+  }
+
+  if (row === 'SUCCESSFUL' || payload === 'SUCCESSFUL') return 'SUCCESSFUL';
+  if (row === 'PENDING' || payload === 'PENDING') return 'PENDING';
+  return row !== 'UNKNOWN' ? row : payload;
+};
+
 const FINANCIAL_CUTOFF_BRT = '2026-03-01T00:00:00-03:00';
 const FINANCIAL_CUTOFF_DATE = '2026-03-01';
 const FINANCIAL_CUTOFF_UTC = new Date(FINANCIAL_CUTOFF_BRT);
@@ -2247,7 +2262,10 @@ app.post('/api/sumup/reindex-statuses', async (c) => {
           payloadStatus = null;
         }
 
-        const nextStatus = normalizeSumupStatus(payloadStatus || row?.status || 'UNKNOWN');
+        const nextStatus = resolveSumupStatusFromSources({
+          rowStatus: row?.status || 'UNKNOWN',
+          payloadStatus,
+        });
         if (nextStatus !== row?.status) {
           await c.env.DB.prepare(
             "UPDATE mainsite_financial_logs SET status = ? WHERE id = ? AND method = 'sumup_card'"
@@ -2282,7 +2300,10 @@ app.get('/api/sumup-financial-logs', async (c) => {
         payloadStatus = null;
       }
 
-      const normalizedStatus = normalizeSumupStatus(payloadStatus || row?.status || 'UNKNOWN');
+      const normalizedStatus = resolveSumupStatusFromSources({
+        rowStatus: row?.status || 'UNKNOWN',
+        payloadStatus,
+      });
       if (row?.id && normalizedStatus !== row?.status) {
         c.executionCtx.waitUntil(
           c.env.DB.prepare("UPDATE mainsite_financial_logs SET status = ? WHERE id = ? AND method = 'sumup_card'")

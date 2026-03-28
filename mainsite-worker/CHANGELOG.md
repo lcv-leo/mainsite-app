@@ -1,5 +1,13 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v01.35.01] — 28/03/2026
+### Corrigido
+- **SumUp — reconciliação de status no financeiro**: implementada resolução de status com precedência para estados terminais (`PARTIALLY_REFUNDED`, `REFUNDED`, `CANCELLED`, `CHARGE_BACK`, `FAILED`, `EXPIRED`) em `sumup-financial-logs` e `sumup/reindex-statuses`, evitando regressão para `SUCCESSFUL` por payload legado.
+- **SumUp — rota de status duplicada**: removido handler redundante de `/api/sumup/checkout/:id/status` para eliminar conflitos de roteamento e preservar o fluxo com lazy sync.
+
+### Adicionado
+- **Compatibilidade retroativa de endpoints**: adicionados aliases `POST /api/financeiro/sumup-refund` e `POST /api/financeiro/sumup-cancel` para clientes legados ainda desacoplados das rotas canônicas `/api/sumup-payment/:id/refund|cancel`.
+
 ## [v01.35.00] — 28/03/2026
 ### Adicionado/Alterado
 - **Integração SumUp via MCP / Flow 3DS**: Implementados novos endpoints backend de `checkout` e processamento SumUp em lote com captura do `next_step` do desafio de Autorização 3DS (`ACTION_REQUIRED`). 
