@@ -1341,25 +1341,6 @@ app.post('/api/sumup/checkout/:id/pay', async (c) => {
   }
 });
 
-app.get('/api/sumup/checkout/:id/status', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const result = await c.env.DB.prepare(
-      "SELECT status FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
-    ).bind(id).first();
-    
-    if (!result) {
-      console.warn(`[SumUp Status] /api/sumup/checkout/${id}/status -> 404 Not Found (Internal Route)`);
-      return c.json({ error: 'Checkout não encontrado.' }, 404);
-    }
-    
-    return c.json({ status: result.status });
-  } catch (err) {
-    console.error('[SumUp Status] Erro ao consultar status do checkout no BD:', err);
-    return c.json({ error: 'Falha interna ao consultar status.' }, 500);
-  }
-});
-
 app.get('/api/sumup/payment-methods', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: '401' }, 401);
   try {
@@ -2513,6 +2494,75 @@ app.post('/api/sumup-payment/:id/refund', async (c) => {
   }
 });
 
+// Compatibilidade retroativa para clientes legados que ainda chamam /api/financeiro/sumup-refund?id=...
+app.post('/api/financeiro/sumup-refund', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  const id = c.req.query('id');
+  if (!id) return c.json({ success: false, error: 'ID de pagamento ausente.' }, 400);
+
+  try {
+    const token = c.env.SUMUP_API_KEY_PRIVATE;
+    if (!token) throw new Error("SUMUP_API_KEY_PRIVATE ausente.");
+
+    let amount = null;
+    try {
+      const body = await c.req.json();
+      if (body?.amount) amount = Number(body.amount);
+    } catch { }
+
+    const client = new SumUp({ apiKey: token });
+
+    let txnId = id;
+    try {
+      const record = await c.env.DB.prepare(
+        "SELECT raw_payload FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
+      ).bind(id).first();
+      if (record?.raw_payload) {
+        const payload = JSON.parse(record.raw_payload);
+        const extracted = payload.transactions?.[0]?.id || payload.transaction_id;
+        if (extracted) txnId = extracted;
+      }
+    } catch { }
+
+    if (txnId === id) {
+      try {
+        const checkout = await client.checkouts.get(id);
+        const extracted = checkout.transactions?.[0]?.id;
+        if (extracted) txnId = extracted;
+      } catch { }
+    }
+
+    try {
+      const refundPayload = amount ? { amount } : undefined;
+      await client.transactions.refund(txnId, refundPayload);
+    } catch (apiErr) {
+      console.error('Erro SumUp SDK (Refund Legacy Alias):', apiErr);
+      let errMsg = apiErr.message || '';
+      try {
+        if (errMsg.includes('{')) {
+          const jsonStr = errMsg.substring(errMsg.indexOf('{'));
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.message) errMsg = parsed.message;
+          if (parsed.detail) errMsg = parsed.detail;
+          if (parsed.error_code === 'NOT FOUND') errMsg = 'Transação não encontrada ou aguardando compensação.';
+          if (parsed.error_code === 'CONFLICT') errMsg = 'A transação não pode ser estornada em seu estado atual (Ex: Já estornada ou ainda pendente).';
+        }
+      } catch (e) { }
+      return c.json({ success: false, error: `Estorno recusado pela SumUp: ${errMsg}` }, 400);
+    }
+
+    const newStatus = amount ? 'PARTIALLY_REFUNDED' : 'REFUNDED';
+    await c.env.DB.prepare(
+      "UPDATE mainsite_financial_logs SET status = ? WHERE payment_id = ? AND method = 'sumup_card'"
+    ).bind(newStatus, id).run();
+
+    return c.json({ success: true, status: newStatus });
+  } catch (err) {
+    console.error('Erro estrutural no alias de reembolso SumUp:', err);
+    return c.json({ success: false, error: err.message || 'Erro interno no provedor de pagamento.' }, 500);
+  }
+});
+
 app.put('/api/sumup-payment/:id/cancel', async (c) => {
   if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
   const id = c.req.param('id');
@@ -2580,6 +2630,75 @@ app.put('/api/sumup-payment/:id/cancel', async (c) => {
   } catch (err) {
     console.error('Erro ao cancelar pagamento SumUp:', err);
     return c.json({ error: err.message || 'Falha estrutural ao cancelar.' }, 500);
+  }
+});
+
+// Compatibilidade retroativa para clientes legados que ainda chamam /api/financeiro/sumup-cancel?id=...
+app.post('/api/financeiro/sumup-cancel', async (c) => {
+  if (c.req.header('Authorization') !== `Bearer ${c.env.API_SECRET}`) return c.json({ error: "401" }, 401);
+  const id = c.req.query('id');
+  if (!id) return c.json({ success: false, error: 'ID de pagamento ausente.' }, 400);
+
+  try {
+    const token = c.env.SUMUP_API_KEY_PRIVATE;
+    if (!token) throw new Error("SUMUP_API_KEY_PRIVATE ausente.");
+
+    const client = new SumUp({ apiKey: token });
+
+    try {
+      await client.checkouts.deactivate(id);
+    } catch (apiErr) {
+      console.error('Erro SumUp SDK (Cancel Legacy Alias):', apiErr);
+      let isConflict = false;
+      let errMsg = apiErr.message || '';
+      try {
+        if (errMsg.includes('{')) {
+          const jsonStr = errMsg.substring(errMsg.indexOf('{'));
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.message) errMsg = parsed.message;
+          if (parsed.detail) errMsg = parsed.detail;
+          if (parsed.error_code === 'NOT FOUND') errMsg = 'Checkout não encontrado.';
+          if (parsed.error_code === 'CONFLICT') {
+            errMsg = 'Este checkout não pode ser cancelado no estado atual.';
+            isConflict = true;
+          }
+        }
+      } catch (e) { }
+
+      if (isConflict || (apiErr.message && apiErr.message.includes('409'))) {
+        try {
+          const checkRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (checkRes.ok) {
+            const checkoutData = await checkRes.json();
+            const txStatus = checkoutData.transactions?.[0]?.status;
+            const rawStatus = String(txStatus || checkoutData.status || 'UNKNOWN').toUpperCase();
+            const realStatus = rawStatus === 'PAID' ? 'SUCCESSFUL' : rawStatus;
+
+            if (checkoutData.status === 'PAID' || realStatus === 'SUCCESSFUL') {
+              c.executionCtx.waitUntil(
+                c.env.DB.prepare(
+                  "UPDATE mainsite_financial_logs SET status = ?, raw_payload = ? WHERE payment_id = ? AND method = 'sumup_card'"
+                ).bind('SUCCESSFUL', JSON.stringify(checkoutData), id).run()
+              );
+              return c.json({ success: false, error: 'A transação foi confirmada/paga (PAID) com sucesso na SumUp e foi sincronizada localmente no BD.\n\nPor favor, atualize o Painel Financeiro e utilize o botão verde "Estornar Transação (Refund)" ao invés de cancelar.' }, 400);
+            }
+          }
+        } catch (e) { }
+      } else {
+        return c.json({ success: false, error: `Cancelamento recusado pela SumUp: ${errMsg}` }, 400);
+      }
+    }
+
+    await c.env.DB.prepare(
+      "UPDATE mainsite_financial_logs SET status = 'CANCELLED' WHERE payment_id = ? AND method = 'sumup_card'"
+    ).bind(id).run();
+
+    return c.json({ success: true });
+  } catch (err) {
+    console.error('Erro estrutural no alias de cancelamento SumUp:', err);
+    return c.json({ success: false, error: err.message || 'Falha estrutural ao cancelar.' }, 500);
   }
 });
 
