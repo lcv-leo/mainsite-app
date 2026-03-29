@@ -16,6 +16,7 @@ import uploadsRoutes from './routes/uploads.ts';
 import miscRoutes from './routes/misc.ts';
 import paymentsSumupRoutes from './routes/payments-sumup.ts';
 import paymentsMpRoutes from './routes/payments-mp.ts';
+import postSummariesRoutes from './routes/post-summaries.ts';
 
 // --- Polyfill: Headers.raw() exigido por algumas dependências ---
 if (typeof Headers !== 'undefined' && !(Headers.prototype as unknown as Record<string, unknown>).raw) {
@@ -159,6 +160,7 @@ app.route('/', uploadsRoutes);
 app.route('/', miscRoutes);
 app.route('/', paymentsSumupRoutes);
 app.route('/', paymentsMpRoutes);
+app.route('/', postSummariesRoutes);
 
 // ========== CRON JOBS (ROTAÇÃO DE TEXTOS) ==========
 

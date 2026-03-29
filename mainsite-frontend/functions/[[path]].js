@@ -54,10 +54,23 @@ export async function onRequest(context) {
 
     if (!post) return response;
 
-    // 4. Gera descrições — curta (160 chars) para OG/meta, longa (300 chars) para Schema.org
+    // 4. Consulta resumo IA pré-computado para compartilhamento social
+    let aiSummary = null;
+    try {
+      aiSummary = await db
+        .prepare('SELECT summary_og, summary_ld FROM mainsite_post_ai_summaries WHERE post_id = ?')
+        .bind(postId)
+        .first();
+    } catch {
+      // Tabela pode não existir ainda — fallback silencioso
+    }
+
+    // 5. Gera descrições — IA tem prioridade, fallback para strip+truncate
     const cleanBase = (post.content || '').replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
-    const shortDesc = `${cleanBase.substring(0, 160)}${cleanBase.length > 160 ? '...' : ''}`;
-    const longDesc = `${cleanBase.substring(0, 300)}${cleanBase.length > 300 ? '...' : ''}`;
+    const fallbackShort = `${cleanBase.substring(0, 160)}${cleanBase.length > 160 ? '...' : ''}`;
+    const fallbackLong = `${cleanBase.substring(0, 300)}${cleanBase.length > 300 ? '...' : ''}`;
+    const shortDesc = (aiSummary && aiSummary.summary_og) || fallbackShort;
+    const longDesc = (aiSummary && (aiSummary.summary_ld || aiSummary.summary_og)) || fallbackLong;
     const wordCount = cleanBase.split(/\s+/).filter(Boolean).length;
     const pageTitle = `${post.title} | Divagações Filosóficas`;
     const canonicalUrl = `https://www.lcv.rio.br/p/${post.id}`;
