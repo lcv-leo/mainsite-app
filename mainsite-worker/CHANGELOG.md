@@ -1,5 +1,18 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.01.00] — 2026-03-29
+### Alterado (MAJOR) — D1 Financial Log Deprecation
+- **Arquitetura Live API-first**: todas as escritas e leituras de `mainsite_financial_logs` removidas.
+  - `payments-sumup.ts`: D1 INSERT removido do endpoint `/pay`; status polling (`/status`) refatorado para consultar SDK SumUp diretamente.
+  - `payments-mp.ts`: webhook `/api/webhooks/mercadopago` mantido para compliance MP (HMAC + ACK 200 + email), mas sem D1.
+- **D1 binding `DB` permanece** apenas para `loadFeeConfig()` lendo `mainsite_settings` (configuração, não transação).
+
+### Removido
+- **SumUp (endpoints mortos)**: `/api/sumup/sync`, `/api/sumup/reindex-statuses`, `/api/sumup-financial-logs` (GET/check/DELETE), `/api/sumup-balance`, `/api/sumup-payment/:id/refund`, `/api/financeiro/sumup-refund`, `/api/sumup-payment/:id/cancel`, `/api/financeiro/sumup-cancel`.
+- **MP (endpoints mortos)**: `/api/mp-payment/:id/refund`, `/api/mp-payment/:id/cancel`, `/api/mp-balance`, `/api/mp/sync`, `/api/financial-logs` (GET/check/DELETE).
+- **Helpers órfãos**: `resolveTxnId()`, `parseSumupCancelRefundError()`.
+- **Tabela `mainsite_financial_logs`**: sem escritor e sem leitor — pronta para DROP no D1.
+
 ## [v02.00.01] — 2026-03-29
 ### Corrigido
 - **SumUp — detecção inteligente de reembolsos**: `payments-sumup.ts` agora itera todo o array `transactions[]` do checkout SumUp, identificando transações com `type: "REFUND"` e somando valores para determinar status `REFUNDED` (total) ou `PARTIALLY_REFUNDED` (parcial). Antes, apenas `transactions[0]` (pagamento original) era inspecionado.
