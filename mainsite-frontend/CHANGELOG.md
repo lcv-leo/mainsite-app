@@ -1,5 +1,13 @@
 # Changelog — Mainsite Frontend
 
+## [v03.01.01] — 2026-03-29
+### Corrigido
+- **Sitemap vazio**: `functions/sitemap.xml.js` corrigido — nome da tabela (`mainsite_posts` em vez de `posts`) e nome da coluna (`display_order` em vez de `created_at`) ajustados para refletir o schema real do D1. Sitemap agora retorna URLs válidas para todos os posts publicados.
+
+## [v03.01.00] — 2026-03-29
+### Adicionado
+- **Fase 4 — Redesign visual editorial**: títulos blue accent (`var(--accent)`), barra divisória gradiente, byline com avatar/autor/data, borda lateral de acento nos posts, barra de progresso de leitura, grid editorial 2 colunas no arquivo, seletores de ano em pill, ícones de compartilhamento minimalistas.
+
 ## [v03.00.01] — 29/03/2026
 ### Corrigido
 - **Barras pretas verticais laterais removidas**: eliminado `background-color: #030303` fixo no inline style do `index.html` que causava faixas pretas nas laterais do viewport em telas mais largas que o container de 1126px. O background agora é controlado exclusivamente pelas CSS variables `var(--bg)` — branco em light mode, `#16171d` em dark mode.
