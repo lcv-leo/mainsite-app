@@ -1,17 +1,31 @@
-// Module: mainsite-frontend/src/components/PostReader.jsx
-// Version: v1.4.0
-// Description: Home Page button reduced by 30% to minimize visual impact on the reading flow.
+// Module: mainsite-frontend/src/components/PostReader.tsx
+// Version: v1.5.0
+// Description: TypeScript migration. Home Page button reduced by 30% to minimize visual impact on the reading flow.
 
-import React, { useState, useEffect } from 'react';
+import { type ChangeEvent, useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart } from 'lucide-react';
+import type { ActivePalette, SiteSettings, Post } from '../types';
 
-const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage }) => {
-  const [postSummary, setPostSummary] = useState(null);
-  const [translatedContent, setTranslatedContent] = useState(null);
+interface PostReaderProps {
+  post: Post
+  activePalette: ActivePalette
+  settings: SiteSettings
+  API_URL: string
+  onShare: (type: 'whatsapp' | 'link' | 'email') => void
+  onContact: () => void
+  onComment: () => void
+  onDonation: () => void
+  isSendingEmail: boolean
+  isNotHomePage: boolean
+}
+
+const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage }: PostReaderProps) => {
+  const [postSummary, setPostSummary] = useState<string | null>(null);
+  const [translatedContent, setTranslatedContent] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [aiError, setAiError] = useState(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const isAILoading = isSummarizing || isTranslating;
 
@@ -25,7 +39,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     try {
       const [res] = await Promise.all([
         fetch(`${API_URL}/ai/public/summarize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: post.content }) }),
-        new Promise(resolve => setTimeout(resolve, 800))
+        new Promise<void>(resolve => setTimeout(resolve, 800))
       ]);
       const data = await res.json();
       if (res.ok) setPostSummary(data.summary);
@@ -33,14 +47,14 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     } catch { setAiError("Não foi possível gerar o resumo no momento."); } finally { setIsSummarizing(false); }
   };
 
-  const handleTranslate = async (e) => {
+  const handleTranslate = async (e: ChangeEvent<HTMLSelectElement>) => {
     const lang = e.target.value;
     if (!lang || !post) return;
     setIsTranslating(true); setAiError(null);
     try {
       const [res] = await Promise.all([
         fetch(`${API_URL}/ai/public/translate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: post.content, lang }) }),
-        new Promise(resolve => setTimeout(resolve, 800))
+        new Promise<void>(resolve => setTimeout(resolve, 800))
       ]);
       const data = await res.json();
       if (res.ok) setTranslatedContent(data.translation);
@@ -48,7 +62,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     } catch { setAiError(`Falha ao traduzir para ${lang}.`); } finally { setIsTranslating(false); e.target.value = ''; }
   };
 
-  const renderContent = (content) => {
+  const renderContent = (content: string) => {
     const activeContent = translatedContent || content || '';
     const isHtml = /<\/?[a-z][\s\S]*>/i.test(activeContent);
     if (isHtml) {
@@ -79,14 +93,43 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     });
   };
 
+  // Schema.org — Expanded for AI-era visibility (GEO/AEO)
+  const cleanExcerpt = (post.content || '').replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+  const descriptionExcerpt = cleanExcerpt.substring(0, 200) + (cleanExcerpt.length > 200 ? '...' : '');
+  const wordCount = cleanExcerpt.split(/\s+/).filter(Boolean).length;
+
   const schemaOrgJSONLD = {
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": post.title,
-    "author": { "@type": "Person", "name": "Leonardo Cardozo Vargas", "url": "https://www.lcv.rio.br" },
+    "description": descriptionExcerpt,
+    "author": {
+      "@type": "Person",
+      "name": "Leonardo Cardozo Vargas",
+      "url": "https://www.lcv.rio.br",
+      "sameAs": [
+        "https://github.com/lcv-leo",
+        "https://www.linkedin.com/in/lcv-leo"
+      ]
+    },
     "datePublished": post.created_at ? new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString(),
-    "publisher": { "@type": "Organization", "name": "Divagações Filosóficas", "logo": { "@type": "ImageObject", "url": "https://www.lcv.rio.br/favicon.ico" } },
-    "mainEntityOfPage": { "@type": "WebPage", "@id": `https://www.lcv.rio.br/?p=${post.id}` }
+    "dateModified": post.updated_at
+      ? new Date(post.updated_at.replace(' ', 'T') + (post.updated_at.includes('Z') || post.updated_at.includes('+') ? '' : 'Z')).toISOString()
+      : (post.created_at ? new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString()),
+    "publisher": {
+      "@type": "Organization",
+      "name": "Divagações Filosóficas",
+      "url": "https://www.lcv.rio.br",
+      "logo": { "@type": "ImageObject", "url": "https://www.lcv.rio.br/favicon.svg" }
+    },
+    "mainEntityOfPage": { "@type": "WebPage", "@id": `https://www.lcv.rio.br/p/${post.id}` },
+    "inLanguage": "pt-BR",
+    "articleSection": "Filosofia",
+    "wordCount": wordCount,
+    "speakable": {
+      "@type": "SpeakableSpecification",
+      "cssSelector": [".h1-title", ".ai-summary-box", ".p-content"]
+    }
   };
 
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
@@ -195,14 +238,14 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         </div>
       )}
 
-      <div className="protected-content" onCopy={(e) => { e.preventDefault(); return false; }} onContextMenu={(e) => { e.preventDefault(); return false; }} onDragStart={(e) => { e.preventDefault(); return false; }} onSelectStart={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }}>
+      <div className="protected-content" onCopy={(e) => { e.preventDefault(); return false; }} onContextMenu={(e) => { e.preventDefault(); return false; }} onDragStart={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrgJSONLD) }} />
         {renderContent(post.content)}
       </div>
 
       {/* Rodapé de metadados com datas de publicação/atualização */}
       {post.created_at && (() => {
-        const fmt = (raw) => {
+        const fmt = (raw: string | undefined | null): string | null => {
           if (!raw) return null;
           const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
           return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });

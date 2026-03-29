@@ -20,7 +20,7 @@
   "services": [
     {
       "binding": "WORKER",
-      "service": "mainsite-app"
+      "service": "mainsite-motor"
     }
   ]
 }

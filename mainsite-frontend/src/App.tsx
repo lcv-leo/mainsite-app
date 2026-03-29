@@ -1,9 +1,11 @@
-// Módulo: mainsite-frontend/src/App.jsx
-// Versão: v02.12.00
-// Descrição: Frontend Orchestrator. Expanded reading frame to 960px for widescreen displays and reduced lateral padding.
+// Módulo: mainsite-frontend/src/App.tsx
+// Versão: v02.13.00
+// Descrição: TypeScript migration. Frontend Orchestrator — fully typed state, events, refs and component props.
 
-import React, { useState, useEffect, useMemo, Suspense, lazy, useRef } from 'react';
+import { useState, useEffect, useMemo, Suspense, lazy, useRef, type FormEvent } from 'react';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+
+import type { Post, SiteSettings, DisclaimersConfig, ShareModalState, ToastState, ActivePalette, ContactFormData } from './types';
 
 import PostReader from './components/PostReader';
 import ArchiveMenu from './components/ArchiveMenu';
@@ -17,11 +19,11 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v02.21.01';
+const APP_VERSION = 'APP v03.00.00';
 const SITE_NAME = 'Divagações Filosóficas';
 const SITE_URL = 'https://www.lcv.rio.br';
 
-const DEFAULT_SETTINGS = {
+const DEFAULT_SETTINGS: SiteSettings = {
   allowAutoMode: true,
   light: { bgColor: '#f8f9fa', bgImage: '', fontColor: '#202124', titleColor: '#1a73e8' },
   dark: { bgColor: '#16171d', bgImage: '', fontColor: '#d1d5db', titleColor: '#8ab4f8' },
@@ -35,22 +37,24 @@ const DEFAULT_SETTINGS = {
   }
 };
 
-const App = () => {
-  const [posts, setPosts] = useState([]);
-  const [currentPost, setCurrentPost] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+type ThemePreference = 'auto' | 'light' | 'dark';
 
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [disclaimers, setDisclaimers] = useState({ enabled: false, items: [] });
-  const [userTheme, setUserTheme] = useState(localStorage.getItem('themePref') || 'auto');
+const App = () => {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [currentPost, setCurrentPost] = useState<Post | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
+  const [disclaimers, setDisclaimers] = useState<DisclaimersConfig>({ enabled: false, items: [] });
+  const [userTheme, setUserTheme] = useState<ThemePreference>((localStorage.getItem('themePref') as ThemePreference) || 'auto');
   const [systemIsDark, setSystemIsDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+  const [toast, setToast] = useState<ToastState>({ show: false, message: '', type: 'info' });
   const [toastTop, setToastTop] = useState(20);
-  const lastPointerYRef = useRef(null);
+  const lastPointerYRef = useRef<number | null>(null);
 
-  const [showShareModal, setShowShareModal] = useState({ show: false, email: '' });
+  const [showShareModal, setShowShareModal] = useState<ShareModalState>({ show: false, email: '' });
   const [showContactModal, setShowContactModal] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showDonationModal, setShowDonationModal] = useState(false);
@@ -64,7 +68,7 @@ const App = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showDisclaimerFlow, setShowDisclaimerFlow] = useState(false);
 
-  const getUrlPostId = () => {
+  const getUrlPostId = (): string | null => {
     const urlParams = new URLSearchParams(window.location.search);
     const queryId = urlParams.get('p');
     if (queryId) return queryId;
@@ -72,14 +76,15 @@ const App = () => {
     return pathMatch ? pathMatch[1] : null;
   };
 
-  const isEditableTarget = (target) => {
-    const tag = target?.tagName?.toLowerCase();
-    return !!(target?.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select');
+  const isEditableTarget = (target: EventTarget | null): boolean => {
+    const el = target as HTMLElement | null;
+    const tag = el?.tagName?.toLowerCase();
+    return !!(el?.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select');
   };
 
   const isDeepLinkedPost = !!getUrlPostId();
 
-  const showNotification = (message, type = 'info') => {
+  const showNotification = (message: string, type: ToastState['type'] = 'info') => {
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
     const pointerY = lastPointerYRef.current;
     const baseY = pointerY != null ? pointerY : (viewportH * 0.5);
@@ -90,7 +95,7 @@ const App = () => {
   };
 
   useEffect(() => {
-    const trackPointer = (e) => {
+    const trackPointer = (e: PointerEvent) => {
       if (typeof e?.clientY === 'number') lastPointerYRef.current = e.clientY;
     };
     window.addEventListener('pointerdown', trackPointer, { passive: true });
@@ -98,7 +103,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const handleKeydown = (e) => {
+    const handleKeydown = (e: KeyboardEvent) => {
       const isMeta = e.ctrlKey || e.metaKey;
       const key = (e.key || '').toLowerCase();
 
@@ -158,7 +163,7 @@ const App = () => {
   // Sync theme with OS
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e) => setSystemIsDark(e.matches);
+    const handler = (e: MediaQueryListEvent) => setSystemIsDark(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
@@ -169,7 +174,7 @@ const App = () => {
       try {
         const resPosts = await fetch(`${API_URL}/posts`);
         if (!resPosts.ok) throw new Error("Failed to fetch posts.");
-        const dataPosts = await resPosts.json();
+        const dataPosts: Post[] = await resPosts.json();
         setPosts(dataPosts);
 
         const postId = getUrlPostId();
@@ -189,7 +194,7 @@ const App = () => {
 
         const resDisc = await fetch(`${API_URL}/settings/disclaimers`);
         if (resDisc.ok) {
-          const discData = await resDisc.json();
+          const discData: DisclaimersConfig = await resDisc.json();
           if (discData.enabled && discData.items && discData.items.length > 0) {
             const visibleDisclaimers = discData.items.filter(item => localStorage.getItem(`hide_disclaimer_${item.id}`) !== 'true');
             if (visibleDisclaimers.length > 0) {
@@ -213,18 +218,18 @@ const App = () => {
   }, [settings.shared.contentMaxWidth]);
 
   useEffect(() => {
-    const upsertMeta = (selector, attrs, content) => {
-      let el = document.head.querySelector(selector);
+    const upsertMeta = (selector: string, attrs: Record<string, string>, content: string) => {
+      let el = document.head.querySelector(selector) as HTMLMetaElement | null;
       if (!el) {
         el = document.createElement('meta');
-        Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+        Object.entries(attrs).forEach(([k, v]) => el!.setAttribute(k, v));
         document.head.appendChild(el);
       }
       el.setAttribute('content', content);
     };
 
-    const upsertCanonical = (href) => {
-      let link = document.head.querySelector('link[rel="canonical"]');
+    const upsertCanonical = (href: string) => {
+      let link = document.head.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
       if (!link) {
         link = document.createElement('link');
         link.setAttribute('rel', 'canonical');
@@ -290,17 +295,17 @@ const App = () => {
     };
   }, []);
 
-  const activePalette = useMemo(() => {
+  const activePalette = useMemo((): ActivePalette => {
     const safeDark = settings.dark || DEFAULT_SETTINGS.dark;
     const safeLight = settings.light || DEFAULT_SETTINGS.light;
-    if (!settings.allowAutoMode && userTheme === 'auto') return safeDark;
-    let resolved = userTheme;
+    if (!settings.allowAutoMode && userTheme === 'auto') return safeDark as ActivePalette;
+    let resolved: string = userTheme;
     if (resolved === 'auto') resolved = systemIsDark ? 'dark' : 'light';
-    return resolved === 'dark' ? safeDark : safeLight;
+    return (resolved === 'dark' ? safeDark : safeLight) as ActivePalette;
   }, [settings, userTheme, systemIsDark]);
 
   const cycleTheme = () => {
-    const modes = settings.allowAutoMode ? ['auto', 'light', 'dark'] : ['light', 'dark'];
+    const modes: ThemePreference[] = settings.allowAutoMode ? ['auto', 'light', 'dark'] : ['light', 'dark'];
     const nextIndex = (modes.indexOf(userTheme) + 1) % modes.length;
     const next = modes[nextIndex];
     setUserTheme(next);
@@ -313,7 +318,7 @@ const App = () => {
     ? `radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.15), transparent 45%), radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.15), transparent 45%)`
     : `radial-gradient(circle at 15% 40%, rgba(26, 115, 232, 0.08), transparent 45%), radial-gradient(circle at 85% 60%, rgba(161, 66, 244, 0.08), transparent 45%)`;
 
-  const appStyle = {
+  const appStyle: React.CSSProperties = {
     backgroundColor: activePalette.bgColor,
     backgroundImage: (activePalette.bgImage && activePalette.bgImage.trim() !== '') ? `url("${activePalette.bgImage}")` : defaultCSSPattern,
     backgroundSize: 'cover',
@@ -329,31 +334,31 @@ const App = () => {
   };
 
   // STRUCTURAL BUMP: Increased to 1024px breakpoint with fluid lateral clamping
-  const containerStyle = {
+  const containerStyle: React.CSSProperties = {
     width: '100%',
-    maxWidth: '1024px', 
+    maxWidth: '1024px',
     padding: '0 clamp(12px, 3vw, 24px)', // Responsive padding: tight on mobile, max 24px on desktop
     flex: 1,
     boxSizing: 'border-box'
   };
 
-  const handleShare = (method) => {
+  const handleShare = (method: string) => {
     if (!currentPost) return;
     const url = `${SITE_URL}/p/${currentPost.id}`;
     if (method === 'whatsapp') {
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(url)}`, '_blank');
-      fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'whatsapp' }) }).catch(e => e);
+      fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'whatsapp' }) }).catch(() => {});
     } else if (method === 'link') {
       navigator.clipboard.writeText(url).then(() => {
         showNotification("Link copiado para a área de transferência.", "success");
-        fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'link' }) }).catch(e => e);
+        fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'link' }) }).catch(() => {});
       });
     } else if (method === 'email') {
       setShowShareModal({ show: true, email: '' });
     }
   };
 
-  const submitEmailShare = async (e) => {
+  const submitEmailShare = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!currentPost || !showShareModal.email) return;
     setIsSendingEmail(true);
@@ -368,7 +373,7 @@ const App = () => {
     } catch { showNotification("Erro ao enviar o e-mail.", "error"); } finally { setIsSendingEmail(false); }
   };
 
-  const submitContact = async (formData, resetForm) => {
+  const submitContact = async (formData: ContactFormData, resetForm: () => void) => {
     setIsSubmittingContact(true);
     try {
       const res = await fetch(`${API_URL}/contact`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
@@ -377,7 +382,7 @@ const App = () => {
     } catch { showNotification("Falha ao enviar contato.", "error"); } finally { setIsSubmittingContact(false); }
   };
 
-  const submitComment = async (formData, resetForm) => {
+  const submitComment = async (formData: ContactFormData, resetForm: () => void) => {
     setIsSubmittingComment(true);
     try {
       const res = await fetch(`${API_URL}/comment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
@@ -413,7 +418,7 @@ const App = () => {
           ) : (<div style={{ textAlign: 'center', padding: '60px', opacity: 0.5, fontWeight: '700', letterSpacing: '2px' }}>A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>)}
       </main>
 
-      <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={(p) => { window.history.pushState({}, '', `/p/${p.id}`); setCurrentPost(p); }} activePalette={activePalette} APP_VERSION={APP_VERSION} />
+      <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={(p: Post) => { window.history.pushState({}, '', `/p/${p.id}`); setCurrentPost(p); }} activePalette={activePalette} APP_VERSION={APP_VERSION} />
 
       <FloatingControls
         showBackToTop={showBackToTop}

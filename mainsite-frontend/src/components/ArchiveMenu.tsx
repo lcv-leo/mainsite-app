@@ -1,17 +1,38 @@
-// Módulo: mainsite-frontend/src/components/ArchiveMenu.jsx
-// Versão: v1.2.0
-// Descrição: Componente isolado para a listagem e busca. Atualizado 100% para métricas Glassmorphism + MD3 e Timezone America/Sao_Paulo cravado.
+// Módulo: mainsite-frontend/src/components/ArchiveMenu.tsx
+// Versão: v1.3.0
+// Descrição: TypeScript migration. Listagem e busca com Glassmorphism + MD3 e Timezone America/Sao_Paulo.
 
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronUp, Search } from 'lucide-react';
+import type { ActivePalette, Post } from '../types';
 
-const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VERSION }) => {
+/** Agrupamento interno por mês. */
+interface MonthGroup {
+  month: string
+  posts: Post[]
+}
+
+/** Agrupamento interno por ano. */
+interface YearGroup {
+  year: string
+  months: MonthGroup[]
+}
+
+interface ArchiveMenuProps {
+  posts: Post[]
+  currentPost: Post | null
+  setCurrentPost: (post: Post) => void
+  activePalette: ActivePalette | null
+  APP_VERSION: string
+}
+
+const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VERSION }: ArchiveMenuProps) => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showOlderYears, setShowOlderYears] = useState(false);
-  const [selectedYear, setSelectedYear] = useState(null);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
-  const parsePostDate = (post) => {
+  const parsePostDate = (post: Post): Date => {
     if (!post?.created_at) return new Date(0);
     const parsed = new Date(post.created_at.replace(' ', 'T') + 'Z');
     return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
@@ -29,9 +50,9 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
   const latestByRotation = filteredArchive.slice(0, 4);
   const historicalArchive = useMemo(() => filteredArchive.slice(4), [filteredArchive]);
 
-  const groupedHistory = useMemo(() => {
-    const years = [];
-    const yearMap = new Map();
+  const groupedHistory = useMemo((): YearGroup[] => {
+    const years: YearGroup[] = [];
+    const yearMap = new Map<string, YearGroup & { monthMap: Map<string, MonthGroup> }>();
 
     historicalArchive.forEach((post) => {
       const postDate = parsePostDate(post);
@@ -39,17 +60,19 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
       const month = monthFormatter.format(postDate).toLocaleUpperCase('pt-BR');
 
       if (!yearMap.has(year)) {
-        yearMap.set(year, { year, months: [], monthMap: new Map() });
-        years.push(yearMap.get(year));
+        const entry = { year, months: [] as MonthGroup[], monthMap: new Map<string, MonthGroup>() };
+        yearMap.set(year, entry);
+        years.push(entry);
       }
 
-      const yearEntry = yearMap.get(year);
+      const yearEntry = yearMap.get(year)!;
       if (!yearEntry.monthMap.has(month)) {
-        yearEntry.monthMap.set(month, { month, posts: [] });
-        yearEntry.months.push(yearEntry.monthMap.get(month));
+        const monthEntry: MonthGroup = { month, posts: [] };
+        yearEntry.monthMap.set(month, monthEntry);
+        yearEntry.months.push(monthEntry);
       }
 
-      yearEntry.monthMap.get(month).posts.push(post);
+      yearEntry.monthMap.get(month)!.posts.push(post);
     });
 
     return years.map((entry) => ({
@@ -80,7 +103,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
 
   const isDarkBase = activePalette.bgColor && (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1'));
 
-  const handleSelectPost = (post) => {
+  const handleSelectPost = (post: Post) => {
     setCurrentPost(post);
     setIsHistoryOpen(false);
     setSearchTerm('');
@@ -88,7 +111,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const styles = {
+  const styles: Record<string, React.CSSProperties> = {
     footer: { marginTop: '60px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '40px' },
     archiveToggle: { background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', opacity: 0.8, transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' },
     card: { padding: '16px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', borderRadius: '16px' },
@@ -97,13 +120,13 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
     expandBar: { width: '100%', minHeight: '92px', borderRadius: '20px', cursor: 'pointer', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.1em', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', background: 'none', color: activePalette.fontColor }
   };
 
-  const fmtDate = (raw) => {
+  const fmtDate = (raw: string | undefined | null): string | null => {
     if (!raw) return null;
     const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
     return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
-  const renderPostCard = (post) => {
+  const renderPostCard = (post: Post) => {
     const criado = fmtDate(post.created_at);
     const atualizado = fmtDate(post.updated_at);
     const showUpdated = atualizado && atualizado !== criado;

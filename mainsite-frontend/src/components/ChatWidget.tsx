@@ -1,20 +1,38 @@
-// Módulo: mainsite-frontend/src/components/ChatWidget.jsx
-// Versão: v1.5.0
-// Descrição: Chat MD3 + Glassmorphism. Gatilho de Doação preservado.
+// Módulo: mainsite-frontend/src/components/ChatWidget.tsx
+// Versão: v1.6.0
+// Descrição: TypeScript migration. Chat MD3 + Glassmorphism. Gatilho de Doação preservado.
 
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Sparkles, Heart } from 'lucide-react';
+import { type FormEvent, useState, useEffect, useRef } from 'react';
+import { X, Send, Sparkles, Heart } from 'lucide-react';
+import type { ActivePalette, Post } from '../types';
 
-const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, triggerDonation }) => {
-  const [messages, setMessages] = useState([
+type AiVisualStatus = 'idle' | 'thinking' | 'responding'
+
+interface ChatMessage {
+  role: 'user' | 'bot'
+  text: string
+  hasDonationButton?: boolean
+}
+
+interface ChatWidgetProps {
+  isOpen: boolean
+  onClose: () => void
+  currentPost: Post | null
+  activePalette: ActivePalette
+  API_URL: string
+  triggerDonation?: () => void
+}
+
+const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, triggerDonation }: ChatWidgetProps) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'bot', text: 'Olá. Como posso guiar sua reflexão sobre os textos hoje?', hasDonationButton: false }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [aiVisualStatus, setAiVisualStatus] = useState('idle'); // idle | thinking | responding
+  const [aiVisualStatus, setAiVisualStatus] = useState<AiVisualStatus>('idle');
   const [interactionCount, setInteractionCount] = useState(0);
-  const messagesEndRef = useRef(null);
-  const aiStatusTimeoutRef = useRef(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const aiStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,7 +51,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     };
   }, []);
 
-  const handleSend = async (e) => {
+  const handleSend = async (e?: FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
 
@@ -67,7 +85,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
       if (!res.ok) throw new Error('Falha de comunicação neural.');
       const data = await res.json();
 
-      let rawText = data.reply || data.text || 'Processamento concluído.';
+      let rawText: string = data.reply || data.text || 'Processamento concluído.';
       let showDonationButton = false;
 
       if (rawText.includes('[[PEDIR_DOACAO]]')) {
@@ -101,7 +119,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
         ? { text: 'Respondendo...', color: 'rgba(46,125,50,0.95)' }
         : { text: 'Pronta', color: isDarkBase ? 'rgba(255,255,255,0.62)' : 'rgba(0,0,0,0.48)' };
 
-  const panelStyle = {
+  const panelStyle: React.CSSProperties = {
     position: 'fixed',
     bottom: '96px',
     right: '24px',
@@ -122,7 +140,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
   };
 
-  const headerStyle = {
+  const headerStyle: React.CSSProperties = {
     padding: '20px 24px',
     borderBottom: '1px solid rgba(128, 128, 128, 0.15)',
     display: 'flex',
@@ -131,7 +149,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     backgroundColor: isDarkBase ? 'rgba(8,8,12,0.34)' : 'rgba(255,255,255,0.4)',
   };
 
-  const statusPillStyle = {
+  const statusPillStyle: React.CSSProperties = {
     fontSize: '10px',
     fontWeight: '800',
     letterSpacing: '0.6px',
@@ -153,7 +171,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
           : (isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)')
   };
 
-  const messageAreaStyle = {
+  const messageAreaStyle: React.CSSProperties = {
     flex: 1,
     padding: '24px',
     overflowY: 'auto',
@@ -164,7 +182,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     scrollbarColor: 'rgba(128,128,128,0.3) transparent'
   };
 
-  const inputAreaStyle = {
+  const inputAreaStyle: React.CSSProperties = {
     padding: '20px',
     borderTop: '1px solid rgba(128, 128, 128, 0.15)',
     backgroundColor: isDarkBase ? 'rgba(8,8,12,0.34)' : 'rgba(255,255,255,0.4)',
@@ -172,7 +190,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     gap: '12px'
   };
 
-  const inputFieldStyle = {
+  const inputFieldStyle: React.CSSProperties = {
     flex: 1,
     padding: '14px 20px',
     backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
@@ -183,7 +201,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     boxSizing: 'border-box'
   };
 
-  const sendButtonStyle = {
+  const sendButtonStyle: React.CSSProperties = {
     backgroundColor: activePalette.titleColor,
     color: isDarkBase ? '#000' : '#fff',
     border: 'none',
@@ -199,7 +217,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
     boxShadow: `0 8px 16px ${activePalette.titleColor}40`
   };
 
-  const donationCCommerceBtnStyle = {
+  const donationBtnStyle: React.CSSProperties = {
     backgroundColor: '#ec4899',
     color: '#fff',
     border: 'none',
@@ -330,7 +348,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={statusPillStyle}>{aiStatusMeta.text}</span>
-            <button type="button" onClick={onClose} aria-label="Fechar chat" style={{ background: 'rgba(128,128,128,0.1)', borderRadius: '100px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
+            <button type="button" onClick={onClose} aria-label="Fechar chat" style={{ background: 'rgba(128,128,128,0.1)', borderRadius: '100px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '0.8'; e.currentTarget.style.transform = 'translateY(0)'; }}>
               <X size={20} />
             </button>
           </div>
@@ -379,7 +397,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
               {msg.hasDonationButton && (
                 <button
                   onClick={() => triggerDonation && triggerDonation()}
-                  style={donationCCommerceBtnStyle}
+                  style={donationBtnStyle}
                   onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                   onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >

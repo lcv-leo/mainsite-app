@@ -1,5 +1,22 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.00.00] — 29/03/2026
+### Adicionado (MAJOR)
+- **Decomposição modular Hono + TypeScript**: monólito `index.js` (3013 linhas) decomposto em arquitetura modular tipada:
+  - 8 módulos de rotas: `ai.ts`, `posts.ts`, `contact.ts`, `settings.ts`, `uploads.ts`, `misc.ts`, `payments-sumup.ts`, `payments-mp.ts`.
+  - 4 bibliotecas compartilhadas: `auth.ts`, `logger.ts`, `rate-limit.ts`, `financial.ts`.
+  - Entry point `src/index.ts` com CORS, rate limit, cron triggers e module mounts.
+  - Tipagem estrita de bindings Cloudflare via `env.ts`.
+- **Fee Config dinâmico**: `financial.ts` → `loadFeeConfig()` carrega taxas SumUp/MP da D1 com fallback hardcoded, eliminando valores fixos no código.
+
+### Removido
+- Monólito `src/index.js` deletado após migração completa.
+- `tsconfig.json` atualizado (removido `baseUrl` deprecated).
+
+### Alterado
+- `wrangler.json`: nome do worker atualizado para `mainsite-motor`.
+- Build output: 320 KiB (57 KiB gzip) via `wrangler deploy --dry-run`.
+
 ## [v01.35.02] — 28/03/2026
 ### Corrigido
 - **SumUp — chave canônica em `mainsite_financial_logs`**: o sync histórico passou a normalizar `payment_id` para `checkout.id`, mantendo compatibilidade com registros legados originalmente persistidos com `transaction.id`.

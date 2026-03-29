@@ -1,0 +1,29 @@
+/**
+ * Tipagem estrita de bindings do Cloudflare Worker (mainsite-motor).
+ * Todos os módulos de rota importam este tipo via `Env`.
+ */
+export interface Env {
+  // --- D1 Database ---
+  DB: D1Database;
+
+  // --- R2 Bucket ---
+  BUCKET: R2Bucket;
+
+  // --- Secrets & Tokens ---
+  API_SECRET: string;
+  GEMINI_API_KEY: string;
+  RESEND_API_KEY: string;
+
+  // --- SumUp ---
+  SUMUP_API_KEY_PRIVATE: string;
+  SUMUP_MERCHANT_CODE: string;
+
+  // --- Mercado Pago ---
+  MP_ACCESS_TOKEN: string;
+  MERCADO_PAGO_WEBHOOK_SECRET: string;
+
+  // --- PIX ---
+  PIX_KEY: string;
+  PIX_NAME?: string;
+  PIX_CITY?: string;
+}
