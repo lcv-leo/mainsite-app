@@ -138,6 +138,8 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     <article aria-label={post.title}>
       <style>{`
         @keyframes pulseGlow { 0% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } 50% { box-shadow: 0 0 20px rgba(77, 166, 255, 0.8); border-color: rgba(77, 166, 255, 1); } 100% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
         .processing-active { animation: pulseGlow 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; color: #4da6ff !important; }
         
         .h1-title { text-align: center; font-size: clamp(32px, 5vw, 52px); letter-spacing: -0.03em; margin-bottom: 0; color: ${activePalette.titleColor}; text-transform: none; font-weight: 800; transition: color 0.5s ease; line-height: 1.1; }
@@ -218,10 +220,10 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
           </button>
 
           <div className={`ai-btn ${isTranslating ? 'processing-active' : ''}`} role="group" aria-label="Traduzir artigo" style={{ padding: '0', background: isTranslating ? `rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)` : '' }}>
-            <div style={{ padding: '14px 0 14px 20px', display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '14px 0 14px 20px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               {isTranslating ? <Loader2 size={18} className="animate-spin" /> : <Languages size={18} />}
             </div>
-            <select id="post-translate-language" name="postTranslateLanguage" autoComplete="off" onChange={handleTranslate} className="ai-select" disabled={isAILoading} aria-label="Selecionar idioma de tradução" style={{ padding: '14px 0', marginLeft: '-18px' }}>
+            <select id="post-translate-language" name="postTranslateLanguage" autoComplete="off" onChange={handleTranslate} className="ai-select" disabled={isAILoading} aria-label="Selecionar idioma de tradução" style={{ padding: '14px 14px 14px 6px' }}>
               <option value="">{isTranslating ? 'TRADUZINDO...' : 'TRADUZIR PARA...'}</option>
               <option value="Inglês">English</option>
               <option value="Espanhol">Español</option>
@@ -246,7 +248,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', marginBottom: '16px', color: '#4da6ff', textTransform: 'uppercase', letterSpacing: '1px' }}>
             <Sparkles size={20} /> TL;DR (Gerado por IA)
           </div>
-          {postSummary}
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(postSummary) }} />
         </div>
       )}
 
