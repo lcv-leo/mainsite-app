@@ -1,9 +1,21 @@
-// Módulo: mainsite-frontend/src/components/FloatingControls.jsx
-// Versão: v1.1.0
+// Módulo: mainsite-frontend/src/components/FloatingControls.tsx
+// Versão: v1.2.0
 // Descrição: Componente MD3 para o Botão de Voltar ao Topo, Troca de Tema e Chat.
 
-import React from 'react';
 import { ArrowUp, ArrowDown, Monitor, Sun, Moon, Bot, X } from 'lucide-react';
+import type { ActivePalette } from '../types';
+
+interface FloatingControlsProps {
+  showBackToTop: boolean
+  showScrollToBottom: boolean
+  scrollToTop: () => void
+  scrollToBottom: () => void
+  userTheme: 'auto' | 'dark' | 'light'
+  cycleTheme: () => void
+  isChatOpen: boolean
+  setIsChatOpen: (open: boolean) => void
+  activePalette: ActivePalette | null
+}
 
 const FloatingControls = ({
   showBackToTop,
@@ -15,7 +27,7 @@ const FloatingControls = ({
   isChatOpen,
   setIsChatOpen,
   activePalette
-}) => {
+}: FloatingControlsProps) => {
 
   if (!activePalette) return null;
 

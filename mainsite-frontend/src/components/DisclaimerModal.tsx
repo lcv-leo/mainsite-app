@@ -1,11 +1,20 @@
-// Módulo: mainsite-frontend/src/components/DisclaimerModal.jsx
-// Versão: v1.4.0
+// Módulo: mainsite-frontend/src/components/DisclaimerModal.tsx
+// Versão: v1.5.0
 // Descrição: Opt-Out independente + Gatilho de Doação em MD3 e Glassmorphism.
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertTriangle, Heart } from 'lucide-react';
+import type { ActivePalette, DisclaimersConfig } from '../types';
 
-const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigger }) => {
+interface DisclaimerModalProps {
+  show: boolean
+  onClose: () => void
+  activePalette: ActivePalette | null
+  config: DisclaimersConfig | null
+  onDonationTrigger?: () => void
+}
+
+const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigger }: DisclaimerModalProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 

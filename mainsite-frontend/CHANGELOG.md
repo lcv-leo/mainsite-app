@@ -1,5 +1,23 @@
 # Changelog — Mainsite Frontend
 
+## [v03.00.00] — 29/03/2026
+### Adicionado (MAJOR)
+- **Migração TypeScript completa**: todos os 10 componentes migrados de `.jsx` para `.tsx` tipados. Infraestrutura TypeScript adicionada (`tsconfig.json`, `vite-env.d.ts`, `types.ts`).
+- **SEO & AI-Era Visibility (GEO/AEO)**: implementada estratégia triple-layer:
+  - `robots.txt`: 10 AI crawlers explicitamente permitidos (GPTBot, PerplexityBot, ClaudeBot, Amazonbot, etc.)
+  - `index.html`: JSON-LD site-level `WebSite` + `Person` para Google Knowledge Graph e AI engines.
+  - `PostReader.tsx`: Schema.org `Article` expandido com `dateModified`, `description`, `wordCount`, `inLanguage`, `articleSection`, `speakable` (voice assistants) e `sameAs` (identity graph).
+  - Dynamic meta tags per-post (title, OG, Twitter, canonical) já implementados no `App.tsx`.
+- **Edge pre-rendering (HTMLRewriter)**: `[[path]].js` reescrito para injetar Schema.org `Article` + `BreadcrumbList` + OG `article:` properties no edge Cloudflare, garantindo que crawlers sem JS recebam structured data completa. Corrigida duplicação de canonical link.
+
+### Alterado
+- **UI/UX tiptap.dev refinements**: tokens de design atualizados — `shape-md` 16→20px, `shape-lg` 24→28px, `shape-xl` 28→32px; shadows mais difusas e ambientes; edge treatment de `border-inline` para `inset box-shadow` sutil.
+- **Meta author**: corrigido de "Divagações Filosóficas" para "Leonardo Cardozo Vargas".
+
+### Removido
+- Todos os arquivos `.jsx` legados (11 arquivos) substituídos por `.tsx`.
+- `main.jsx` substituído por `main.tsx`.
+
 ## [v02.21.01] — 28/03/2026
 ### Corrigido
 - **DonationModal — polling 3DS com ID não canônico**: o fluxo de status do SumUp passou a priorizar `payData.id` (retornado no processamento do pagamento) com fallback para `checkoutId`, evitando inconsistência entre ID de polling e `payment_id` persistido no backend.

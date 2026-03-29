@@ -1,10 +1,11 @@
-// Módulo: mainsite-frontend/src/components/DonationModal.jsx
-// Versão: v1.9.2
-// Descrição: Resolução do TypeError letal ('reading payer' of undefined) no onSubmit. O CardPayment do SDK do Mercado Pago envia o formData diretamente como argumento (diferente do Payment genérico). Assinatura ajustada para evitar undefined e garantir a injeção do first_name e last_name.
+// Módulo: mainsite-frontend/src/components/DonationModal.tsx
+// Versão: v2.0.0
+// Descrição: TypeScript migration. Resolução do TypeError letal ('reading payer' of undefined) no onSubmit preservada. Tipagem completa para estados, refs e payloads.
 
-import React, { useState, useEffect, useRef } from 'react';
+import { type FormEvent, useState, useEffect, useRef } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone, AlertTriangle, Loader2 } from 'lucide-react';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
+import type { ActivePalette } from '../types';
 
 // ✅ Carrega chave pública do Mercado Pago via variável de ambiente
 // Injetada pelo GitHub Actions durante o build (build-time env injection)
@@ -16,36 +17,74 @@ const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || '/api/up
   .trim()
   .replace(/^['"]|['"]$/g, '')
   .replace(/\/+$/, '');
-const getBrandIconSrc = (fileName, fallbackUrl = '') => (brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : fallbackUrl);
+const getBrandIconSrc = (fileName: string, _fallbackUrl = '') => (brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : _fallbackUrl);
 if (mpPublicKey) {
   initMercadoPago(mpPublicKey, { locale: 'pt-BR' });
 }
+
 // Taxas de processamento por provedor (cartão de crédito online)
 const MP_FEE_RATE = 0.0499;   // 4,99% Mercado Pago
 const MP_FEE_FIXED = 0.40;    // R$ 0,40 fixo
 const SUMUP_FEE_RATE = 0.0267; // 2,67% SumUp
 const SUMUP_FEE_FIXED = 0;
 
-const formatBRL = (num) =>
+type PaymentProvider = 'mercadopago' | 'sumup';
+
+interface SumupCardState {
+  holder: string
+  number: string
+  expiry: string
+  cvv: string
+}
+
+type SumupCardField = keyof SumupCardState;
+
+interface SumupNextStep {
+  url: string
+  method?: string
+  payload?: Record<string, string>
+}
+
+interface ToastLocal {
+  show: boolean
+  message: string
+  type: 'info' | 'success' | 'error'
+}
+
+interface BrandIcon {
+  key: string
+  label: string
+  src: string
+}
+
+interface DonationModalProps {
+  show: boolean
+  onClose: () => void
+  activePalette: ActivePalette
+  API_URL: string
+}
+
+const formatBRL = (num: number): string =>
   num.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
-const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
+
+const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [step, setStep] = useState(1);
   const [brickKey, setBrickKey] = useState(0);
-  const visibilityTimeoutRef = useRef(null);
+  const visibilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isProcessingCard, setIsProcessingCard] = useState(false);
   const [isProcessingMpCard, setIsProcessingMpCard] = useState(false);
-  const [sumupCard, setSumupCard] = useState({ holder: '', number: '', expiry: '', cvv: '' });
+  const [sumupCard, setSumupCard] = useState<SumupCardState>({ holder: '', number: '', expiry: '', cvv: '' });
   const [sumupEmail, setSumupEmail] = useState('');
   const [sumupDocument, setSumupDocument] = useState('');
   const [sumupDocumentType, setSumupDocumentType] = useState('CPF');
   const [coverFees, setCoverFees] = useState(false);
-  const [sumupNextStep, setSumupNextStep] = useState(null);
-  const [checkoutId, setCheckoutId] = useState(null);
-  
+  const [sumupNextStep, setSumupNextStep] = useState<SumupNextStep | null>(null);
+  const [checkoutId, setCheckoutId] = useState<string | null>(null);
+
   // Escuta o redirect_url do iframe para bypass final
   useEffect(() => {
-    const handleFrameMessage = (e) => {
+    const handleFrameMessage = (e: MessageEvent) => {
       if (e.data && e.data.type === 'sumup-3ds-success') {
         if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
         setStep(3);
@@ -54,9 +93,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     };
     window.addEventListener('message', handleFrameMessage);
     return () => window.removeEventListener('message', handleFrameMessage);
-  }, [setStep]);
+  }, []);
 
-  const pollingIntervalRef = useRef(null);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -64,12 +103,12 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
   const [pixPayload, setPixPayload] = useState('');
   const [isCopied, setIsCopied] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+  const [toast, setToast] = useState<ToastLocal>({ show: false, message: '', type: 'info' });
   const [toastTop, setToastTop] = useState(20);
-  const [brandImageFailed, setBrandImageFailed] = useState({});
-  const lastPointerYRef = useRef(null);
+  const [brandImageFailed, setBrandImageFailed] = useState<Record<string, boolean>>({});
+  const lastPointerYRef = useRef<number | null>(null);
 
-  const showToast = (message, type = 'error') => {
+  const showToast = (message: string, type: ToastLocal['type'] = 'error') => {
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
     const pointerY = lastPointerYRef.current;
     const baseY = pointerY != null ? pointerY : (viewportH * 0.5);
@@ -80,7 +119,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   };
 
   useEffect(() => {
-    const trackPointer = (e) => {
+    const trackPointer = (e: PointerEvent) => {
       if (typeof e?.clientY === 'number') lastPointerYRef.current = e.clientY;
     };
     window.addEventListener('pointerdown', trackPointer, { passive: true });
@@ -109,7 +148,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         setIsProcessingCard(false);
         setIsProcessingMpCard(false);
         setBrandImageFailed({});
-        
+
         setSumupNextStep(null);
         setCheckoutId(null);
         if (pollingIntervalRef.current) {
@@ -144,7 +183,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
 
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
 
-  const handleAmountChange = (e) => {
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value === '') { setAmountDisplay(''); return; }
     value = (parseInt(value, 10) / 100).toFixed(2);
@@ -153,14 +192,14 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     setAmountDisplay(value);
   };
 
-  const getNumericAmount = () => {
+  const getNumericAmount = (): number => {
     if (amountDisplay === '') return 0;
     return parseFloat(amountDisplay.replace(/\./g, '').replace(',', '.'));
   };
 
   // Calcula o valor bruto que cobre a taxa do provedor escolhido,
   // garantindo que o criador receba o valor base integralmente.
-  const getGrossAmount = (provider) => {
+  const getGrossAmount = (provider: PaymentProvider): number => {
     const base = getNumericAmount();
     if (!coverFees || base <= 0) return base;
     if (provider === 'mercadopago') {
@@ -172,7 +211,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     return base;
   };
 
-  const handleSumupCardChange = (field, value) => {
+  const handleSumupCardChange = (field: SumupCardField, value: string) => {
     let normalized = value;
     if (field === 'number') normalized = value.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 ').trim();
     if (field === 'expiry') normalized = value.replace(/\D/g, '').slice(0, 4).replace(/(\d{2})(\d)/, '$1/$2');
@@ -180,7 +219,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     setSumupCard(prev => ({ ...prev, [field]: normalized }));
   };
 
-  const handleChooseCardProvider = (provider) => {
+  const handleChooseCardProvider = (provider: PaymentProvider) => {
     if (provider === 'sumup') {
       setStep(5);
       return;
@@ -195,7 +234,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     }
   };
 
-  const handleSubmitSumupCard = async (e) => {
+  const handleSubmitSumupCard = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validateBaseForm()) return;
 
@@ -262,14 +301,15 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
         setStep(3);
         showToast('Pagamento aprovado com sucesso!', 'success');
       }
-    } catch (error) {
-      showToast(getStandardPaymentError(error?.message), 'error');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      showToast(getStandardPaymentError(msg), 'error');
     } finally {
       setIsProcessingCard(false);
     }
   };
 
-  const generatePix = async (amountStr) => {
+  const generatePix = async (amountStr: string): Promise<string | null> => {
     try {
       const res = await fetch('/api/pix/generate', {
         method: 'POST',
@@ -279,13 +319,14 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao gerar PIX');
       return data.payload;
-    } catch (err) {
-      showToast(err.message || 'Falha ao gerar código PIX.', 'error');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao gerar código PIX.';
+      showToast(msg, 'error');
       return null;
     }
   };
 
-  const handleConfirmNativePix = async (e) => {
+  const handleConfirmNativePix = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!validateBaseForm()) return;
     const finalAmount = amountDisplay === '' ? '0,00' : amountDisplay;
@@ -296,7 +337,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     }
   };
 
-  const validateBaseForm = () => {
+  const validateBaseForm = (): boolean => {
     if (!firstName.trim() || !lastName.trim()) {
       showToast("Preencha seu Nome e Sobrenome reais.", "error");
       return false;
@@ -308,14 +349,14 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     return true;
   };
 
-  const getStandardPaymentError = (rawMessage) => {
+  const getStandardPaymentError = (rawMessage?: string): string => {
     const msg = String(rawMessage || '').trim();
     if (!msg) return 'Pagamento não aprovado. Revise os dados e tente novamente.';
     return `Pagamento não aprovado: ${msg}`;
   };
 
 
-  const handleConfirmCreditCard = (e) => {
+  const handleConfirmCreditCard = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!validateBaseForm()) return;
     setStep(4);
@@ -331,7 +372,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     }
   };
 
-  const overlayStyle = {
+  const overlayStyle: React.CSSProperties = {
     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: isDarkBase ? 'rgba(15, 15, 20, 0.82)' : 'rgba(240, 240, 244, 0.52)',
     backdropFilter: 'blur(var(--glass-blur-subtle))', WebkitBackdropFilter: 'blur(var(--glass-blur-subtle))',
@@ -340,7 +381,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     overflowY: 'auto'
   };
 
-  const modalStyle = {
+  const modalStyle: React.CSSProperties = {
     backgroundColor: isDarkBase ? 'rgba(24,24,28,0.94)' : 'rgba(255,255,255,0.92)', color: activePalette.fontColor,
     padding: '35px', maxWidth: '450px', width: '100%', borderRadius: 'var(--shape-xl)',
     border: '1px solid rgba(128, 128, 128, 0.15)', textAlign: 'center',
@@ -351,7 +392,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     margin: 'auto'
   };
 
-  const buttonStyle = {
+  const buttonStyle: React.CSSProperties = {
     backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none',
     padding: '14px', fontSize: '13px', fontWeight: '900', borderRadius: '100px', cursor: 'pointer',
     width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px',
@@ -359,7 +400,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     letterSpacing: '1px', textTransform: 'uppercase'
   };
 
-  const inputStyle = {
+  const inputStyle: React.CSSProperties = {
     width: '100%', padding: '12px 16px',
     backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
     border: '1px solid rgba(128, 128, 128, 0.2)',
@@ -367,7 +408,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     fontSize: '14px', boxSizing: 'border-box'
   };
 
-  const cardHeaderTitleStyle = {
+  const cardHeaderTitleStyle: React.CSSProperties = {
     margin: '0',
     color: activePalette.titleColor,
     fontSize: '18px',
@@ -375,7 +416,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     textAlign: 'right',
   };
 
-  const cardSectionStyle = {
+  const cardSectionStyle: React.CSSProperties = {
     marginBottom: '12px',
     padding: '12px',
     borderRadius: '10px',
@@ -383,7 +424,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
     background: isDarkBase ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
   };
 
-  const cardProviderBadgeStyle = (provider) => ({
+  const cardProviderBadgeStyle = (provider: string): React.CSSProperties => ({
     display: 'inline-flex',
     alignItems: 'center',
     gap: '6px',
@@ -399,7 +440,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
   const donationBase = getNumericAmount();
   const donationGrossSumup = getGrossAmount('sumup');
   const donationGrossMp = getGrossAmount('mercadopago');
-  const sumupBrandIcons = [
+  const sumupBrandIcons: BrandIcon[] = [
     { key: 'mastercard', label: 'Mastercard', src: getBrandIconSrc('mastercard.svg') },
     { key: 'visa', label: 'Visa', src: getBrandIconSrc('visa.svg') },
     { key: 'elo', label: 'Elo', src: getBrandIconSrc('elo.svg') },
@@ -413,7 +454,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
       </div>
 
       <div role="dialog" aria-modal="true" aria-labelledby="donation-title" style={modalStyle}>
-        <button type="button" onClick={() => { setStep(1); onClose(); }} aria-label="Fechar" style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <button type="button" onClick={() => { setStep(1); onClose(); }} aria-label="Fechar" style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '0.8'; e.currentTarget.style.transform = 'translateY(0)'; }}>
           <X size={24} />
         </button>
 
@@ -712,7 +753,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 </div>
               </div>
 
-              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid rgba(128,128,128,0.2)` }}>
+              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(128,128,128,0.2)' }}>
                 <label htmlFor="sumup-email" style={{ display: 'block', margin: '0 0 12px 0', fontSize: '13px', fontWeight: '600', color: activePalette.fontColor }}>
                   Preencha seus dados
                 </label>
@@ -747,13 +788,13 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
             <p style={{ fontSize: '13px', opacity: 0.8, marginBottom: '20px' }}>
               Finalize a verificação diretamente com o banco emissor do seu cartão.
             </p>
-            
+
             <div style={{ position: 'relative', width: '100%', height: '400px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(128,128,128,0.2)', backgroundColor: '#fff' }}>
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', color: '#000' }}>
                 <Loader2 size={32} className="animate-spin" color={activePalette.titleColor} />
                 <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Carregando ambiente seguro...</span>
               </div>
-              
+
               <iframe
                 name="sumup-3ds-frame"
                 title="Autenticação 3D Secure"
@@ -768,19 +809,19 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                           const data = await res.json();
                           const st = (data.status || '').toUpperCase();
                           if (st === 'SUCCESSFUL' || st === 'PAID') {
-                            clearInterval(pollingIntervalRef.current);
+                            clearInterval(pollingIntervalRef.current!);
                             pollingIntervalRef.current = null;
                             setStep(3); // Success
                             showToast('Pagamento aprovado com sucesso!', 'success');
                           } else if (st === 'FAILED') {
-                            clearInterval(pollingIntervalRef.current);
+                            clearInterval(pollingIntervalRef.current!);
                             pollingIntervalRef.current = null;
                             setStep(5); // Go back to payment form
                             setIsProcessingCard(false);
                             showToast('A transação foi recusada ou falhou.', 'error');
                           }
                         }
-                      } catch(err) {
+                      } catch (err) {
                         console.error('Polling error', err);
                       }
                     }, 4000);
@@ -788,10 +829,10 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 }}
               />
               <form
-                method={sumupNextStep.method || "POST"}
+                method={(sumupNextStep.method || "POST") as "get" | "post"}
                 action={sumupNextStep.url}
                 target="sumup-3ds-frame"
-                ref={(el) => {
+                ref={(el: HTMLFormElement | null) => {
                   if (el && !el.dataset.submitted) {
                     el.dataset.submitted = 'true';
                     setTimeout(() => el.submit(), 100);
@@ -804,7 +845,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                 ))}
               </form>
             </div>
-            
+
             <button
               type="button"
               onClick={() => {
@@ -856,17 +897,19 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                   key={`mp-card-brick-${brickKey}`}
                   initialization={{ amount: donationGrossMp }}
                   customization={{ visual: { style: { theme: isDarkBase ? 'dark' : 'default' } } }}
-                  onSubmit={(formData) => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  onSubmit={async (formData: any) => {
                     setIsProcessingMpCard(true);
-                    return new Promise((resolve, reject) => {
+                    return new Promise<void>((resolve, reject) => {
                       const processDonation = async () => {
                         try {
+                          const payer = (formData.payer && typeof formData.payer === 'object' ? formData.payer : {}) as Record<string, unknown>;
                           const payload = {
                             ...formData,
                             baseAmount: getNumericAmount(),
                             coverFees,
                             payer: {
-                              ...(formData.payer || {}),
+                              ...payer,
                               first_name: firstName.trim(),
                               last_name: lastName.trim(),
                             },
@@ -899,7 +942,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }) => {
                       processDonation();
                     });
                   }}
-                  onError={(error) => {
+                  onError={(error: unknown) => {
                     setIsProcessingMpCard(false);
                     console.error('🔴 Erro de Inicialização do SDK MP:', error);
                     showToast('Não foi possível iniciar o formulário de cartão. Atualize a página e tente novamente.', 'error');

@@ -1,11 +1,20 @@
-// Módulo: mainsite-frontend/src/components/ShareOverlay.jsx
-// Versão: v1.4.0
+// Módulo: mainsite-frontend/src/components/ShareOverlay.tsx
+// Versão: v1.5.0
 // Descrição: MD3 + Glassmorphism.
 
-import React, { useState, useEffect } from 'react';
+import { type FormEvent, useState, useEffect } from 'react';
 import { Mail, Send, X } from 'lucide-react';
+import type { ActivePalette, ShareModalState } from '../types';
+import { isDarkPalette } from '../types';
 
-const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) => {
+interface ShareOverlayProps {
+  modalState: ShareModalState
+  setModalState: (state: ShareModalState) => void
+  onSubmit: (e: FormEvent<HTMLFormElement>) => void
+  activePalette: ActivePalette
+}
+
+const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }: ShareOverlayProps) => {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
@@ -18,9 +27,9 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
 
     if (!isVisible && !modalState.show) return null;
 
-    const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
+    const isDarkBase = isDarkPalette(activePalette);
 
-    const overlayStyle = {
+    const overlayStyle: React.CSSProperties = {
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: isDarkBase ? 'rgba(15, 15, 20, 0.85)' : 'rgba(240, 240, 244, 0.56)',
         backdropFilter: 'blur(var(--glass-blur-subtle))', WebkitBackdropFilter: 'blur(var(--glass-blur-subtle))',
@@ -28,7 +37,7 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
         opacity: modalState.show ? 1 : 0, transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)', padding: '20px'
     };
 
-    const modalStyle = {
+    const modalStyle: React.CSSProperties = {
         backgroundColor: isDarkBase ? 'rgba(24,24,28,0.9)' : 'rgba(255,255,255,0.88)', color: activePalette.fontColor,
         padding: '40px', maxWidth: '450px', width: '100%', borderRadius: '28px', border: '1px solid rgba(128, 128, 128, 0.15)',
         boxShadow: isDarkBase ? '0 32px 64px -12px rgba(0, 0, 0, 0.6)' : '0 32px 64px -12px rgba(0, 0, 0, 0.15)',
@@ -37,14 +46,14 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
         alignItems: 'center', textAlign: 'center', backdropFilter: 'blur(var(--glass-blur-deep))', textShadow: isDarkBase ? '0 1px 3px rgba(0,0,0,0.35)' : 'none'
     };
 
-    const inputStyle = {
+    const inputStyle: React.CSSProperties = {
         width: '100%', padding: '16px', marginBottom: '24px',
         backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
         border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: '16px', color: activePalette.fontColor,
         fontSize: '15px', transition: 'border-color 0.2s', boxSizing: 'border-box', textAlign: 'center'
     };
 
-    const buttonStyle = {
+    const buttonStyle: React.CSSProperties = {
         backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none',
         padding: '16px', fontSize: '15px', fontWeight: '800', borderRadius: '100px', cursor: 'pointer',
         width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px',
@@ -54,7 +63,7 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }) =>
     return (
         <div style={overlayStyle} role="dialog" aria-modal="true" aria-labelledby="share-title">
             <div style={modalStyle}>
-                <button type="button" onClick={() => setModalState({ show: false, email: '' })} aria-label="Fechar" style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(128,128,128,0.1)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '100px', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = 0.8; e.currentTarget.style.transform = 'translateY(0)'; }}>
+                <button type="button" onClick={() => setModalState({ show: false, email: '' })} aria-label="Fechar" style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(128,128,128,0.1)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '100px', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.transform = 'translateY(0)'; }}>
                     <X size={20} />
                 </button>
 
