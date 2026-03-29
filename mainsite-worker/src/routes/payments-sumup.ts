@@ -642,7 +642,17 @@ sumup.post('/api/sumup-payment/:id/refund', requireAuth, async (c) => {
       return c.json({ error: `Estorno recusado pela SumUp: ${message}` }, 400);
     }
 
-    const newStatus = amount ? 'PARTIALLY_REFUNDED' : 'REFUNDED';
+    // Determinar estorno total vs parcial comparando com valor original
+    let newStatus = 'REFUNDED';
+    if (amount) {
+      try {
+        const logRow = await c.env.DB.prepare(
+          "SELECT amount FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
+        ).bind(id).first<{ amount?: number }>();
+        const originalAmount = Number(logRow?.amount || 0);
+        newStatus = (originalAmount > 0 && amount < originalAmount) ? 'PARTIALLY_REFUNDED' : 'REFUNDED';
+      } catch { newStatus = 'PARTIALLY_REFUNDED'; }
+    }
     await c.env.DB.prepare("UPDATE mainsite_financial_logs SET payment_id = ?, status = ? WHERE method = 'sumup_card' AND (payment_id = ? OR payment_id = ?)").bind(id, newStatus, id, txnId).run();
     return c.json({ success: true, status: newStatus });
   } catch (err) {
@@ -672,7 +682,17 @@ sumup.post('/api/financeiro/sumup-refund', requireAuth, async (c) => {
       return c.json({ success: false, error: `Estorno recusado pela SumUp: ${message}` }, 400);
     }
 
-    const newStatus = amount ? 'PARTIALLY_REFUNDED' : 'REFUNDED';
+    // Determinar estorno total vs parcial comparando com valor original
+    let newStatus = 'REFUNDED';
+    if (amount) {
+      try {
+        const logRow = await c.env.DB.prepare(
+          "SELECT amount FROM mainsite_financial_logs WHERE payment_id = ? AND method = 'sumup_card' LIMIT 1"
+        ).bind(id).first<{ amount?: number }>();
+        const originalAmount = Number(logRow?.amount || 0);
+        newStatus = (originalAmount > 0 && amount < originalAmount) ? 'PARTIALLY_REFUNDED' : 'REFUNDED';
+      } catch { newStatus = 'PARTIALLY_REFUNDED'; }
+    }
     await c.env.DB.prepare("UPDATE mainsite_financial_logs SET payment_id = ?, status = ? WHERE method = 'sumup_card' AND (payment_id = ? OR payment_id = ?)").bind(id, newStatus, id, txnId).run();
     return c.json({ success: true, status: newStatus });
   } catch (err) {

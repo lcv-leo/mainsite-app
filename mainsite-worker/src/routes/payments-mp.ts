@@ -382,7 +382,17 @@ mp.post('/api/mp-payment/:id/refund', requireAuth, async (c) => {
     } catch { /* ignore */ }
 
     await refundApi.create(refundBody);
-    const newStatus = refundBody.body?.amount ? 'partially_refunded' : 'refunded';
+    // Determinar estorno total vs parcial comparando com valor original
+    let newStatus = 'refunded';
+    if (refundBody.body?.amount) {
+      try {
+        const logRow = await c.env.DB.prepare(
+          "SELECT amount FROM mainsite_financial_logs WHERE payment_id = ? LIMIT 1"
+        ).bind(id).first<{ amount?: number }>();
+        const originalAmount = Number(logRow?.amount || 0);
+        newStatus = (originalAmount > 0 && refundBody.body.amount < originalAmount) ? 'partially_refunded' : 'refunded';
+      } catch { newStatus = 'partially_refunded'; }
+    }
     await c.env.DB.prepare("UPDATE mainsite_financial_logs SET status = ? WHERE payment_id = ?").bind(newStatus, id).run();
 
     return c.json({ success: true, status: newStatus });
