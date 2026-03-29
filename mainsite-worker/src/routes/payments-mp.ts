@@ -1,19 +1,22 @@
 /**
- * Rotas de Pagamento Mercado Pago (payment, refund, cancel, webhook, sync, logs).
+ * Rotas de Pagamento Mercado Pago (payment, webhook, insights).
  * Zero Trust: HMAC-SHA256 webhook validation, Bearer auth em rotas admin.
- * Domínio: /api/mp*, /api/webhooks/mercadopago, /api/financial-logs, /api/financeiro/sumup-*
+ * Domínio: /api/mp*, /api/webhooks/mercadopago
+ *
+ * Arquitetura Live API-first:
+ * - Dados transacionais: Mercado Pago REST API (fonte de verdade)
+ * - D1 financeiro: removido (sem consumidor)
+ * - Webhook MP: mantido para compliance (ACK + email notification)
+ * - Fee Config: D1 `mainsite_settings` (configuração, não transação)
  */
 import { Hono } from 'hono';
-import { MercadoPagoConfig, Payment, PaymentMethod, PaymentRefund } from 'mercadopago';
+import { MercadoPagoConfig, Payment, PaymentMethod } from 'mercadopago';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
 import {
   validateMercadoPagoSignatureAsync,
   getStartIsoWithCutoff,
-  getStartDbWithCutoff,
-  FINANCIAL_CUTOFF_ISO,
-  FINANCIAL_CUTOFF_DB_UTC,
   loadFeeConfig,
 } from '../lib/financial.ts';
 
@@ -95,7 +98,10 @@ mp.post('/api/mp-payment', async (c) => {
   }
 });
 
-// ========== WEBHOOK (HMAC-SHA256 VALIDATED) ==========
+// ========== WEBHOOK (HMAC-SHA256 VALIDATED — Compliance ACK + Email) ==========
+// O webhook é obrigatório pelo Mercado Pago para passar com 100% no teste de qualidade.
+// Mantém: validação HMAC, consulta ao provedor para dados do pagamento, notificação por e-mail.
+// Removido: todas as escritas/leituras D1 (sem consumidor).
 
 mp.post('/api/webhooks/mercadopago', async (c) => {
   const signature = c.req.header('x-signature');
@@ -152,39 +158,32 @@ mp.post('/api/webhooks/mercadopago', async (c) => {
       return c.text('OK', 200);
     }
 
+    // Buscar dados do pagamento no provedor para notificação por e-mail
     const mpToken = c.env.MP_ACCESS_TOKEN;
-    let paymentData: Record<string, unknown> = {};
+    let status = 'Desconhecido';
+    let amount = 0;
+    let email = 'N/A';
+    let method = 'N/A';
+    let extRef = 'N/A';
 
     if (mpToken) {
-      const client = new MercadoPagoConfig({ accessToken: mpToken });
-      const paymentApi = new Payment(client);
-      paymentData = (await paymentApi.get({ id: id as string })) as unknown as Record<string, unknown>;
+      try {
+        const client = new MercadoPagoConfig({ accessToken: mpToken });
+        const paymentApi = new Payment(client);
+        const paymentData = (await paymentApi.get({ id: id as string })) as unknown as Record<string, unknown>;
+        status = (paymentData.status as string) || 'Desconhecido';
+        amount = Number(paymentData.transaction_amount || 0);
+        email = (paymentData.payer as Record<string, string>)?.email || 'N/A';
+        method = (paymentData.payment_method_id as string) || 'N/A';
+        extRef = (paymentData.external_reference as string) || 'N/A';
+      } catch {
+        structuredLog('warn', `[MP Webhook] Falha ao buscar dados do pagamento ${id} no provedor`);
+      }
     }
 
-    const status = (paymentData.status as string) || 'Desconhecido';
-    const amount = Number(paymentData.transaction_amount || 0);
-    const email = (paymentData.payer as Record<string, string>)?.email || 'N/A';
-    const method = (paymentData.payment_method_id as string) || 'N/A';
-    const extRef = (paymentData.external_reference as string) || 'N/A';
+    // Sem D1 — webhook apenas faz ACK e envia notificação por e-mail
 
-    const existing = await c.env.DB.prepare("SELECT id, status FROM mainsite_financial_logs WHERE payment_id = ?").bind(id).first<{ id: number; status: string }>();
-    let shouldSendEmail = false;
-
-    if (!existing) {
-      shouldSendEmail = true;
-      c.executionCtx.waitUntil(
-        c.env.DB.prepare("INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)")
-          .bind(id, status, amount, method, email, JSON.stringify(paymentData)).run()
-      );
-    } else {
-      if (existing.status !== status) shouldSendEmail = true;
-      c.executionCtx.waitUntil(
-        c.env.DB.prepare("UPDATE mainsite_financial_logs SET status = ?, amount = ?, method = ?, payer_email = ?, raw_payload = ? WHERE payment_id = ?")
-          .bind(status, amount, method, email, JSON.stringify(paymentData), id).run()
-      );
-    }
-
-    if (shouldSendEmail && c.env.RESEND_API_KEY) {
+    if (c.env.RESEND_API_KEY) {
       const htmlMsg = `
         <div style="font-family: sans-serif; color: #333;">
           <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Notificação de Pagamento (Mercado Pago)</h2>
@@ -219,7 +218,7 @@ mp.post('/api/webhooks/mercadopago', async (c) => {
   }
 });
 
-// ========== ADMIN: MP PAYMENT METHODS / SUMMARY / ADVANCED ==========
+// ========== ADMIN: MP PAYMENT METHODS / SUMMARY / ADVANCED (SDK-only) ==========
 
 mp.get('/api/mp/payment-methods', requireAuth, async (c) => {
   try {
@@ -276,11 +275,11 @@ mp.get('/api/mp/transactions-summary', requireAuth, async (c) => {
     for (const tx of items) {
       const status = String(tx?.status || 'unknown').toUpperCase();
       const type = String(tx?.payment_type_id || 'unknown').toUpperCase();
-      const amount = Number(tx?.transaction_amount || 0);
+      const txAmount = Number(tx?.transaction_amount || 0);
       const net = Number((tx?.transaction_details as Record<string, unknown>)?.net_received_amount || 0);
       byStatus[status] = (byStatus[status] || 0) + 1;
       byType[type] = (byType[type] || 0) + 1;
-      totalAmount += amount;
+      totalAmount += txAmount;
       totalNetAmount += net;
     }
 
@@ -359,187 +358,6 @@ mp.get('/api/mp/transactions-advanced', requireAuth, async (c) => {
       totalFiltered: filtered.length,
       items: filtered,
     });
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
-
-// ========== REFUND / CANCEL ==========
-
-mp.post('/api/mp-payment/:id/refund', requireAuth, async (c) => {
-  const id = c.req.param('id');
-  try {
-    const token = c.env.MP_ACCESS_TOKEN;
-    if (!token) throw new Error('MP_ACCESS_TOKEN ausente.');
-
-    const client = new MercadoPagoConfig({ accessToken: token });
-    const refundApi = new PaymentRefund(client);
-
-    const refundBody: { payment_id: number; body?: { amount: number } } = { payment_id: Number(id) };
-    try {
-      const body = (await c.req.json()) as { amount?: number };
-      if (body.amount) refundBody.body = { amount: Number(body.amount) };
-    } catch { /* ignore */ }
-
-    await refundApi.create(refundBody);
-    // Determinar estorno total vs parcial comparando com valor original
-    let newStatus = 'refunded';
-    if (refundBody.body?.amount) {
-      try {
-        const logRow = await c.env.DB.prepare(
-          "SELECT amount FROM mainsite_financial_logs WHERE payment_id = ? LIMIT 1"
-        ).bind(id).first<{ amount?: number }>();
-        const originalAmount = Number(logRow?.amount || 0);
-        newStatus = (originalAmount > 0 && refundBody.body.amount < originalAmount) ? 'partially_refunded' : 'refunded';
-      } catch { newStatus = 'partially_refunded'; }
-    }
-    await c.env.DB.prepare("UPDATE mainsite_financial_logs SET status = ? WHERE payment_id = ?").bind(newStatus, id).run();
-
-    return c.json({ success: true, status: newStatus });
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
-
-mp.put('/api/mp-payment/:id/cancel', requireAuth, async (c) => {
-  const id = c.req.param('id');
-  try {
-    const token = c.env.MP_ACCESS_TOKEN;
-    if (!token) throw new Error('MP_ACCESS_TOKEN ausente.');
-
-    const client = new MercadoPagoConfig({ accessToken: token });
-    const paymentApi = new Payment(client);
-    await paymentApi.cancel({ id: Number(id) });
-
-    await c.env.DB.prepare("UPDATE mainsite_financial_logs SET status = 'cancelled' WHERE payment_id = ?").bind(id).run();
-    return c.json({ success: true });
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
-
-// ========== MP BALANCE (FROM LOCAL DB) ==========
-
-mp.get('/api/mp-balance', requireAuth, async (c) => {
-  try {
-    const startDb = getStartDbWithCutoff(c.req.query('start_date'));
-    const available = await c.env.DB.prepare(
-      "SELECT COALESCE(SUM(amount), 0) as total FROM mainsite_financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) AND lower(status) = 'approved'"
-    ).bind(startDb).first<{ total: number }>();
-    const unavailable = await c.env.DB.prepare(
-      "SELECT COALESCE(SUM(amount), 0) as total FROM mainsite_financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) AND lower(status) IN ('pending', 'in_process')"
-    ).bind(startDb).first<{ total: number }>();
-    return c.json({ available_balance: Number(available?.total || 0), unavailable_balance: Number(unavailable?.total || 0) });
-  } catch {
-    return c.json({ available_balance: 0, unavailable_balance: 0 });
-  }
-});
-
-// ========== MP SYNC ==========
-
-mp.post('/api/mp/sync', requireAuth, async (c) => {
-  try {
-    const token = c.env.MP_ACCESS_TOKEN;
-    if (!token) throw new Error('MP_ACCESS_TOKEN ausente.');
-
-    const client = new MercadoPagoConfig({ accessToken: token });
-    const paymentApi = new Payment(client);
-
-    // 1) Update existing local records
-    const { results: localLogs = [] } = await c.env.DB.prepare(
-      "SELECT payment_id FROM mainsite_financial_logs WHERE payment_id IS NOT NULL AND (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100"
-    ).bind(FINANCIAL_CUTOFF_DB_UTC).all();
-
-    let inserted = 0, updated = 0, tracked = 0;
-
-    for (const log of localLogs) {
-      const paymentId = String((log as Record<string, unknown>).payment_id || '').trim();
-      if (!paymentId) continue;
-      try {
-        const paymentData = (await paymentApi.get({ id: paymentId })) as unknown as Record<string, unknown>;
-        const status = String((paymentData.status as string) || 'unknown').toLowerCase();
-        const amount = Number(paymentData.transaction_amount || 0);
-        const email = (paymentData.payer as Record<string, string>)?.email || 'N/A';
-        const method = (paymentData.payment_method_id as string) || 'N/A';
-        const raw = JSON.stringify(paymentData);
-
-        await c.env.DB.prepare(
-          "UPDATE mainsite_financial_logs SET status = ?, amount = ?, method = ?, payer_email = ?, raw_payload = ? WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card')"
-        ).bind(status, amount, method, email, raw, paymentId).run();
-        tracked++;
-        updated++;
-      } catch { /* continue sync */ }
-    }
-
-    // 2) Broad search (best effort)
-    let scanned = localLogs.length;
-    try {
-      const payload = await paymentApi.search({
-        options: { sort: 'date_created', criteria: 'desc', range: 'date_created', begin_date: FINANCIAL_CUTOFF_ISO, end_date: new Date().toISOString(), limit: 100 },
-      });
-
-      const payments = Array.isArray((payload as unknown as Record<string, unknown>)?.results) ? (payload as unknown as { results: Array<Record<string, unknown>> }).results : [];
-      scanned = payments.length;
-
-      for (const paymentData of payments) {
-        const paymentId = String(paymentData.id || '').trim();
-        if (!paymentId) continue;
-
-        const externalRef = String(paymentData.external_reference || '').trim();
-        const description = String(paymentData.description || '').toLowerCase();
-        const looksLikeSiteDonation = externalRef.startsWith('DON-') || description.includes('divagações filosóficas') || description.includes('divagacoes filosoficas');
-        if (!looksLikeSiteDonation) continue;
-
-        const existing = await c.env.DB.prepare(
-          "SELECT id FROM mainsite_financial_logs WHERE payment_id = ? AND (method IS NULL OR method != 'sumup_card') LIMIT 1"
-        ).bind(paymentId).first();
-        if (existing) continue;
-
-        const status = String((paymentData.status as string) || 'unknown').toLowerCase();
-        const amount = Number(paymentData.transaction_amount || 0);
-        const email = (paymentData.payer as Record<string, string>)?.email || 'N/A';
-        const method = (paymentData.payment_method_id as string) || 'N/A';
-        const raw = JSON.stringify(paymentData);
-
-        await c.env.DB.prepare(
-          "INSERT INTO mainsite_financial_logs (payment_id, status, amount, method, payer_email, raw_payload) VALUES (?, ?, ?, ?, ?, ?)"
-        ).bind(paymentId, status, amount, method, email, raw).run();
-        inserted++;
-      }
-    } catch { /* broad search is best effort */ }
-
-    return c.json({ success: true, inserted, updated, total: tracked + inserted, scanned });
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
-
-// ========== FINANCIAL LOGS (MP) ==========
-
-mp.get('/api/financial-logs', requireAuth, async (c) => {
-  try {
-    const startDb = getStartDbWithCutoff(c.req.query('start_date'));
-    const { results } = await c.env.DB.prepare("SELECT * FROM mainsite_financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?) ORDER BY created_at DESC LIMIT 100").bind(startDb).all();
-    return c.json(results || []);
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
-
-mp.get('/api/financial-logs/check', requireAuth, async (c) => {
-  try {
-    const startDb = getStartDbWithCutoff(c.req.query('start_date'));
-    const result = await c.env.DB.prepare("SELECT COUNT(*) as total FROM mainsite_financial_logs WHERE (method IS NULL OR method != 'sumup_card') AND datetime(created_at) >= datetime(?)").bind(startDb).first<{ total: number }>();
-    return c.json({ count: result?.total || 0 });
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
-
-mp.delete('/api/financial-logs/:id', requireAuth, async (c) => {
-  try {
-    await c.env.DB.prepare("DELETE FROM mainsite_financial_logs WHERE id = ? AND (method IS NULL OR method != 'sumup_card')").bind(c.req.param('id')).run();
-    return c.json({ success: true });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
   }
