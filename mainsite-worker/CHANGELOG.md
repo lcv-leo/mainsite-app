@@ -1,5 +1,10 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.00.01] — 2026-03-29
+### Corrigido
+- **SumUp — detecção inteligente de reembolsos**: `payments-sumup.ts` agora itera todo o array `transactions[]` do checkout SumUp, identificando transações com `type: "REFUND"` e somando valores para determinar status `REFUNDED` (total) ou `PARTIALLY_REFUNDED` (parcial). Antes, apenas `transactions[0]` (pagamento original) era inspecionado.
+- **Mercado Pago — detecção de reembolso parcial**: `payments-mp.ts` expandido para verificar `refunds[]` e `refund_resources[]` no payload MP, resolvendo status `PARTIALLY_REFUNDED` quando o total reembolsado é menor que o valor original.
+
 ## [v02.00.00] — 29/03/2026
 ### Adicionado (MAJOR)
 - **Decomposição modular Hono + TypeScript**: monólito `index.js` (3013 linhas) decomposto em arquitetura modular tipada:
