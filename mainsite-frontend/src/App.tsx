@@ -19,13 +19,13 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.00.01';
+const APP_VERSION = 'APP v03.01.00';
 const SITE_NAME = 'Divagações Filosóficas';
 const SITE_URL = 'https://www.lcv.rio.br';
 
 const DEFAULT_SETTINGS: SiteSettings = {
   allowAutoMode: true,
-  light: { bgColor: '#f8f9fa', bgImage: '', fontColor: '#202124', titleColor: '#1a73e8' },
+  light: { bgColor: '#f8f9fa', bgImage: '', fontColor: '#202124', titleColor: '#4285f4' },
   dark: { bgColor: '#16171d', bgImage: '', fontColor: '#d1d5db', titleColor: '#8ab4f8' },
   shared: {
     fontSize: '1.15rem', titleFontSize: '1.8rem',
@@ -64,6 +64,7 @@ const App = () => {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [readingProgress, setReadingProgress] = useState(0);
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showDisclaimerFlow, setShowDisclaimerFlow] = useState(false);
@@ -284,6 +285,10 @@ const App = () => {
 
       setShowBackToTop(hasMeaningfulScroll && scrollTop > 420);
       setShowScrollToBottom(hasMeaningfulScroll && scrollTop > 120 && remainingToBottom > 420);
+
+      // Reading progress bar
+      const progress = scrollableDistance > 0 ? Math.min(100, (scrollTop / scrollableDistance) * 100) : 0;
+      setReadingProgress(progress);
     };
 
     handleScroll();
@@ -395,6 +400,26 @@ const App = () => {
 
   return (
     <div style={appStyle}>
+      {/* Reading Progress Bar */}
+      <div
+        role="progressbar"
+        aria-valuenow={Math.round(readingProgress)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Progresso de leitura"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: `${readingProgress}%`,
+          height: '3px',
+          background: 'linear-gradient(90deg, #4285f4, #7c3aed)',
+          zIndex: 11010,
+          transition: 'width 0.15s linear',
+          borderRadius: '0 2px 2px 0',
+          opacity: readingProgress > 0 ? 1 : 0,
+        }}
+      />
       <a href="#conteudo-principal" className="sr-only" style={{ position: 'absolute', top: '-40px', left: 0, zIndex: 99999, padding: '8px 16px', background: '#000', color: '#fff' }} onFocus={(e) => e.currentTarget.style.top = '0'} onBlur={(e) => e.currentTarget.style.top = '-40px'}>Ir para o conteúdo principal</a>
       <div role="alert" aria-live="assertive" aria-atomic="true" style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : (isDarkBase ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor, padding: '16px 32px', borderRadius: '100px', zIndex: 11005, boxShadow: '0 12px 36px rgba(0,0,0,0.2)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: '700', fontSize: '14px' }}>
         {toast.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle size={18} />} {toast.message}

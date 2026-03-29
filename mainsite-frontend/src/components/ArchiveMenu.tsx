@@ -1,9 +1,9 @@
 // Módulo: mainsite-frontend/src/components/ArchiveMenu.tsx
-// Versão: v1.3.0
-// Descrição: TypeScript migration. Listagem e busca com Glassmorphism + MD3 e Timezone America/Sao_Paulo.
+// Versão: v2.0.0
+// Descrição: Fase 4 visual redesign — 2-column editorial grid, pill year selectors, gradient accents.
 
 import { useMemo, useState } from 'react';
-import { ChevronUp, Search } from 'lucide-react';
+import { ChevronUp, Search, Calendar } from 'lucide-react';
 import type { ActivePalette, Post } from '../types';
 
 /** Agrupamento interno por mês. */
@@ -111,232 +111,350 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const styles: Record<string, React.CSSProperties> = {
-    footer: { marginTop: '60px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '40px' },
-    archiveToggle: { background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', opacity: 0.8, transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' },
-    card: { padding: '16px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', borderRadius: '16px' },
-    cardDate: { fontSize: '12px', opacity: 0.7, marginBottom: '10px', fontWeight: '600', letterSpacing: '0.3px' },
-    squareBlock: { width: 'min(100%, 154px)', aspectRatio: '1 / 1', borderRadius: '16px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', boxSizing: 'border-box', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' },
-    expandBar: { width: '100%', minHeight: '92px', borderRadius: '20px', cursor: 'pointer', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.1em', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', background: 'none', color: activePalette.fontColor }
-  };
-
   const fmtDate = (raw: string | undefined | null): string | null => {
     if (!raw) return null;
     const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
     return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
-  const renderPostCard = (post: Post) => {
-    const criado = fmtDate(post.created_at);
-    const atualizado = fmtDate(post.updated_at);
-    const showUpdated = atualizado && atualizado !== criado;
+  const fmtDateShort = (raw: string | undefined | null): string | null => {
+    if (!raw) return null;
+    const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
+    return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  /** 2-column editorial post card */
+  const renderEditorialCard = (post: Post) => {
+    const dateStr = fmtDateShort(post.created_at) || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     return (
       <div
         key={post.id}
         onClick={() => handleSelectPost(post)}
-        className="glass-card-md3"
-        style={styles.card}
+        className="editorial-card"
       >
-        <div style={styles.cardDate}>
-          Publicado em {criado || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-          {showUpdated && <div style={{ marginTop: '2px', fontSize: '10px', opacity: 0.8 }}>Atualizado em {atualizado}</div>}
+        <div className="editorial-card-accent" />
+        <div className="editorial-card-body">
+          <div className="editorial-card-date">
+            <Calendar size={12} style={{ opacity: 0.6 }} />
+            {dateStr}
+          </div>
+          <div className="editorial-card-title">{post.title}</div>
         </div>
-        <div style={{ fontSize: '13px', fontWeight: '600', color: activePalette.titleColor, transition: 'color 0.5s ease', lineHeight: '1.4' }}>{post.title}</div>
+      </div>
+    );
+  };
+
+  /** Square block for latest 4 posts (keeping featured prominence) */
+  const renderFeaturedCard = (post: Post) => {
+    const criado = fmtDate(post.created_at);
+    const atualizado = fmtDate(post.updated_at);
+    const showUpdated = atualizado && atualizado !== criado;
+    return (
+      <div key={post.id} className="featured-card-wrap">
+        <div
+          onClick={() => handleSelectPost(post)}
+          className="featured-card"
+        >
+          <div className="featured-card-date">
+            {criado || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+            {showUpdated && <div style={{ marginTop: '2px', fontSize: '10px', opacity: 0.8 }}>Atualizado em {atualizado}</div>}
+          </div>
+          <div className="featured-card-title">{post.title}</div>
+        </div>
       </div>
     );
   };
 
   return (
-    <footer style={styles.footer}>
+    <footer style={{ marginTop: '60px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '40px' }}>
       <style>{`
-        .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; padding: 0; width: 100%; box-sizing: border-box; }
-        .archive-group { margin: 12px 24px 0 24px; padding-top: 18px; border-top: 1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.08); }
-        .archive-year-title { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; margin: 0 0 14px 0; opacity: 0.85; text-transform: uppercase; }
-        .archive-month-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; margin: 0 0 10px 0; opacity: 0.7; }
-        .archive-month-block + .archive-month-block { margin-top: 20px; }
-        .archive-square-row {
+        /* === PILL YEAR SELECTORS === */
+        .year-pills-bar {
           display: flex;
           flex-wrap: wrap;
           justify-content: center;
-          gap: 18px;
+          gap: 8px;
+          padding: 6px 24px;
+          margin-top: 24px;
+        }
+        .year-pill {
+          padding: 8px 20px;
+          border-radius: 100px;
+          border: 1.5px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.12);
+          background: transparent;
+          color: ${activePalette.fontColor};
+          font-family: inherit;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          outline: none;
+        }
+        .year-pill:hover {
+          border-color: #4285f4;
+          color: #4285f4;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(66, 133, 244, 0.15);
+        }
+        .year-pill.active {
+          background: linear-gradient(135deg, #4285f4, #7c3aed);
+          color: #fff;
+          border-color: transparent;
+          box-shadow: 0 6px 20px rgba(66, 133, 244, 0.25);
+        }
+        .year-pill.active:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 28px rgba(66, 133, 244, 0.35);
+          color: #fff;
+        }
+        .show-older-pill {
+          padding: 8px 20px;
+          border-radius: 100px;
+          border: 1.5px dashed rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.15);
+          background: transparent;
+          color: ${activePalette.fontColor};
+          font-family: inherit;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          opacity: 0.6;
+        }
+        .show-older-pill:hover { opacity: 1; border-color: #4285f4; color: #4285f4; }
+
+        /* === FEATURED CARDS (top 4) === */
+        .featured-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          padding: 0 24px;
+          margin-top: 20px;
           width: 100%;
-          padding: 0;
+          box-sizing: border-box;
         }
-        .archive-square-item {
-          width: min(100%, 154px);
+        @media (max-width: 480px) { .featured-grid { grid-template-columns: 1fr; } }
+        .featured-card-wrap { display: flex; }
+        .featured-card {
+          flex: 1;
+          padding: 20px;
+          cursor: pointer;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
+          box-sizing: border-box;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          border-radius: 20px;
+          background-color: ${isDarkBase ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)'};
+          border: 1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+          backdrop-filter: blur(var(--glass-blur-standard));
+          -webkit-backdrop-filter: blur(var(--glass-blur-standard));
+          box-shadow: 0 8px 24px rgba(0,0,0,0.05);
         }
-        .archive-row-container {
-          margin: 14px 24px 0 24px;
-        }
-        .archive-older-years-wrap {
-          overflow: hidden;
-          transition: max-height 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, transform 0.35s ease;
-          transform-origin: top center;
-        }
-        .archive-older-years-wrap.closed {
-          max-height: 0;
-          opacity: 0;
-          transform: translateY(-10px);
-          pointer-events: none;
-        }
-        .archive-older-years-wrap.open {
-          max-height: 1200px;
-          opacity: 1;
-          transform: translateY(0);
-          pointer-events: auto;
-        }
-        .archive-square-hover:hover {
+        .featured-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 16px 32px rgba(0,0,0,0.1) !important;
           border-color: ${activePalette.titleColor}60;
         }
-        .archive-btn:hover { opacity: 1 !important; transform: translateY(-2px); }
-        .glass-card-md3 {
-           background-color: ${isDarkBase ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)'};
-           border: 1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
-           backdrop-filter: blur(var(--glass-blur-standard));
-           -webkit-backdrop-filter: blur(var(--glass-blur-standard));
-           box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+        .featured-card-date {
+          font-size: 11px;
+          opacity: 0.65;
+          margin-bottom: 10px;
+          font-weight: 600;
+          letter-spacing: 0.3px;
         }
-        .glass-card-md3:hover { transform: translateY(-4px); box-shadow: 0 16px 32px rgba(0,0,0,0.1) !important; border-color: ${activePalette.titleColor}40; }
+        .featured-card-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: ${activePalette.titleColor};
+          transition: color 0.5s ease;
+          line-height: 1.35;
+        }
+
+        /* === 2-COLUMN EDITORIAL GRID === */
+        .editorial-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+          padding: 0;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        @media (max-width: 600px) { .editorial-grid { grid-template-columns: 1fr; } }
+
+        .editorial-card {
+          display: flex;
+          align-items: stretch;
+          cursor: pointer;
+          border-radius: 12px;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          background: ${isDarkBase ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'};
+          border: 1px solid transparent;
+        }
+        .editorial-card:hover {
+          background: ${isDarkBase ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'};
+          border-color: ${isDarkBase ? 'rgba(138,180,248,0.25)' : 'rgba(66,133,244,0.2)'};
+          transform: translateX(4px);
+        }
+        .editorial-card-accent {
+          width: 3px;
+          min-height: 100%;
+          background: linear-gradient(180deg, #4285f4, #7c3aed);
+          border-radius: 3px 0 0 3px;
+          flex-shrink: 0;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+        .editorial-card:hover .editorial-card-accent { opacity: 1; }
+
+        .editorial-card-body {
+          padding: 14px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          min-width: 0;
+        }
+        .editorial-card-date {
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          opacity: 0.5;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .editorial-card-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: ${activePalette.titleColor};
+          line-height: 1.4;
+          transition: color 0.3s ease;
+        }
+        .editorial-card:hover .editorial-card-title { color: #4285f4; }
+
+        /* === ARCHIVE SECTIONS === */
+        .archive-group {
+          margin: 16px 24px 0 24px;
+          padding-top: 18px;
+          border-top: 1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.08);
+        }
+        .archive-year-title {
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          margin: 0 0 14px 0;
+          opacity: 0.85;
+          text-transform: uppercase;
+        }
+        .archive-month-title {
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          margin: 18px 0 8px 0;
+          opacity: 0.55;
+          text-transform: uppercase;
+        }
+
+        /* === OLDER YEARS ACCORDION === */
+        .archive-older-years-wrap {
+          overflow: hidden;
+          transition: max-height 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+        }
+        .archive-older-years-wrap.closed { max-height: 0; opacity: 0; pointer-events: none; }
+        .archive-older-years-wrap.open { max-height: 1200px; opacity: 1; pointer-events: auto; }
+
+        .archive-btn:hover { opacity: 1 !important; transform: translateY(-2px); }
       `}</style>
 
-      <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={styles.archiveToggle} className="archive-btn">
+      <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={{ background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', opacity: 0.8, transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }} className="archive-btn">
         <span style={{ letterSpacing: '0.12em', color: activePalette.fontColor, transition: 'color 0.5s ease', fontWeight: '600' }}>
           FRAGMENTOS ANTERIORES
         </span>
         <ChevronUp size={20} color={activePalette.fontColor} style={{ transform: isHistoryOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }} />
       </button>
 
-      <div style={{ maxHeight: isHistoryOpen ? '2000px' : '0', opacity: isHistoryOpen ? 1 : 0, overflow: 'hidden', transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)', width: '100%', maxWidth: '1200px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)`, margin: '30px 24px 0 24px', paddingBottom: '16px' }}>
-          <Search size={20} style={{ opacity: 0.6, marginRight: '16px' }} color={activePalette.fontColor} />
+      <div style={{ maxHeight: isHistoryOpen ? '3000px' : '0', opacity: isHistoryOpen ? 1 : 0, overflow: 'hidden', transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)', width: '100%', maxWidth: '900px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.15)`, margin: '30px 24px 0 24px', paddingBottom: '16px' }}>
+          <Search size={18} style={{ opacity: 0.4, marginRight: '14px', flexShrink: 0 }} color={activePalette.fontColor} />
           <input
             id="archive-keyword-search"
             name="archiveKeywordSearch"
             type="text"
             autoComplete="off"
-            placeholder="BUSCA EXATA POR PALAVRAS-CHAVE..."
+            placeholder="Busca por palavras-chave..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ background: 'none', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: '13px', width: '100%', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: '500' }}
+            style={{ background: 'none', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: '13px', width: '100%', letterSpacing: '0.3px', fontWeight: '500', outline: 'none' }}
           />
         </div>
 
         {filteredArchive.length > 0 ? (
           <>
+            {/* Featured Posts — top 4 in 2-col grid */}
             {latestByRotation.length > 0 && (
-              <div className="archive-row-container">
-                <div className="archive-square-row">
-                  {latestByRotation.map((post) => {
-                    const criado = fmtDate(post.created_at);
-                    const atualizado = fmtDate(post.updated_at);
-                    const showUpdated = atualizado && atualizado !== criado;
-                    return (
-                      <div key={post.id} className="archive-square-item">
-                        <div
-                          onClick={() => handleSelectPost(post)}
-                          className="glass-card-md3 archive-square-hover"
-                          style={styles.squareBlock}
-                        >
-                          <div style={{ ...styles.cardDate, marginBottom: '12px' }}>
-                            Publicado em {criado || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-                            {showUpdated && <div style={{ marginTop: '2px', fontSize: '10px', opacity: 0.8 }}>Atualizado em {atualizado}</div>}
-                          </div>
-                          <div style={{ fontSize: '13px', fontWeight: '600', color: activePalette.titleColor, lineHeight: '1.35' }}>{post.title}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className="featured-grid">
+                {latestByRotation.map(renderFeaturedCard)}
               </div>
             )}
 
-            {latestFourYears.length > 0 && (
-              <div className="archive-row-container">
-                <div className="archive-square-row">
-                  {latestFourYears.map((yearGroup) => (
-                    <div key={yearGroup.year} className="archive-square-item">
-                      <div
-                        onClick={() => setSelectedYear(yearGroup.year)}
-                        className="glass-card-md3 archive-square-hover"
-                        style={{
-                          ...styles.squareBlock,
-                          borderColor: resolvedSelectedYear === yearGroup.year ? `${activePalette.titleColor}90` : undefined,
-                          boxShadow: resolvedSelectedYear === yearGroup.year ? `0 0 0 2px ${activePalette.titleColor}35 inset` : undefined,
-                        }}
-                      >
-                        <div style={{ fontSize: '34px', lineHeight: 1, fontWeight: '900', color: activePalette.titleColor, letterSpacing: '0.06em' }}>
-                          {yearGroup.year}
-                        </div>
-                        <div style={{ marginTop: '14px', fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.72, fontWeight: '600' }}>
-                          {yearGroup.months.length} MESES
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {hasOlderYears && (
-                  <div style={{ marginTop: '10px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowOlderYears((prev) => !prev)}
-                      aria-expanded={effectiveShowOlderYears}
-                      aria-controls="archive-older-years"
-                      className="glass-card-md3 archive-square-hover"
-                      style={styles.expandBar}
-                    >
-                      ANOS ANTERIORES {effectiveShowOlderYears ? '▲' : '▼'}
-                    </button>
-                  </div>
-                )}
-
-                {hasOlderYears && (
-                  <div
-                    id="archive-older-years"
-                    className={`archive-older-years-wrap ${effectiveShowOlderYears ? 'open' : 'closed'}`}
-                    aria-hidden={!effectiveShowOlderYears}
+            {/* Year Pills */}
+            {allYearGroups.length > 0 && (
+              <div className="year-pills-bar">
+                {latestFourYears.map((yearGroup) => (
+                  <button
+                    key={yearGroup.year}
+                    type="button"
+                    onClick={() => setSelectedYear(yearGroup.year)}
+                    className={`year-pill ${resolvedSelectedYear === yearGroup.year ? 'active' : ''}`}
                   >
-                    <div className="archive-square-row" style={{ marginTop: '16px' }}>
-                      {olderYears.map((yearGroup, index) => (
-                        <div key={yearGroup.year} className="archive-square-item">
-                          <div
-                            onClick={() => setSelectedYear(yearGroup.year)}
-                            className="glass-card-md3 archive-square-hover"
-                            style={{
-                              ...styles.squareBlock,
-                              borderColor: resolvedSelectedYear === yearGroup.year ? `${activePalette.titleColor}90` : undefined,
-                              boxShadow: resolvedSelectedYear === yearGroup.year ? `0 0 0 2px ${activePalette.titleColor}35 inset` : undefined,
-                              opacity: effectiveShowOlderYears ? 1 : 0,
-                              transform: effectiveShowOlderYears ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.985)',
-                              transition: `opacity 0.3s ease ${60 + (index * 45)}ms, transform 0.36s cubic-bezier(0.16, 1, 0.3, 1) ${60 + (index * 45)}ms`,
-                            }}
-                          >
-                            <div style={{ fontSize: '34px', lineHeight: 1, fontWeight: '900', color: activePalette.titleColor, letterSpacing: '0.06em' }}>
-                              {yearGroup.year}
-                            </div>
-                            <div style={{ marginTop: '14px', fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.72, fontWeight: '600' }}>
-                              {yearGroup.months.length} MESES
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    {yearGroup.year}
+                  </button>
+                ))}
+
+                {hasOlderYears && !effectiveShowOlderYears && (
+                  <button
+                    type="button"
+                    onClick={() => setShowOlderYears(true)}
+                    className="show-older-pill"
+                  >
+                    + Anteriores
+                  </button>
+                )}
+
+                {/* Older year pills revealed */}
+                {hasOlderYears && (
+                  <div className={`archive-older-years-wrap ${effectiveShowOlderYears ? 'open' : 'closed'}`} style={{ display: 'contents' }}>
+                    {effectiveShowOlderYears && olderYears.map((yearGroup) => (
+                      <button
+                        key={yearGroup.year}
+                        type="button"
+                        onClick={() => setSelectedYear(yearGroup.year)}
+                        className={`year-pill ${resolvedSelectedYear === yearGroup.year ? 'active' : ''}`}
+                      >
+                        {yearGroup.year}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
             )}
 
+            {/* Selected Year Content — 2-column editorial grid */}
             {selectedYearGroup && (
-              <div key={selectedYearGroup.year} className="archive-group">
+              <div className="archive-group">
                 <h3 className="archive-year-title" style={{ color: activePalette.fontColor }}>{selectedYearGroup.year}</h3>
 
                 {selectedYearGroup.months.map((monthGroup) => (
-                  <div key={`${selectedYearGroup.year}-${monthGroup.month}`} className="archive-month-block">
+                  <div key={`${selectedYearGroup.year}-${monthGroup.month}`}>
                     <h4 className="archive-month-title" style={{ color: activePalette.fontColor }}>{monthGroup.month}</h4>
-                    <div className="archive-grid" style={{ padding: '0 0 8px 0' }}>
-                      {monthGroup.posts.map(renderPostCard)}
+                    <div className="editorial-grid">
+                      {monthGroup.posts.map(renderEditorialCard)}
                     </div>
                   </div>
                 ))}

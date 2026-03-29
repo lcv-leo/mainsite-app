@@ -1,6 +1,6 @@
 // Module: mainsite-frontend/src/components/PostReader.tsx
-// Version: v1.5.0
-// Description: TypeScript migration. Home Page button reduced by 30% to minimize visual impact on the reading flow.
+// Version: v2.0.0
+// Description: Fase 4 visual redesign — editorial title, gradient divider, byline, left accent border, minimal share icons.
 
 import { type ChangeEvent, useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
@@ -140,24 +140,31 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         @keyframes pulseGlow { 0% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } 50% { box-shadow: 0 0 20px rgba(77, 166, 255, 0.8); border-color: rgba(77, 166, 255, 1); } 100% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } }
         .processing-active { animation: pulseGlow 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; color: #4da6ff !important; }
         
-        .h1-title { text-align: center; font-size: ${settings.shared.titleFontSize}; letter-spacing: -0.02em; margin-bottom: 3.5rem; color: ${activePalette.titleColor}; text-transform: none; font-weight: ${settings.shared.titleWeight || '700'}; transition: color 0.5s ease; line-height: 1.15; }
+        .h1-title { text-align: center; font-size: clamp(32px, 5vw, 52px); letter-spacing: -0.03em; margin-bottom: 0; color: ${activePalette.titleColor}; text-transform: none; font-weight: 800; transition: color 0.5s ease; line-height: 1.1; }
+        
+        .post-gradient-divider { width: 80px; height: 3px; background: linear-gradient(90deg, #4285f4, #7c3aed); margin: 1.5rem auto; border-radius: 3px; }
+        
+        .post-byline { text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.5; margin-bottom: 2.5rem; }
         
         .ai-actions-container { margin-bottom: 3rem; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; }
-        .ai-actions-bar { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; width: 100%; }
+        .ai-actions-bar { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; width: 100%; }
         
-        .ai-btn { width: 280px; max-width: 100%; box-sizing: border-box; background: rgba(128,128,128,0.05); border: 1px solid rgba(128,128,128,0.2); color: ${activePalette.fontColor}; padding: 14px 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: inherit; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.8px; transition: all 0.3s ease; border-radius: 100px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); font-weight: 700; }
-        .ai-btn:hover:not(:disabled) { background: rgba(128,128,128,0.1); border-color: #4da6ff; transform: translateY(-3px); box-shadow: 0 12px 32px rgba(77, 166, 255, 0.2); }
+        .ai-btn { max-width: 240px; box-sizing: border-box; background: rgba(128,128,128,0.04); border: 1px solid rgba(128,128,128,0.15); color: ${activePalette.fontColor}; padding: 10px 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.8px; transition: all 0.3s ease; border-radius: 100px; box-shadow: none; font-weight: 600; }
+        .ai-btn:hover:not(:disabled) { background: rgba(128,128,128,0.08); border-color: #4285f4; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(66, 133, 244, 0.15); }
         .ai-btn:disabled { opacity: 1; cursor: wait; background: ${activePalette.bgColor}; }
         .ai-btn.revert-btn { border-color: var(--semantic-error-border); color: var(--semantic-error); }
-        .ai-btn.revert-btn:hover { border-color: var(--semantic-error); box-shadow: 0 12px 32px rgba(211, 47, 47, 0.2); }
+        .ai-btn.revert-btn:hover { border-color: var(--semantic-error); box-shadow: 0 8px 24px rgba(211, 47, 47, 0.15); }
         
-        .ai-select { width: 100%; text-align: center; text-align-last: center; background: transparent; color: inherit; border: none; outline: none; cursor: pointer; font-family: inherit; appearance: none; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; }
+        .ai-select { width: 100%; text-align: center; text-align-last: center; background: transparent; color: inherit; border: none; outline: none; cursor: pointer; font-family: inherit; appearance: none; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
         .ai-select:disabled { cursor: wait; color: inherit; }
         .ai-select option { background: ${activePalette.bgColor}; color: ${activePalette.fontColor}; text-transform: none; text-align: left; }
         
         .ai-error-msg { display: flex; align-items: center; gap: 8px; color: var(--semantic-error); font-size: 13px; font-weight: 600; background: var(--semantic-error-soft); padding: 10px 20px; border-radius: 100px; border: 1px solid var(--semantic-error-border); animation: fadeIn 0.3s ease-out; }
         
         .ai-summary-box { background: ${isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)'}; border-left: 4px solid #4da6ff; padding: 30px; margin-bottom: 3.5rem; font-style: italic; line-height: 1.8; border-radius: 24px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 16px 32px rgba(0,0,0,0.05); border: 1px solid rgba(128,128,128,0.1); border-left-width: 4px; }
+        
+        .post-content-area { border-left: 2px solid ${isDarkBase ? 'rgba(138,180,248,0.3)' : 'rgba(66,133,244,0.25)'}; padding-left: 24px; }
+        @media (max-width: 768px) { .post-content-area { border-left: none; padding-left: 0; } }
         
         .protected-content { user-select: none; -webkit-user-select: none; -ms-user-select: none; }
         .p-content, .html-content p, .html-content ul, .html-content ol { font-size: ${settings.shared.fontSize}; color: ${activePalette.fontColor}; transition: color 0.5s ease; }
@@ -172,16 +179,17 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         .html-content li { margin-bottom: 0.6rem; }
         .html-content a { color: ${settings.shared.linkColor || '#4da6ff'}; text-decoration: underline; text-underline-offset: 4px; font-weight: 600; }
         
-        .share-bar { display: flex; justify-content: center; gap: 16px; margin-top: 4rem; padding-top: 2.5rem; border-top: 1px solid rgba(128,128,128, 0.2); flex-wrap: wrap; }
-        .share-btn { flex: 1 1 150px; max-width: 200px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 16px; border-radius: 100px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; border: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .share-bar { display: flex; justify-content: center; gap: 12px; margin-top: 4rem; padding-top: 2.5rem; border-top: 1px solid rgba(128,128,128, 0.15); flex-wrap: wrap; }
+        .share-btn { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer; font-family: inherit; font-size: 0; border: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .share-btn:hover { transform: translateY(-3px) scale(1.1); }
         
-        .share-whatsapp { background: #25D366; } .share-whatsapp:hover { background: #128C7E; transform: translateY(-3px); box-shadow: 0 12px 32px rgba(37, 211, 102, 0.3); }
-        .share-link { background: #64748b; } .share-link:hover { background: #475569; transform: translateY(-3px); box-shadow: 0 12px 32px rgba(100, 116, 139, 0.3); }
-        .share-email { background: #0ea5e9; } .share-email:hover:not(:disabled) { background: #0284c7; transform: translateY(-3px); box-shadow: 0 12px 32px rgba(14, 165, 233, 0.3); }
+        .share-whatsapp { background: #25D366; } .share-whatsapp:hover { box-shadow: 0 8px 24px rgba(37, 211, 102, 0.3); }
+        .share-link { background: #64748b; } .share-link:hover { box-shadow: 0 8px 24px rgba(100, 116, 139, 0.3); }
+        .share-email { background: #0ea5e9; } .share-email:hover:not(:disabled) { box-shadow: 0 8px 24px rgba(14, 165, 233, 0.3); }
         .share-email:disabled { background: #94a3b8; cursor: wait; }
-        .share-contact { background: #8b5cf6; } .share-contact:hover { background: #7c3aed; transform: translateY(-3px); box-shadow: 0 12px 32px rgba(139, 92, 246, 0.3); }
-        .share-comment { background: #f59e0b; } .share-comment:hover { background: #d97706; transform: translateY(-3px); box-shadow: 0 12px 32px rgba(245, 158, 11, 0.3); }
-        .share-donate { background: #ec4899; } .share-donate:hover { background: #d946ef; transform: translateY(-3px); box-shadow: 0 12px 32px rgba(236, 72, 153, 0.3); }
+        .share-contact { background: #8b5cf6; } .share-contact:hover { box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3); }
+        .share-comment { background: #f59e0b; } .share-comment:hover { box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3); }
+        .share-donate { background: #ec4899; } .share-donate:hover { box-shadow: 0 8px 24px rgba(236, 72, 153, 0.3); }
       `}</style>
 
       {/* UPDATED HOME BUTTON: Size and padding reduced by 30% */}
@@ -197,6 +205,10 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       )}
 
       <h1 className="h1-title">{post.title}</h1>
+      <div className="post-gradient-divider" />
+      <div className="post-byline">
+        Por Leonardo Cardozo Vargas{post.created_at && ` · ${new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
+      </div>
 
       <div className="ai-actions-container">
         <div className="ai-actions-bar">
@@ -238,9 +250,11 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         </div>
       )}
 
-      <div className="protected-content" onCopy={(e) => { e.preventDefault(); return false; }} onContextMenu={(e) => { e.preventDefault(); return false; }} onDragStart={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }}>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrgJSONLD) }} />
-        {renderContent(post.content)}
+      <div className="post-content-area">
+        <div className="protected-content" onCopy={(e) => { e.preventDefault(); return false; }} onContextMenu={(e) => { e.preventDefault(); return false; }} onDragStart={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }}>
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrgJSONLD) }} />
+          {renderContent(post.content)}
+        </div>
       </div>
 
       {/* Rodapé de metadados com datas de publicação/atualização */}
@@ -262,22 +276,22 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
 
       <nav aria-label="Compartilhamento e interação" className="share-bar">
         <button onClick={() => onShare('whatsapp')} className="share-btn share-whatsapp" title="Compartilhar no WhatsApp">
-          <MessageCircle size={18} /> WhatsApp
+          <MessageCircle size={20} />
         </button>
         <button onClick={() => onShare('link')} className="share-btn share-link" title="Copiar Link Direto">
-          <Link2 size={18} /> Copiar Link
+          <Link2 size={20} />
         </button>
         <button onClick={() => onShare('email')} disabled={isSendingEmail} className="share-btn share-email" title="Enviar por E-mail">
-          {isSendingEmail ? <Loader2 className="animate-spin" size={18} /> : <Mail size={18} />} E-Mail
+          {isSendingEmail ? <Loader2 className="animate-spin" size={20} /> : <Mail size={20} />}
         </button>
         <button onClick={onContact} className="share-btn share-contact" title="Falar com o Autor">
-          <MessageSquare size={18} /> Contato
+          <MessageSquare size={20} />
         </button>
         <button onClick={onComment} className="share-btn share-comment" title="Deixar um Comentário">
-          <Edit3 size={18} /> Comentários
+          <Edit3 size={20} />
         </button>
         <button onClick={onDonation} className="share-btn share-donate" title="Apoiar este Espaço">
-          <Heart size={18} /> Doação
+          <Heart size={20} />
         </button>
       </nav>
     </article>
