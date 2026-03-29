@@ -9,7 +9,7 @@ export async function onRequest(context) {
 
     // Busca todos os posts publicados, ordenados pelo mais recente
     const { results } = await db.prepare(
-      'SELECT id, updated_at FROM posts ORDER BY id DESC'
+      'SELECT id, created_at FROM mainsite_posts ORDER BY created_at DESC'
     ).all();
 
     const siteUrl = 'https://www.lcv.rio.br';
@@ -27,8 +27,8 @@ export async function onRequest(context) {
 
     // Cada post publicado
     for (const post of results || []) {
-      const lastmod = post.updated_at
-        ? new Date(post.updated_at).toISOString().split('T')[0]
+      const lastmod = post.created_at
+        ? new Date(post.created_at).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
 
       xml += '  <url>\n';
