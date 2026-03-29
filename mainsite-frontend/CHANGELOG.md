@@ -1,5 +1,12 @@
 # Changelog — Mainsite Frontend
 
+## [v03.01.03] — 2026-03-29
+### Alterado
+- **CI/CD branch standardization**: workflow de deploy do monorepo `mainsite` padronizado para publicar o frontend no branch `main` na Cloudflare Pages, com trigger GitHub em `main` e `concurrency.group` atualizado para `deploy-main`.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.01.02 → APP v03.01.03
+
 ## [v03.01.02] — 2026-03-29
 ### Corrigido
 - **OG metadata — tabela D1 corrigida**: `functions/[[path]].js` consultava tabela inexistente `posts` em vez de `mainsite_posts`, causando falha silenciosa na injeção de metadados OG/Schema.org dinâmicos por post. Links compartilhados em redes sociais/WhatsApp agora exibem título, descrição e URL específicos do post.
