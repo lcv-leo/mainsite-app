@@ -1,5 +1,10 @@
 # Changelog — Mainsite Frontend
 
+## [v03.00.01] — 29/03/2026
+### Corrigido
+- **Barras pretas verticais laterais removidas**: eliminado `background-color: #030303` fixo no inline style do `index.html` que causava faixas pretas nas laterais do viewport em telas mais largas que o container de 1126px. O background agora é controlado exclusivamente pelas CSS variables `var(--bg)` — branco em light mode, `#16171d` em dark mode.
+- **Dark mode flash prevention**: adicionada media query `prefers-color-scheme: dark` inline para definir `background-color: #16171d` antes do carregamento do CSS externo, evitando lampejo branco para usuários em dark mode.
+
 ## [v03.00.00] — 29/03/2026
 ### Adicionado (MAJOR)
 - **Migração TypeScript completa**: todos os 10 componentes migrados de `.jsx` para `.tsx` tipados. Infraestrutura TypeScript adicionada (`tsconfig.json`, `vite-env.d.ts`, `types.ts`).
