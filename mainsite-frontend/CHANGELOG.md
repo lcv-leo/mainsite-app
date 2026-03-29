@@ -1,5 +1,11 @@
 # Changelog — Mainsite Frontend
 
+## [v03.01.02] — 2026-03-29
+### Corrigido
+- **OG metadata — tabela D1 corrigida**: `functions/[[path]].js` consultava tabela inexistente `posts` em vez de `mainsite_posts`, causando falha silenciosa na injeção de metadados OG/Schema.org dinâmicos por post. Links compartilhados em redes sociais/WhatsApp agora exibem título, descrição e URL específicos do post.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.01.01 → APP v03.01.02
 ## [v03.01.01] — 2026-03-29
 ### Corrigido
 - **Sitemap vazio**: `functions/sitemap.xml.js` corrigido — nome da tabela (`mainsite_posts` em vez de `posts`) e nome da coluna (`display_order` em vez de `created_at`) ajustados para refletir o schema real do D1. Sitemap agora retorna URLs válidas para todos os posts publicados.

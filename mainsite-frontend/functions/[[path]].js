@@ -48,7 +48,7 @@ export async function onRequest(context) {
     // 3. Consulta D1 — inclui created_at e updated_at para Schema.org dateModified
     const db = context.env.DB;
     const post = await db
-      .prepare('SELECT id, title, content, created_at, updated_at FROM posts WHERE id = ?')
+      .prepare('SELECT id, title, content, created_at, updated_at FROM mainsite_posts WHERE id = ?')
       .bind(postId)
       .first();
 
