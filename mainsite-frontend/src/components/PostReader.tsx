@@ -98,6 +98,8 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
   const descriptionExcerpt = cleanExcerpt.substring(0, 200) + (cleanExcerpt.length > 200 ? '...' : '');
   const wordCount = cleanExcerpt.split(/\s+/).filter(Boolean).length;
 
+  const postAuthor = post.author || 'Leonardo Cardozo Vargas'
+
   const schemaOrgJSONLD = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -105,7 +107,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     "description": descriptionExcerpt,
     "author": {
       "@type": "Person",
-      "name": "Leonardo Cardozo Vargas",
+      "name": postAuthor,
       "url": "https://www.lcv.rio.br",
       "sameAs": [
         "https://github.com/lcv-rio",
@@ -209,7 +211,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       <h1 className="h1-title">{post.title}</h1>
       <div className="post-gradient-divider" />
       <div className="post-byline">
-        Por Leonardo Cardozo Vargas{post.created_at && ` · ${new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
+        Por {postAuthor}{post.created_at && ` · ${new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
       </div>
 
       <div className="ai-actions-container">

@@ -1,5 +1,12 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.01.01] — 2026-03-29
+### Alterado
+- **Autor dinâmico em posts**: `posts.ts` INSERT e UPDATE aceitam campo `author` no body JSON e persistem na coluna `author` da tabela `mainsite_posts`. Fallback para "Leonardo Cardozo Vargas". Paridade com `admin-app` v01.73.00.
+
+### Controle de versão
+- `mainsite-worker`: v02.01.00 → v02.01.01
+
 ## [v02.01.00] — 2026-03-29
 ### Alterado (MAJOR) — D1 Financial Log Deprecation
 - **Arquitetura Live API-first**: todas as escritas e leituras de `mainsite_financial_logs` removidas.

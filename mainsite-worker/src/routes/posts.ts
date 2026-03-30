@@ -127,11 +127,12 @@ posts.get('/api/posts/:id', async (c) => {
 // POST /api/posts (admin)
 posts.post('/api/posts', requireAuth, async (c) => {
   try {
-    const { title, content } = (await c.req.json()) as { title?: string; content?: string };
+    const { title, content, author } = (await c.req.json()) as { title?: string; content?: string; author?: string };
+    const authorVal = (author || '').trim() || 'Leonardo Cardozo Vargas';
     const result = await c.env.DB.prepare(
-      'INSERT INTO mainsite_posts (title, content, is_pinned, display_order) VALUES (?, ?, 0, 0)'
+      'INSERT INTO mainsite_posts (title, content, author, is_pinned, display_order) VALUES (?, ?, ?, 0, 0)'
     )
-      .bind(title, content)
+      .bind(title, content, authorVal)
       .run();
 
     // Fire-and-forget: gerar resumo IA para compartilhamento
@@ -152,11 +153,12 @@ posts.post('/api/posts', requireAuth, async (c) => {
 posts.put('/api/posts/:id', requireAuth, async (c) => {
   const id = c.req.param('id');
   try {
-    const { title, content } = (await c.req.json()) as { title?: string; content?: string };
+    const { title, content, author } = (await c.req.json()) as { title?: string; content?: string; author?: string };
+    const authorVal = (author || '').trim() || 'Leonardo Cardozo Vargas';
     await c.env.DB.prepare(
-      'UPDATE mainsite_posts SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      'UPDATE mainsite_posts SET title = ?, content = ?, author = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
     )
-      .bind(title, content, id)
+      .bind(title, content, authorVal, id)
       .run();
 
     // Fire-and-forget: regenerar resumo IA se conteúdo mudou
