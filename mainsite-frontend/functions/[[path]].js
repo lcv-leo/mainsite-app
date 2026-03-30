@@ -48,11 +48,13 @@ export async function onRequest(context) {
     // 3. Consulta D1 — inclui created_at e updated_at para Schema.org dateModified
     const db = context.env.DB;
     const post = await db
-      .prepare('SELECT id, title, content, created_at, updated_at FROM mainsite_posts WHERE id = ?')
+      .prepare('SELECT id, title, content, author, created_at, updated_at FROM mainsite_posts WHERE id = ?')
       .bind(postId)
       .first();
 
     if (!post) return response;
+
+    const postAuthor = (post.author || '').trim() || 'Leonardo Cardozo Vargas';
 
     // 4. Consulta resumo IA pré-computado para compartilhamento social
     let aiSummary = null;
@@ -92,7 +94,7 @@ export async function onRequest(context) {
       "description": longDesc,
       "author": {
         "@type": "Person",
-        "name": "Leonardo Cardozo Vargas",
+        "name": postAuthor,
         "url": "https://www.lcv.rio.br",
         "sameAs": [
           "https://github.com/lcv-leo",
@@ -155,7 +157,7 @@ export async function onRequest(context) {
           e.append(`<meta property="og:site_name" content="Divagações Filosóficas">`, { html: true });
           e.append(`<meta property="article:published_time" content="${datePublished}">`, { html: true });
           e.append(`<meta property="article:modified_time" content="${dateModified}">`, { html: true });
-          e.append(`<meta property="article:author" content="Leonardo Cardozo Vargas">`, { html: true });
+          e.append(`<meta property="article:author" content="${postAuthor}">`, { html: true });
           e.append(`<meta property="article:section" content="Filosofia">`, { html: true });
           // Schema.org JSON-LD — visível para crawlers que NÃO executam JS
           e.append(`<script type="application/ld+json">${articleSchema}</script>`, { html: true });

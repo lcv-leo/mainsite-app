@@ -1,5 +1,14 @@
 # Changelog — Mainsite Frontend
 
+## [v03.02.00] — 2026-03-29
+### Alterado
+- **Autor dinâmico no PostReader**: byline e Schema.org JSON-LD agora consomem `post.author` do banco de dados em vez de string hardcoded. Fallback para "Leonardo Cardozo Vargas" para posts sem autor definido.
+- **Edge pre-rendering dinâmico**: `functions/[[path]].js` inclui `author` na query D1 e usa o valor real nas meta tags `article:author` e Schema.org `Article.author`.
+- **Tipo `Post` expandido**: campo `author?: string` adicionado à interface em `types.ts`.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.01.03 → APP v03.02.00
+
 ## [v03.01.03] — 2026-03-29
 ### Alterado
 - **CI/CD branch standardization**: workflow de deploy do monorepo `mainsite` padronizado para publicar o frontend no branch `main` na Cloudflare Pages, com trigger GitHub em `main` e `concurrency.group` atualizado para `deploy-main`.
