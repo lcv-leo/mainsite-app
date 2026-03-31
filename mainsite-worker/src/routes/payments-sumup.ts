@@ -70,6 +70,12 @@ sumup.post('/api/sumup/checkout', async (c) => {
       return c.json({ error: 'SUMUP_API_KEY_PRIVATE ou SUMUP_MERCHANT_CODE não configurados.' }, 503);
     }
 
+    let amount = Number(baseAmount);
+    if (coverFees) {
+      const fees = await loadFeeConfig(c.env.DB);
+      amount = parseFloat(((amount + fees.sumupFixed) / (1 - fees.sumupRate)).toFixed(2));
+    }
+
     const client = new SumUp({ apiKey: sumupToken });
     const checkoutReference = `SUMUP-DON-${crypto.randomUUID()}`;
     const fullName = `${(String(firstName || '')).trim()} ${(String(lastName || '')).trim()}`.trim() || 'Doador';
