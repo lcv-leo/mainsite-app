@@ -93,7 +93,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
   const [sumupNextStep, setSumupNextStep] = useState<SumupNextStep | null>(null);
   const [checkoutId, setCheckoutId] = useState<string | null>(null);
 
-  const expected3dsOrigin = sumupNextStep?.url ? getSafeHttpsOrigin(sumupNextStep.url) : null;
+  const trusted3dsOrigin = getSafeHttpsOrigin(API_URL);
 
   // Escuta o redirect_url do iframe para bypass final
   useEffect(() => {
@@ -102,7 +102,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
         return;
       }
 
-      if (!expected3dsOrigin || e.origin !== expected3dsOrigin) {
+      if (!trusted3dsOrigin || e.origin !== trusted3dsOrigin) {
         return;
       }
 
@@ -112,7 +112,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
     };
     window.addEventListener('message', handleFrameMessage);
     return () => window.removeEventListener('message', handleFrameMessage);
-  }, [expected3dsOrigin]);
+  }, [trusted3dsOrigin]);
 
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
