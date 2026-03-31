@@ -1,5 +1,12 @@
 # Changelog — Mainsite Frontend
 
+## [v03.02.02] - 2026-03-31
+### Corrigido
+- **Compliance - GNU AGPLv3**: corrigido erro 404 no invólucro do arquivo LICENSE, publicando o texto integral da licença (~34KB) em conformidade técnica e jurídica.
+
+### Controle de versão
+- "mainsite": APP v03.02.01   APP v03.02.02
+
 ## [v03.02.02] — 2026-03-31
 ### Corrigido
 - **PostReader — links abrindo na mesma janela**: DOMPurify remove `target="_blank"` internamente como medida anti-tab-nabbing, mesmo com `ADD_ATTR: ['target']`. Adicionado pós-processamento determinístico que força `target="_blank"` e `rel="noopener noreferrer"` em todos os links não-YouTube **após** a sanitização do DOMPurify.
