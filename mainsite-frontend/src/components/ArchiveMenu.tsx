@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 // Módulo: mainsite-frontend/src/components/ArchiveMenu.tsx
 // Versão: v2.0.0
 // Descrição: Fase 4 visual redesign — 2-column editorial grid, pill year selectors, gradient accents.

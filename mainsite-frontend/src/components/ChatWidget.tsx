@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 // Módulo: mainsite-frontend/src/components/ChatWidget.tsx
 // Versão: v1.6.0
 // Descrição: TypeScript migration. Chat MD3 + Glassmorphism. Gatilho de Doação preservado.

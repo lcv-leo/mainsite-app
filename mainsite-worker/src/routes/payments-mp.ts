@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 /**
  * Rotas de Pagamento Mercado Pago (payment, webhook, insights).
  * Zero Trust: HMAC-SHA256 webhook validation, Bearer auth em rotas admin.

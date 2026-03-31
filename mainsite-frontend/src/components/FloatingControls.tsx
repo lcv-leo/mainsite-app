@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 // Módulo: mainsite-frontend/src/components/FloatingControls.tsx
 // Versão: v1.2.0
 // Descrição: Componente MD3 para o Botão de Voltar ao Topo, Troca de Tema e Chat.
