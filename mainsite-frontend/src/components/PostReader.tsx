@@ -98,7 +98,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
   const descriptionExcerpt = cleanExcerpt.substring(0, 200) + (cleanExcerpt.length > 200 ? '...' : '');
   const wordCount = cleanExcerpt.split(/\s+/).filter(Boolean).length;
 
-  const postAuthor = post.author || 'Leonardo Cardozo Vargas'
+  const postAuthor = post.author || 'Leonardo Cardozo Vargas';
 
   const schemaOrgJSONLD = {
     "@context": "https://schema.org",
