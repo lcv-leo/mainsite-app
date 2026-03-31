@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 // Módulo: mainsite-frontend/src/components/DisclaimerModal.tsx
 // Versão: v1.5.0
 // Descrição: Opt-Out independente + Gatilho de Doação em MD3 e Glassmorphism.

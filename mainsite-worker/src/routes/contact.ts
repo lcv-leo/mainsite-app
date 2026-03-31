@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 /**
  * Rotas de Contato, Comentários e Compartilhamento.
  * Domínio: /api/contact, /api/comment, /api/shares/*, /api/share/email

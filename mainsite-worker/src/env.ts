@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 /**
  * Tipagem estrita de bindings do Cloudflare Worker (mainsite-motor).
  * Todos os módulos de rota importam este tipo via `Env`.

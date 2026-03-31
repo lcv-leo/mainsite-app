@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 // Módulo: mainsite-frontend/src/App.tsx
 // Versão: v02.13.00
 // Descrição: TypeScript migration. Frontend Orchestrator — fully typed state, events, refs and component props.

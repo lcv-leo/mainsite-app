@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 /**
  * Logging estruturado para Cloudflare Workers.
  * Envia logs formatados ao sistema de observabilidade nativo do Cloudflare.

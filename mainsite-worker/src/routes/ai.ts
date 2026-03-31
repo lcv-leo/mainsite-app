@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 /**
  * Rotas de Inteligência Artificial (Gemini v1beta).
  * Domínio: /api/ai/* + /api/chat-logs + /api/chat-context-audit

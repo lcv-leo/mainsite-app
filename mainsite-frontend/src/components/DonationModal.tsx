@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 const formatCpf = (digits: string): string => {
   const d = digits.slice(0, 11);
   if (d.length <= 3) return d;
