@@ -73,7 +73,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       const safeHtml = DOMPurify.sanitize(activeContent, {
         USE_PROFILES: { html: true },
         ADD_TAGS: ['iframe'],
-        ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target', 'rel']
+        ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target', 'rel', 'data-type', 'data-checked']
       });
       // Post-process: DOMPurify strips target="_blank" as anti-tab-nabbing measure.
       // Force it back on all non-YouTube links after sanitization.
@@ -209,6 +209,24 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         .share-contact { background: #8b5cf6; } .share-contact:hover { box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3); }
         .share-comment { background: #f59e0b; } .share-comment:hover { box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3); }
         .share-donate { background: #ec4899; } .share-donate:hover { box-shadow: 0 8px 24px rgba(236, 72, 153, 0.3); }
+        
+        /* ── FigureImageNode (semantic figure/figcaption) ─────── */
+        figure.tiptap-figure { margin: 1.5rem auto; text-align: center; display: block; }
+        figure.tiptap-figure img { border-radius: 4px; max-width: 100%; height: auto; }
+        figcaption { font-size: 0.85em; color: #888; font-style: italic; margin-top: 6px; padding: 2px 4px; }
+        
+        /* ── Editor mention pills ──────────────────────────────── */
+        .editor-mention { background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+        
+        /* ── Code blocks ──────────────────────────────────────── */
+        pre { background: #f5f5f5; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; }
+        pre code { background: none; padding: 0; color: #1a1a1a; }
+        code { background: #f5f5f5; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9em; }
+        
+        /* ── Task list items ──────────────────────────────────── */
+        .task-item { list-style: none; display: flex; align-items: flex-start; gap: 0.5rem; }
+        .task-item input[type="checkbox"] { margin-top: 3px; cursor: pointer; }
+        .task-item p { margin: 0; display: inline; }
       `}</style>
 
       {/* UPDATED HOME BUTTON: Size and padding reduced by 30% */}
