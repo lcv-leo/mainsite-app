@@ -69,7 +69,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       const safeHtml = DOMPurify.sanitize(activeContent, {
         USE_PROFILES: { html: true },
         ADD_TAGS: ['iframe'],
-        ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling']
+        ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target', 'rel']
       });
       return <div className="html-content" dangerouslySetInnerHTML={{ __html: safeHtml }} />;
     }
