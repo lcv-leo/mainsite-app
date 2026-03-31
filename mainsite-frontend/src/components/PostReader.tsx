@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 // Module: mainsite-frontend/src/components/PostReader.tsx
 // Version: v2.0.0
 // Description: Fase 4 visual redesign — editorial title, gradient divider, byline, left accent border, minimal share icons.

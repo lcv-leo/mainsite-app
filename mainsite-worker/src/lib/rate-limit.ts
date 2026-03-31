@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 /**
  * Rate limiter baseado em D1 para o mainsite-motor.
  * Ported 1:1 do monolito, com tipagem estrita.

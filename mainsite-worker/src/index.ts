@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2026 Leonardo Cardozo Vargas
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 /**
  * mainsite-motor — Entry Point
  * Hono-based modular Worker com paridade total ao monolito.
