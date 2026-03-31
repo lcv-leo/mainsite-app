@@ -14,6 +14,8 @@ import type { Post, SiteSettings, DisclaimersConfig, ShareModalState, ToastState
 import PostReader from './components/PostReader';
 import ArchiveMenu from './components/ArchiveMenu';
 import FloatingControls from './components/FloatingControls';
+import { ComplianceBanner } from './components/ComplianceBanner';
+import { LicencasModule } from './modules/compliance/LicencasModule';
 
 const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
 const ContactModal = lazy(() => import('./components/ContactModal'));
@@ -23,7 +25,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.02.02';
+const APP_VERSION = 'APP v03.02.03';
 const SITE_NAME = 'Divagações Filosóficas';
 const SITE_URL = 'https://www.lcv.rio.br';
 
@@ -72,6 +74,7 @@ const App = () => {
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showDisclaimerFlow, setShowDisclaimerFlow] = useState(false);
+  const [showLicenses, setShowLicenses] = useState(false);
 
   const getUrlPostId = (): string | null => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -430,24 +433,40 @@ const App = () => {
       </div>
 
       <main id="conteudo-principal" style={containerStyle}>
-        {error ? (<div style={{ textAlign: 'center', color: 'var(--semantic-error)', padding: '40px', fontWeight: 'bold' }}>{error}</div>) :
-          currentPost ? (
-            <PostReader
-              post={currentPost}
-              activePalette={activePalette}
-              settings={settings}
-              API_URL={API_URL}
-              onShare={handleShare}
-              onContact={() => setShowContactModal(true)}
-              onComment={() => setShowCommentModal(true)}
-              onDonation={() => setShowDonationModal(true)}
-              isSendingEmail={isSendingEmail}
-              isNotHomePage={isDeepLinkedPost}
-            />
-          ) : (<div style={{ textAlign: 'center', padding: '60px', opacity: 0.5, fontWeight: '700', letterSpacing: '2px' }}>A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>)}
+        {!showLicenses ? (
+          <>
+            {error ? (<div style={{ textAlign: 'center', color: 'var(--semantic-error)', padding: '40px', fontWeight: 'bold' }}>{error}</div>) :
+              currentPost ? (
+                <PostReader
+                  post={currentPost}
+                  activePalette={activePalette}
+                  settings={settings}
+                  API_URL={API_URL}
+                  onShare={handleShare}
+                  onContact={() => setShowContactModal(true)}
+                  onComment={() => setShowCommentModal(true)}
+                  onDonation={() => setShowDonationModal(true)}
+                  isSendingEmail={isSendingEmail}
+                  isNotHomePage={isDeepLinkedPost}
+                />
+              ) : (<div style={{ textAlign: 'center', padding: '60px', opacity: 0.5, fontWeight: '700', letterSpacing: '2px' }}>A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>)}
+          </>
+        ) : (
+          <div style={{ background: isDarkBase ? 'rgba(30,30,30,0.5)' : '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginTop: '40px' }}>
+            <LicencasModule />
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '30px', marginBottom: '10px' }}>
+              <button 
+                onClick={() => setShowLicenses(false)} 
+                type="button"
+                style={{ background: isDarkBase ? '#333' : '#f0f0f0', color: activePalette.fontColor, border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                Voltar à Leitura
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
-      <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={(p: Post) => { window.history.pushState({}, '', `/p/${p.id}`); setCurrentPost(p); }} activePalette={activePalette} APP_VERSION={APP_VERSION} />
+      {!showLicenses && <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={(p: Post) => { window.history.pushState({}, '', `/p/${p.id}`); setCurrentPost(p); }} activePalette={activePalette} APP_VERSION={APP_VERSION} />}
 
       <FloatingControls
         showBackToTop={showBackToTop}
@@ -469,6 +488,7 @@ const App = () => {
         <DonationModal show={showDonationModal} onClose={() => setShowDonationModal(false)} activePalette={activePalette} API_URL={API_URL} />
         <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} activePalette={activePalette} API_URL={API_URL} triggerDonation={() => setShowDonationModal(true)} />
       </Suspense>
+      <ComplianceBanner onViewLicenses={() => setShowLicenses(true)} />
     </div>
   );
 };
