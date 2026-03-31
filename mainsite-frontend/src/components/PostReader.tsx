@@ -71,7 +71,18 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         ADD_TAGS: ['iframe'],
         ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target', 'rel']
       });
-      return <div className="html-content" dangerouslySetInnerHTML={{ __html: safeHtml }} />;
+      // Post-process: DOMPurify strips target="_blank" as anti-tab-nabbing measure.
+      // Force it back on all non-YouTube links after sanitization.
+      const container = document.createElement('div');
+      container.innerHTML = safeHtml;
+      container.querySelectorAll('a[href]').forEach(a => {
+        const href = a.getAttribute('href') || '';
+        if (!/(?:youtube\.com|youtu\.be)\//i.test(href)) {
+          a.setAttribute('target', '_blank');
+          a.setAttribute('rel', 'noopener noreferrer');
+        }
+      });
+      return <div className="html-content" dangerouslySetInnerHTML={{ __html: container.innerHTML }} />;
     }
 
     return activeContent.split('\n').filter(p => p.trim() !== '').map((text, index) => {
