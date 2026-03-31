@@ -18,6 +18,17 @@ const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || '/api/up
   .replace(/^['"]|['"]$/g, '')
   .replace(/\/+$/, '');
 const getBrandIconSrc = (fileName: string, _fallbackUrl = '') => (brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : _fallbackUrl);
+const getSafeHttpsOrigin = (rawUrl: string): string | null => {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'https:') {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+};
 if (mpPublicKey) {
   initMercadoPago(mpPublicKey, { locale: 'pt-BR' });
 }
@@ -82,18 +93,26 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
   const [sumupNextStep, setSumupNextStep] = useState<SumupNextStep | null>(null);
   const [checkoutId, setCheckoutId] = useState<string | null>(null);
 
+  const expected3dsOrigin = sumupNextStep?.url ? getSafeHttpsOrigin(sumupNextStep.url) : null;
+
   // Escuta o redirect_url do iframe para bypass final
   useEffect(() => {
     const handleFrameMessage = (e: MessageEvent) => {
-      if (e.data && e.data.type === 'sumup-3ds-success') {
-        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-        setStep(3);
-        showToast('Pagamento aprovado com sucesso!', 'success');
+      if (!e.data || e.data.type !== 'sumup-3ds-success') {
+        return;
       }
+
+      if (!expected3dsOrigin || e.origin !== expected3dsOrigin) {
+        return;
+      }
+
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      setStep(3);
+      showToast('Pagamento aprovado com sucesso!', 'success');
     };
     window.addEventListener('message', handleFrameMessage);
     return () => window.removeEventListener('message', handleFrameMessage);
-  }, []);
+  }, [expected3dsOrigin]);
 
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
