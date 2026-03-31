@@ -1,5 +1,14 @@
 # Changelog — Mainsite Frontend
 
+## [v03.02.01] — 2026-03-31
+### Alterado
+- **Fluxo indireto `preview` padronizado**: branch operacional `preview` adotado no monorepo para promoções consistentes para `main`.
+- **Automação de promoção**: workflow `.github/workflows/preview-auto-pr.yml` adicionado/atualizado para abrir/reusar PR `preview -> main`, habilitar auto-merge e tentar merge imediato quando elegível.
+- **Permissões do GitHub Actions**: ajuste para permitir criação/aprovação de PR por workflow, eliminando falhas 403 operacionais.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.02.00 → APP v03.02.01
+
 ## [v03.02.00] — 2026-03-29
 ### Alterado
 - **Autor dinâmico no PostReader**: byline e Schema.org JSON-LD agora consomem `post.author` do banco de dados em vez de string hardcoded. Fallback para "Leonardo Cardozo Vargas" para posts sem autor definido.
