@@ -1,5 +1,15 @@
 # Changelog — Mainsite Frontend
 
+## [v03.02.04] — 2026-03-31
+### Corrigido
+- **Lint em modais de formulário**: `formatPhone` em `CommentModal.tsx` e `ContactModal.tsx` passou de `let` para `const`, eliminando violações de `prefer-const` sem alterar o comportamento da máscara.
+
+### Alterado
+- **Dependências atualizadas**: `dompurify`, `@types/dompurify` e `@vitejs/plugin-react` atualizados com lockfile sincronizado.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.02.03 → APP v03.02.04
+
 ## [v03.02.03] - 2026-03-31
 ### Adicionado
 - **Governança de Licenciamento (GNU AGPLv3)**: Inserção do `LicencasModule` e `ComplianceBanner` no frontend para fechamento do SaaS Loophole com conformidade total.

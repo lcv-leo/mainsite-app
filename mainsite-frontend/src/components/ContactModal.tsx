@@ -37,7 +37,7 @@ const ContactModal = ({ show, onClose, onSubmit, activePalette, isSubmitting }: 
   const charsLeft = 500 - formData.message.length;
 
   const formatPhone = (val: string): string => {
-    let v = val.replace(/\D/g, '').substring(0, 11);
+    const v = val.replace(/\D/g, '').substring(0, 11);
     if (v.length === 0) return '';
     if (v.length <= 2) return `(${v}`;
     if (v.length <= 3) return `(${v.slice(0, 2)}) ${v.slice(2)}`;

@@ -1,5 +1,13 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.01.02] — 2026-03-31
+### Alterado
+- **Dependências atualizadas**: upgrade de `@sumup/sdk`, `@cloudflare/workers-types` e `wrangler` para versões recentes, com lockfile sincronizado.
+- **Dependabot para worker reforçado**: adicionado agrupamento de devDependencies (`eslint*`, `typescript`, `@types/*`, `wrangler`) para reduzir ruído operacional de PRs.
+
+### Controle de versão
+- `mainsite-worker`: v02.01.01 → v02.01.02
+
 ## [v02.01.01] — 2026-03-29
 ### Alterado
 - **Autor dinâmico em posts**: `posts.ts` INSERT e UPDATE aceitam campo `author` no body JSON e persistem na coluna `author` da tabela `mainsite_posts`. Fallback para "Leonardo Cardozo Vargas". Paridade com `admin-app` v01.73.00.
