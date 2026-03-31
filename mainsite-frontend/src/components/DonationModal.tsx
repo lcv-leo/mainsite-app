@@ -1,3 +1,24 @@
+const formatCpf = (digits: string): string => {
+  const d = digits.slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+};
+
+const formatCnpj = (digits: string): string => {
+  const d = digits.slice(0, 14);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+};
+
+const maskBrazilianDocument = (type: string, raw: string): string => {
+  const digits = raw.replace(/\D/g, '');
+  return type === 'CNPJ' ? formatCnpj(digits) : formatCpf(digits);
+};
 // Módulo: mainsite-frontend/src/components/DonationModal.tsx
 // Versão: v2.0.0
 // Descrição: TypeScript migration. Resolução do TypeError letal ('reading payer' of undefined) no onSubmit preservada. Tipagem completa para estados, refs e payloads.
@@ -266,8 +287,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
     const currentYear = new Date().getFullYear();
     const validMonth = Number.isInteger(expMonthNum) && expMonthNum >= 1 && expMonthNum <= 12;
     const validYear = Number.isInteger(expYearNum) && expYearNum >= currentYear;
+    const sumupDocumentDigits = sumupDocument.replace(/\D/g, '');
+    const expectedLength = sumupDocumentType === 'CNPJ' ? 14 : 11;
+    const hasValidDocument = sumupDocumentDigits.length === expectedLength;
 
-    if (!sumupCard.holder.trim() || cardNumber.length < 13 || !validMonth || !validYear || sumupCard.cvv.length < 3 || !sumupEmail.trim() || !sumupDocument.trim()) {
+    if (!sumupCard.holder.trim() || cardNumber.length < 13 || !validMonth || !validYear || sumupCard.cvv.length < 3 || !sumupEmail.trim() || !hasValidDocument) {
       showToast('Preencha corretamente todos os dados do cartão.', 'error');
       return;
     }
@@ -298,7 +322,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
           lastName: lastName.trim(),
           email: sumupEmail.trim(),
           documentType: sumupDocumentType,
-          document: sumupDocument.trim(),
+          document: sumupDocumentDigits,
           card: {
             name: sumupCard.holder.trim(),
             number: cardNumber,
@@ -746,7 +770,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
                     name="documentType"
                     autoComplete="off"
                     value={sumupDocumentType}
-                    onChange={(e) => setSumupDocumentType(e.target.value)}
+                    onChange={(e) => {
+                      const nextType = e.target.value;
+                      setSumupDocumentType(nextType);
+                      setSumupDocument((prev) => maskBrazilianDocument(nextType, prev));
+                    }}
                     style={{ ...inputStyle, width: '100%' }}
                   >
                     <option value="CPF">CPF</option>
@@ -765,7 +793,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
                     autoComplete="off"
                     inputMode="numeric"
                     value={sumupDocument}
-                    onChange={(e) => setSumupDocument(e.target.value)}
+                    onChange={(e) => setSumupDocument(maskBrazilianDocument(sumupDocumentType, e.target.value))}
+                    maxLength={sumupDocumentType === 'CPF' ? 14 : 18}
                     style={inputStyle}
                     required
                   />

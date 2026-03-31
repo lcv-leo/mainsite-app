@@ -105,6 +105,7 @@ sumup.post('/api/sumup/checkout/:id/pay', async (c) => {
       baseAmount?: number; coverFees?: boolean; card?: Record<string, string>;
       firstName?: string; lastName?: string; email?: string; document?: string;
     };
+    const taxIdDigits = String(taxId || '').replace(/\D/g, '').trim();
 
     if (!checkoutId) return c.json({ error: 'Checkout inválido.' }, 400);
     if (!baseAmount || Number(baseAmount) <= 0) return c.json({ error: 'Valor inválido para pagamento SumUp.' }, 400);
@@ -136,7 +137,7 @@ sumup.post('/api/sumup/checkout/:id/pay', async (c) => {
         first_name: (firstName || '').trim() || undefined,
         last_name: (lastName || '').trim() || undefined,
         email: (email || '').trim() || undefined,
-        tax_id: (taxId || '').trim() || undefined,
+        tax_id: taxIdDigits || undefined,
       },
     };
 
