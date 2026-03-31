@@ -283,8 +283,7 @@ ai.post('/api/ai/public/chat', async (c) => {
       ),
     ].slice(0, 24);
 
-    const allPosts = Array.isArray(results) ? results : [];
-    const scoredPosts = allPosts.map((post) => {
+    const scoredPosts = results.map((post) => {
       const title = String((post as Record<string, unknown>)?.title || '');
       const content = String((post as Record<string, unknown>)?.content || '');
       const titleNorm = normalizeForSearch(title);

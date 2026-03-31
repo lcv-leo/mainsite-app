@@ -64,12 +64,6 @@ sumup.post('/api/sumup/checkout', async (c) => {
       return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
     }
 
-    let amount = Number(baseAmount);
-    if (coverFees) {
-      const fees = await loadFeeConfig(c.env.DB);
-      amount = parseFloat(((amount + fees.sumupFixed) / (1 - fees.sumupRate)).toFixed(2));
-    }
-
     const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
     const merchantCode = c.env.SUMUP_MERCHANT_CODE;
     if (!sumupToken || !merchantCode) {
