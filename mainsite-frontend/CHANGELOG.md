@@ -1,5 +1,12 @@
 # Changelog — Mainsite Frontend
 
+## [v03.02.05] - 2026-03-31
+### Corrigido
+- **Compliance - docs legais locais em runtime**: o `LicencasModule` passou a carregar `LICENSE`, `NOTICE` e `THIRDPARTY` a partir de `public/legal/*` via `BASE_URL`, eliminando dependência de `raw.githubusercontent.com` no browser e removendo os 404 recorrentes em produção.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.02.03 → APP v03.02.05
+
 ## [v03.02.04] — 2026-03-31
 ### Corrigido
 - **Lint em modais de formulário**: `formatPhone` em `CommentModal.tsx` e `ContactModal.tsx` passou de `let` para `const`, eliminando violações de `prefer-const` sem alterar o comportamento da máscara.
