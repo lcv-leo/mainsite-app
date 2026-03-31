@@ -1,5 +1,12 @@
 # Changelog — Mainsite Frontend
 
+## [v03.02.02] — 2026-03-31
+### Corrigido
+- **PostReader — links abrindo na mesma janela**: DOMPurify remove `target="_blank"` internamente como medida anti-tab-nabbing, mesmo com `ADD_ATTR: ['target']`. Adicionado pós-processamento determinístico que força `target="_blank"` e `rel="noopener noreferrer"` em todos os links não-YouTube **após** a sanitização do DOMPurify.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.02.01 → APP v03.02.02
+
 ## [v03.02.01] — 2026-03-31
 ### Alterado
 - **Fluxo indireto `preview` padronizado**: branch operacional `preview` adotado no monorepo para promoções consistentes para `main`.
