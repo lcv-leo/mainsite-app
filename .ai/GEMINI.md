@@ -1,5 +1,11 @@
 # AI Memory Log - mainsite
 
+## 2026-04-01 — Mainsite Frontend v03.03.04 — Zoom Controls Reintegrated Into FloatingControls Pattern
+### Corrigido
+- Zoom reintegrado ao `FloatingControls`, com o mesmo empilhamento vertical e o mesmo deslocamento lateral ao abrir o chat.
+### Controle de versão
+- `mainsite-frontend`: APP v03.03.03 → APP v03.03.04
+
 ## 2026-04-01 — Mainsite Frontend v03.03.03 — Text Zoom Analytics Disabled Until Backend Exists
 ### Corrigido
 - Tracking remoto de text zoom desativado por padrão até existir endpoint backend para `/api/analytics/text-zoom`.

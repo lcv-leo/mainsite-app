@@ -1,5 +1,15 @@
 # Changelog — Mainsite Frontend
 
+## [v03.03.04] - 2026-04-01
+### Corrigido
+- **Text zoom reintegrado ao padrão visual do site**: os controles de zoom deixaram de usar um floating widget independente e passaram a compor o mesmo cluster vertical de FABs do `FloatingControls`.
+- **Comportamento harmônico com o chatbot**: os botões de zoom agora participam da mesma lógica responsiva do site e se deslocam horizontalmente para a esquerda quando o chat é aberto, exatamente como os demais controles flutuantes.
+- **Estado do zoom elevado para o `App`**: `zoomLevel` passou a ser compartilhado entre `App`, `PostReader` e `FloatingControls`, eliminando duplicação estrutural e preservando a escala do texto no conteúdo.
+- **Componente legado removido**: `FloatingTextZoomControl.tsx` foi aposentado por quebrar o padrão visual e de posicionamento do mainsite.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.03.03 → APP v03.03.04
+
 ## [v03.03.03] - 2026-04-01
 ### Corrigido
 - **Text zoom analytics sem backend**: o `PostReader` deixou de ativar tracking remoto para `/api/analytics/text-zoom` enquanto o endpoint não existe no `mainsite`, eliminando o `POST ... 404 (Not Found)` em produção.

@@ -16,6 +16,8 @@ import ArchiveMenu from './components/ArchiveMenu';
 import FloatingControls from './components/FloatingControls';
 import { ComplianceBanner } from './components/ComplianceBanner';
 import { LicencasModule } from './modules/compliance/LicencasModule';
+import { useTextZoom } from './hooks/useTextZoom';
+import { useTextZoomCloud } from './hooks/useTextZoomCloud';
 
 const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
 const ContactModal = lazy(() => import('./components/ContactModal'));
@@ -25,7 +27,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.03.03';
+const APP_VERSION = 'APP v03.03.04';
 const SITE_NAME = 'Divagações Filosóficas';
 const SITE_URL = 'https://www.lcv.rio.br';
 
@@ -75,6 +77,13 @@ const App = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showDisclaimerFlow, setShowDisclaimerFlow] = useState(false);
   const [showLicenses, setShowLicenses] = useState(false);
+  const { zoomLevel, increase: increaseZoom, decrease: decreaseZoom, reset: resetZoom, setZoomLevel } = useTextZoom();
+
+  useTextZoomCloud(zoomLevel, setZoomLevel, {
+    apiUrl: API_URL,
+    userId: undefined,
+    enabled: true,
+  });
 
   const getUrlPostId = (): string | null => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -448,6 +457,7 @@ const App = () => {
                   onDonation={() => setShowDonationModal(true)}
                   isSendingEmail={isSendingEmail}
                   isNotHomePage={isDeepLinkedPost}
+                  zoomLevel={zoomLevel}
                 />
               ) : (<div style={{ textAlign: 'center', padding: '60px', opacity: 0.5, fontWeight: '700', letterSpacing: '2px' }}>A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>)}
           </>
@@ -478,6 +488,10 @@ const App = () => {
         isChatOpen={isChatOpen}
         setIsChatOpen={setIsChatOpen}
         activePalette={activePalette}
+        zoomLevel={zoomLevel}
+        onZoomIn={increaseZoom}
+        onZoomOut={decreaseZoom}
+        onZoomReset={resetZoom}
       />
 
       <Suspense fallback={null}>

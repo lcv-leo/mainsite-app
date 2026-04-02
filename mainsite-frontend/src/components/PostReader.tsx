@@ -10,9 +10,6 @@ import { type ChangeEvent, useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart } from 'lucide-react';
 import type { ActivePalette, SiteSettings, Post } from '../types';
-import { useTextZoom } from '../hooks/useTextZoom';
-import FloatingTextZoomControl from './FloatingTextZoomControl';
-import { useTextZoomCloud } from '../hooks/useTextZoomCloud';
 
 interface PostReaderProps {
   post: Post
@@ -25,21 +22,15 @@ interface PostReaderProps {
   onDonation: () => void
   isSendingEmail: boolean
   isNotHomePage: boolean
+  zoomLevel: number
 }
 
-const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage }: PostReaderProps) => {
+const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage, zoomLevel }: PostReaderProps) => {
   const [postSummary, setPostSummary] = useState<string | null>(null);
   const [translatedContent, setTranslatedContent] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const { zoomLevel, percentage, increase, decrease, reset, setZoomLevel } = useTextZoom();
-  // Cloud sync for zoom level remains dormant until auth/user binding exists.
-  useTextZoomCloud(zoomLevel, setZoomLevel, {
-    apiUrl: API_URL,
-    userId: undefined,
-    enabled: true,
-  });
 
   const isAILoading = isSummarizing || isTranslating;
 
@@ -258,17 +249,6 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       <div className="post-byline">
         Por {postAuthor}{post.created_at && ` · ${new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
       </div>
-
-      <FloatingTextZoomControl
-        zoomLevel={zoomLevel}
-        percentage={percentage}
-        onIncrease={increase}
-        onDecrease={decrease}
-        onReset={reset}
-        onSliderChange={setZoomLevel}
-        isDarkMode={isDarkBase}
-      />
-
       <div className="ai-actions-container">
         <div className="ai-actions-bar">
           <button onClick={handleSummarize} disabled={isAILoading} className={`ai-btn ${isSummarizing ? 'processing-active' : ''}`}>
