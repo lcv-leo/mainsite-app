@@ -53,98 +53,57 @@ app.use('/api/*', cors({
   maxAge: 86400,
 }));
 
-// ========== RATE LIMITING (in-memory, paridade monolito) ==========
+// ========== RATE LIMITING (Cloudflare native binding) ==========
+// Limites definidos via infrastructure-as-code em wrangler.json
+// Toggle enabled/disabled lido do D1 para preservar controle admin
 
-const ipCache = new Map<string, { count: number; firstRequest: number }>();
-let cachedRlConfig: ReturnType<typeof normalizeRlConfig> | null = null;
-let rlConfigLastFetched = 0;
-
-interface RlBucket { enabled: boolean; maxRequests: number; windowMinutes: number }
-interface RlConfig { chatbot: RlBucket; email: RlBucket }
-
-const DEFAULT_RL: RlConfig = {
-  chatbot: { enabled: false, maxRequests: 5, windowMinutes: 1 },
-  email: { enabled: false, maxRequests: 3, windowMinutes: 15 },
+const RATE_LIMIT_BINDINGS: Record<string, keyof Pick<Env, 'RL_CHATBOT' | 'RL_EMAIL'>> = {
+  chatbot: 'RL_CHATBOT',
+  email: 'RL_EMAIL',
 };
 
-function normalizeRlConfig(raw: Record<string, unknown> | null): RlConfig {
-  if (!raw || typeof raw !== 'object') return DEFAULT_RL;
+interface RlToggleConfig { chatbot: { enabled: boolean }; email: { enabled: boolean } }
+let cachedRlToggle: RlToggleConfig | null = null;
+let rlToggleFetchedAt = 0;
 
-  // Retrocompatibilidade com config legada { enabled, maxRequests, windowMinutes }
-  if ('enabled' in raw || 'maxRequests' in raw || 'windowMinutes' in raw) {
-    return {
-      chatbot: {
-        enabled: Boolean(raw.enabled),
-        maxRequests: Math.max(1, Number(raw.maxRequests) || DEFAULT_RL.chatbot.maxRequests),
-        windowMinutes: Math.max(1, Number(raw.windowMinutes) || DEFAULT_RL.chatbot.windowMinutes),
-      },
-      email: { ...DEFAULT_RL.email },
-    };
-  }
-
-  const normalizeBucket = (bucket: Record<string, unknown> | undefined, fallback: RlBucket): RlBucket => ({
-    enabled: Boolean(bucket?.enabled),
-    maxRequests: Math.max(1, Number(bucket?.maxRequests) || fallback.maxRequests),
-    windowMinutes: Math.max(1, Number(bucket?.windowMinutes) || fallback.windowMinutes),
-  });
-
-  return {
-    chatbot: normalizeBucket(raw.chatbot as Record<string, unknown>, DEFAULT_RL.chatbot),
-    email: normalizeBucket(raw.email as Record<string, unknown>, DEFAULT_RL.email),
-  };
-}
-
-async function getRateLimitConfig(env: Env): Promise<RlConfig> {
+async function getRlEnabled(env: Env): Promise<RlToggleConfig> {
   const now = Date.now();
-  if (!cachedRlConfig || now - rlConfigLastFetched > 60000) {
-    try {
-      const record = await env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/ratelimit'").first<{ payload: string }>();
-      const parsed = record ? JSON.parse(record.payload) : DEFAULT_RL;
-      cachedRlConfig = normalizeRlConfig(parsed);
-      rlConfigLastFetched = now;
-    } catch {
-      cachedRlConfig = DEFAULT_RL;
+  if (cachedRlToggle && now - rlToggleFetchedAt < 60000) return cachedRlToggle;
+  try {
+    const record = await env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/ratelimit'").first<{ payload: string }>();
+    if (record) {
+      const parsed = JSON.parse(record.payload);
+      cachedRlToggle = {
+        chatbot: { enabled: Boolean(parsed?.chatbot?.enabled ?? parsed?.enabled) },
+        email: { enabled: Boolean(parsed?.email?.enabled) },
+      };
+    } else {
+      cachedRlToggle = { chatbot: { enabled: false }, email: { enabled: false } };
     }
+    rlToggleFetchedAt = now;
+  } catch {
+    cachedRlToggle = { chatbot: { enabled: false }, email: { enabled: false } };
   }
-  return cachedRlConfig;
+  return cachedRlToggle;
 }
 
-function createRateLimiterMiddleware(bucketName: keyof RlConfig) {
+function createRateLimiterMiddleware(bucketName: 'chatbot' | 'email') {
   return async (c: { req: { header: (name: string) => string | undefined }; json: (data: unknown, status?: number) => Response; env: Env }, next: () => Promise<void>) => {
-    const now = Date.now();
-    const config = await getRateLimitConfig(c.env);
-    const bucket = config[bucketName] || DEFAULT_RL[bucketName];
-    if (!bucket?.enabled) return next();
+    const toggles = await getRlEnabled(c.env);
+    if (!toggles[bucketName]?.enabled) return next();
 
     const ip = c.req.header('cf-connecting-ip') || 'unknown';
-    const key = `${bucketName}:${ip}`;
-    const windowMs = (bucket.windowMinutes || 1) * 60000;
-    const maxReq = bucket.maxRequests || 5;
+    const bindingKey = RATE_LIMIT_BINDINGS[bucketName];
+    const limiter = c.env[bindingKey];
 
-    if (!ipCache.has(key)) {
-      ipCache.set(key, { count: 1, firstRequest: now });
-    } else {
-      const data = ipCache.get(key)!;
-      if (now - data.firstRequest > windowMs) {
-        ipCache.set(key, { count: 1, firstRequest: now });
-      } else {
-        data.count++;
-        if (data.count > maxReq) {
-          const errMsg = bucketName === 'email'
-            ? 'Limite de envios de e-mail excedido. Aguarde alguns instantes.'
-            : 'Limite de requisições de IA excedido. Aguarde alguns instantes.';
-          return c.json({ error: errMsg }, 429);
-        }
-      }
+    const { success } = await limiter.limit({ key: `${bucketName}:${ip}` });
+    if (!success) {
+      const errMsg = bucketName === 'email'
+        ? 'Limite de envios de e-mail excedido. Aguarde alguns instantes.'
+        : 'Limite de requisições de IA excedido. Aguarde alguns instantes.';
+      return c.json({ error: errMsg }, 429);
     }
 
-    // Limpeza probabilística do cache de IPs
-    if (Math.random() < 0.05) {
-      for (const [cacheKey, value] of ipCache.entries()) {
-        if (!cacheKey.startsWith(`${bucketName}:`)) continue;
-        if (now - value.firstRequest > windowMs) ipCache.delete(cacheKey);
-      }
-    }
     await next();
   };
 }

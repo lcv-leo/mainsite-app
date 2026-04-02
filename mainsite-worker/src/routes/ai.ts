@@ -25,6 +25,26 @@ import { structuredLog } from '../lib/logger.ts';
 
 const ai = new Hono<{ Bindings: Env }>();
 
+// ========== LAZY TABLE INIT (runs once per isolate) ==========
+
+let auditTableReady = false;
+async function ensureAuditTable(db: D1Database) {
+  if (auditTableReady) return;
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS mainsite_chat_context_audit (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      question TEXT NOT NULL,
+      context_title TEXT,
+      total_posts_scanned INTEGER NOT NULL,
+      context_posts_used INTEGER NOT NULL,
+      selected_posts_json TEXT NOT NULL,
+      terms_json TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  auditTableReady = true;
+}
+
 // ========== CONFIGURAÇÃO CENTRALIZADA DO GEMINI V1BETA ==========
 
 interface GeminiEndpointConfig {
@@ -447,19 +467,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
     ]);
 
     const auditPromise = (async () => {
-      await c.env.DB.prepare(`
-        CREATE TABLE IF NOT EXISTS mainsite_chat_context_audit (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          question TEXT NOT NULL,
-          context_title TEXT,
-          total_posts_scanned INTEGER NOT NULL,
-          context_posts_used INTEGER NOT NULL,
-          selected_posts_json TEXT NOT NULL,
-          terms_json TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `).run();
-
+      await ensureAuditTable(c.env.DB);
       await c.env.DB.prepare(
         'INSERT INTO mainsite_chat_context_audit (question, context_title, total_posts_scanned, context_posts_used, selected_posts_json, terms_json) VALUES (?, ?, ?, ?, ?, ?)'
       )
@@ -479,18 +487,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
 // GET /api/chat-context-audit (admin)
 ai.get('/api/chat-context-audit', requireAuth, async (c) => {
   try {
-    await c.env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS mainsite_chat_context_audit (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        question TEXT NOT NULL,
-        context_title TEXT,
-        total_posts_scanned INTEGER NOT NULL,
-        context_posts_used INTEGER NOT NULL,
-        selected_posts_json TEXT NOT NULL,
-        terms_json TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `).run();
+    await ensureAuditTable(c.env.DB);
 
     const limitRaw = Number(c.req.query('limit'));
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 500) : 100;

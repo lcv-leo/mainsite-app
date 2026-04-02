@@ -13,6 +13,10 @@ export interface Env {
   // --- R2 Bucket ---
   BUCKET: R2Bucket;
 
+  // --- Rate Limiting (native Cloudflare binding) ---
+  RL_CHATBOT: RateLimit;
+  RL_EMAIL: RateLimit;
+
   // --- Secrets & Tokens ---
   API_SECRET: string;
   GEMINI_API_KEY: string;
