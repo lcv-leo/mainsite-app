@@ -11,7 +11,9 @@ import DOMPurify from 'dompurify';
 import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart } from 'lucide-react';
 import type { ActivePalette, SiteSettings, Post } from '../types';
 import { useTextZoom } from '../hooks/useTextZoom';
-import TextZoomControl from './TextZoomControl';
+import FloatingTextZoomControl from './FloatingTextZoomControl';
+import { useTextZoomCloud } from '../hooks/useTextZoomCloud';
+import { useTextZoomAnalytics } from '../hooks/useTextZoomAnalytics';
 
 interface PostReaderProps {
   post: Post
@@ -33,6 +35,15 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
   const [isTranslating, setIsTranslating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const { zoomLevel, percentage, increase, decrease, reset, setZoomLevel } = useTextZoom();
+    // Cloud sync for zoom level (optional, if user is logged in)
+    useTextZoomCloud(zoomLevel, setZoomLevel, {
+      apiUrl: API_URL,
+      userId: undefined, // Would come from auth context
+      enabled: true,
+    });
+
+    // Analytics tracking for zoom patterns
+    const { trackZoomChange } = useTextZoomAnalytics(zoomLevel, API_URL);
 
   const isAILoading = isSummarizing || isTranslating;
 
@@ -252,15 +263,13 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         Por {postAuthor}{post.created_at && ` · ${new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
       </div>
 
-      <TextZoomControl
+      <FloatingTextZoomControl
         zoomLevel={zoomLevel}
         percentage={percentage}
         onIncrease={increase}
         onDecrease={decrease}
         onReset={reset}
         onSliderChange={setZoomLevel}
-        textColor={activePalette.fontColor}
-        bgColor={activePalette.bgColor}
         isDarkMode={isDarkBase}
       />
 
