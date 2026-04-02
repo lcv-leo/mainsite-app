@@ -1,5 +1,15 @@
 # AI Memory Log - mainsite
 
+## 2026-04-01 — Mainsite Frontend v03.03.02 — Text Zoom Audit Closure + Workspace Error Sanitation
+### Corrigido
+- **Fechamento real do text zoom**: `FloatingTextZoomControl.tsx` teve cleanup de props inválidas dentro de `style`, e `useTextZoomVoice.ts` passou a tipar `VoiceCommand.command` como `RegExp` em vez de `string`.
+- **Workspace diagnostics zerados**: arquivo `mainsite-frontend/src/components/TEXT_ZOOM_DEMO.ts` removido após identificar que continha pseudo-código TypeScript/JSX não executável e inflava a contagem de erros do workspace apesar do build verde.
+- **Gap de processo registrado**: o build do Vite estava verde, mas o workspace TypeScript ainda tinha erros; a diretiva operacional agora volta a exigir checagem de `get_errors` antes de qualquer fechamento final.
+### Adicionado
+- **Text zoom definitivo no PostReader**: controle movido para padrão flutuante com `createPortal`, atalhos globais de teclado, presets de acessibilidade e integração inicial com hooks de analytics/cloud sync/voice.
+### Controle de versão
+- `mainsite-frontend`: APP v03.02.05 → APP v03.03.02
+
 ## 2026-03-29 — Admin-App v01.73.00 + Mainsite Frontend v03.02.00 + Worker v02.01.01 — Dynamic Post Author
 ### Adicionado
 - **Autor dinâmico de posts**: campo `author` adicionado ao schema `mainsite_posts` (D1) com auto-migração (`ensureAuthorColumn`). `PostEditor` exibe input "Autor do post" entre título e editor. Backend admin-app (`posts.ts`) persiste `author` em INSERT/UPDATE/SELECT. Worker (`posts.ts`) atualizado com paridade.

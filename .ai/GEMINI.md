@@ -1,5 +1,15 @@
 # AI Memory Log - mainsite
 
+## 2026-04-01 — Mainsite Frontend v03.03.02 — Text Zoom Audit Closure + Workspace Error Sanitation
+### Corrigido
+- `FloatingTextZoomControl.tsx`: removidas props de evento indevidas do objeto `style`.
+- `useTextZoomVoice.ts`: tipagem de comandos de voz corrigida para `RegExp`.
+- `TEXT_ZOOM_DEMO.ts`: removido por gerar diagnósticos inválidos fora do runtime do app.
+### Adicionado
+- Controle de text zoom migrado para floating control discreto com atalhos, presets e base para voice/cloud/analytics.
+### Controle de versão
+- `mainsite-frontend`: APP v03.02.05 → APP v03.03.02
+
 ## 2026-03-29 — Admin-App v01.73.00 + Mainsite Frontend v03.02.00 + Worker v02.01.01 — Dynamic Post Author
 ### Adicionado
 - **Autor dinâmico de posts**: campo `author` adicionado ao schema `mainsite_posts` (D1) com auto-migração (`ensureAuthorColumn`). `PostEditor` exibe input "Autor do post" entre título e editor. Backend admin-app (`posts.ts`) persiste `author` em INSERT/UPDATE/SELECT. Worker (`posts.ts`) atualizado com paridade.

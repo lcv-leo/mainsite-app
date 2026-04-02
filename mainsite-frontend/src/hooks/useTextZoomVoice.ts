@@ -9,7 +9,7 @@
 import { useState, useCallback, useEffect } from 'react';
 
 interface VoiceCommand {
-  command: string;
+  command: RegExp;
   action: 'increase' | 'decrease' | 'reset' | 'preset';
   preset?: string;
 }
@@ -64,7 +64,7 @@ export const useTextZoomVoice = (
       ];
 
       for (const cmd of commands) {
-        if ((cmd.command as RegExp).test(transcript)) {
+        if (cmd.command.test(transcript)) {
           if (cmd.action === 'increase') onIncrease();
           else if (cmd.action === 'decrease') onDecrease();
           else if (cmd.action === 'reset') onReset();

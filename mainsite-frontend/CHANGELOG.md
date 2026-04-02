@@ -1,5 +1,33 @@
 # Changelog — Mainsite Frontend
 
+## [v03.03.02] - 2026-04-01
+### Corrigido
+- **Fechamento de qualidade do text zoom**: correção dos erros de tipagem restantes em `FloatingTextZoomControl.tsx` e `useTextZoomVoice.ts` que não apareciam no `vite build`, mas eram acusados pelo workspace TypeScript.
+- **Diagnósticos do workspace saneados**: remoção do arquivo de demonstração inválido `src/components/TEXT_ZOOM_DEMO.ts`, que continha pseudo-código/JSX fora do pipeline do app e inflava artificialmente a contagem de erros.
+- **Controle de versão sincronizado**: `APP_VERSION` em `src/App.tsx` alinhado com a entrega real da feature de text zoom.
+
+### Auditoria
+- `get_errors`: zero erros no workspace após o saneamento.
+- `npm run build`: validado com sucesso após as correções finais.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.03.01 → APP v03.03.02
+
+## [v03.03.01] - 2026-04-01
+### Adicionado
+- **Text Zoom — Floating Control + 5 Features Implementados**:
+  1. **Cloud Sync**: `useTextZoomCloud.ts` — Sincronize zoom level entre devices via Cloudflare D1/KV (debounced 500ms)
+  2. **Analytics**: `useTextZoomAnalytics.ts` — Rastreie patterns de zoom (timestamps, actions, sessionId)
+  3. **Voice Control**: `useTextZoomVoice.ts` — Web Speech API para comandos em português (aumentar, diminuir, reset, presets)
+  4. **Keyboard Shortcuts**: Globais no FloatingTextZoomControl (Ctrl++ aumenta, Ctrl+- diminui, Ctrl+0 reset)
+  5. **Accessibility Presets**: `useTextZoomPresets.ts` com 5 presets (Normal, Dyslexia, Low Vision, Accessibility, Compact)
+- **FloatingTextZoomControl.tsx**: Novo componente com design discreto (floating, reveal-on-hover, não-intrusivo)
+- **TextZoomControl.tsx**: Removido (substituído pelo floating version)
+- **PostReader.tsx**: Integrado useTextZoomCloud e useTextZoomAnalytics
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.03.00 → APP v03.03.01
+
 ## [v03.03.00] - 2026-04-01
 ### Adicionado
 - **Text Zoom Feature — Ferramenta de Escalabilidade de Texto**: Implementação de sistema elegante de aumentar/diminuir tamanho de texto no PostReader, mantendo formatação perfeita e excluindo o título do post.
