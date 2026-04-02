@@ -1,5 +1,13 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.01.03] — 2026-04-02
+### Alterado
+- **Gemini SDK Integrado**: Refatoração estrutural no abstraidor lógico de IA (`src/lib/genai.ts`) migrando totalmente da antiga requisição REST (`fetch`) para o pacote oficial e mais seguro `@google/genai`. 
+- Incorporada persistência de configuração *thinking models*, tratamento estrito de erro unificado e instanciamento via `apiKey`.
+
+### Controle de versão
+- `mainsite-worker`: v02.01.02 → v02.01.03
+
 ## [v02.01.02] — 2026-03-31
 ### Alterado
 - **Dependências atualizadas**: upgrade de `@sumup/sdk`, `@cloudflare/workers-types` e `wrangler` para versões recentes, com lockfile sincronizado.
