@@ -1,5 +1,12 @@
-# Changelog — Mainsite Frontend
+﻿# Changelog — Mainsite Frontend
 
+## [v03.04.00] - 2026-04-02
+### Alterado
+- **Rebranding Final**: O site foi renomeado de "Divagações Filosóficas" para "Reflexos da Alma" em todos os metadados, títulos, descrições e configurações de pagamento.
+- **Refatoração de Pasta Origin**: A pasta base do projeto mudou de \mainsite\ para \mainsite-app\ para melhor clareza e integração com os fluxos do workspace (CI/CD, automações, scripts).
+
+### Controle de versão
+- \mainsite-frontend\: APP v03.03.07 → APP v03.04.00
 ## [v03.03.07] - 2026-04-02
 ### Alterado
 - **Controle de Rate Limit Integrado**: refatoração massiva da forma com que os seletores de IA interagem. Adicionado botão "Atualizar". Rate limits manuais erradicados de todos os aplicativos paralelos no workspace. A política de proteção contra abusu agora conta inteiramente com o Cloudflare WAF, viabilizando endpoints de api livres da responsabilidade de rastrear D1 state pra contar token de usage.
@@ -175,7 +182,7 @@
 
 ### Alterado
 - **UI/UX tiptap.dev refinements**: tokens de design atualizados — `shape-md` 16→20px, `shape-lg` 24→28px, `shape-xl` 28→32px; shadows mais difusas e ambientes; edge treatment de `border-inline` para `inset box-shadow` sutil.
-- **Meta author**: corrigido de "Divagações Filosóficas" para "Leonardo Cardozo Vargas".
+- **Meta author**: corrigido de "Reflexos da Alma" para "Leonardo Cardozo Vargas".
 
 ### Removido
 - Todos os arquivos `.jsx` legados (11 arquivos) substituídos por `.tsx`.

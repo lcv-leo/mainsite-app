@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -40,20 +40,20 @@ contact.post('/api/contact', async (c) => {
           <p style="margin: 0; white-space: pre-wrap; font-style: italic;">"${message}"</p>
         </div>
         <p>Em breve entraremos em contato.</p>
-        <p>Atenciosamente,<br/><strong>Divagações Filosóficas</strong></p>
+        <p>Atenciosamente,<br/><strong>Reflexos da Alma</strong></p>
       </div>
     `;
 
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'Divagações Filosóficas <mainsite@lcv.app.br>', to: 'lcv@lcv.rio.br', subject: `Novo Contato de ${name}`, html: adminHtml }),
+      body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: 'lcv@lcv.rio.br', subject: `Novo Contato de ${name}`, html: adminHtml }),
     });
 
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'Divagações Filosóficas <mainsite@lcv.app.br>', to: email, subject: 'Recebemos sua mensagem', html: userHtml }),
+      body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: email, subject: 'Recebemos sua mensagem', html: userHtml }),
     });
 
     c.executionCtx.waitUntil(
@@ -91,7 +91,7 @@ contact.post('/api/comment', async (c) => {
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'Divagações Filosóficas <mainsite@lcv.app.br>', to: 'lcv@lcv.rio.br', subject: `Novo Comentário: ${post_title || 'Geral'}`, html: adminHtml }),
+      body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: 'lcv@lcv.rio.br', subject: `Novo Comentário: ${post_title || 'Geral'}`, html: adminHtml }),
     });
 
     return c.json({ success: true });
@@ -163,7 +163,7 @@ contact.post('/api/share/email', async (c) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: 'Divagações Filosóficas <mainsite@lcv.app.br>',
+        from: 'Reflexos da Alma <mainsite@lcv.app.br>',
         to: [target_email],
         subject: `Compartilhamento: ${post_title}`,
         html: `<div style="font-family: sans-serif; padding: 20px;">

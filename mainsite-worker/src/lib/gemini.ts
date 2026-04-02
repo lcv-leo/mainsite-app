@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -53,7 +53,7 @@ export async function generateShareSummary(
   const cleanText = stripHtml(content).substring(0, 2000);
   if (!cleanText || cleanText.length < 50) return null;
 
-  const prompt = `Você é um editor de metadados de compartilhamento social para o site "Divagações Filosóficas".
+  const prompt = `Você é um editor de metadados de compartilhamento social para o site "Reflexos da Alma".
 
 Gere DOIS resumos do texto fornecido, em formato JSON puro (sem markdown, sem code fences):
 

@@ -1,4 +1,4 @@
-# 🎉 IMPLEMENTAÇÃO COMPLETA — Text Zoom Feature
+﻿# 🎉 IMPLEMENTAÇÃO COMPLETA — Text Zoom Feature
 
 ## 📊 Entrega Final
 
@@ -205,7 +205,7 @@ useTextZoom() ← State Management (React)
 
 ### 1. Verificar Criação ✅
 ```bash
-cd mainsite/mainsite-frontend
+cd mainsite-app/mainsite-frontend
 ls -la src/hooks/useTextZoom.ts
 ls -la src/components/TextZoomControl.tsx
 ```

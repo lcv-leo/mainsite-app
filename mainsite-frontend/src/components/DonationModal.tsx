@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -625,7 +625,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
             </div>
             <h2 style={{ margin: '0 0 15px 0', fontSize: '24px', fontWeight: '600', color: activePalette.titleColor }}>Muito Obrigado!</h2>
             <p style={{ fontSize: '15px', opacity: 0.8, lineHeight: '1.6', marginBottom: '30px' }}>
-              Sua contribuição aquece os servidores e incentiva a continuidade destas divagações. Agradeço imensamente pelo apoio ao meu trabalho.
+              Sua contribuição aquece os servidores e incentiva a continuidade destas Reflexos. Agradeço imensamente pelo apoio ao meu trabalho.
             </p>
             <button type="button" onClick={() => { setStep(1); onClose(); }} style={buttonStyle}>Fechar</button>
           </div>

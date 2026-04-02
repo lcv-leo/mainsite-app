@@ -1,4 +1,4 @@
-# AI Memory Log - mainsite
+﻿# AI Memory Log - mainsite
 
 ## 2026-04-01 — Mainsite Frontend v03.03.04 — Zoom Controls Reintegrated Into FloatingControls Pattern
 ### Corrigido
@@ -75,7 +75,7 @@
 - **Edge pre-rendering (HTMLRewriter)**: `[[path]].js` reescrito para injetar Schema.org `Article` + `BreadcrumbList` + OG `article:` properties no edge Cloudflare, cobrindo crawlers sem JS. Corrigida duplicação de canonical link.
 ### Alterado
 - **UI/UX tiptap.dev refinements**: shape tokens bumped (`shape-md` 16→20px, `shape-lg` 24→28px, `shape-xl` 28→32px), shadows mais difusas, edge treatment de `border-inline` para `inset box-shadow`.
-- **Meta author**: corrigido de "Divagações Filosóficas" para "Leonardo Cardozo Vargas".
+- **Meta author**: corrigido de "Reflexos da Alma" para "Leonardo Cardozo Vargas".
 ### Removido
 - Todos os 11 arquivos `.jsx` legados.
 ### Controle de versão

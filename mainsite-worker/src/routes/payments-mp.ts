@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -60,13 +60,13 @@ mp.post('/api/mp-payment', async (c) => {
     }
 
     const donorFullName = `${realFirstName} ${realLastName}`.trim();
-    const donationDescriptor = `Doação de ${donorFullName} - Divagações Filosóficas`;
+    const donationDescriptor = `Doação de ${donorFullName} - Reflexos da Alma`;
 
     const enhancedPayload = {
       ...(mpPayload as Record<string, unknown>),
       description: donationDescriptor,
       external_reference: extRef,
-      statement_descriptor: 'DIVAGAC FILOSOF',
+      statement_descriptor: 'REFLEXOS ALMA',
       notification_url: `${new URL(c.req.url).origin}/api/webhooks/mercadopago`,
       payer: {
         ...((mpPayload as Record<string, Record<string, string>>).payer || {}),

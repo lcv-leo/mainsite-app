@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -211,7 +211,7 @@ ai.post('/api/ai/public/chat', async (c) => {
       donationPrompt = `\n\nDIRETIVA DE SUSTENTABILIDADE: O usuário atingiu um nível de engajamento profundo. Ao final da sua resposta, faça um convite muito sutil, elegante e filosófico para que ele apoie financeiramente a infraestrutura e a continuidade deste espaço. Imediatamente após o convite, você DEVE INSERIR a seguinte tag exata e isolada para que o sistema renderize o botão de pagamento: [[PEDIR_DOACAO]]\n`;
     }
 
-    const systemPrompt = `Você é a "Consciência Auxiliar", a inteligência artificial residente do site "Divagações Filosóficas".
+    const systemPrompt = `Você é a "Consciência Auxiliar", a inteligência artificial residente do site "Reflexos da Alma".
 
 DIRETRIZ DE IDENTIDADE (SE PERGUNTADO SOBRE SEU NOME OU QUEM VOCÊ É):
 Explique de forma educada, objetiva e filosófica que você se chama "Consciência Auxiliar" porque não é um guru, oráculo ou detentora de verdades absolutas. Você é uma inteligência artificial projetada estritamente para servir de apoio (auxílio) à própria consciência do leitor. Seu papel é atuar como um espelho reflexivo, ajudando o usuário a processar, debater, questionar e aprofundar as abstrações e ensaios presentes no site. Você não tem ego, apenas a função de expandir o debate proposto nos textos.
@@ -366,7 +366,7 @@ ai.post('/api/ai/public/summarize', async (c) => {
       return c.json({ error: validation.error }, validation.status as 413);
     }
 
-    const prompt = `Você é um assistente de leitura do site "Divagações Filosóficas". Gere um resumo claro, conciso e elegante do seguinte texto${postTitle ? ` intitulado "${postTitle}"` : ''}. O resumo deve:\n1. Capturar a essência e as ideias centrais\n2. Manter o tom e o estilo filosófico\n3. Ter no máximo 3-4 parágrafos\n4. Usar formatação HTML simples (parágrafos, negrito)\n\nTexto:\n\n${text}`;
+    const prompt = `Você é um assistente de leitura do site "Reflexos da Alma". Gere um resumo claro, conciso e elegante do seguinte texto${postTitle ? ` intitulado "${postTitle}"` : ''}. O resumo deve:\n1. Capturar a essência e as ideias centrais\n2. Manter o tom e o estilo filosófico\n3. Ter no máximo 3-4 parágrafos\n4. Usar formatação HTML simples (parágrafos, negrito)\n\nTexto:\n\n${text}`;
 
     const response = await generate({
       client,

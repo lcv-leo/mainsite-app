@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -136,7 +136,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       : (post.created_at ? new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString()),
     "publisher": {
       "@type": "Organization",
-      "name": "Divagações Filosóficas",
+      "name": "Reflexos da Alma",
       "url": "https://www.lcv.rio.br",
       "logo": { "@type": "ImageObject", "url": "https://www.lcv.rio.br/favicon.svg" }
     },

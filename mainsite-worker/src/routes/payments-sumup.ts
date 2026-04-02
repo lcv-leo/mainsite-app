@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -89,7 +89,7 @@ sumup.post('/api/sumup/checkout', async (c) => {
       amount: Number(amount),
       currency: 'BRL',
       merchant_code: merchantCode,
-      description: `Doação de ${fullName} - Divagações Filosóficas`,
+      description: `Doação de ${fullName} - Reflexos da Alma`,
       return_url: `${new URL(c.req.url).origin}/api/sumup/checkout/${checkoutReference}/return`,
     });
 

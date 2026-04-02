@@ -27,8 +27,8 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.03.07';
-const SITE_NAME = 'Divagações Filosóficas';
+const APP_VERSION = 'APP v03.04.00';
+const SITE_NAME = 'Reflexos da Alma';
 const SITE_URL = 'https://www.lcv.rio.br';
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -262,7 +262,7 @@ const App = () => {
       const fullTitle = `${currentPost.title} | ${SITE_NAME}`;
 
       document.title = fullTitle;
-      upsertMeta('meta[name="description"]', { name: 'description' }, excerpt || 'Leitura filosófica em Divagações Filosóficas.');
+      upsertMeta('meta[name="description"]', { name: 'description' }, excerpt || 'Leitura filosófica em Reflexos da Alma.');
       upsertMeta('meta[property="og:type"]', { property: 'og:type' }, 'article');
       upsertMeta('meta[property="og:title"]', { property: 'og:title' }, fullTitle);
       upsertMeta('meta[property="og:description"]', { property: 'og:description' }, excerpt || currentPost.title);
