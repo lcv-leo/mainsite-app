@@ -155,7 +155,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
   return (
     <article aria-label={post.title}>
       <style>{`
-        --text-zoom-scale: ${zoomLevel};
+        :root { --text-zoom-scale: ${zoomLevel}; }
         @keyframes pulseGlow { 0% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } 50% { box-shadow: 0 0 20px rgba(77, 166, 255, 0.8); border-color: rgba(77, 166, 255, 1); } 100% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
