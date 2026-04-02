@@ -1,5 +1,16 @@
 # Changelog — Mainsite Frontend
 
+## [v03.03.07] - 2026-04-02
+### Alterado
+- **Controle de Rate Limit Integrado**: refatoração massiva da forma com que os seletores de IA interagem. Adicionado botão "Atualizar". Rate limits manuais erradicados de todos os aplicativos paralelos no workspace. A política de proteção contra abusu agora conta inteiramente com o Cloudflare WAF, viabilizando endpoints de api livres da responsabilidade de rastrear D1 state pra contar token de usage.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.03.06 → APP v03.03.07
+
+## [v03.03.06] - 2026-04-02
+### Alterado
+- **Seletor de IA Dinâmico**: todos os componentes de Chat (Mainsite AI) implementam cache-busting real via refetch para permitir listagem ao vivo de modelos habilitados no painel de controle (Admin).
+
 ## [v03.03.05] - 2026-04-02
 ### Atualizações Tecnológicas (P3 e P4)
 - **Functions JS -> TS**: As Edge Functions (`sitemap.xml.ts`, `[[path]].ts`, `api/[[path]].ts`) foram migradas para TypeScript, adotando a tipagem estrita do `@cloudflare/workers-types` (`EventContext`, `D1Database`). 
