@@ -10,6 +10,8 @@ import { type ChangeEvent, useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart } from 'lucide-react';
 import type { ActivePalette, SiteSettings, Post } from '../types';
+import { useTextZoom } from '../hooks/useTextZoom';
+import TextZoomControl from './TextZoomControl';
 
 interface PostReaderProps {
   post: Post
@@ -30,6 +32,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const { zoomLevel, percentage, increase, decrease, reset, setZoomLevel } = useTextZoom();
 
   const isAILoading = isSummarizing || isTranslating;
 
@@ -154,8 +157,10 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
   return (
     <article aria-label={post.title}>
       <style>{`
+        --text-zoom-scale: ${zoomLevel};
         @keyframes pulseGlow { 0% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } 50% { box-shadow: 0 0 20px rgba(77, 166, 255, 0.8); border-color: rgba(77, 166, 255, 1); } 100% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-spin { animation: spin 1s linear infinite; }
         .processing-active { animation: pulseGlow 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; color: #4da6ff !important; }
         
@@ -186,10 +191,10 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         @media (max-width: 768px) { .post-content-area { border-left: none; padding-left: 0; } }
         
         .protected-content { user-select: none; -webkit-user-select: none; -ms-user-select: none; }
-        .p-content, .html-content p, .html-content ul, .html-content ol { font-size: ${settings.shared.fontSize}; color: ${activePalette.fontColor}; transition: color 0.5s ease; }
-        .html-content h1 { color: ${activePalette.titleColor}; margin: 2.5rem 0 1.2rem 0; font-weight: ${settings.shared.titleWeight || '700'}; font-size: ${settings.shared.titleFontSize}; letter-spacing: -0.02em; line-height: 1.2; transition: color 0.5s ease; }
-        .html-content h2 { color: ${activePalette.titleColor}; margin: 2.5rem 0 1rem 0; font-weight: ${settings.shared.titleWeight || '700'}; font-size: calc(${settings.shared.titleFontSize} * 0.85); letter-spacing: -0.01em; line-height: 1.25; transition: color 0.5s ease; }
-        .html-content h3 { color: ${activePalette.titleColor}; margin: 2rem 0 0.8rem 0; font-weight: ${Math.max(400, (parseInt(settings.shared.titleWeight) || 700) - 100)}; font-size: calc(${settings.shared.titleFontSize} * 0.70); letter-spacing: -0.01em; line-height: 1.3; transition: color 0.5s ease; }
+        .p-content, .html-content p, .html-content ul, .html-content ol { font-size: calc(${settings.shared.fontSize} * var(--text-zoom-scale, 1)); color: ${activePalette.fontColor}; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
+        .html-content h1 { color: ${activePalette.titleColor}; margin: 2.5rem 0 1.2rem 0; font-weight: ${settings.shared.titleWeight || '700'}; font-size: calc(${settings.shared.titleFontSize} * var(--text-zoom-scale, 1)); letter-spacing: -0.02em; line-height: 1.2; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
+        .html-content h2 { color: ${activePalette.titleColor}; margin: 2.5rem 0 1rem 0; font-weight: ${settings.shared.titleWeight || '700'}; font-size: calc(${settings.shared.titleFontSize} * 0.85 * var(--text-zoom-scale, 1)); letter-spacing: -0.01em; line-height: 1.25; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
+        .html-content h3 { color: ${activePalette.titleColor}; margin: 2rem 0 0.8rem 0; font-weight: ${Math.max(400, (parseInt(settings.shared.titleWeight) || 700) - 100)}; font-size: calc(${settings.shared.titleFontSize} * 0.70 * var(--text-zoom-scale, 1)); letter-spacing: -0.01em; line-height: 1.3; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
         .p-content { text-align: ${settings.shared.textAlign || 'justify'}; line-height: ${settings.shared.lineHeight || '1.9'}; text-indent: ${settings.shared.textIndent || '3.5rem'}; font-weight: ${settings.shared.bodyWeight || '500'}; margin: 0 0 ${settings.shared.paragraphSpacing || '2.2rem'} 0; }
         .html-content p { text-align: ${settings.shared.textAlign || 'justify'}; line-height: ${settings.shared.lineHeight || '1.9'}; font-weight: ${settings.shared.bodyWeight || '500'}; margin: 0 0 1.2rem 0; }
         .html-content p[style*="text-align: center"] { margin: 0.35rem 0 1.4rem 0; opacity: 0.86; }
@@ -246,6 +251,18 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       <div className="post-byline">
         Por {postAuthor}{post.created_at && ` · ${new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
       </div>
+
+      <TextZoomControl
+        zoomLevel={zoomLevel}
+        percentage={percentage}
+        onIncrease={increase}
+        onDecrease={decrease}
+        onReset={reset}
+        onSliderChange={setZoomLevel}
+        textColor={activePalette.fontColor}
+        bgColor={activePalette.bgColor}
+        isDarkMode={isDarkBase}
+      />
 
       <div className="ai-actions-container">
         <div className="ai-actions-bar">

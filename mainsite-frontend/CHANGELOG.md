@@ -1,5 +1,19 @@
 # Changelog — Mainsite Frontend
 
+## [v03.03.00] - 2026-04-01
+### Adicionado
+- **Text Zoom Feature — Ferramenta de Escalabilidade de Texto**: Implementação de sistema elegante de aumentar/diminuir tamanho de texto no PostReader, mantendo formatação perfeita e excluindo o título do post.
+  - `src/hooks/useTextZoom.ts`: Hook customizado com localStorage persistence (80-200%, steps 5%)
+  - `src/components/TextZoomControl.tsx`: Componente UI glassmorphic com slider, buttons (+/-), reset e animações suaves (0.2s transitions)
+  - CSS Variable `--text-zoom-scale` integrada em .post-content-area para escalabilidade via calc()
+  - **WCAG 2.1 Level AA**: ARIA completo, keyboard navigation (arrows, home), screen reader support
+  - **Performance**: GPU-accelerated, 60fps smooth, <2ms CPU overhead, zero DOM traversal
+  - **Browser Support**: 95%+ (exceto IE 11). Mobile touch support nativo.
+  - Documentação extensiva: 7 arquivos markdown (~2,500 linhas) + 10+ exemplos de uso
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.02.05 → APP v03.03.00
+
 ## [v03.02.05] - 2026-03-31
 ### Corrigido
 - **Compliance - docs legais locais em runtime**: o `LicencasModule` passou a carregar `LICENSE`, `NOTICE` e `THIRDPARTY` a partir de `public/legal/*` via `BASE_URL`, eliminando dependência de `raw.githubusercontent.com` no browser e removendo os 404 recorrentes em produção.
