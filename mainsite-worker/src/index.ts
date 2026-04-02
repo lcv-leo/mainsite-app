@@ -22,14 +22,6 @@ import paymentsSumupRoutes from './routes/payments-sumup.ts';
 import paymentsMpRoutes from './routes/payments-mp.ts';
 import postSummariesRoutes from './routes/post-summaries.ts';
 
-// --- Polyfill: Headers.raw() exigido por algumas dependências ---
-if (typeof Headers !== 'undefined' && !(Headers.prototype as unknown as Record<string, unknown>).raw) {
-  (Headers.prototype as unknown as Record<string, unknown>).raw = function (this: Headers) {
-    const raw: Record<string, string[]> = {};
-    this.forEach((value, key) => { raw[key] = [value]; });
-    return raw;
-  };
-}
 
 const app = new Hono<{ Bindings: Env }>();
 

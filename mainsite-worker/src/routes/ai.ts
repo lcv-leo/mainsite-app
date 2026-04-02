@@ -3,17 +3,17 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 /**
- * Rotas de Inteligência Artificial (Gemini v1beta).
+ * Rotas de Inteligência Artificial (via @google/genai SDK).
  * Domínio: /api/ai/* + /api/chat-logs + /api/chat-context-audit
  *
  * 10 features preservadas do monolito:
- * - Token counting (countTokens API)
+ * - Token counting (SDK countTokens)
  * - Structured logging
  * - Modern safety settings (BLOCK_ONLY_HIGH)
  * - maxOutputTokens por endpoint
  * - Usage metadata extraction
- * - Detailed retry handling
- * - Thinking support (multi-part filtering)
+ * - Detailed retry handling (built into SDK wrapper)
+ * - Thinking support (thinkingLevel: HIGH)
  * - Centralized config
  * - Input validation (120k token limit)
  * - Rate limiting (middleware upstream)
@@ -22,6 +22,7 @@ import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
+import { createClient, countTokens, generate, extractText, extractUsage, getConfiguredModel } from '../lib/genai.ts';
 
 const ai = new Hono<{ Bindings: Env }>();
 
@@ -45,143 +46,19 @@ async function ensureAuditTable(db: D1Database) {
   auditTableReady = true;
 }
 
-// ========== CONFIGURAÇÃO CENTRALIZADA DO GEMINI V1BETA ==========
+// ========== CONFIG ==========
 
-interface GeminiEndpointConfig {
-  maxOutputTokens: number;
-  temperature: number;
-}
-
-const GEMINI_CONFIG = {
-  model: 'gemini-pro-latest',
-  version: 'v1beta',
-  maxTokensInput: 120_000,
-  maxRetries: 2,
-  retryDelayMs: 800,
-  defaultThinkingConfig: { thinkingLevel: 'HIGH' as const },
-  endpoints: {
-    transform: { maxOutputTokens: 6000, temperature: 0.5 },
-    chat: { maxOutputTokens: 8192, temperature: 0.3 },
-    summarize: { maxOutputTokens: 4096, temperature: 0.4 },
-    translate: { maxOutputTokens: 5000, temperature: 0.2 },
-  } as Record<string, GeminiEndpointConfig>,
-};
-
-// ========== UTILITÁRIOS ==========
-
-async function estimateTokenCount(text: string, apiKey: string): Promise<number> {
-  if (!text || !apiKey) return 0;
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/${GEMINI_CONFIG.version}/models/${GEMINI_CONFIG.model}:countTokens?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text }] }] }),
-      }
-    );
-    if (!response.ok) return 0;
-    const data = (await response.json()) as { totalTokens?: number };
-    return data.totalTokens || 0;
-  } catch (err) {
-    structuredLog('warn', 'Failed to count tokens', { error: (err as Error).message });
-    return 0;
-  }
-}
+const MAX_INPUT_TOKENS = 120_000;
 
 function validateInputTokens(tokenCount: number): { shouldReject: boolean; status?: number; error?: string } {
-  if (tokenCount > GEMINI_CONFIG.maxTokensInput) {
+  if (tokenCount > MAX_INPUT_TOKENS) {
     return {
       shouldReject: true,
       status: 413,
-      error: `Input exceeds token limit: ${tokenCount} > ${GEMINI_CONFIG.maxTokensInput}`,
+      error: `Input exceeds token limit: ${tokenCount} > ${MAX_INPUT_TOKENS}`,
     };
   }
   return { shouldReject: false };
-}
-
-function getModernSafetySettings() {
-  return [
-    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-  ];
-}
-
-function getGenerationConfig(endpoint: string) {
-  const config = GEMINI_CONFIG.endpoints[endpoint] || GEMINI_CONFIG.endpoints.chat;
-  return {
-    temperature: config.temperature,
-    maxOutputTokens: config.maxOutputTokens,
-    thinkingConfig: GEMINI_CONFIG.defaultThinkingConfig,
-  };
-}
-
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  endpoint: string = 'unknown'
-): Promise<Response> {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= GEMINI_CONFIG.maxRetries; attempt++) {
-    try {
-      structuredLog('info', `Gemini API request attempt ${attempt}`, {
-        endpoint,
-        attempt,
-        url: url.split('?')[0],
-      });
-
-      const response = await fetch(url, options);
-
-      if (response.ok) {
-        structuredLog('info', 'Gemini API request succeeded', { endpoint, attempt, status: response.status });
-        return response;
-      }
-
-      lastError = { status: response.status, statusText: response.statusText };
-      structuredLog('warn', 'Gemini API request failed', {
-        endpoint,
-        attempt,
-        status: response.status,
-        message: response.statusText,
-      });
-
-      if (attempt < GEMINI_CONFIG.maxRetries) {
-        await new Promise((r) => setTimeout(r, GEMINI_CONFIG.retryDelayMs));
-      }
-    } catch (err) {
-      lastError = { message: (err as Error).message };
-      structuredLog('error', 'Gemini API request error', { endpoint, attempt, error: (err as Error).message });
-      if (attempt < GEMINI_CONFIG.maxRetries) {
-        await new Promise((r) => setTimeout(r, GEMINI_CONFIG.retryDelayMs));
-      }
-    }
-  }
-
-  structuredLog('error', 'Gemini API request exhausted retries', {
-    endpoint,
-    totalAttempts: GEMINI_CONFIG.maxRetries,
-    lastError,
-  });
-
-  throw new Error(`API request failed after ${GEMINI_CONFIG.maxRetries} attempts: ${JSON.stringify(lastError)}`);
-}
-
-function extractUsageMetadata(responseData: Record<string, unknown>) {
-  const usage = (responseData?.usageMetadata || {}) as Record<string, number>;
-  return {
-    promptTokens: usage.promptTokenCount || 0,
-    outputTokens: usage.candidatesTokenCount || 0,
-    cachedTokens: usage.cachedContentTokenCount || 0,
-  };
-}
-
-function extractTextFromParts(parts: Array<{ text?: string; thought?: boolean }>) {
-  return (parts || [])
-    .filter((p) => p.text && !p.thought)
-    .map((p) => p.text)
-    .join('');
 }
 
 // ========== ROTAS ==========
@@ -198,13 +75,16 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
     if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const inputTokens = await estimateTokenCount(text, apiKey);
+    const client = createClient(apiKey);
+    const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+
+    const inputTokens = await countTokens(client, text, modelStr);
     const validation = validateInputTokens(inputTokens);
     if (validation.shouldReject) {
       structuredLog('warn', 'Input validation failed', {
         endpoint: 'transform',
         tokenCount: inputTokens,
-        limit: GEMINI_CONFIG.maxTokensInput,
+        limit: MAX_INPUT_TOKENS,
       });
       return c.json({ error: validation.error }, validation.status as 413);
     }
@@ -231,30 +111,14 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
         promptContext = 'Melhore o seguinte texto:';
     }
 
-    const url = `https://generativelanguage.googleapis.com/${GEMINI_CONFIG.version}/models/${GEMINI_CONFIG.model}:generateContent?key=${apiKey}`;
-    const generationConfig = getGenerationConfig('transform');
-    const safetySettings = getModernSafetySettings();
+    const response = await generate({
+      client,
+      prompt: `${promptContext}\n\n"${text}"`,
+      endpoint: 'transform',
+      model: modelStr,
+    });
 
-    const requestBody = {
-      contents: [{ parts: [{ text: `${promptContext}\n\n"${text}"` }] }],
-      generationConfig,
-      safetySettings,
-    };
-
-    const response = await fetchWithRetry(
-      url,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      },
-      'transform'
-    );
-
-    const data = (await response.json()) as Record<string, unknown>;
-    if (!response.ok) throw new Error(((data as { error?: { message?: string } }).error?.message) || 'Falha na API Gemini.');
-
-    const usage = extractUsageMetadata(data);
+    const usage = extractUsage(response);
     structuredLog('info', 'Gemini transform completed', {
       endpoint: 'transform',
       action,
@@ -263,11 +127,7 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
       cachedTokens: usage.cachedTokens,
     });
 
-    const textContent = ((data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }> }).candidates?.[0]?.content?.parts) || [];
-    const textParts = extractTextFromParts(textContent);
-    const finalText = textParts || textContent[0]?.text || '';
-
-    return c.json({ success: true, text: finalText });
+    return c.json({ success: true, text: extractText(response) });
   } catch (err) {
     structuredLog('error', 'Transform endpoint error', { endpoint: 'transform', error: (err as Error).message });
     return c.json({ error: (err as Error).message }, 500);
@@ -379,39 +239,28 @@ ${dbContext}
 
 PERGUNTA DO USUÁRIO: ${message}`;
 
-    const inputTokens = await estimateTokenCount(systemPrompt, apiKey);
+    const client = createClient(apiKey);
+    const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+
+    const inputTokens = await countTokens(client, systemPrompt, modelStr);
     const validation = validateInputTokens(inputTokens);
     if (validation.shouldReject) {
       structuredLog('warn', 'Chat input validation failed', {
         endpoint: 'chat',
         tokenCount: inputTokens,
-        limit: GEMINI_CONFIG.maxTokensInput,
+        limit: MAX_INPUT_TOKENS,
       });
       return c.json({ error: validation.error }, validation.status as 413);
     }
 
-    const url = `https://generativelanguage.googleapis.com/${GEMINI_CONFIG.version}/models/${GEMINI_CONFIG.model}:generateContent?key=${apiKey}`;
-    const generationConfig = getGenerationConfig('chat');
-    const safetySettings = getModernSafetySettings();
+    const response = await generate({
+      client,
+      prompt: systemPrompt,
+      endpoint: 'chat',
+      model: modelStr,
+    });
 
-    const response = await fetchWithRetry(
-      url,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig,
-          safetySettings,
-        }),
-      },
-      'chat'
-    );
-
-    const data = (await response.json()) as Record<string, unknown>;
-    if (!response.ok) throw new Error('Falha na API Gemini.');
-
-    const usage = extractUsageMetadata(data);
+    const usage = extractUsage(response);
     structuredLog('info', 'Gemini chat completed', {
       endpoint: 'chat',
       context: contextTitleLog,
@@ -420,9 +269,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
       cachedTokens: usage.cachedTokens,
     });
 
-    const textContent =
-      ((data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }> }).candidates?.[0]?.content?.parts) || [];
-    let replyText = extractTextFromParts(textContent) || textContent[0]?.text || '';
+    let replyText = extractText(response);
 
     // Tratativa da Tag de E-mail Oculto
     const emailRegex = /\[\[ENVIAR_EMAIL\]\](.*?)\[\[\/ENVIAR_EMAIL\]\]/is;
@@ -510,7 +357,10 @@ ai.post('/api/ai/public/summarize', async (c) => {
     if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const inputTokens = await estimateTokenCount(text, apiKey);
+    const client = createClient(apiKey);
+    const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+
+    const inputTokens = await countTokens(client, text, modelStr);
     const validation = validateInputTokens(inputTokens);
     if (validation.shouldReject) {
       return c.json({ error: validation.error }, validation.status as 413);
@@ -518,35 +368,21 @@ ai.post('/api/ai/public/summarize', async (c) => {
 
     const prompt = `Você é um assistente de leitura do site "Divagações Filosóficas". Gere um resumo claro, conciso e elegante do seguinte texto${postTitle ? ` intitulado "${postTitle}"` : ''}. O resumo deve:\n1. Capturar a essência e as ideias centrais\n2. Manter o tom e o estilo filosófico\n3. Ter no máximo 3-4 parágrafos\n4. Usar formatação HTML simples (parágrafos, negrito)\n\nTexto:\n\n${text}`;
 
-    const url = `https://generativelanguage.googleapis.com/${GEMINI_CONFIG.version}/models/${GEMINI_CONFIG.model}:generateContent?key=${apiKey}`;
-    const response = await fetchWithRetry(
-      url,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: getGenerationConfig('summarize'),
-          safetySettings: getModernSafetySettings(),
-        }),
-      },
-      'summarize'
-    );
+    const response = await generate({
+      client,
+      prompt,
+      endpoint: 'summarize',
+      model: modelStr,
+    });
 
-    const data = (await response.json()) as Record<string, unknown>;
-    if (!response.ok) throw new Error('Falha na API Gemini.');
-
-    const usage = extractUsageMetadata(data);
+    const usage = extractUsage(response);
     structuredLog('info', 'Gemini summarize completed', {
       endpoint: 'summarize',
       promptTokens: usage.promptTokens,
       outputTokens: usage.outputTokens,
     });
 
-    const parts = ((data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }> }).candidates?.[0]?.content?.parts) || [];
-    const finalText = extractTextFromParts(parts) || parts[0]?.text || '';
-
-    return c.json({ success: true, summary: finalText });
+    return c.json({ success: true, summary: extractText(response) });
   } catch (err) {
     structuredLog('error', 'Summarize endpoint error', { error: (err as Error).message });
     return c.json({ error: (err as Error).message }, 500);
@@ -565,8 +401,11 @@ ai.post('/api/ai/public/translate', async (c) => {
     if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
+    const client = createClient(apiKey);
+    const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
     const lang = targetLanguage || 'English';
-    const inputTokens = await estimateTokenCount(text, apiKey);
+
+    const inputTokens = await countTokens(client, text, modelStr);
     const validation = validateInputTokens(inputTokens);
     if (validation.shouldReject) {
       return c.json({ error: validation.error }, validation.status as 413);
@@ -574,25 +413,14 @@ ai.post('/api/ai/public/translate', async (c) => {
 
     const prompt = `Translate the following text${postTitle ? ` titled "${postTitle}"` : ''} to ${lang}. Preserve the philosophical tone and HTML formatting.\n\nText:\n\n${text}`;
 
-    const url = `https://generativelanguage.googleapis.com/${GEMINI_CONFIG.version}/models/${GEMINI_CONFIG.model}:generateContent?key=${apiKey}`;
-    const response = await fetchWithRetry(
-      url,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: getGenerationConfig('translate'),
-          safetySettings: getModernSafetySettings(),
-        }),
-      },
-      'translate'
-    );
+    const response = await generate({
+      client,
+      prompt,
+      endpoint: 'translate',
+      model: modelStr,
+    });
 
-    const data = (await response.json()) as Record<string, unknown>;
-    if (!response.ok) throw new Error('Falha na API Gemini.');
-
-    const usage = extractUsageMetadata(data);
+    const usage = extractUsage(response);
     structuredLog('info', 'Gemini translate completed', {
       endpoint: 'translate',
       targetLanguage: lang,
@@ -600,10 +428,7 @@ ai.post('/api/ai/public/translate', async (c) => {
       outputTokens: usage.outputTokens,
     });
 
-    const parts = ((data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }> }).candidates?.[0]?.content?.parts) || [];
-    const finalText = extractTextFromParts(parts) || parts[0]?.text || '';
-
-    return c.json({ success: true, translation: finalText });
+    return c.json({ success: true, translation: extractText(response) });
   } catch (err) {
     structuredLog('error', 'Translate endpoint error', { error: (err as Error).message });
     return c.json({ error: (err as Error).message }, 500);

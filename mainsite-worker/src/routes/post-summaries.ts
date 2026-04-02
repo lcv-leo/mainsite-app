@@ -132,7 +132,7 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async 
     const cleanContent = stripHtml(post.content);
     const contentHash = await hashContent(cleanContent);
 
-    const result = await generateShareSummary(post.title, post.content, apiKey);
+    const result = await generateShareSummary(c.env.DB, post.title, post.content, apiKey);
     if (!result) {
       return c.json({ error: 'Falha na geração do resumo pela IA' }, 502);
     }
@@ -218,7 +218,7 @@ postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) =>
       }
 
       try {
-        const result = await generateShareSummary(post.title, post.content, apiKey);
+        const result = await generateShareSummary(c.env.DB, post.title, post.content, apiKey);
         if (!result) {
           failed++;
           details.push({ postId: post.id, title: post.title, status: 'failed_ai' });

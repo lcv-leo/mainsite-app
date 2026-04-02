@@ -71,7 +71,7 @@ async function triggerSummaryGeneration(
     }
 
     // Gera via Gemini
-    const result = await generateShareSummary(title, content, apiKey);
+    const result = await generateShareSummary(db, title, content, apiKey);
     if (!result) {
       structuredLog('warn', 'Share summary generation returned null', { postId });
       return;

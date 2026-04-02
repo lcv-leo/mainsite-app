@@ -3,15 +3,11 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 /**
- * Utilitário compartilhado para chamadas Gemini (summary generation).
- * Extraído para evitar duplicação com ai.ts.
+ * Utilitário compartilhado para geração de resumos de compartilhamento social.
+ * Usa o @google/genai SDK via lib/genai.ts.
  */
 import { structuredLog } from './logger.ts';
-
-// ========== CONFIG ==========
-
-const GEMINI_MODEL = 'gemini-pro-latest';
-const GEMINI_VERSION = 'v1beta';
+import { createClient, generate, extractText, getConfiguredModel, DEFAULT_GEMINI_MODEL } from './genai.ts';
 
 // ========== HASH ==========
 
@@ -42,19 +38,20 @@ interface ShareSummaryResult {
 }
 
 /**
- * Gera dois resumos otimizados para compartilhamento social via Gemini.
+ * Gera dois resumos otimizados para compartilhamento social via Gemini SDK.
  * - summary_og: curto (≤ 200 chars) para og:description, twitter:description, meta description
  * - summary_ld: médio (≤ 300 chars) para Schema.org Article.description
  *
  * @returns null se falhar (caller deve usar fallback)
  */
 export async function generateShareSummary(
+  db: D1Database,
   title: string,
   content: string,
   apiKey: string
 ): Promise<ShareSummaryResult | null> {
   const cleanText = stripHtml(content).substring(0, 2000);
-  if (!cleanText || cleanText.length < 50) return null; // conteúdo muito curto, não vale resumir
+  if (!cleanText || cleanText.length < 50) return null;
 
   const prompt = `Você é um editor de metadados de compartilhamento social para o site "Divagações Filosóficas".
 
@@ -85,40 +82,18 @@ TÍTULO: ${title}
 TEXTO: ${cleanText}`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/${GEMINI_VERSION}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const client = createClient(apiKey);
+    const modelStr = await getConfiguredModel(db, 'summaryModeloIA');
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 512,
-        },
-        safetySettings: [
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-        ],
-      }),
+    const response = await generate({
+      client,
+      prompt,
+      endpoint: 'shareSummary',
+      model: modelStr,
+      enableThinking: false, // Thinking desnecessário para extração JSON curta
     });
 
-    if (!response.ok) {
-      structuredLog('warn', 'Gemini share-summary API error', { status: response.status });
-      return null;
-    }
-
-    const data = (await response.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
-    };
-
-    const rawText = (data.candidates?.[0]?.content?.parts || [])
-      .filter((p) => p.text && !p.thought)
-      .map((p) => p.text)
-      .join('');
-
+    const rawText = extractText(response);
     if (!rawText) return null;
 
     // Parse JSON — tolerante a code fences markdown
@@ -136,3 +111,6 @@ TEXTO: ${cleanText}`;
     return null;
   }
 }
+
+// Re-export GEMINI_MODEL for post-summaries route to reference
+export { DEFAULT_GEMINI_MODEL as GEMINI_MODEL };
