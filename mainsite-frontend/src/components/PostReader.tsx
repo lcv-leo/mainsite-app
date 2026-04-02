@@ -189,10 +189,13 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         @media (max-width: 768px) { .post-content-area { border-left: none; padding-left: 0; } }
         
         .protected-content { user-select: none; -webkit-user-select: none; -ms-user-select: none; }
-        .p-content, .html-content p, .html-content ul, .html-content ol { font-size: calc(${settings.shared.fontSize} * var(--text-zoom-scale, 1)); color: ${activePalette.fontColor}; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
+        .p-content, .html-content p, .html-content ul, .html-content ol, .html-content blockquote, .html-content table { font-size: calc(${settings.shared.fontSize} * var(--text-zoom-scale, 1)); color: ${activePalette.fontColor}; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
         .html-content h1 { color: ${activePalette.titleColor}; margin: 2.5rem 0 1.2rem 0; font-weight: ${settings.shared.titleWeight || '700'}; font-size: calc(${settings.shared.titleFontSize} * var(--text-zoom-scale, 1)); letter-spacing: -0.02em; line-height: 1.2; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
         .html-content h2 { color: ${activePalette.titleColor}; margin: 2.5rem 0 1rem 0; font-weight: ${settings.shared.titleWeight || '700'}; font-size: calc(${settings.shared.titleFontSize} * 0.85 * var(--text-zoom-scale, 1)); letter-spacing: -0.01em; line-height: 1.25; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
         .html-content h3 { color: ${activePalette.titleColor}; margin: 2rem 0 0.8rem 0; font-weight: ${Math.max(400, (parseInt(settings.shared.titleWeight) || 700) - 100)}; font-size: calc(${settings.shared.titleFontSize} * 0.70 * var(--text-zoom-scale, 1)); letter-spacing: -0.01em; line-height: 1.3; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
+        .html-content h4 { color: ${activePalette.titleColor}; margin: 1.8rem 0 0.7rem 0; font-weight: ${Math.max(400, (parseInt(settings.shared.titleWeight) || 700) - 200)}; font-size: calc(${settings.shared.titleFontSize} * 0.60 * var(--text-zoom-scale, 1)); line-height: 1.35; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
+        .html-content h5 { color: ${activePalette.titleColor}; margin: 1.5rem 0 0.6rem 0; font-weight: ${Math.max(400, (parseInt(settings.shared.titleWeight) || 700) - 200)}; font-size: calc(${settings.shared.titleFontSize} * 0.52 * var(--text-zoom-scale, 1)); text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.4; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
+        .html-content h6 { color: ${activePalette.fontColor}; margin: 1.2rem 0 0.5rem 0; font-weight: 600; font-size: calc(${settings.shared.fontSize} * var(--text-zoom-scale, 1)); text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; line-height: 1.45; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
         .p-content { text-align: ${settings.shared.textAlign || 'justify'}; line-height: ${settings.shared.lineHeight || '1.9'}; text-indent: ${settings.shared.textIndent || '3.5rem'}; font-weight: ${settings.shared.bodyWeight || '500'}; margin: 0 0 ${settings.shared.paragraphSpacing || '2.2rem'} 0; }
         .html-content p { text-align: ${settings.shared.textAlign || 'justify'}; line-height: ${settings.shared.lineHeight || '1.9'}; font-weight: ${settings.shared.bodyWeight || '500'}; margin: 0 0 1.2rem 0; }
         .html-content p[style*="text-align: center"] { margin: 0.35rem 0 1.4rem 0; opacity: 0.86; }
@@ -213,23 +216,49 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
         .share-comment { background: #f59e0b; } .share-comment:hover { box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3); }
         .share-donate { background: #ec4899; } .share-donate:hover { box-shadow: 0 8px 24px rgba(236, 72, 153, 0.3); }
         
+        /* ── Highlight / Marca-texto ────────────────────────── */
+        .html-content mark { background: ${isDarkBase ? 'rgba(250, 204, 21, 0.25)' : 'rgba(250, 204, 21, 0.4)'}; color: inherit; padding: 2px 4px; border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+        
+        /* ── Blockquote ───────────────────────────────────────── */
+        .html-content blockquote { margin: 1.5rem 0; padding: 1.2rem 1.5rem; border-left: 4px solid ${isDarkBase ? 'rgba(138,180,248,0.5)' : 'rgba(66,133,244,0.4)'}; background: ${isDarkBase ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'}; border-radius: 0 12px 12px 0; font-style: italic; }
+        .html-content blockquote p { margin-bottom: 0.6rem; }
+        .html-content blockquote p:last-child { margin-bottom: 0; }
+        
+        /* ── Horizontal Rule ──────────────────────────────────── */
+        .html-content hr { border: none; height: 2px; background: linear-gradient(90deg, transparent, ${isDarkBase ? 'rgba(138,180,248,0.3)' : 'rgba(66,133,244,0.2)'}, ${isDarkBase ? 'rgba(197,138,248,0.3)' : 'rgba(124,58,237,0.2)'}, transparent); margin: 2.5rem 0; }
+        
+        /* ── Tables ───────────────────────────────────────────── */
+        .html-content table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; border-radius: 8px; overflow: hidden; border: 1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; }
+        .html-content th { background: ${isDarkBase ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}; font-weight: 700; text-align: left; padding: 10px 14px; border-bottom: 2px solid ${isDarkBase ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'}; font-size: calc(${settings.shared.fontSize} * 0.9 * var(--text-zoom-scale, 1)); }
+        .html-content td { padding: 10px 14px; border-bottom: 1px solid ${isDarkBase ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}; font-size: calc(${settings.shared.fontSize} * 0.9 * var(--text-zoom-scale, 1)); vertical-align: top; }
+        .html-content tr:last-child td { border-bottom: none; }
+        @media (max-width: 768px) { .html-content table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; } }
+        
         /* ── FigureImageNode (semantic figure/figcaption) ─────── */
         figure.tiptap-figure { margin: 1.5rem auto; text-align: center; display: block; }
         figure.tiptap-figure img { border-radius: 4px; max-width: 100%; height: auto; }
-        figcaption { font-size: 0.85em; color: #888; font-style: italic; margin-top: 6px; padding: 2px 4px; }
+        figcaption { font-size: 0.85em; color: ${isDarkBase ? '#999' : '#888'}; font-style: italic; margin-top: 6px; padding: 2px 4px; }
         
         /* ── Editor mention pills ──────────────────────────────── */
-        .editor-mention { background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+        .editor-mention { background: ${isDarkBase ? 'rgba(138,180,248,0.15)' : '#e8f0fe'}; color: ${isDarkBase ? '#8ab4f8' : '#1a73e8'}; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
         
         /* ── Code blocks ──────────────────────────────────────── */
-        pre { background: #f5f5f5; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; }
-        pre code { background: none; padding: 0; color: #1a1a1a; }
-        code { background: #f5f5f5; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9em; }
+        pre { background: ${isDarkBase ? 'rgba(255,255,255,0.06)' : '#f5f5f5'}; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; border: 1px solid ${isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}; }
+        pre code { background: none; padding: 0; color: ${isDarkBase ? '#e0e0e0' : '#1a1a1a'}; display: block; font-size: 0.88em; }
+        code { background: ${isDarkBase ? 'rgba(255,255,255,0.08)' : '#f5f5f5'}; color: ${isDarkBase ? '#e0e0e0' : '#1a1a1a'}; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9em; }
         
-        /* ── Task list items ──────────────────────────────────── */
-        .task-item { list-style: none; display: flex; align-items: flex-start; gap: 0.5rem; }
-        .task-item input[type="checkbox"] { margin-top: 3px; cursor: pointer; }
-        .task-item p { margin: 0; display: inline; }
+        /* ── Task list items (Tiptap data-type attributes) ──── */
+        .html-content ul[data-type="taskList"] { list-style: none; padding-left: 0; margin-left: 0; }
+        .html-content li[data-type="taskItem"] { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .html-content li[data-type="taskItem"] > label { display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer; }
+        .html-content li[data-type="taskItem"] input[type="checkbox"] { margin-top: 4px; cursor: pointer; accent-color: #4285f4; width: 16px; height: 16px; flex-shrink: 0; }
+        .html-content li[data-type="taskItem"][data-checked="true"] > label { text-decoration: line-through; opacity: 0.55; }
+        .html-content li[data-type="taskItem"] p { margin: 0; display: inline; }
+        
+        /* ── Subscript / Superscript ────────────────────────── */
+        .html-content sub, .html-content sup { font-size: 0.75em; line-height: 0; position: relative; vertical-align: baseline; }
+        .html-content sup { top: -0.5em; }
+        .html-content sub { bottom: -0.25em; }
       `}</style>
 
       {/* UPDATED HOME BUTTON: Size and padding reduced by 30% */}
