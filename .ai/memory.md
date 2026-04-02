@@ -1,5 +1,11 @@
 # AI Memory Log - mainsite
 
+## 2026-04-01 — Mainsite Frontend v03.03.03 — Text Zoom Analytics Disabled Until Backend Exists
+### Corrigido
+- **404 em produção eliminado**: `useTextZoomAnalytics` foi mantido como infraestrutura futura, porém desativado por padrão; `PostReader` não ativa mais tracking remoto para `/api/analytics/text-zoom` sem endpoint implementado no `mainsite`.
+### Controle de versão
+- `mainsite-frontend`: APP v03.03.02 → APP v03.03.03
+
 ## 2026-04-01 — Mainsite Frontend v03.03.02 — Text Zoom Audit Closure + Workspace Error Sanitation
 ### Corrigido
 - **Fechamento real do text zoom**: `FloatingTextZoomControl.tsx` teve cleanup de props inválidas dentro de `style`, e `useTextZoomVoice.ts` passou a tipar `VoiceCommand.command` como `RegExp` em vez de `string`.

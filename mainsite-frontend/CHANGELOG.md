@@ -1,5 +1,13 @@
 # Changelog — Mainsite Frontend
 
+## [v03.03.03] - 2026-04-01
+### Corrigido
+- **Text zoom analytics sem backend**: o `PostReader` deixou de ativar tracking remoto para `/api/analytics/text-zoom` enquanto o endpoint não existe no `mainsite`, eliminando o `POST ... 404 (Not Found)` em produção.
+- **Hook resiliente**: `useTextZoomAnalytics.ts` agora permanece desativado por padrão e só faz chamadas remotas quando explicitamente habilitado.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.03.02 → APP v03.03.03
+
 ## [v03.03.02] - 2026-04-01
 ### Corrigido
 - **Fechamento de qualidade do text zoom**: correção dos erros de tipagem restantes em `FloatingTextZoomControl.tsx` e `useTextZoomVoice.ts` que não apareciam no `vite build`, mas eram acusados pelo workspace TypeScript.

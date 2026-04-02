@@ -15,10 +15,17 @@ interface ZoomAnalytics {
   sessionId: string;
 }
 
+interface TextZoomAnalyticsOptions {
+  enabled?: boolean;
+}
+
 export const useTextZoomAnalytics = (
   zoomLevel: number,
-  apiUrl: string = '/api'
+  apiUrl: string = '/api',
+  options: TextZoomAnalyticsOptions = {}
 ) => {
+  const { enabled = false } = options;
+
   const sessionId = useCallback(() => {
     if (typeof window === 'undefined') return '';
     let sid = sessionStorage.getItem('text-zoom-session-id');
@@ -31,6 +38,10 @@ export const useTextZoomAnalytics = (
 
   const trackZoomChange = useCallback(
     (action: ZoomAnalytics['action']) => {
+      if (!enabled) {
+        return;
+      }
+
       const analytics: ZoomAnalytics = {
         timestamp: Date.now(),
         zoomLevel,
@@ -46,21 +57,29 @@ export const useTextZoomAnalytics = (
         keepalive: true, // Ensure it's sent even if page unloads
       }).catch((e) => console.warn('Analytics tracking failed:', e));
     },
-    [zoomLevel, sessionId, apiUrl]
+    [enabled, zoomLevel, sessionId, apiUrl]
   );
 
   // Track on zoom change
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const key = `text-zoom-level-${zoomLevel}`;
     const lastTracked = sessionStorage.getItem(key);
     if (!lastTracked) {
       sessionStorage.setItem(key, 'true');
       trackZoomChange('slider');
     }
-  }, [zoomLevel, trackZoomChange]);
+  }, [enabled, zoomLevel, trackZoomChange]);
 
   // Get user's zoom preferences summary
   const getPreferenceSummary = useCallback(async () => {
+    if (!enabled) {
+      return null;
+    }
+
     try {
       const res = await fetch(`${apiUrl}/analytics/text-zoom/summary`);
       if (res.ok) {
@@ -70,7 +89,7 @@ export const useTextZoomAnalytics = (
       console.warn('Failed to fetch preference summary:', e);
     }
     return null;
-  }, [apiUrl]);
+  }, [apiUrl, enabled]);
 
   return { trackZoomChange, getPreferenceSummary, sessionId };
 };

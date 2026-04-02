@@ -13,7 +13,6 @@ import type { ActivePalette, SiteSettings, Post } from '../types';
 import { useTextZoom } from '../hooks/useTextZoom';
 import FloatingTextZoomControl from './FloatingTextZoomControl';
 import { useTextZoomCloud } from '../hooks/useTextZoomCloud';
-import { useTextZoomAnalytics } from '../hooks/useTextZoomAnalytics';
 
 interface PostReaderProps {
   post: Post
@@ -35,15 +34,12 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
   const [isTranslating, setIsTranslating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const { zoomLevel, percentage, increase, decrease, reset, setZoomLevel } = useTextZoom();
-    // Cloud sync for zoom level (optional, if user is logged in)
-    useTextZoomCloud(zoomLevel, setZoomLevel, {
-      apiUrl: API_URL,
-      userId: undefined, // Would come from auth context
-      enabled: true,
-    });
-
-    // Analytics tracking for zoom patterns
-    const { trackZoomChange } = useTextZoomAnalytics(zoomLevel, API_URL);
+  // Cloud sync for zoom level remains dormant until auth/user binding exists.
+  useTextZoomCloud(zoomLevel, setZoomLevel, {
+    apiUrl: API_URL,
+    userId: undefined,
+    enabled: true,
+  });
 
   const isAILoading = isSummarizing || isTranslating;
 

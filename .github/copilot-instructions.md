@@ -1,5 +1,11 @@
 # AI Memory Log - mainsite
 
+## 2026-04-01 — Mainsite Frontend v03.03.03 — Text Zoom Analytics Disabled Until Backend Exists
+### Corrigido
+- Desativação do analytics remoto do text zoom por padrão para impedir `404` em produção enquanto não existir endpoint backend correspondente.
+### Controle de versão
+- `mainsite-frontend`: APP v03.03.02 → APP v03.03.03
+
 ## 2026-04-01 — Mainsite Frontend v03.03.02 — Text Zoom Audit Closure + Workspace Error Sanitation
 ### Corrigido
 - `FloatingTextZoomControl.tsx`: cleanup de props inválidas em `style`.
