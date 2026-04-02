@@ -1,5 +1,15 @@
 # Changelog — Mainsite Frontend
 
+## [v03.03.05] - 2026-04-02
+### Atualizações Tecnológicas (P3 e P4)
+- **Functions JS -> TS**: As Edge Functions (`sitemap.xml.ts`, `[[path]].ts`, `api/[[path]].ts`) foram migradas para TypeScript, adotando a tipagem estrita do `@cloudflare/workers-types` (`EventContext`, `D1Database`). 
+- **SDK Gemini**: Concluída a migração do `ai.ts` e `gemini.ts` para o novo `@google/genai` SDK oficial, implementado com motor dinâmico via D1.
+- **Vitest**: Configurada a infraestrutura de testes unitários com o framework `vitest` e `@cloudflare/workers-types`.
+- **Limpeza**: Remoção definitiva do polyfill `Headers.raw()` que já estava obsoleto.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.03.04 → APP v03.03.05
+
 ## [v03.03.04] - 2026-04-01
 ### Corrigido
 - **Text zoom reintegrado ao padrão visual do site**: os controles de zoom deixaram de usar um floating widget independente e passaram a compor o mesmo cluster vertical de FABs do `FloatingControls`.

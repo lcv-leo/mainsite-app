@@ -3,7 +3,13 @@
 // mainsite-worker via Service Binding interno da Cloudflare, eliminando
 // chamadas a URLs externas entre apps no mesmo edge.
 
-export async function onRequest(context) {
+import type { EventContext, Fetcher } from '@cloudflare/workers-types';
+
+interface Env {
+  WORKER: Fetcher;
+}
+
+export async function onRequest(context: EventContext<Env, string, Record<string, unknown>>) {
   const { request, env, params } = context;
 
   // Reconstrói o path a partir dos segmentos capturados pelo catch-all

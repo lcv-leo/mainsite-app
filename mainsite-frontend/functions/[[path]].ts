@@ -6,9 +6,15 @@
 //   3. Canonical URL corrigida por post
 // Lê dados diretamente do D1 via binding DB, sem chamada a URL externa.
 
+import type { D1Database, EventContext, Element } from '@cloudflare/workers-types';
+
 /* global HTMLRewriter */
 
-export async function onRequest(context) {
+interface Env {
+  DB: D1Database;
+}
+
+export async function onRequest(context: EventContext<Env, string, Record<string, unknown>>) {
   const url = new URL(context.request.url);
 
   // Bypass para sitemap — /functions/sitemap.xml.js gera o sitemap dinâmico
@@ -78,7 +84,7 @@ export async function onRequest(context) {
     const canonicalUrl = `https://www.lcv.rio.br/p/${post.id}`;
 
     // 5. Calcula datas ISO 8601
-    const toISO = (raw) => {
+    const toISO = (raw: string) => {
       if (!raw) return new Date().toISOString();
       const suffix = raw.includes('Z') || raw.includes('+') ? '' : 'Z';
       return new Date(raw.replace(' ', 'T') + suffix).toISOString();
@@ -141,19 +147,19 @@ export async function onRequest(context) {
 
     // 7. HTMLRewriter — injeta meta tags + Schema.org no edge
     return new HTMLRewriter()
-      .on('title', { element(e) { e.setInnerContent(pageTitle); } })
-      .on('meta[property="og:type"]', { element(e) { e.setAttribute('content', 'article'); } })
-      .on('meta[property="og:title"]', { element(e) { e.setAttribute('content', pageTitle); } })
-      .on('meta[name="twitter:title"]', { element(e) { e.setAttribute('content', post.title); } })
-      .on('meta[property="og:description"]', { element(e) { e.setAttribute('content', shortDesc); } })
-      .on('meta[name="description"]', { element(e) { e.setAttribute('content', shortDesc); } })
-      .on('meta[name="twitter:description"]', { element(e) { e.setAttribute('content', shortDesc); } })
-      .on('meta[name="twitter:card"]', { element(e) { e.setAttribute('content', 'summary_large_image'); } })
-      .on('meta[property="og:url"]', { element(e) { e.setAttribute('content', canonicalUrl); } })
+      .on('title', { element(e: Element) { e.setInnerContent(pageTitle); } })
+      .on('meta[property="og:type"]', { element(e: Element) { e.setAttribute('content', 'article'); } })
+      .on('meta[property="og:title"]', { element(e: Element) { e.setAttribute('content', pageTitle); } })
+      .on('meta[name="twitter:title"]', { element(e: Element) { e.setAttribute('content', post.title); } })
+      .on('meta[property="og:description"]', { element(e: Element) { e.setAttribute('content', shortDesc); } })
+      .on('meta[name="description"]', { element(e: Element) { e.setAttribute('content', shortDesc); } })
+      .on('meta[name="twitter:description"]', { element(e: Element) { e.setAttribute('content', shortDesc); } })
+      .on('meta[name="twitter:card"]', { element(e: Element) { e.setAttribute('content', 'summary_large_image'); } })
+      .on('meta[property="og:url"]', { element(e: Element) { e.setAttribute('content', canonicalUrl); } })
       // Corrige canonical existente em vez de duplicar (fix SEO)
-      .on('link[rel="canonical"]', { element(e) { e.setAttribute('href', canonicalUrl); } })
+      .on('link[rel="canonical"]', { element(e: Element) { e.setAttribute('href', canonicalUrl); } })
       .on('head', {
-        element(e) {
+        element(e: Element) {
           e.append(`<meta property="og:site_name" content="Divagações Filosóficas">`, { html: true });
           e.append(`<meta property="article:published_time" content="${datePublished}">`, { html: true });
           e.append(`<meta property="article:modified_time" content="${dateModified}">`, { html: true });

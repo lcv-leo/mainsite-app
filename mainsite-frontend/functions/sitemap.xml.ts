@@ -1,9 +1,14 @@
 // Módulo: mainsite-frontend/functions/sitemap.xml.js
 // Versão: v2.0.0
-// Descrição: Gera o sitemap.xml diretamente via binding D1, sem proxy para URL externa.
 // Repassa o User-Agent original para manter compatibilidade com detecção de bots.
 
-export async function onRequest(context) {
+import type { D1Database, EventContext } from '@cloudflare/workers-types';
+
+interface Env {
+  DB: D1Database;
+}
+
+export async function onRequest(context: EventContext<Env, string, Record<string, unknown>>) {
   try {
     const db = context.env.DB;
 
@@ -48,7 +53,7 @@ export async function onRequest(context) {
         'Cache-Control': 'public, max-age=3600',
       },
     });
-  } catch (err) {
+  } catch {
     // Fallback: XML vazio mas válido
     return new Response(
       '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>',
