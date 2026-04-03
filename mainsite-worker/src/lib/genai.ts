@@ -43,21 +43,15 @@ export type EndpointName = keyof typeof ENDPOINT_CONFIGS;
 
 import type { Env } from '../env.ts';
 
-/** Creates a GoogleGenAI client per-request, routing through Cloudflare AI Gateway.
+/** Creates a GoogleGenAI client per-request.
  *  Secret Store bindings return JsRpcPromise — they MUST be awaited.
+ *  Calls Google directly (AI Gateway auth TBD).
  */
 export async function createClient(env: Env): Promise<GoogleGenAI> {
   const apiKey = String(await Promise.resolve(env.GEMINI_API_KEY));
-  const gatewayToken = String(await Promise.resolve(env.CF_AI_GATEWAY));
 
   return new GoogleGenAI({
     apiKey,
-    httpOptions: {
-      baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-ai-studio',
-      headers: {
-        'cf-aig-authorization': `Bearer ${gatewayToken}`,
-      },
-    }
   });
 }
 
