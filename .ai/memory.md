@@ -1,4 +1,12 @@
-﻿# AI Memory Log - mainsite
+# AI Memory Log - mainsite
+ 
+## 2026-04-03 — Mainsite Worker v02.01.04 — Integração Cloudflare Workers AI
+### Adicionado
+- **Integração Cloudflare Workers AI**: injeção do binding `AI` (`@cf/meta/...` e `@cf/huggingface/...`) para processamento nativo na Edge a zero custo de API outbound.
+- **Análise de Sentimento (Anti-toxicidade)**: adicionado filtro de tensão explícita e feedback positivo via AI na submissão de formulário de contato (`POST /api/contact`) e comentários (`POST /api/comment`), adicionando marcações contextuais na subject/body dos painéis admin de email.
+- **Micro-primitivas na Edge**: criadas duas rotas extremamente rápidas (`/api/ai/workers/translate` usando `m2m100-1.2b` e `/api/ai/workers/summarize` usando `llama-3-8b-instruct`) desacopladas do framework Gemini para baixa latência.
+### Controle de versão
+- `mainsite-worker`: v02.01.03 → v02.01.04
 
 ## 2026-04-01 — Mainsite Frontend v03.03.04 — Zoom Controls Reintegrated Into FloatingControls Pattern
 ### Corrigido

@@ -1,5 +1,14 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.01.04] — 2026-04-03
+### Adicionado
+- **Integração Cloudflare Workers AI**: injeção do binding `AI` para processamento nativo na Edge a zero custo de API outbound.
+- **Análise de Sentimento (Anti-toxicidade)**: adicionado filtro de avaliação em background (`distilbert-sst-2-int8`) nas rotas de contato e comentários (`POST /api/contact`, `POST /api/comment`), injetando marcações visuais de tensão explícita ou feedback efusivo estruturadas nos e-mails disparados ao administrador.
+- **Tradução e Sumarização na Edge**: adicionadas novas rotas `/api/ai/workers/translate` (`m2m100-1.2b`) e `/api/ai/workers/summarize` (`llama-3-8b-instruct`), fornecendo primitivas de baixa latência e mitigando a dependência do Gemini para operações básicas.
+
+### Controle de versão
+- `mainsite-worker`: v02.01.03 → v02.01.04
+
 ## [v02.01.03] — 2026-04-02
 ### Alterado
 - **Gemini SDK Integrado**: Refatoração estrutural no abstraidor lógico de IA (`src/lib/genai.ts`) migrando totalmente da antiga requisição REST (`fetch`) para o pacote oficial e mais seguro `@google/genai`. 

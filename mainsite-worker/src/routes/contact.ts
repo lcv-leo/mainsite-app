@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -12,6 +12,23 @@ import { requireAuth } from '../lib/auth.ts';
 
 const contact = new Hono<{ Bindings: Env }>();
 
+async function getSentimentPrefix(env: Env, text: string): Promise<string> {
+  try {
+    const response = await env.AI.run('@cf/huggingface/distilbert-sst-2-int8', { text: text.substring(0, 500) });
+    const negative = response.find((r: any) => r.label === 'NEGATIVE');
+    if (negative && negative.score > 0.8) {
+      return '[🔴 Tensão Identificada] ';
+    }
+    const positive = response.find((r: any) => r.label === 'POSITIVE');
+    if (positive && positive.score > 0.8) {
+      return '[🟢 Feedback Positivo] ';
+    }
+    return '';
+  } catch (err) {
+    return ''; // Silent fallback
+  }
+}
+
 // POST /api/contact (público, rate-limited upstream)
 contact.post('/api/contact', async (c) => {
   try {
@@ -20,10 +37,11 @@ contact.post('/api/contact', async (c) => {
     };
     if (!name || !email || !message) return c.json({ error: 'Dados incompletos' }, 400);
 
+    const sentiment = await getSentimentPrefix(c.env, message);
     const resendToken = c.env.RESEND_API_KEY;
     const adminHtml = `
       <div style="font-family: sans-serif; color: #333;">
-        <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Contato pelo Site</h2>
+        <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Contato pelo Site ${sentiment}</h2>
         <p><strong>Nome:</strong> ${name}</p>
         <p><strong>Telefone:</strong> ${phone || 'Não informado'}</p>
         <p><strong>E-mail:</strong> ${email}</p>
@@ -75,9 +93,10 @@ contact.post('/api/comment', async (c) => {
     };
     if (!message) return c.json({ error: 'Comentário obrigatório' }, 400);
 
+    const sentiment = await getSentimentPrefix(c.env, message);
     const adminHtml = `
       <div style="font-family: sans-serif; color: #333;">
-        <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Comentário no Site</h2>
+        <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Comentário no Site ${sentiment}</h2>
         <p><strong>Texto/Contexto:</strong> ${post_title || 'N/A'}</p>
         <p><strong>Nome:</strong> ${name || 'Não informado'}</p>
         <p><strong>Telefone:</strong> ${phone || 'Não informado'}</p>

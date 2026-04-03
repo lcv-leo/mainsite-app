@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -431,6 +431,55 @@ ai.post('/api/ai/public/translate', async (c) => {
     return c.json({ success: true, translation: extractText(response) });
   } catch (err) {
     structuredLog('error', 'Translate endpoint error', { error: (err as Error).message });
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+// POST /api/ai/workers/translate (Edge Native, Zero Cost)
+ai.post('/api/ai/workers/translate', async (c) => {
+  try {
+    const { text, targetLanguage } = (await c.req.json()) as { text?: string; targetLanguage?: string; };
+    if (!text) return c.json({ error: 'Texto ausente.' }, 400);
+
+    const langMap: Record<string, string> = {
+      'English': 'en',
+      'Spanish': 'es',
+      'French': 'fr',
+      'Portuguese': 'pt',
+    };
+    const target = langMap[targetLanguage || 'English'] || 'en';
+
+    const response = await c.env.AI.run('@cf/meta/m2m100-1.2b', {
+      text,
+      source_lang: 'pt',
+      target_lang: target
+    });
+
+    structuredLog('info', 'Workers AI translate completed', { endpoint: 'workers/translate', targetLanguage: target });
+    return c.json({ success: true, translation: (response as any).translated_text || text });
+  } catch (err) {
+    structuredLog('error', 'Workers AI translate error', { error: (err as Error).message });
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+// POST /api/ai/workers/summarize (Edge Native, Zero Cost)
+ai.post('/api/ai/workers/summarize', async (c) => {
+  try {
+    const { text } = (await c.req.json()) as { text?: string; };
+    if (!text) return c.json({ error: 'Texto ausente.' }, 400);
+
+    const response = await c.env.AI.run('@cf/meta/llama-3-8b-instruct', {
+      messages: [
+        { role: 'system', content: 'Você é um resumidor super rápido. Extraia as 3 ideias mais vitais do texto abaixo em um parágrafo limpo e curto. Responda em Português.' },
+        { role: 'user', content: text }
+      ]
+    });
+
+    structuredLog('info', 'Workers AI summarize completed', { endpoint: 'workers/summarize' });
+    return c.json({ success: true, summary: (response as any).response || '' });
+  } catch (err) {
+    structuredLog('error', 'Workers AI summarize error', { error: (err as Error).message });
     return c.json({ error: (err as Error).message }, 500);
   }
 });
