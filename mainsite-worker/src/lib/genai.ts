@@ -44,14 +44,12 @@ export type EndpointName = keyof typeof ENDPOINT_CONFIGS;
 import type { Env } from '../env.ts';
 
 /** Creates a GoogleGenAI client per-request.
- *  Secret Store bindings return JsRpcPromise — they MUST be awaited.
- *  Calls Google directly (AI Gateway auth TBD).
+ *  Secret Store bindings are resolved to strings by middleware in index.ts
+ *  before handlers execute, so env values are plain strings here.
  */
-export async function createClient(env: Env): Promise<GoogleGenAI> {
-  const apiKey = String(await Promise.resolve(env.GEMINI_API_KEY));
-
+export function createClient(env: Env): GoogleGenAI {
   return new GoogleGenAI({
-    apiKey,
+    apiKey: env.GEMINI_API_KEY,
   });
 }
 

@@ -26,26 +26,28 @@ import postSummariesRoutes from './routes/post-summaries.ts';
 const app = new Hono<{ Bindings: Env }>();
 
 // ========== SECRET STORE RESOLVER MIDDLEWARE ==========
-// Cloudflare Secret Store bindings return JsRpcPromise, not strings.
+// Cloudflare Secret Store bindings are Fetcher objects with `.get()`.
 // This middleware eagerly resolves all secret values so downstream
 // handlers can use c.env.GEMINI_API_KEY as a plain string.
-const SECRET_KEYS: (keyof Env)[] = [
+const SECRET_KEYS = [
   'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY', 'CF_AI_GATEWAY',
   'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE', 'MP_ACCESS_TOKEN',
-];
+  'MERCADO_PAGO_WEBHOOK_SECRET',
+] as const;
 
 app.use('*', async (c, next) => {
   const env = c.env as unknown as Record<string, unknown>;
   await Promise.all(
     SECRET_KEYS.map(async (key) => {
-      const val = env[key];
-      if (val && typeof (val as { then?: unknown }).then === 'function') {
-        env[key] = await val;
+      const binding = env[key];
+      if (binding && typeof binding === 'object' && typeof (binding as { get?: unknown }).get === 'function') {
+        env[key] = await (binding as { get(): Promise<string> }).get();
       }
     }),
   );
   return next();
 });
+
 
 // ========== CORS (paridade total com monolito) ==========
 app.use('/api/*', cors({
@@ -127,22 +129,6 @@ app.use('/api/ai/public/*', createRateLimiterMiddleware('chatbot') as Parameters
 app.use('/api/share/email', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 app.use('/api/contact', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 app.use('/api/comment', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
-
-// TEMPORARY DEBUG — remove after fixing
-app.get('/api/debug-env2', async (c) => {
-  const raw = c.env.GEMINI_API_KEY;
-  const resolved = await Promise.resolve(raw);
-  const asStr = String(resolved);
-  return c.json({
-    raw_type: typeof raw,
-    raw_constructor: raw?.constructor?.name,
-    resolved_type: typeof resolved,
-    resolved_constructor: resolved?.constructor?.name,
-    asStr_prefix: asStr.substring(0, 10) + '...',
-    asStr_length: asStr.length,
-    raw_toString: String(raw).substring(0, 15),
-  });
-});
 
 
 // ========== MOUNT ROUTE MODULES ==========

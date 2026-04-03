@@ -75,7 +75,7 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
     if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const client = await createClient(c.env);
+    const client = createClient(c.env);
     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
 
     const inputTokens = await countTokens(client, text, modelStr);
@@ -239,7 +239,7 @@ ${dbContext}
 
 PERGUNTA DO USUÁRIO: ${message}`;
 
-    const client = await createClient(c.env);
+    const client = createClient(c.env);
     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
 
     const inputTokens = await countTokens(client, systemPrompt, modelStr);
@@ -357,7 +357,7 @@ ai.post('/api/ai/public/summarize', async (c) => {
     if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const client = await createClient(c.env);
+    const client = createClient(c.env);
     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
 
     const inputTokens = await countTokens(client, text, modelStr);
@@ -401,7 +401,7 @@ ai.post('/api/ai/public/translate', async (c) => {
     if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const client = await createClient(c.env);
+    const client = createClient(c.env);
     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
     const lang = targetLanguage || 'English';
 

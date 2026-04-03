@@ -83,7 +83,7 @@ TÍTULO: ${title}
 TEXTO: ${cleanText}`;
 
   try {
-    const client = await createClient(env);
+    const client = createClient(env);
     const modelStr = await getConfiguredModel(db, 'summaryModeloIA');
 
     const response = await generate({
