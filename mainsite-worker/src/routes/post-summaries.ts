@@ -30,7 +30,7 @@ async function ensureTable(db: D1Database): Promise<void> {
       summary_og   TEXT NOT NULL,
       summary_ld   TEXT,
       content_hash TEXT NOT NULL,
-      model        TEXT DEFAULT 'gemini-pro-latest',
+      model        TEXT DEFAULT '',
       is_manual    INTEGER DEFAULT 0,
       created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -145,7 +145,7 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async 
         summary_ld = excluded.summary_ld,
         content_hash = excluded.content_hash,
         is_manual = 0,
-        model = 'gemini-pro-latest',
+        model = '',
         updated_at = CURRENT_TIMESTAMP
     `).bind(postId, result.summary_og, result.summary_ld, contentHash).run();
 
@@ -233,7 +233,7 @@ postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) =>
             summary_ld = excluded.summary_ld,
             content_hash = excluded.content_hash,
             is_manual = 0,
-            model = 'gemini-pro-latest',
+            model = '',
             updated_at = CURRENT_TIMESTAMP
         `).bind(post.id, result.summary_og, result.summary_ld, newHash).run();
 

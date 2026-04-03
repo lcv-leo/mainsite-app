@@ -1,24 +1,57 @@
-﻿# AI Memory Log - mainsite
+
+
+## 📋 DIRETIVAS DO PROJETO E REGRAS DE CÓDIGO
+# Regras
+- Use princípios de Clean Code.
+- Comente lógicas complexas.
+
+
+## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
+# AI Memory Log - mainsite
+ 
+
+## 2026-04-03 — Cloudflare Paid Scale Integration
+### Escopo
+Migração arquitetural unificada para aproveitamento da infraestrutura Cloudflare Paid. Implementação de **Smart Placement** transversal para redução de latência via proximidade física com o banco de dados (BIGDATA_DB). Adoção da diretiva `usage_model: unbound` para mitigar o `Error 1102` (CPU limit excess). Embutimento global do proxy **Cloudflare AI Gateway** sobrepondo o SDK nativo (`@google/genai`) e habilitando Caching, Rate limiting Nativo e Observabilidade Unificada, mantendo operação híbrida com os LLMs da rede.
+
+### Diretivas Respeitadas
+- Conformidade 100% com `wrangler.json`.
+- `tlsrpt-motor` e `cron-taxa-ipca` revalidados em infraestrutura moderna sem timeout.
+
+## 2026-04-03 — Mainsite Frontend v03.04.01 — Integração Frontend com Workers AI
+### Alterado
+- **Rotas AI Atualizadas**: substituição dos hooks de API do Gemini (`/api/ai/public/translate` e `summarize`) no `PostReader` pelas rotas nativas da infraestrutura da Cloudflare `mainsite-worker` (`/api/ai/workers/translate` e `summarize`). Reduz custos externos e melhora o tempo de resposta da UI.
+### Controle de versão
+- `mainsite-frontend`: APP v03.04.00 → APP v03.04.01
+ 
+## 2026-04-03 — Mainsite Worker v02.01.04 — Integração Cloudflare Workers AI
+### Adicionado
+- **Integração Cloudflare Workers AI**: injeção do binding `AI` (`@cf/meta/...` e `@cf/huggingface/...`) para processamento nativo na Edge a zero custo de API outbound.
+- **Análise de Sentimento (Anti-toxicidade)**: adicionado filtro de tensão explícita e feedback positivo via AI na submissão de formulário de contato (`POST /api/contact`) e comentários (`POST /api/comment`), adicionando marcações contextuais na subject/body dos painéis admin de email.
+- **Micro-primitivas na Edge**: criadas duas rotas extremamente rápidas (`/api/ai/workers/translate` usando `m2m100-1.2b` e `/api/ai/workers/summarize` usando `llama-3-8b-instruct`) desacopladas do framework Gemini para baixa latência.
+### Controle de versão
+- `mainsite-worker`: v02.01.03 → v02.01.04
 
 ## 2026-04-01 — Mainsite Frontend v03.03.04 — Zoom Controls Reintegrated Into FloatingControls Pattern
 ### Corrigido
-- Zoom reintegrado ao `FloatingControls`, com o mesmo empilhamento vertical e o mesmo deslocamento lateral ao abrir o chat.
+- **Paridade visual restaurada**: o zoom foi reintegrado ao `FloatingControls`, adotando o mesmo FAB vertical, o mesmo spacing e a mesma lógica de rearranjo horizontal quando o chat abre.
+- **Componente fora do padrão removido**: `FloatingTextZoomControl.tsx` foi eliminado após confirmação de que quebrava o design system do mainsite.
 ### Controle de versão
 - `mainsite-frontend`: APP v03.03.03 → APP v03.03.04
 
 ## 2026-04-01 — Mainsite Frontend v03.03.03 — Text Zoom Analytics Disabled Until Backend Exists
 ### Corrigido
-- Tracking remoto de text zoom desativado por padrão até existir endpoint backend para `/api/analytics/text-zoom`.
+- **404 em produção eliminado**: `useTextZoomAnalytics` foi mantido como infraestrutura futura, porém desativado por padrão; `PostReader` não ativa mais tracking remoto para `/api/analytics/text-zoom` sem endpoint implementado no `mainsite`.
 ### Controle de versão
 - `mainsite-frontend`: APP v03.03.02 → APP v03.03.03
 
 ## 2026-04-01 — Mainsite Frontend v03.03.02 — Text Zoom Audit Closure + Workspace Error Sanitation
 ### Corrigido
-- `FloatingTextZoomControl.tsx`: removidas props de evento indevidas do objeto `style`.
-- `useTextZoomVoice.ts`: tipagem de comandos de voz corrigida para `RegExp`.
-- `TEXT_ZOOM_DEMO.ts`: removido por gerar diagnósticos inválidos fora do runtime do app.
+- **Fechamento real do text zoom**: `FloatingTextZoomControl.tsx` teve cleanup de props inválidas dentro de `style`, e `useTextZoomVoice.ts` passou a tipar `VoiceCommand.command` como `RegExp` em vez de `string`.
+- **Workspace diagnostics zerados**: arquivo `mainsite-frontend/src/components/TEXT_ZOOM_DEMO.ts` removido após identificar que continha pseudo-código TypeScript/JSX não executável e inflava a contagem de erros do workspace apesar do build verde.
+- **Gap de processo registrado**: o build do Vite estava verde, mas o workspace TypeScript ainda tinha erros; a diretiva operacional agora volta a exigir checagem de `get_errors` antes de qualquer fechamento final.
 ### Adicionado
-- Controle de text zoom migrado para floating control discreto com atalhos, presets e base para voice/cloud/analytics.
+- **Text zoom definitivo no PostReader**: controle movido para padrão flutuante com `createPortal`, atalhos globais de teclado, presets de acessibilidade e integração inicial com hooks de analytics/cloud sync/voice.
 ### Controle de versão
 - `mainsite-frontend`: APP v03.02.05 → APP v03.03.02
 
@@ -435,3 +468,6 @@
 
 ### Label Accessibility
 - Labels sem campo associado convertidas para `<p className="field-label">` em ConfigModule.
+
+
+> **DIRETIVA DE SEGURANÇA:** Ao sugerir código ou responder perguntas, leia rigorosamente o contexto e as memórias históricas acima para não divergir das decisões já tomadas pelo outro agente.

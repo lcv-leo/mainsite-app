@@ -443,18 +443,25 @@ ai.post('/api/ai/public/translate', async (c) => {
 ai.post('/api/ai/workers/translate', async (c) => {
   try {
     const { text, targetLanguage } = (await c.req.json()) as { text?: string; targetLanguage?: string; };
+    const gatewayToken = c.env.CF_AI_GATEWAY;
+    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
     const lang = targetLanguage || 'English';
+    const gatewayId = gatewayToken.split('/')[5];
 
-    const response = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
-      messages: [
-        { role: 'system', content: `You are a professional translator. Translate the following text to ${lang}. Return ONLY the translation, preserve HTML formatting, do not explain.` },
-        { role: 'user', content: text }
-      ]
-    });
+    const response = await c.env.AI.run(
+      '@cf/meta/llama-3.1-8b-instruct-fast',
+      {
+        messages: [
+          { role: 'system', content: `You are a professional translator. Translate the following text to ${lang}. Return ONLY the translation, preserve HTML formatting, do not explain.` },
+          { role: 'user', content: text }
+        ]
+      },
+      { gateway: { id: gatewayId } }
+    );
 
-    structuredLog('info', 'Workers AI translate completed', { endpoint: 'workers/translate', targetLanguage: lang });
+    structuredLog('info', 'Workers AI translate completed', { endpoint: 'workers/translate', targetLanguage: lang, gateway: gatewayId });
     return c.json({ success: true, translation: (response as any).response || text });
   } catch (err) {
     structuredLog('error', 'Workers AI translate error', { error: (err as Error).message });
@@ -466,16 +473,24 @@ ai.post('/api/ai/workers/translate', async (c) => {
 ai.post('/api/ai/workers/summarize', async (c) => {
   try {
     const { text } = (await c.req.json()) as { text?: string; };
+    const gatewayToken = c.env.CF_AI_GATEWAY;
+    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const response = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
-      messages: [
-        { role: 'system', content: 'Você é um resumidor super rápido. Extraia as 3 ideias mais vitais do texto abaixo em um parágrafo limpo e curto. Responda em Português.' },
-        { role: 'user', content: text }
-      ]
-    });
+    const gatewayId = gatewayToken.split('/')[5];
 
-    structuredLog('info', 'Workers AI summarize completed', { endpoint: 'workers/summarize' });
+    const response = await c.env.AI.run(
+      '@cf/meta/llama-3.1-8b-instruct-fast',
+      {
+        messages: [
+          { role: 'system', content: 'Você é um resumidor super rápido. Extraia as 3 ideias mais vitais do texto abaixo em um parágrafo limpo e curto. Responda em Português.' },
+          { role: 'user', content: text }
+        ]
+      },
+      { gateway: { id: gatewayId } }
+    );
+
+    structuredLog('info', 'Workers AI summarize completed', { endpoint: 'workers/summarize', gateway: gatewayId });
     return c.json({ success: true, summary: (response as any).response || '' });
   } catch (err) {
     structuredLog('error', 'Workers AI summarize error', { error: (err as Error).message });

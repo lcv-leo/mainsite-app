@@ -17,7 +17,7 @@ import { structuredLog } from './logger.ts';
 // ========== CONFIG CENTRALIZADA ==========
 
 /** Fallback model when admin has not configured one */
-export const DEFAULT_GEMINI_MODEL = 'gemini-pro-latest';
+export const DEFAULT_GEMINI_MODEL = '';
 
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 800;
@@ -50,6 +50,9 @@ import type { Env } from '../env.ts';
 export function createClient(env: Env): GoogleGenAI {
   return new GoogleGenAI({
     apiKey: env.GEMINI_API_KEY,
+    httpOptions: {
+      baseUrl: env.CF_AI_GATEWAY || undefined,
+    },
   });
 }
 
