@@ -74,7 +74,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       const safeHtml = DOMPurify.sanitize(activeContent, {
         USE_PROFILES: { html: true },
         ADD_TAGS: ['iframe'],
-        ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target', 'rel', 'data-type', 'data-checked']
+        ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target', 'rel', 'data-type', 'data-checked', 'style']
       });
       // Post-process: DOMPurify strips target="_blank" as anti-tab-nabbing measure.
       // Force it back on all non-YouTube links after sanitization.
