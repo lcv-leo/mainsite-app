@@ -43,12 +43,15 @@ export type EndpointName = keyof typeof ENDPOINT_CONFIGS;
 
 import type { Env } from '../env.ts';
 
-/** Creates a GoogleGenAI client per-request, delegating auth to Cloudflare AI Gateway (Stored Key BYOK) */
+/** Creates a GoogleGenAI client per-request, routing through Cloudflare AI Gateway */
 export function createClient(env: Env): GoogleGenAI {
   return new GoogleGenAI({
-    apiKey: env.CF_AI_GATEWAY || 'missing-aig-token',
+    apiKey: env.GEMINI_API_KEY,
     httpOptions: {
       baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-ai-studio',
+      headers: {
+        'cf-aig-authorization': `Bearer ${env.CF_AI_GATEWAY}`,
+      },
     }
   });
 }
