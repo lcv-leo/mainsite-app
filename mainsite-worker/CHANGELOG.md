@@ -1,5 +1,15 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.01.05] — 2026-04-03
+### SecOps & Fixes
+- **Remoção de Secrets Legados**: Eliminadas senhas obsoletas (`API_SECRET` e `PIX_KEY`) tanto do código-fonte (midlewares e rotas) como do Cloudflare Secret Store, fechando vetor de segurança.
+- **Sincronização de Cofre (Secret Store Compliance)**: Mapeamento corrigido no `wrangler.json` (conversão de `kebab-case` para uppercase estrito em todos os `secret_name`), resolvendo os status `500` engatilhados por secrets undefined em produção (incluindo SumUp, Resend, Gemini e Mercado Pago).
+- **Hardening AI Auth**: Implementada autenticação na rota legada via `CLOUDFLARE_PW` no lugar de `API_SECRET`.
+- **Cloudflare AI Gateway Slug Fix**: Ajuste de URL e binding de Cloudflare AI Gateway em testes e runtime, restaurando o serviço de IA.
+
+### Controle de versão
+- `mainsite-worker`: v02.01.04 → v02.01.05
+
 ## [v02.01.04] — 2026-04-03
 ### Adicionado
 - **Integração Cloudflare Workers AI**: injeção do binding `AI` para processamento nativo na Edge a zero custo de API outbound.

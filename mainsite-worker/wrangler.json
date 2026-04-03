@@ -96,7 +96,7 @@
     {
       "binding": "SUMUP_MERCHANT_CODE",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "MERCHANT_CODE"
+      "secret_name": "SUMUP_MERCHANT_CODE"
     },
     {
       "binding": "CF_AI_GATEWAY",
