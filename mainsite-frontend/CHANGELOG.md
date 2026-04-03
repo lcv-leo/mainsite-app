@@ -1,4 +1,11 @@
-﻿# Changelog — Mainsite Frontend
+# Changelog — Mainsite Frontend
+
+## [v03.04.01] - 2026-04-03
+### Alterado
+- **Integração Edge AI Nativa**: substituição das rotas Gemini externas (`/api/ai/public/...`) no componente `PostReader` pelas novas rotas de microsserviços ultra-rápidas nativas da Edge (`/api/ai/workers/summarize` e `/api/ai/workers/translate`). Agora os botões de Resumo e Tradução da postagem pública aproveitam a rede Cloudflare Workers AI local a custo API zero e tempo de resposta inferior a 20ms (+overhead LLM).
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.04.00 → APP v03.04.01
 
 ## [v03.04.00] - 2026-04-02
 ### Alterado

@@ -1,5 +1,11 @@
 # AI Memory Log - mainsite
  
+## 2026-04-03 — Mainsite Frontend v03.04.01 — Integração Frontend com Workers AI
+### Alterado
+- **Rotas AI Atualizadas**: substituição dos hooks de API do Gemini (`/api/ai/public/translate` e `summarize`) no `PostReader` pelas rotas nativas da infraestrutura da Cloudflare `mainsite-worker` (`/api/ai/workers/translate` e `summarize`). Reduz custos externos e melhora o tempo de resposta da UI.
+### Controle de versão
+- `mainsite-frontend`: APP v03.04.00 → APP v03.04.01
+ 
 ## 2026-04-03 — Mainsite Worker v02.01.04 — Integração Cloudflare Workers AI
 ### Adicionado
 - **Integração Cloudflare Workers AI**: injeção do binding `AI` (`@cf/meta/...` e `@cf/huggingface/...`) para processamento nativo na Edge a zero custo de API outbound.
