@@ -71,32 +71,32 @@
     {
       "binding": "CLOUDFLARE_PW",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "CLOUDFLARE_PW"
+      "secret_name": "cloudflare-pw"
     },
     {
       "binding": "GEMINI_API_KEY",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "GEMINI_API_KEY"
+      "secret_name": "gemini-api-key"
     },
     {
       "binding": "RESEND_API_KEY",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "RESEND_APPKEY"
+      "secret_name": "resend-appkey"
     },
     {
       "binding": "MP_ACCESS_TOKEN",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "MP_ACCESS_TOKEN"
+      "secret_name": "mp-access-token"
     },
     {
       "binding": "SUMUP_API_KEY_PRIVATE",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "SUMUP_API_KEY_PRIVATE"
+      "secret_name": "sumup-api-key-private"
     },
     {
       "binding": "SUMUP_MERCHANT_CODE",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "SUMUP_MERCHANT_CODE"
+      "secret_name": "sumup-merchant-code"
     },
     {
       "binding": "CF_AI_GATEWAY",

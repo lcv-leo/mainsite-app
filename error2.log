@@ -1,0 +1,237 @@
+deploy	Set up job	﻿2026-04-03T21:13:44.2554773Z Current runner version: '2.333.1'
+deploy	Set up job	2026-04-03T21:13:44.2579313Z ##[group]Runner Image Provisioner
+deploy	Set up job	2026-04-03T21:13:44.2580233Z Hosted Compute Agent
+deploy	Set up job	2026-04-03T21:13:44.2580837Z Version: 20260213.493
+deploy	Set up job	2026-04-03T21:13:44.2581459Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+deploy	Set up job	2026-04-03T21:13:44.2582248Z Build Date: 2026-02-13T00:28:41Z
+deploy	Set up job	2026-04-03T21:13:44.2582871Z Worker ID: {69f67cd8-081a-4c13-81b9-f61e8b111eab}
+deploy	Set up job	2026-04-03T21:13:44.2583551Z Azure Region: westus
+deploy	Set up job	2026-04-03T21:13:44.2584136Z ##[endgroup]
+deploy	Set up job	2026-04-03T21:13:44.2585513Z ##[group]Operating System
+deploy	Set up job	2026-04-03T21:13:44.2586159Z Ubuntu
+deploy	Set up job	2026-04-03T21:13:44.2586761Z 24.04.4
+deploy	Set up job	2026-04-03T21:13:44.2587253Z LTS
+deploy	Set up job	2026-04-03T21:13:44.2587767Z ##[endgroup]
+deploy	Set up job	2026-04-03T21:13:44.2588759Z ##[group]Runner Image
+deploy	Set up job	2026-04-03T21:13:44.2589369Z Image: ubuntu-24.04
+deploy	Set up job	2026-04-03T21:13:44.2589996Z Version: 20260329.72.1
+deploy	Set up job	2026-04-03T21:13:44.2591046Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260329.72/images/ubuntu/Ubuntu2404-Readme.md
+deploy	Set up job	2026-04-03T21:13:44.2592786Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260329.72
+deploy	Set up job	2026-04-03T21:13:44.2593694Z ##[endgroup]
+deploy	Set up job	2026-04-03T21:13:44.2594954Z ##[group]GITHUB_TOKEN Permissions
+deploy	Set up job	2026-04-03T21:13:44.2596799Z Contents: read
+deploy	Set up job	2026-04-03T21:13:44.2597402Z Deployments: write
+deploy	Set up job	2026-04-03T21:13:44.2598286Z Metadata: read
+deploy	Set up job	2026-04-03T21:13:44.2598876Z ##[endgroup]
+deploy	Set up job	2026-04-03T21:13:44.2601250Z Secret source: Actions
+deploy	Set up job	2026-04-03T21:13:44.2602172Z Prepare workflow directory
+deploy	Set up job	2026-04-03T21:13:44.3090619Z Prepare all required actions
+deploy	Set up job	2026-04-03T21:13:44.3149664Z Getting action download info
+deploy	Set up job	2026-04-03T21:13:44.8445502Z Download action repository 'actions/checkout@v6.0.2' (SHA:de0fac2e4500dabe0009e67214ff5f5447ce83dd)
+deploy	Set up job	2026-04-03T21:13:44.9652013Z Download action repository 'actions/setup-node@v6.3.0' (SHA:53b83947a5a98c8d113130e565377fae1a50d02f)
+deploy	Set up job	2026-04-03T21:13:45.1608973Z Complete job name: deploy
+deploy	Run actions/checkout@v6.0.2	﻿2026-04-03T21:13:45.2300660Z ##[group]Run actions/checkout@v6.0.2
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2302083Z with:
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2302906Z   repository: lcv-leo/mainsite-app
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2304074Z   token: ***
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2304790Z   ssh-strict: true
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2305540Z   ssh-user: git
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2306303Z   persist-credentials: true
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2307085Z   clean: true
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2307815Z   sparse-checkout-cone-mode: true
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2309069Z   fetch-depth: 1
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2309860Z   fetch-tags: false
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2310618Z   show-progress: true
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2311373Z   lfs: false
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2312061Z   submodules: false
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2312820Z   set-safe-directory: true
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2313994Z env:
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2314737Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2315742Z   NODE_OPTIONS: --no-deprecation
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2316664Z   WRANGLER_VERSION: latest
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2317490Z ##[endgroup]
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4151644Z Syncing repository: lcv-leo/mainsite-app
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4154398Z ##[group]Getting Git version info
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4155646Z Working directory is '/home/runner/work/mainsite-app/mainsite-app'
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4157378Z [command]/usr/bin/git version
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4160292Z git version 2.53.0
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4171490Z ##[endgroup]
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4177278Z Temporarily overriding HOME='/home/runner/work/_temp/9494447a-6bee-4fc9-875b-fad05687f4c1' before making global git config changes
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4179954Z Adding repository directory to the temporary git global config as a safe directory
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4182051Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mainsite-app/mainsite-app
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4184899Z Deleting the contents of '/home/runner/work/mainsite-app/mainsite-app'
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4186688Z ##[group]Initializing the repository
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4188175Z [command]/usr/bin/git init /home/runner/work/mainsite-app/mainsite-app
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4189806Z hint: Using 'master' as the name for the initial branch. This default branch name
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4191783Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4193477Z hint: to use in all of your new repositories, which will suppress this warning,
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4194730Z hint: call:
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4195393Z hint:
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4196202Z hint: 	git config --global init.defaultBranch <name>
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4197192Z hint:
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4198405Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4200015Z hint: 'development'. The just-created branch can be renamed via this command:
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4201232Z hint:
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4201898Z hint: 	git branch -m <name>
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4202668Z hint:
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4203687Z hint: Disable this message with "git config set advice.defaultBranchName false"
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4205423Z Initialized empty Git repository in /home/runner/work/mainsite-app/mainsite-app/.git/
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4208467Z [command]/usr/bin/git remote add origin https://github.com/lcv-leo/mainsite-app
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4211149Z ##[endgroup]
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4212354Z ##[group]Disabling automatic garbage collection
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4213460Z [command]/usr/bin/git config --local gc.auto 0
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4215891Z ##[endgroup]
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4217022Z ##[group]Setting up auth
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4218170Z Removing SSH command configuration
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4219475Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4223034Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4306885Z Removing HTTP extra header
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4314197Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4349921Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4591024Z Removing includeIf entries pointing to credentials config files
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4594728Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4629485Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4866721Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4905461Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4938085Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4972871Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.5004487Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.5036334Z ##[endgroup]
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.5037637Z ##[group]Fetching the repository
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.5046496Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +514a1be02a4a954c29853af8ca88e52bed480cb4:refs/remotes/origin/main
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0116174Z From https://github.com/lcv-leo/mainsite-app
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0118562Z  * [new ref]         514a1be02a4a954c29853af8ca88e52bed480cb4 -> origin/main
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0180041Z [command]/usr/bin/git branch --list --remote origin/main
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0248748Z   origin/main
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0263337Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0290584Z 514a1be02a4a954c29853af8ca88e52bed480cb4
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0302163Z ##[endgroup]
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0303521Z ##[group]Determining the checkout info
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0304996Z ##[endgroup]
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0305950Z [command]/usr/bin/git sparse-checkout disable
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0344405Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0372044Z ##[group]Checking out the ref
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0375374Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0501679Z Switched to a new branch 'main'
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0505141Z branch 'main' set up to track 'origin/main'.
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0513389Z ##[endgroup]
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0552635Z [command]/usr/bin/git log -1 --format=%H
+deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0575760Z 514a1be02a4a954c29853af8ca88e52bed480cb4
+deploy	Run actions/setup-node@v6.3.0	﻿2026-04-03T21:13:46.0855988Z ##[group]Run actions/setup-node@v6.3.0
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0856721Z with:
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0857127Z   node-version: 24
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0857580Z   cache: npm
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0858736Z   cache-dependency-path: ./mainsite-worker/package-lock.json
+deploy	Run actions/setup-node@v6.3.0	./mainsite-frontend/package-lock.json
+deploy	Run actions/setup-node@v6.3.0	
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0859921Z   check-latest: false
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0860580Z   token: ***
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0861038Z   package-manager-cache: true
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0861582Z env:
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0862018Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0862695Z   NODE_OPTIONS: --no-deprecation
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0863278Z   WRANGLER_VERSION: latest
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0863798Z ##[endgroup]
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.2522045Z Found in cache @ /opt/hostedtoolcache/node/24.14.1/x64
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.2532256Z ##[group]Environment details
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.8515540Z node: v24.14.1
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.8519939Z npm: 11.11.0
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.8521097Z yarn: 1.22.22
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.8523135Z ##[endgroup]
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.8541985Z [command]/opt/hostedtoolcache/node/24.14.1/x64/bin/npm config get cache
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:47.3736899Z /home/runner/.npm
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:47.6510080Z Cache hit for: node-cache-Linux-x64-npm-eca2a013c54d07e445a02cfe2dc65c7cbb8824ecfb610401c5437c140b11b5e0
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:48.9500724Z Received 0 of 167600789 (0.0%), 0.0 MBs/sec
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:49.9504039Z Received 121634816 of 167600789 (72.6%), 58.0 MBs/sec
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:50.3847672Z Received 167600789 of 167600789 (100.0%), 65.6 MBs/sec
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:50.3852001Z Cache Size: ~160 MB (167600789 B)
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:50.4005436Z [command]/usr/bin/tar -xf /home/runner/work/_temp/277240c0-bba4-4bb2-a787-344a0511b18d/cache.tzst -P -C /home/runner/work/mainsite-app/mainsite-app --use-compress-program unzstd
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:51.1883330Z Cache restored successfully
+deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:51.1974060Z Cache restored from key: node-cache-Linux-x64-npm-eca2a013c54d07e445a02cfe2dc65c7cbb8824ecfb610401c5437c140b11b5e0
+deploy	Install e Deploy Worker	﻿2026-04-03T21:13:51.2187702Z ##[group]Run npm install
+deploy	Install e Deploy Worker	2026-04-03T21:13:51.2188432Z [36;1mnpm install[0m
+deploy	Install e Deploy Worker	2026-04-03T21:13:51.2188734Z [36;1mnpx wrangler@${WRANGLER_VERSION} deploy[0m
+deploy	Install e Deploy Worker	2026-04-03T21:13:51.2646155Z shell: /usr/bin/bash -e {0}
+deploy	Install e Deploy Worker	2026-04-03T21:13:51.2646479Z env:
+deploy	Install e Deploy Worker	2026-04-03T21:13:51.2646714Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+deploy	Install e Deploy Worker	2026-04-03T21:13:51.2647032Z   NODE_OPTIONS: --no-deprecation
+deploy	Install e Deploy Worker	2026-04-03T21:13:51.2647302Z   WRANGLER_VERSION: latest
+deploy	Install e Deploy Worker	2026-04-03T21:13:51.2648392Z   CLOUDFLARE_API_TOKEN: ***
+deploy	Install e Deploy Worker	2026-04-03T21:13:51.2648740Z   CLOUDFLARE_ACCOUNT_ID: ***
+deploy	Install e Deploy Worker	2026-04-03T21:13:51.2648981Z ##[endgroup]
+deploy	Install e Deploy Worker	2026-04-03T21:13:54.0077647Z npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+deploy	Install e Deploy Worker	2026-04-03T21:13:55.3200523Z 
+deploy	Install e Deploy Worker	2026-04-03T21:13:55.3203124Z added 131 packages, and audited 132 packages in 4s
+deploy	Install e Deploy Worker	2026-04-03T21:13:55.3209430Z 
+deploy	Install e Deploy Worker	2026-04-03T21:13:55.3210291Z 32 packages are looking for funding
+deploy	Install e Deploy Worker	2026-04-03T21:13:55.3210928Z   run `npm fund` for details
+deploy	Install e Deploy Worker	2026-04-03T21:13:55.3214994Z 
+deploy	Install e Deploy Worker	2026-04-03T21:13:55.3217521Z found 0 vulnerabilities
+deploy	Install e Deploy Worker	2026-04-03T21:13:56.3747626Z npm warn exec The following package was not found and will be installed: wrangler@4.80.0
+deploy	Install e Deploy Worker	2026-04-03T21:14:01.8126557Z 
+deploy	Install e Deploy Worker	2026-04-03T21:14:01.8143563Z  ⛅️ wrangler 4.80.0
+deploy	Install e Deploy Worker	2026-04-03T21:14:01.8145836Z ───────────────────
+deploy	Install e Deploy Worker	2026-04-03T21:14:03.9551401Z Total Upload: 998.88 KiB / gzip: 149.83 KiB
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8934860Z Your Worker has access to the following bindings:
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8954024Z Binding                                                                                 Resource                  
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8956750Z env.DB (bigdata_db)                                                                     D1 Database               
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8962582Z env.BUCKET (mainsite-media)                                                             R2 Bucket                 
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8964158Z env.CLOUDFLARE_PW (df90c0935ba1460899c3c2c457548a90/CLOUDFLARE_PW)                      Secrets Store Secret      
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8965803Z env.GEMINI_API_KEY (df90c0935ba1460899c3c2c457548a90/GEMINI_API_KEY)                    Secrets Store Secret      
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8967460Z env.RESEND_API_KEY (df90c0935ba1460899c3c2c457548a90/RESEND_APPKEY)                     Secrets Store Secret      
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8969279Z env.MP_ACCESS_TOKEN (df90c0935ba1460899c3c2c457548a90/MP_ACCESS_TOKEN)                  Secrets Store Secret      
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8971037Z env.SUMUP_API_KEY_PRIVATE (df90c0935ba1460899c3c2c457548a90/SUMUP_API_KEY_PRIVATE)      Secrets Store Secret      
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8972754Z env.SUMUP_MERCHANT_CODE (df90c0935ba1460899c3c2c457548a90/SUMUP_MERCHANT_CODE)          Secrets Store Secret      
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8974380Z env.CF_AI_GATEWAY (df90c0935ba1460899c3c2c457548a90/CF_AI_GATEWAY)                      Secrets Store Secret      
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8975763Z env.AI                                                                                  AI                        
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.8976998Z env.RL_CHATBOT (5 requests/60s)                                                         Rate Limit                
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9008664Z env.RL_EMAIL (3 requests/60s)                                                           Rate Limit                
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9010067Z env.GLOBAL_RATE_LIMITER (10 requests/60s)                                               Rate Limit                
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9010721Z 
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9010739Z 
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9012064Z Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9013229Z 
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9494691Z [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mA request to the Cloudflare API (/accounts/***/workers/scripts/mainsite-motor/versions) failed.[0m
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9495974Z 
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9498366Z   Secrets Store binding 'RESEND_API_KEY' references store 'df90c0935ba1460899c3c2c457548a90' and secret 'RESEND_APPKEY' which were not found. Verify the store and secret exist in your account and that the store_id and secret_name in your configuration are correct. [code: 10182]
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9502915Z   To learn more about this error, visit: [4mhttps://developers.cloudflare.com/secrets-store/[0m
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9503958Z 
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9504117Z   
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9505609Z   If you think this is a bug, please open an issue at: [4mhttps://github.com/cloudflare/workers-sdk/issues/new/choose[0m
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9507743Z 
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9507766Z 
+deploy	Install e Deploy Worker	2026-04-03T21:14:04.9569659Z 🪵  Logs were written to "/home/runner/.config/.wrangler/logs/wrangler-2026-04-03_21-14-01_374.log"
+deploy	Install e Deploy Worker	2026-04-03T21:14:05.0083418Z ##[error]Process completed with exit code 1.
+deploy	Post Run actions/checkout@v6.0.2	﻿2026-04-03T21:14:05.0205345Z Post job cleanup.
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1046206Z [command]/usr/bin/git version
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1089096Z git version 2.53.0
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1165052Z Temporarily overriding HOME='/home/runner/work/_temp/01669d38-8436-4a0b-bbd3-533eede4654e' before making global git config changes
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1167254Z Adding repository directory to the temporary git global config as a safe directory
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1170963Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mainsite-app/mainsite-app
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1206639Z Removing SSH command configuration
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1215374Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1257813Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1489350Z Removing HTTP extra header
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1494652Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1550414Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1920039Z Removing includeIf entries pointing to credentials config files
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1944545Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1960660Z includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1963179Z includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1966688Z includeif.gitdir:/github/workspace/.git.path
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1969336Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1977481Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2009238Z /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2022562Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2078608Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2112072Z /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2131757Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2181847Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2218450Z /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2232389Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2286724Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2347687Z /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2351767Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2391574Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2627721Z Removing credentials config '/home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config'
+deploy	Complete job	﻿2026-04-03T21:14:05.2755801Z Cleaning up orphan processes
