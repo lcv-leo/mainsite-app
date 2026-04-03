@@ -28,7 +28,6 @@ const posts = new Hono<{ Bindings: Env }>();
  */
 async function triggerSummaryGeneration(
   db: D1Database,
-  apiKey: string,
   postId: string | number,
   title: string,
   content: string,
@@ -72,7 +71,7 @@ async function triggerSummaryGeneration(
     }
 
     // Gera via Gemini
-    const result = await generateShareSummary(db, title, content, apiKey, env);
+    const result = await generateShareSummary(db, title, content, env);
     if (!result) {
       structuredLog('warn', 'Share summary generation returned null', { postId });
       return;
@@ -141,10 +140,10 @@ posts.post('/api/posts', requireAuth, async (c) => {
       .run();
 
     // Fire-and-forget: gerar resumo IA para compartilhamento
-    const apiKey = c.env.GEMINI_API_KEY;
-    if (apiKey && title && content && result.meta?.last_row_id) {
+    const gatewayToken = c.env.CF_AI_GATEWAY;
+    if (gatewayToken && title && content && result.meta?.last_row_id) {
       c.executionCtx.waitUntil(
-        triggerSummaryGeneration(c.env.DB, apiKey, result.meta.last_row_id, title, content, c.env)
+        triggerSummaryGeneration(c.env.DB, result.meta.last_row_id, title, content, c.env)
       );
     }
 
@@ -166,11 +165,10 @@ posts.put('/api/posts/:id', requireAuth, async (c) => {
       .bind(title, content, authorVal, id)
       .run();
 
-    // Fire-and-forget: regenerar resumo IA se conteúdo mudou
-    const apiKey = c.env.GEMINI_API_KEY;
-    if (apiKey && title && content && id) {
+    const gatewayToken = c.env.CF_AI_GATEWAY;
+    if (gatewayToken && title && content && id) {
       c.executionCtx.waitUntil(
-        triggerSummaryGeneration(c.env.DB, apiKey, id, title, content, c.env)
+        triggerSummaryGeneration(c.env.DB, id, title, content, c.env)
       );
     }
 

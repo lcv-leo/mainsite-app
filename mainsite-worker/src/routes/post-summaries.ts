@@ -120,8 +120,8 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async 
   try {
     await ensureTable(c.env.DB);
     const postId = c.req.param('postId');
-    const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada' }, 503);
+    const gatewayToken = c.env.CF_AI_GATEWAY;
+    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada' }, 503);
 
     const post = await c.env.DB.prepare(
       'SELECT id, title, content FROM mainsite_posts WHERE id = ?'
@@ -132,7 +132,7 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async 
     const cleanContent = stripHtml(post.content);
     const contentHash = await hashContent(cleanContent);
 
-    const result = await generateShareSummary(c.env.DB, post.title, post.content, apiKey, c.env);
+    const result = await generateShareSummary(c.env.DB, post.title, post.content, c.env);
     if (!result) {
       return c.json({ error: 'Falha na geração do resumo pela IA' }, 502);
     }
@@ -162,8 +162,8 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async 
 postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) => {
   try {
     await ensureTable(c.env.DB);
-    const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada' }, 503);
+    const gatewayToken = c.env.CF_AI_GATEWAY;
+    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada' }, 503);
 
     // Modo: 'missing' = só posts sem resumo; 'all' = todos (exceto manual overrides)
     const mode = (c.req.query('mode') || 'missing') as string;
@@ -218,7 +218,7 @@ postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) =>
       }
 
       try {
-        const result = await generateShareSummary(c.env.DB, post.title, post.content, apiKey, c.env);
+        const result = await generateShareSummary(c.env.DB, post.title, post.content, c.env);
         if (!result) {
           failed++;
           details.push({ postId: post.id, title: post.title, status: 'failed_ai' });

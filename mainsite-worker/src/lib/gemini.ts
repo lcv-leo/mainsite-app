@@ -49,7 +49,6 @@ export async function generateShareSummary(
   db: D1Database,
   title: string,
   content: string,
-  apiKey: string,
   env: Env
 ): Promise<ShareSummaryResult | null> {
   const cleanText = stripHtml(content).substring(0, 2000);
@@ -84,7 +83,7 @@ TÍTULO: ${title}
 TEXTO: ${cleanText}`;
 
   try {
-    const client = createClient(apiKey, env);
+    const client = createClient(env);
     const modelStr = await getConfiguredModel(db, 'summaryModeloIA');
 
     const response = await generate({
