@@ -441,22 +441,17 @@ ai.post('/api/ai/workers/translate', async (c) => {
     const { text, targetLanguage } = (await c.req.json()) as { text?: string; targetLanguage?: string; };
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const langMap: Record<string, string> = {
-      'English': 'en',
-      'Spanish': 'es',
-      'French': 'fr',
-      'Portuguese': 'pt',
-    };
-    const target = langMap[targetLanguage || 'English'] || 'en';
+    const lang = targetLanguage || 'English';
 
-    const response = await c.env.AI.run('@cf/meta/m2m100-1.2b', {
-      text,
-      source_lang: 'pt',
-      target_lang: target
+    const response = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
+      messages: [
+        { role: 'system', content: `You are a professional translator. Translate the following text to ${lang}. Return ONLY the translation, preserve HTML formatting, do not explain.` },
+        { role: 'user', content: text }
+      ]
     });
 
-    structuredLog('info', 'Workers AI translate completed', { endpoint: 'workers/translate', targetLanguage: target });
-    return c.json({ success: true, translation: (response as any).translated_text || text });
+    structuredLog('info', 'Workers AI translate completed', { endpoint: 'workers/translate', targetLanguage: lang });
+    return c.json({ success: true, translation: (response as any).response || text });
   } catch (err) {
     structuredLog('error', 'Workers AI translate error', { error: (err as Error).message });
     return c.json({ error: (err as Error).message }, 500);
@@ -469,7 +464,7 @@ ai.post('/api/ai/workers/summarize', async (c) => {
     const { text } = (await c.req.json()) as { text?: string; };
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const response = await c.env.AI.run('@cf/meta/llama-3-8b-instruct', {
+    const response = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
       messages: [
         { role: 'system', content: 'Você é um resumidor super rápido. Extraia as 3 ideias mais vitais do texto abaixo em um parágrafo limpo e curto. Responda em Português.' },
         { role: 'user', content: text }

@@ -149,6 +149,7 @@ export async function generate(opts: GenerateOptions): Promise<GenerateContentRe
     try {
       structuredLog('info', `Gemini SDK request attempt ${attempt}`, { endpoint, attempt, model: resolvedModel });
 
+      const isThinkingModel = resolvedModel.includes('thinking');
       const response = await client.models.generateContent({
         model: resolvedModel,
         contents: prompt,
@@ -156,7 +157,7 @@ export async function generate(opts: GenerateOptions): Promise<GenerateContentRe
           temperature: config.temperature,
           maxOutputTokens: config.maxOutputTokens,
           safetySettings: GEMINI_SAFETY_SETTINGS,
-          ...(enableThinking ? { thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH } } : {}),
+          ...(enableThinking && isThinkingModel ? { thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH } } : {}),
         },
       });
 
