@@ -25,6 +25,28 @@ import postSummariesRoutes from './routes/post-summaries.ts';
 
 const app = new Hono<{ Bindings: Env }>();
 
+// ========== SECRET STORE RESOLVER MIDDLEWARE ==========
+// Cloudflare Secret Store bindings return JsRpcPromise, not strings.
+// This middleware eagerly resolves all secret values so downstream
+// handlers can use c.env.GEMINI_API_KEY as a plain string.
+const SECRET_KEYS: (keyof Env)[] = [
+  'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY', 'CF_AI_GATEWAY',
+  'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE', 'MP_ACCESS_TOKEN',
+];
+
+app.use('*', async (c, next) => {
+  const env = c.env as unknown as Record<string, unknown>;
+  await Promise.all(
+    SECRET_KEYS.map(async (key) => {
+      const val = env[key];
+      if (val && typeof (val as { then?: unknown }).then === 'function') {
+        env[key] = await val;
+      }
+    }),
+  );
+  return next();
+});
+
 // ========== CORS (paridade total com monolito) ==========
 app.use('/api/*', cors({
   origin: (origin) => {
@@ -106,17 +128,6 @@ app.use('/api/share/email', createRateLimiterMiddleware('email') as Parameters<t
 app.use('/api/contact', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 app.use('/api/comment', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 
-// ========== TEMPORARY DEBUG ENDPOINT ==========
-app.get('/api/debug-env', (c) => {
-  const env = c.env;
-  return c.json({
-    GEMINI_API_KEY_prefix: env.GEMINI_API_KEY ? env.GEMINI_API_KEY.substring(0, 8) + '...' : 'MISSING',
-    CF_AI_GATEWAY_prefix: env.CF_AI_GATEWAY ? env.CF_AI_GATEWAY.substring(0, 8) + '...' : 'MISSING',
-    RESEND_API_KEY_prefix: env.RESEND_API_KEY ? env.RESEND_API_KEY.substring(0, 5) + '...' : 'MISSING',
-    SUMUP_MERCHANT_CODE: env.SUMUP_MERCHANT_CODE ? env.SUMUP_MERCHANT_CODE.substring(0, 3) + '...' : 'MISSING',
-    DB_available: !!env.DB,
-  });
-});
 
 // ========== MOUNT ROUTE MODULES ==========
 app.route('/', aiRoutes);
