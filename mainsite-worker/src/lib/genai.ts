@@ -45,12 +45,12 @@ import type { Env } from '../env.ts';
 
 /** Creates a GoogleGenAI client per-request (API key comes from Worker env). */
 export function createClient(apiKey: string, env: Env): GoogleGenAI {
-  return new GoogleGenAI({ 
-    apiKey, 
+  return new GoogleGenAI({
+    apiKey: apiKey,
     httpOptions: {
-      baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-genai',
+      baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-ai-studio',
       headers: {
-        'cf-aig-authorization': env.CF_AI_GATEWAY ? `Bearer ${env.CF_AI_GATEWAY}` : ''
+        'cf-aig-authorization': `Bearer ${env.CF_AI_GATEWAY || ''}`
       }
     }
   });

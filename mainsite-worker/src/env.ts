@@ -24,6 +24,7 @@ export interface Env {
   API_SECRET: string;
   GEMINI_API_KEY: string;
   RESEND_API_KEY: string;
+  CF_AI_GATEWAY: string;
 
   // --- SumUp ---
   SUMUP_API_KEY_PRIVATE: string;
