@@ -106,6 +106,18 @@ app.use('/api/share/email', createRateLimiterMiddleware('email') as Parameters<t
 app.use('/api/contact', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 app.use('/api/comment', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 
+// ========== TEMPORARY DEBUG ENDPOINT ==========
+app.get('/api/debug-env', (c) => {
+  const env = c.env;
+  return c.json({
+    GEMINI_API_KEY_prefix: env.GEMINI_API_KEY ? env.GEMINI_API_KEY.substring(0, 8) + '...' : 'MISSING',
+    CF_AI_GATEWAY_prefix: env.CF_AI_GATEWAY ? env.CF_AI_GATEWAY.substring(0, 8) + '...' : 'MISSING',
+    RESEND_API_KEY_prefix: env.RESEND_API_KEY ? env.RESEND_API_KEY.substring(0, 5) + '...' : 'MISSING',
+    SUMUP_MERCHANT_CODE: env.SUMUP_MERCHANT_CODE ? env.SUMUP_MERCHANT_CODE.substring(0, 3) + '...' : 'MISSING',
+    DB_available: !!env.DB,
+  });
+});
+
 // ========== MOUNT ROUTE MODULES ==========
 app.route('/', aiRoutes);
 app.route('/', postsRoutes);
