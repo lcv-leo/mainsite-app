@@ -71,11 +71,11 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
       text?: string;
       instruction?: string;
     };
-    const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
+    const gatewayToken = c.env.CF_AI_GATEWAY;
+    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const client = createClient(apiKey, c.env);
+    const client = createClient(c.env);
     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
 
     const inputTokens = await countTokens(client, text, modelStr);
@@ -142,8 +142,8 @@ ai.post('/api/ai/public/chat', async (c) => {
       currentContext?: { title?: string; content?: string };
       askForDonation?: boolean;
     };
-    const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
+    const gatewayToken = c.env.CF_AI_GATEWAY;
+    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!message) return c.json({ error: 'Mensagem ausente.' }, 400);
 
     const { results } = await c.env.DB.prepare(
@@ -239,7 +239,7 @@ ${dbContext}
 
 PERGUNTA DO USUÁRIO: ${message}`;
 
-    const client = createClient(apiKey, c.env);
+    const client = createClient(c.env);
     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
 
     const inputTokens = await countTokens(client, systemPrompt, modelStr);
@@ -353,11 +353,11 @@ ai.get('/api/chat-context-audit', requireAuth, async (c) => {
 ai.post('/api/ai/public/summarize', async (c) => {
   try {
     const { text, postTitle } = (await c.req.json()) as { text?: string; postTitle?: string };
-    const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
+    const gatewayToken = c.env.CF_AI_GATEWAY;
+    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const client = createClient(apiKey, c.env);
+    const client = createClient(c.env);
     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
 
     const inputTokens = await countTokens(client, text, modelStr);
@@ -397,11 +397,11 @@ ai.post('/api/ai/public/translate', async (c) => {
       targetLanguage?: string;
       postTitle?: string;
     };
-    const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
+    const gatewayToken = c.env.CF_AI_GATEWAY;
+    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const client = createClient(apiKey, c.env);
+    const client = createClient(c.env);
     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
     const lang = targetLanguage || 'English';
 
