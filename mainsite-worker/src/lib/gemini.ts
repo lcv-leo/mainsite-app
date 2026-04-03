@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -6,6 +6,7 @@
  * Utilitário compartilhado para geração de resumos de compartilhamento social.
  * Usa o @google/genai SDK via lib/genai.ts.
  */
+import type { Env } from '../env.ts';
 import { structuredLog } from './logger.ts';
 import { createClient, generate, extractText, getConfiguredModel, DEFAULT_GEMINI_MODEL } from './genai.ts';
 
@@ -48,7 +49,8 @@ export async function generateShareSummary(
   db: D1Database,
   title: string,
   content: string,
-  apiKey: string
+  apiKey: string,
+  env: Env
 ): Promise<ShareSummaryResult | null> {
   const cleanText = stripHtml(content).substring(0, 2000);
   if (!cleanText || cleanText.length < 50) return null;
@@ -82,7 +84,7 @@ TÍTULO: ${title}
 TEXTO: ${cleanText}`;
 
   try {
-    const client = createClient(apiKey);
+    const client = createClient(apiKey, env);
     const modelStr = await getConfiguredModel(db, 'summaryModeloIA');
 
     const response = await generate({

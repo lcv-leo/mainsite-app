@@ -41,9 +41,19 @@ export type EndpointName = keyof typeof ENDPOINT_CONFIGS;
 
 // ========== FACTORY ==========
 
+import type { Env } from '../env.ts';
+
 /** Creates a GoogleGenAI client per-request (API key comes from Worker env). */
-export function createClient(apiKey: string): GoogleGenAI {
-  return new GoogleGenAI({ baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-ai-studio', apiKey });
+export function createClient(apiKey: string, env: Env): GoogleGenAI {
+  return new GoogleGenAI({ 
+    apiKey, 
+    httpOptions: {
+      baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-genai',
+      headers: {
+        'cf-aig-authorization': env.CF_AI_GATEWAY ? `Bearer ${env.CF_AI_GATEWAY}` : ''
+      }
+    }
+  });
 }
 
 // ========== DYNAMIC MODEL FROM ADMIN CONFIG ==========

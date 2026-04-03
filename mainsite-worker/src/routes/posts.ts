@@ -31,7 +31,8 @@ async function triggerSummaryGeneration(
   apiKey: string,
   postId: string | number,
   title: string,
-  content: string
+  content: string,
+  env: Env
 ): Promise<void> {
   try {
     // Auto-migração
@@ -71,7 +72,7 @@ async function triggerSummaryGeneration(
     }
 
     // Gera via Gemini
-    const result = await generateShareSummary(db, title, content, apiKey);
+    const result = await generateShareSummary(db, title, content, apiKey, env);
     if (!result) {
       structuredLog('warn', 'Share summary generation returned null', { postId });
       return;
@@ -143,7 +144,7 @@ posts.post('/api/posts', requireAuth, async (c) => {
     const apiKey = c.env.GEMINI_API_KEY;
     if (apiKey && title && content && result.meta?.last_row_id) {
       c.executionCtx.waitUntil(
-        triggerSummaryGeneration(c.env.DB, apiKey, result.meta.last_row_id, title, content)
+        triggerSummaryGeneration(c.env.DB, apiKey, result.meta.last_row_id, title, content, c.env)
       );
     }
 
@@ -169,7 +170,7 @@ posts.put('/api/posts/:id', requireAuth, async (c) => {
     const apiKey = c.env.GEMINI_API_KEY;
     if (apiKey && title && content && id) {
       c.executionCtx.waitUntil(
-        triggerSummaryGeneration(c.env.DB, apiKey, id, title, content)
+        triggerSummaryGeneration(c.env.DB, apiKey, id, title, content, c.env)
       );
     }
 
