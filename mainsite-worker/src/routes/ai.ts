@@ -188,7 +188,11 @@ ai.post('/api/ai/public/chat', async (c) => {
     const contextPosts = relevantPosts.length > 0 ? relevantPosts : fallbackPosts;
 
     const dbContext = contextPosts
-      .map((p) => `ID: ${(p as Record<string, unknown>).id}\nTÍTULO: ${(p as Record<string, unknown>).title}\nDATA: ${(p as Record<string, unknown>).created_at || 'N/A'}\nCONTEÚDO: ${(p as Record<string, unknown>).content}`)
+      .map((p) => {
+        const content = String((p as Record<string, unknown>).content || '');
+        const truncatedContent = content.length > 2000 ? content.substring(0, 2000) + '...[truncado]' : content;
+        return `ID: ${(p as Record<string, unknown>).id}\nTÍTULO: ${(p as Record<string, unknown>).title}\nDATA: ${(p as Record<string, unknown>).created_at || 'N/A'}\nCONTEÚDO: ${truncatedContent}`;
+      })
       .join('\n\n---\n\n');
 
     const dbCoverageMeta = `ACERVO TOTAL INDEXADO NO BANCO: ${scoredPosts.length} PUBLICAÇÕES. TRECHOS DETALHADOS ENVIADOS AO MODELO NESTA REQUISIÇÃO: ${contextPosts.length}.`;
