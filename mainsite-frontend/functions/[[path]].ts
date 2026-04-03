@@ -7,7 +7,6 @@
 // Lê dados diretamente do D1 via binding DB, sem chamada a URL externa.
 
 import type { D1Database, EventContext, Element } from '@cloudflare/workers-types';
-import { HTMLRewriter } from '@cloudflare/workers-types';
 
 interface Env {
   DB: D1Database;
