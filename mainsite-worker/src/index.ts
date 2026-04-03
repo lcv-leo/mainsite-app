@@ -32,7 +32,7 @@ const app = new Hono<{ Bindings: Env }>();
 const SECRET_KEYS = [
   'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY', 'CF_AI_GATEWAY',
   'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE', 'MP_ACCESS_TOKEN',
-  'MERCADO_PAGO_WEBHOOK_SECRET',
+  'MERCADO_PAGO_WEBHOOK_SECRET', 'PIX_KEY', 'PIX_NAME', 'PIX_CITY'
 ] as const;
 
 app.use('*', async (c, next) => {
@@ -41,7 +41,12 @@ app.use('*', async (c, next) => {
     SECRET_KEYS.map(async (key) => {
       const binding = env[key];
       if (binding && typeof binding === 'object' && typeof (binding as { get?: unknown }).get === 'function') {
-        env[key] = await (binding as { get(): Promise<string> }).get();
+        try {
+          env[key] = await (binding as { get(): Promise<string> }).get();
+        } catch (error) {
+          console.warn(`[Secrets Store] Falha ao resolver secret ${key}:`, error);
+          env[key] = undefined;
+        }
       }
     }),
   );

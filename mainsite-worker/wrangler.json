@@ -102,6 +102,21 @@
       "binding": "CF_AI_GATEWAY",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
       "secret_name": "CF_AI_GATEWAY"
+    },
+    {
+      "binding": "PIX_KEY",
+      "store_id": "df90c0935ba1460899c3c2c457548a90",
+      "secret_name": "PIX_KEY"
+    },
+    {
+      "binding": "PIX_NAME",
+      "store_id": "df90c0935ba1460899c3c2c457548a90",
+      "secret_name": "PIX_NAME"
+    },
+    {
+      "binding": "PIX_CITY",
+      "store_id": "df90c0935ba1460899c3c2c457548a90",
+      "secret_name": "PIX_CITY"
     }
   ]
 }

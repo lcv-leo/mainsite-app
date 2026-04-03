@@ -47,6 +47,11 @@ export interface RawEnv {
   // --- Mercado Pago ---
   MP_ACCESS_TOKEN: SecretStoreBinding;
   MERCADO_PAGO_WEBHOOK_SECRET: SecretStoreBinding;
+
+  // --- PIX ---
+  PIX_KEY: SecretStoreBinding;
+  PIX_NAME: SecretStoreBinding;
+  PIX_CITY: SecretStoreBinding;
 }
 
 /**
@@ -80,4 +85,9 @@ export interface Env {
   // --- Mercado Pago ---
   MP_ACCESS_TOKEN: string;
   MERCADO_PAGO_WEBHOOK_SECRET: string;
+
+  // --- PIX ---
+  PIX_KEY: string;
+  PIX_NAME: string;
+  PIX_CITY: string;
 }
