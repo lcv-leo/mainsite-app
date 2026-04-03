@@ -21,7 +21,7 @@ export interface Env {
   RL_EMAIL: RateLimit;
 
   // --- Secrets & Tokens ---
-  API_SECRET: string;
+  CLOUDFLARE_PW: string;
   GEMINI_API_KEY: string;
   RESEND_API_KEY: string;
   CF_AI_GATEWAY: string;
@@ -33,9 +33,4 @@ export interface Env {
   // --- Mercado Pago ---
   MP_ACCESS_TOKEN: string;
   MERCADO_PAGO_WEBHOOK_SECRET: string;
-
-  // --- PIX ---
-  PIX_KEY: string;
-  PIX_NAME?: string;
-  PIX_CITY?: string;
 }
