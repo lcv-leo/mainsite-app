@@ -7,8 +7,7 @@
 // Lê dados diretamente do D1 via binding DB, sem chamada a URL externa.
 
 import type { D1Database, EventContext, Element } from '@cloudflare/workers-types';
-
-/* global HTMLRewriter */
+import { HTMLRewriter } from '@cloudflare/workers-types';
 
 interface Env {
   DB: D1Database;
@@ -16,6 +15,13 @@ interface Env {
 
 export async function onRequest(context: EventContext<Env, string, Record<string, unknown>>) {
   const url = new URL(context.request.url);
+
+  // Segurança & SEO: Nunca vazar url interna final no Google
+  // O mainsite tem múltiplos domínios (lcv.rio.br, cardozovargas.com, etc.), servindo tudo transparente.
+  // Requisições diretas ao origin host (*.pages.dev) devem ser redirecionadas (301) ao domínio principal.
+  if (url.hostname.endsWith('.pages.dev')) {
+    return Response.redirect(`https://lcv.rio.br${url.pathname}${url.search}`, 301);
+  }
 
   // Bypass para sitemap — /functions/sitemap.xml.js gera o sitemap dinâmico
   if (url.pathname === '/sitemap.xml') {
@@ -56,7 +62,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
     const post = await db
       .prepare('SELECT id, title, content, author, created_at, updated_at FROM mainsite_posts WHERE id = ?')
       .bind(postId)
-      .first();
+      .first<{ id: number, title: string, content: string, author: string, created_at: string, updated_at: string }>();
 
     if (!post) return response;
 
@@ -68,7 +74,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       aiSummary = await db
         .prepare('SELECT summary_og, summary_ld FROM mainsite_post_ai_summaries WHERE post_id = ?')
         .bind(postId)
-        .first();
+        .first<{ summary_og: string, summary_ld: string }>();
     } catch {
       // Tabela pode não existir ainda — fallback silencioso
     }
