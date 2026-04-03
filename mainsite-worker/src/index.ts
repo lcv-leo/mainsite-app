@@ -128,6 +128,22 @@ app.use('/api/share/email', createRateLimiterMiddleware('email') as Parameters<t
 app.use('/api/contact', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 app.use('/api/comment', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 
+// TEMPORARY DEBUG — remove after fixing
+app.get('/api/debug-env2', async (c) => {
+  const raw = c.env.GEMINI_API_KEY;
+  const resolved = await Promise.resolve(raw);
+  const asStr = String(resolved);
+  return c.json({
+    raw_type: typeof raw,
+    raw_constructor: raw?.constructor?.name,
+    resolved_type: typeof resolved,
+    resolved_constructor: resolved?.constructor?.name,
+    asStr_prefix: asStr.substring(0, 10) + '...',
+    asStr_length: asStr.length,
+    raw_toString: String(raw).substring(0, 15),
+  });
+});
+
 
 // ========== MOUNT ROUTE MODULES ==========
 app.route('/', aiRoutes);
