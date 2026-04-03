@@ -43,7 +43,7 @@ export type EndpointName = keyof typeof ENDPOINT_CONFIGS;
 
 /** Creates a GoogleGenAI client per-request (API key comes from Worker env). */
 export function createClient(apiKey: string): GoogleGenAI {
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-ai-studio', apiKey });
 }
 
 // ========== DYNAMIC MODEL FROM ADMIN CONFIG ==========
