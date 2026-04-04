@@ -53,9 +53,6 @@
       }
     }
   ],
-  "ai": {
-    "binding": "AI"
-  },
   "observability": {
     "enabled": true
   },
@@ -97,11 +94,6 @@
       "binding": "SUMUP_MERCHANT_CODE",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
       "secret_name": "sumup-merchant-code"
-    },
-    {
-      "binding": "CF_AI_GATEWAY",
-      "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "cf-ai-gateway"
     },
     {
       "binding": "PIX_KEY",
