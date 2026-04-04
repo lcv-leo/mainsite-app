@@ -1,5 +1,11 @@
 # AI Memory Log - mainsite
 
+## 2026-04-04 — MP BigInt Serialization & SDK Rejection Status Fallback
+### Corrigido e Adicionado
+- **BigInt Serialization & SDK Error Destructuring (`mainsite-worker`)**: Corrigida a propensão de quebras de serialização (`TypeError: Do not know how to serialize a BigInt`) no processo `JSON.stringify` do endpoint `/api/mp-payment` que higieniza referências. Além disso, reestruturado o manipulador `catch` para destruturar apropriadamente exceções geradas pelo reject da API SDK Oficial V2 do Mercado Pago (que performa `throw await response.json()` quando `!ok`). Falsos positivos 500 na UI (durante rejeições legítimas 400 por regras antifraude) agora retornam corretamente o erro descritivo e o status original (`finalStatus = mpErr.status`).
+### Controle de versão
+- `mainsite-worker`: patch
+
 ## 2026-04-04 — Translation Truncation Fix & Workers AI Integration
 ### Corrigido e Alterado
 - **Migração Efetivada no Frontend**: Corrigida a regressão no `PostReader.tsx` que continuava apontando para a rota pública do Gemini (`/api/ai/public/...`). As chamadas de tradução e resumo agora apontam de fato para as rotas nativas da infraestrutura da Cloudflare (`/api/ai/workers/translate` e `summarize`).

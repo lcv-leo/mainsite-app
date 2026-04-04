@@ -110,8 +110,8 @@ mp.post('/api/mp-payment', async (c) => {
   } catch (err) {
     console.error('MercadoPago Payment Creation Error:', err);
     structuredLog('error', 'MP Payment Error', { err: String(err), stack: (err as Error).stack, details: JSON.stringify(err) });
-    return c.json({ 
-      error: (err as Error).message, 
+    return c.json({
+      error: (err as Error).message,
       details: String(err)
     }, 500);
   }
