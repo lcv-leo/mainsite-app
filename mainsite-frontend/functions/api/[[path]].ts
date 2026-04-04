@@ -13,7 +13,8 @@ export async function onRequest(context: EventContext<Env, string, Record<string
   const { request, env, params } = context;
 
   // Reconstrói o path a partir dos segmentos capturados pelo catch-all
-  const pathSegments = params.path || [];
+  const paramPath = params.path;
+  const pathSegments = Array.isArray(paramPath) ? paramPath : paramPath ? [paramPath] : [];
   const apiPath = '/api/' + pathSegments.join('/');
 
   // Preserva a query string original
@@ -24,18 +25,18 @@ export async function onRequest(context: EventContext<Env, string, Record<string
   // Cria a requisição interna preservando método, headers e body
   const proxyRequest = new Request(targetUrl.toString(), {
     method: request.method,
-    headers: request.headers,
-    body: request.body,
+    headers: request.headers as unknown as HeadersInit,
+    body: request.body ? (request.body as unknown as BodyInit) : null,
     redirect: 'follow',
   });
 
   // Encaminha via Service Binding interno (sem sair da rede Cloudflare)
-  const response = await env.WORKER.fetch(proxyRequest);
+  const response = await env.WORKER.fetch(proxyRequest as unknown as import('@cloudflare/workers-types').Request);
 
   // Retorna a resposta do worker ao cliente
-  return new Response(response.body, {
+  return new Response(response.body ? (response.body as unknown as BodyInit) : null, {
     status: response.status,
     statusText: response.statusText,
-    headers: response.headers,
+    headers: response.headers as unknown as HeadersInit,
   });
 }
