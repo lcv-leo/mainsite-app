@@ -101,7 +101,7 @@
     {
       "binding": "CF_AI_GATEWAY",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "CF_AI_GATEWAY"
+      "secret_name": "cf-ai-gateway"
     },
     {
       "binding": "PIX_KEY",
