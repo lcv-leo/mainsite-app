@@ -1,0 +1,1253 @@
+commit a7dbd128c53a31c363763240030d7204337446aa
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 20:13:53 2026 -0300
+
+    chore(ai): ai parity sync and infrastructure hardening
+
+diff --git a/mainsite-worker/src/lib/genai.ts b/mainsite-worker/src/lib/genai.ts
+index 2e444e4..e49ff29 100644
+--- a/mainsite-worker/src/lib/genai.ts
++++ b/mainsite-worker/src/lib/genai.ts
+@@ -17,7 +17,7 @@ import { structuredLog } from './logger.ts';
+ // ========== CONFIG CENTRALIZADA ==========
+ 
+ /** Fallback model when admin has not configured one */
+-export const DEFAULT_GEMINI_MODEL = 'gemini-pro-latest';
++export const DEFAULT_GEMINI_MODEL = '';
+ 
+ const MAX_RETRIES = 2;
+ const RETRY_DELAY_MS = 800;
+@@ -50,6 +50,9 @@ import type { Env } from '../env.ts';
+ export function createClient(env: Env): GoogleGenAI {
+   return new GoogleGenAI({
+     apiKey: env.GEMINI_API_KEY,
++    httpOptions: {
++      baseUrl: env.CF_AI_GATEWAY || undefined,
++    },
+   });
+ }
+ 
+diff --git a/mainsite-worker/src/routes/ai.ts b/mainsite-worker/src/routes/ai.ts
+index aa83375..17dd085 100644
+--- a/mainsite-worker/src/routes/ai.ts
++++ b/mainsite-worker/src/routes/ai.ts
+@@ -443,18 +443,25 @@ ai.post('/api/ai/public/translate', async (c) => {
+ ai.post('/api/ai/workers/translate', async (c) => {
+   try {
+     const { text, targetLanguage } = (await c.req.json()) as { text?: string; targetLanguage?: string; };
++    const gatewayToken = c.env.CF_AI_GATEWAY;
++    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
+     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
+ 
+     const lang = targetLanguage || 'English';
+-
+-    const response = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
+-      messages: [
+-        { role: 'system', content: `You are a professional translator. Translate the following text to ${lang}. Return ONLY the translation, preserve HTML formatting, do not explain.` },
+-        { role: 'user', content: text }
+-      ]
+-    });
+-
+-    structuredLog('info', 'Workers AI translate completed', { endpoint: 'workers/translate', targetLanguage: lang });
++    const gatewayId = gatewayToken.split('/')[5];
++
++    const response = await c.env.AI.run(
++      '@cf/meta/llama-3.1-8b-instruct-fast',
++      {
++        messages: [
++          { role: 'system', content: `You are a professional translator. Translate the following text to ${lang}. Return ONLY the translation, preserve HTML formatting, do not explain.` },
++          { role: 'user', content: text }
++        ]
++      },
++      { gateway: { id: gatewayId } }
++    );
++
++    structuredLog('info', 'Workers AI translate completed', { endpoint: 'workers/translate', targetLanguage: lang, gateway: gatewayId });
+     return c.json({ success: true, translation: (response as any).response || text });
+   } catch (err) {
+     structuredLog('error', 'Workers AI translate error', { error: (err as Error).message });
+@@ -466,16 +473,24 @@ ai.post('/api/ai/workers/translate', async (c) => {
+ ai.post('/api/ai/workers/summarize', async (c) => {
+   try {
+     const { text } = (await c.req.json()) as { text?: string; };
++    const gatewayToken = c.env.CF_AI_GATEWAY;
++    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
+     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
+ 
+-    const response = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
+-      messages: [
+-        { role: 'system', content: 'Você é um resumidor super rápido. Extraia as 3 ideias mais vitais do texto abaixo em um parágrafo limpo e curto. Responda em Português.' },
+-        { role: 'user', content: text }
+-      ]
+-    });
++    const gatewayId = gatewayToken.split('/')[5];
++
++    const response = await c.env.AI.run(
++      '@cf/meta/llama-3.1-8b-instruct-fast',
++      {
++        messages: [
++          { role: 'system', content: 'Você é um resumidor super rápido. Extraia as 3 ideias mais vitais do texto abaixo em um parágrafo limpo e curto. Responda em Português.' },
++          { role: 'user', content: text }
++        ]
++      },
++      { gateway: { id: gatewayId } }
++    );
+ 
+-    structuredLog('info', 'Workers AI summarize completed', { endpoint: 'workers/summarize' });
++    structuredLog('info', 'Workers AI summarize completed', { endpoint: 'workers/summarize', gateway: gatewayId });
+     return c.json({ success: true, summary: (response as any).response || '' });
+   } catch (err) {
+     structuredLog('error', 'Workers AI summarize error', { error: (err as Error).message });
+
+commit 6b7e7585b25f3fd9d0d53146ca6844118c6567bb
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 18:55:46 2026 -0300
+
+    fix(worker): use .get() API for Secret Store bindings
+    
+    Secret Store bindings are Fetcher objects with a .get() method, NOT
+    strings or Promises. The middleware now calls binding.get() to resolve
+    each secret to its string value before any route handler executes.
+    
+    Also cleaned up env.ts types and removed debug endpoints.
+
+diff --git a/mainsite-worker/src/env.ts b/mainsite-worker/src/env.ts
+index 6d08dce..2c2b222 100644
+--- a/mainsite-worker/src/env.ts
++++ b/mainsite-worker/src/env.ts
+@@ -5,6 +5,53 @@
+ /**
+  * Tipagem estrita de bindings do Cloudflare Worker (mainsite-motor).
+  * Todos os módulos de rota importam este tipo via `Env`.
++ *
++ * Secret Store bindings retornam um objeto Fetcher com método `.get()`.
++ * O middleware resolver em index.ts converte esses para strings antes
++ * dos handlers executarem.
++ */
++
++/** Cloudflare Secret Store binding — valor acessado via `.get()` */
++interface SecretStoreBinding {
++  get(): Promise<string>;
++}
++
++/**
++ * Raw bindings como recebidos do Cloudflare runtime.
++ * Secrets do Secret Store são SecretStoreBinding (precisa `.get()`).
++ */
++export interface RawEnv {
++  // --- D1 Database ---
++  DB: D1Database;
++
++  // --- R2 Bucket ---
++  BUCKET: R2Bucket;
++
++  // --- Workers AI ---
++  AI: any;
++
++  // --- Rate Limiting (native Cloudflare binding) ---
++  RL_CHATBOT: RateLimit;
++  RL_EMAIL: RateLimit;
++
++  // --- Secrets & Tokens (Secret Store → .get()) ---
++  CLOUDFLARE_PW: SecretStoreBinding;
++  GEMINI_API_KEY: SecretStoreBinding;
++  RESEND_API_KEY: SecretStoreBinding;
++  CF_AI_GATEWAY: SecretStoreBinding;
++
++  // --- SumUp ---
++  SUMUP_API_KEY_PRIVATE: SecretStoreBinding;
++  SUMUP_MERCHANT_CODE: SecretStoreBinding;
++
++  // --- Mercado Pago ---
++  MP_ACCESS_TOKEN: SecretStoreBinding;
++  MERCADO_PAGO_WEBHOOK_SECRET: SecretStoreBinding;
++}
++
++/**
++ * Env pós-middleware — todos os secrets já resolvidos para string.
++ * Handlers usam esta interface via `c.env`.
+  */
+ export interface Env {
+   // --- D1 Database ---
+@@ -20,7 +67,7 @@ export interface Env {
+   RL_CHATBOT: RateLimit;
+   RL_EMAIL: RateLimit;
+ 
+-  // --- Secrets & Tokens ---
++  // --- Secrets & Tokens (resolved to string by middleware) ---
+   CLOUDFLARE_PW: string;
+   GEMINI_API_KEY: string;
+   RESEND_API_KEY: string;
+
+commit 3f71c66fdbf3021464e97b7187b18c558cdd7971
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 18:50:01 2026 -0300
+
+    fix(genai): bypass AI Gateway, call Google API directly
+    
+    AI Gateway auth (cf-aig-authorization) needs separate debugging.
+    Direct Google API calls with GEMINI_API_KEY work fine. This restores
+    chatbot functionality while gateway integration is investigated.
+
+diff --git a/mainsite-worker/src/lib/genai.ts b/mainsite-worker/src/lib/genai.ts
+index 44a6aae..0999402 100644
+--- a/mainsite-worker/src/lib/genai.ts
++++ b/mainsite-worker/src/lib/genai.ts
+@@ -43,21 +43,15 @@ export type EndpointName = keyof typeof ENDPOINT_CONFIGS;
+ 
+ import type { Env } from '../env.ts';
+ 
+-/** Creates a GoogleGenAI client per-request, routing through Cloudflare AI Gateway.
++/** Creates a GoogleGenAI client per-request.
+  *  Secret Store bindings return JsRpcPromise — they MUST be awaited.
++ *  Calls Google directly (AI Gateway auth TBD).
+  */
+ export async function createClient(env: Env): Promise<GoogleGenAI> {
+   const apiKey = String(await Promise.resolve(env.GEMINI_API_KEY));
+-  const gatewayToken = String(await Promise.resolve(env.CF_AI_GATEWAY));
+ 
+   return new GoogleGenAI({
+     apiKey,
+-    httpOptions: {
+-      baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-ai-studio',
+-      headers: {
+-        'cf-aig-authorization': `Bearer ${gatewayToken}`,
+-      },
+-    }
+   });
+ }
+ 
+
+commit 172692f9dea72a88df50e58f6e28546338f5b6b1
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 18:41:31 2026 -0300
+
+    fix(worker): resolve Secret Store JsRpcPromise bindings via global middleware
+    
+    Cloudflare Secret Store bindings return JsRpcPromise objects, not strings.
+    Added middleware that eagerly resolves all secret values at the start of
+    each request so all downstream handlers receive plain strings.
+    Also restored AI Gateway routing with proper cf-aig-authorization header.
+
+diff --git a/mainsite-worker/src/index.ts b/mainsite-worker/src/index.ts
+index a201097..03856de 100644
+--- a/mainsite-worker/src/index.ts
++++ b/mainsite-worker/src/index.ts
+@@ -25,6 +25,28 @@ import postSummariesRoutes from './routes/post-summaries.ts';
+ 
+ const app = new Hono<{ Bindings: Env }>();
+ 
++// ========== SECRET STORE RESOLVER MIDDLEWARE ==========
++// Cloudflare Secret Store bindings return JsRpcPromise, not strings.
++// This middleware eagerly resolves all secret values so downstream
++// handlers can use c.env.GEMINI_API_KEY as a plain string.
++const SECRET_KEYS: (keyof Env)[] = [
++  'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY', 'CF_AI_GATEWAY',
++  'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE', 'MP_ACCESS_TOKEN',
++];
++
++app.use('*', async (c, next) => {
++  const env = c.env as unknown as Record<string, unknown>;
++  await Promise.all(
++    SECRET_KEYS.map(async (key) => {
++      const val = env[key];
++      if (val && typeof (val as { then?: unknown }).then === 'function') {
++        env[key] = await val;
++      }
++    }),
++  );
++  return next();
++});
++
+ // ========== CORS (paridade total com monolito) ==========
+ app.use('/api/*', cors({
+   origin: (origin) => {
+@@ -106,17 +128,6 @@ app.use('/api/share/email', createRateLimiterMiddleware('email') as Parameters<t
+ app.use('/api/contact', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
+ app.use('/api/comment', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
+ 
+-// ========== TEMPORARY DEBUG ENDPOINT ==========
+-app.get('/api/debug-env', (c) => {
+-  const env = c.env;
+-  return c.json({
+-    GEMINI_API_KEY_prefix: env.GEMINI_API_KEY ? env.GEMINI_API_KEY.substring(0, 8) + '...' : 'MISSING',
+-    CF_AI_GATEWAY_prefix: env.CF_AI_GATEWAY ? env.CF_AI_GATEWAY.substring(0, 8) + '...' : 'MISSING',
+-    RESEND_API_KEY_prefix: env.RESEND_API_KEY ? env.RESEND_API_KEY.substring(0, 5) + '...' : 'MISSING',
+-    SUMUP_MERCHANT_CODE: env.SUMUP_MERCHANT_CODE ? env.SUMUP_MERCHANT_CODE.substring(0, 3) + '...' : 'MISSING',
+-    DB_available: !!env.DB,
+-  });
+-});
+ 
+ // ========== MOUNT ROUTE MODULES ==========
+ app.route('/', aiRoutes);
+
+commit 8b596092c6a34b538fd559a50bed9e4596757329
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 18:38:16 2026 -0300
+
+    debug: add temporary /api/debug-env endpoint to inspect secret bindings
+
+diff --git a/mainsite-worker/src/index.ts b/mainsite-worker/src/index.ts
+index 85295a0..a201097 100644
+--- a/mainsite-worker/src/index.ts
++++ b/mainsite-worker/src/index.ts
+@@ -106,6 +106,18 @@ app.use('/api/share/email', createRateLimiterMiddleware('email') as Parameters<t
+ app.use('/api/contact', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
+ app.use('/api/comment', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
+ 
++// ========== TEMPORARY DEBUG ENDPOINT ==========
++app.get('/api/debug-env', (c) => {
++  const env = c.env;
++  return c.json({
++    GEMINI_API_KEY_prefix: env.GEMINI_API_KEY ? env.GEMINI_API_KEY.substring(0, 8) + '...' : 'MISSING',
++    CF_AI_GATEWAY_prefix: env.CF_AI_GATEWAY ? env.CF_AI_GATEWAY.substring(0, 8) + '...' : 'MISSING',
++    RESEND_API_KEY_prefix: env.RESEND_API_KEY ? env.RESEND_API_KEY.substring(0, 5) + '...' : 'MISSING',
++    SUMUP_MERCHANT_CODE: env.SUMUP_MERCHANT_CODE ? env.SUMUP_MERCHANT_CODE.substring(0, 3) + '...' : 'MISSING',
++    DB_available: !!env.DB,
++  });
++});
++
+ // ========== MOUNT ROUTE MODULES ==========
+ app.route('/', aiRoutes);
+ app.route('/', postsRoutes);
+
+commit 86c524a821b5b9626d4b70ca1e73523a9126047d
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 18:17:34 2026 -0300
+
+    fix(mainsite-worker): align secret_name with actual kebab-case names in Cloudflare Secret Store
+
+diff --git a/error.log b/error.log
+new file mode 100644
+index 0000000..8589290
+--- /dev/null
++++ b/error.log
+@@ -0,0 +1,236 @@
++deploy	Set up job	﻿2026-04-03T21:07:57.3453887Z Current runner version: '2.333.1'
++deploy	Set up job	2026-04-03T21:07:57.3504277Z ##[group]Runner Image Provisioner
++deploy	Set up job	2026-04-03T21:07:57.3505644Z Hosted Compute Agent
++deploy	Set up job	2026-04-03T21:07:57.3506638Z Version: 20260213.493
++deploy	Set up job	2026-04-03T21:07:57.3507788Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
++deploy	Set up job	2026-04-03T21:07:57.3508981Z Build Date: 2026-02-13T00:28:41Z
++deploy	Set up job	2026-04-03T21:07:57.3510159Z Worker ID: {b85da4cf-fe4c-48bc-9f6b-17e13fca0fb0}
++deploy	Set up job	2026-04-03T21:07:57.3511333Z Azure Region: northcentralus
++deploy	Set up job	2026-04-03T21:07:57.3512376Z ##[endgroup]
++deploy	Set up job	2026-04-03T21:07:57.3515081Z ##[group]Operating System
++deploy	Set up job	2026-04-03T21:07:57.3516140Z Ubuntu
++deploy	Set up job	2026-04-03T21:07:57.3516978Z 24.04.4
++deploy	Set up job	2026-04-03T21:07:57.3517873Z LTS
++deploy	Set up job	2026-04-03T21:07:57.3518740Z ##[endgroup]
++deploy	Set up job	2026-04-03T21:07:57.3519579Z ##[group]Runner Image
++deploy	Set up job	2026-04-03T21:07:57.3520629Z Image: ubuntu-24.04
++deploy	Set up job	2026-04-03T21:07:57.3521509Z Version: 20260329.72.1
++deploy	Set up job	2026-04-03T21:07:57.3523189Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260329.72/images/ubuntu/Ubuntu2404-Readme.md
++deploy	Set up job	2026-04-03T21:07:57.3526804Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260329.72
++deploy	Set up job	2026-04-03T21:07:57.3528506Z ##[endgroup]
++deploy	Set up job	2026-04-03T21:07:57.3530508Z ##[group]GITHUB_TOKEN Permissions
++deploy	Set up job	2026-04-03T21:07:57.3533806Z Contents: read
++deploy	Set up job	2026-04-03T21:07:57.3534893Z Deployments: write
++deploy	Set up job	2026-04-03T21:07:57.3535889Z Metadata: read
++deploy	Set up job	2026-04-03T21:07:57.3536884Z ##[endgroup]
++deploy	Set up job	2026-04-03T21:07:57.3539609Z Secret source: Actions
++deploy	Set up job	2026-04-03T21:07:57.3541415Z Prepare workflow directory
++deploy	Set up job	2026-04-03T21:07:57.4108495Z Prepare all required actions
++deploy	Set up job	2026-04-03T21:07:57.4165051Z Getting action download info
++deploy	Set up job	2026-04-03T21:07:57.8263027Z Download action repository 'actions/checkout@v6.0.2' (SHA:de0fac2e4500dabe0009e67214ff5f5447ce83dd)
++deploy	Set up job	2026-04-03T21:07:57.9658068Z Download action repository 'actions/setup-node@v6.3.0' (SHA:53b83947a5a98c8d113130e565377fae1a50d02f)
++deploy	Set up job	2026-04-03T21:07:58.1623014Z Complete job name: deploy
++deploy	Run actions/checkout@v6.0.2	﻿2026-04-03T21:07:58.2293792Z ##[group]Run actions/checkout@v6.0.2
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2294827Z with:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2295285Z   repository: lcv-leo/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2295983Z   token: ***
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2296385Z   ssh-strict: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2296811Z   ssh-user: git
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2297252Z   persist-credentials: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2297731Z   clean: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2298159Z   sparse-checkout-cone-mode: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2298668Z   fetch-depth: 1
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2299082Z   fetch-tags: false
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2299519Z   show-progress: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2299956Z   lfs: false
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2300351Z   submodules: false
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2300831Z   set-safe-directory: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2301498Z env:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2301946Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2302539Z   NODE_OPTIONS: --no-deprecation
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2303052Z   WRANGLER_VERSION: latest
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.2303689Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4158017Z Syncing repository: lcv-leo/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4160868Z ##[group]Getting Git version info
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4162123Z Working directory is '/home/runner/work/mainsite-app/mainsite-app'
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4164121Z [command]/usr/bin/git version
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4165123Z git version 2.53.0
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4167726Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4173870Z Temporarily overriding HOME='/home/runner/work/_temp/2d58c196-6316-4844-bfe7-b60596697caa' before making global git config changes
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4176231Z Adding repository directory to the temporary git global config as a safe directory
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4178236Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mainsite-app/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4181017Z Deleting the contents of '/home/runner/work/mainsite-app/mainsite-app'
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4183307Z ##[group]Initializing the repository
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4184825Z [command]/usr/bin/git init /home/runner/work/mainsite-app/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4186498Z hint: Using 'master' as the name for the initial branch. This default branch name
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4188624Z hint: will change to "main" in Git 3.0. To configure the initial branch name
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4190204Z hint: to use in all of your new repositories, which will suppress this warning,
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4191467Z hint: call:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4192102Z hint:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4192891Z hint: 	git config --global init.defaultBranch <name>
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4194231Z hint:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4195229Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4196952Z hint: 'development'. The just-created branch can be renamed via this command:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4198200Z hint:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4198876Z hint: 	git branch -m <name>
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4199622Z hint:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4200661Z hint: Disable this message with "git config set advice.defaultBranchName false"
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4202475Z Initialized empty Git repository in /home/runner/work/mainsite-app/mainsite-app/.git/
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4205603Z [command]/usr/bin/git remote add origin https://github.com/lcv-leo/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4208583Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4209734Z ##[group]Disabling automatic garbage collection
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4211051Z [command]/usr/bin/git config --local gc.auto 0
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4214093Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4215414Z ##[group]Setting up auth
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4216269Z Removing SSH command configuration
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4217517Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4221080Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4362118Z Removing HTTP extra header
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4368876Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4407650Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4647165Z Removing includeIf entries pointing to credentials config files
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4652168Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.4686805Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.5026282Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.5031518Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path /home/runner/work/_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.5037578Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.5071563Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.5104907Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.5136239Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.5139001Z ##[group]Fetching the repository
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.5141209Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +a76348276988398604a07cd06249eab4614828d3:refs/remotes/origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8937312Z From https://github.com/lcv-leo/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8941156Z  * [new ref]         a76348276988398604a07cd06249eab4614828d3 -> origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8944979Z [command]/usr/bin/git branch --list --remote origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8946355Z   origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8949125Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8950472Z a76348276988398604a07cd06249eab4614828d3
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8953286Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8955118Z ##[group]Determining the checkout info
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8956821Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8957768Z [command]/usr/bin/git sparse-checkout disable
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8961782Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8991328Z ##[group]Checking out the ref
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.8994961Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.9120609Z Switched to a new branch 'main'
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.9133086Z branch 'main' set up to track 'origin/main'.
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.9136689Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.9175971Z [command]/usr/bin/git log -1 --format=%H
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:07:58.9200812Z a76348276988398604a07cd06249eab4614828d3
++deploy	Run actions/setup-node@v6.3.0	﻿2026-04-03T21:07:58.9477945Z ##[group]Run actions/setup-node@v6.3.0
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9478625Z with:
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9479040Z   node-version: 24
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9479490Z   cache: npm
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9480314Z   cache-dependency-path: ./mainsite-worker/package-lock.json
++deploy	Run actions/setup-node@v6.3.0	./mainsite-frontend/package-lock.json
++deploy	Run actions/setup-node@v6.3.0	
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9481291Z   check-latest: false
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9481943Z   token: ***
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9482395Z   package-manager-cache: true
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9482914Z env:
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9483552Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9484195Z   NODE_OPTIONS: --no-deprecation
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9484802Z   WRANGLER_VERSION: latest
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:58.9485319Z ##[endgroup]
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:59.1281919Z Found in cache @ /opt/hostedtoolcache/node/24.14.1/x64
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:59.1285821Z ##[group]Environment details
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:59.5392562Z node: v24.14.1
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:59.5394807Z npm: 11.11.0
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:59.5395970Z yarn: 1.22.22
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:59.5398891Z ##[endgroup]
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:59.5422952Z [command]/opt/hostedtoolcache/node/24.14.1/x64/bin/npm config get cache
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:59.6521783Z /home/runner/.npm
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:07:59.7836691Z Cache hit for: node-cache-Linux-x64-npm-eca2a013c54d07e445a02cfe2dc65c7cbb8824ecfb610401c5437c140b11b5e0
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:08:00.9028854Z Received 125829120 of 167600789 (75.1%), 120.0 MBs/sec
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:08:01.6445678Z Received 167600789 of 167600789 (100.0%), 91.8 MBs/sec
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:08:01.6450652Z Cache Size: ~160 MB (167600789 B)
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:08:01.6649248Z [command]/usr/bin/tar -xf /home/runner/work/_temp/4506a8ad-7e86-4dbb-acd2-8d3c7152dfde/cache.tzst -P -C /home/runner/work/mainsite-app/mainsite-app --use-compress-program unzstd
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:08:02.4979206Z Cache restored successfully
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:08:02.5061075Z Cache restored from key: node-cache-Linux-x64-npm-eca2a013c54d07e445a02cfe2dc65c7cbb8824ecfb610401c5437c140b11b5e0
++deploy	Install e Deploy Worker	﻿2026-04-03T21:08:02.5276871Z ##[group]Run npm install
++deploy	Install e Deploy Worker	2026-04-03T21:08:02.5277452Z [36;1mnpm install[0m
++deploy	Install e Deploy Worker	2026-04-03T21:08:02.5277773Z [36;1mnpx wrangler@${WRANGLER_VERSION} deploy[0m
++deploy	Install e Deploy Worker	2026-04-03T21:08:02.6195906Z shell: /usr/bin/bash -e {0}
++deploy	Install e Deploy Worker	2026-04-03T21:08:02.6196272Z env:
++deploy	Install e Deploy Worker	2026-04-03T21:08:02.6196501Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
++deploy	Install e Deploy Worker	2026-04-03T21:08:02.6196811Z   NODE_OPTIONS: --no-deprecation
++deploy	Install e Deploy Worker	2026-04-03T21:08:02.6197081Z   WRANGLER_VERSION: latest
++deploy	Install e Deploy Worker	2026-04-03T21:08:02.6198044Z   CLOUDFLARE_API_TOKEN: ***
++deploy	Install e Deploy Worker	2026-04-03T21:08:02.6198379Z   CLOUDFLARE_ACCOUNT_ID: ***
++deploy	Install e Deploy Worker	2026-04-03T21:08:02.6198623Z ##[endgroup]
++deploy	Install e Deploy Worker	2026-04-03T21:08:06.9204655Z npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
++deploy	Install e Deploy Worker	2026-04-03T21:08:08.2880476Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:08.2881905Z added 131 packages, and audited 132 packages in 5s
++deploy	Install e Deploy Worker	2026-04-03T21:08:08.2885607Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:08.2886024Z 32 packages are looking for funding
++deploy	Install e Deploy Worker	2026-04-03T21:08:08.2887195Z   run `npm fund` for details
++deploy	Install e Deploy Worker	2026-04-03T21:08:08.2897357Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:08.2898079Z found 0 vulnerabilities
++deploy	Install e Deploy Worker	2026-04-03T21:08:09.3780637Z npm warn exec The following package was not found and will be installed: wrangler@4.80.0
++deploy	Install e Deploy Worker	2026-04-03T21:08:16.2430263Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:16.2432362Z  ⛅️ wrangler 4.80.0
++deploy	Install e Deploy Worker	2026-04-03T21:08:16.2449782Z ───────────────────
++deploy	Install e Deploy Worker	2026-04-03T21:08:17.6920019Z Total Upload: 998.88 KiB / gzip: 149.83 KiB
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8463143Z Your Worker has access to the following bindings:
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8468587Z Binding                                                                                 Resource                  
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8482510Z env.DB (bigdata_db)                                                                     D1 Database               
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8484058Z env.BUCKET (mainsite-media)                                                             R2 Bucket                 
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8485616Z env.CLOUDFLARE_PW (df90c0935ba1460899c3c2c457548a90/CLOUDFLARE_PW)                      Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8487335Z env.GEMINI_API_KEY (df90c0935ba1460899c3c2c457548a90/GEMINI_API_KEY)                    Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8488988Z env.RESEND_API_KEY (df90c0935ba1460899c3c2c457548a90/RESEND_APPKEY)                     Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8490603Z env.MP_ACCESS_TOKEN (df90c0935ba1460899c3c2c457548a90/MP_ACCESS_TOKEN)                  Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8492618Z env.SUMUP_API_KEY_PRIVATE (df90c0935ba1460899c3c2c457548a90/SUMUP_API_KEY_PRIVATE)      Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8511044Z env.SUMUP_MERCHANT_CODE (df90c0935ba1460899c3c2c457548a90/MERCHANT_CODE)                Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8512836Z env.CF_AI_GATEWAY (df90c0935ba1460899c3c2c457548a90/CF_AI_GATEWAY)                      Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8514535Z env.AI                                                                                  AI                        
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8515701Z env.RL_CHATBOT (5 requests/60s)                                                         Rate Limit                
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8517000Z env.RL_EMAIL (3 requests/60s)                                                           Rate Limit                
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8518354Z env.GLOBAL_RATE_LIMITER (10 requests/60s)                                               Rate Limit                
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8519031Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8519046Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8520355Z Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.8521573Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9006957Z [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mA request to the Cloudflare API (/accounts/***/workers/scripts/mainsite-motor/versions) failed.[0m
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9009288Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9011546Z   Secrets Store binding 'SUMUP_MERCHANT_CODE' references store 'df90c0935ba1460899c3c2c457548a90' and secret 'MERCHANT_CODE' which were not found. Verify the store and secret exist in your account and that the store_id and secret_name in your configuration are correct. [code: 10182]
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9014065Z   To learn more about this error, visit: [4mhttps://developers.cloudflare.com/secrets-store/[0m
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9014785Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9014943Z   
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9016104Z   If you think this is a bug, please open an issue at: [4mhttps://github.com/cloudflare/workers-sdk/issues/new/choose[0m
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9016935Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9016955Z 
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9106356Z 🪵  Logs were written to "/home/runner/.config/.wrangler/logs/wrangler-2026-04-03_21-08-15_576.log"
++deploy	Install e Deploy Worker	2026-04-03T21:08:18.9613063Z ##[error]Process completed with exit code 1.
++deploy	Post Run actions/checkout@v6.0.2	﻿2026-04-03T21:08:18.9735509Z Post job cleanup.
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.0624904Z [command]/usr/bin/git version
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.0666826Z git version 2.53.0
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.0745804Z Temporarily overriding HOME='/home/runner/work/_temp/d65631fa-f44f-47ca-ba69-73ed2c67a28a' before making global git config changes
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.0749662Z Adding repository directory to the temporary git global config as a safe directory
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.0752814Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mainsite-app/mainsite-app
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.0790611Z Removing SSH command configuration
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.0797212Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.0837070Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1077205Z Removing HTTP extra header
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1082485Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1122865Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1355980Z Removing includeIf entries pointing to credentials config files
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1361966Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1389657Z includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1390825Z includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1391714Z includeif.gitdir:/github/workspace/.git.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1392445Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1406006Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1434477Z /home/runner/work/_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1442135Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path /home/runner/work/_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1481158Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1505489Z /home/runner/work/_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1518707Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1552493Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1576258Z /github/runner_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1587996Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1621953Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1644895Z /github/runner_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1658231Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1693163Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:08:19.1929827Z Removing credentials config '/home/runner/work/_temp/git-credentials-65638cc0-c999-4309-add4-f0b6344cf085.config'
++deploy	Complete job	﻿2026-04-03T21:08:19.2084700Z Cleaning up orphan processes
+diff --git a/error2.log b/error2.log
+new file mode 100644
+index 0000000..a9617f2
+--- /dev/null
++++ b/error2.log
+@@ -0,0 +1,237 @@
++deploy	Set up job	﻿2026-04-03T21:13:44.2554773Z Current runner version: '2.333.1'
++deploy	Set up job	2026-04-03T21:13:44.2579313Z ##[group]Runner Image Provisioner
++deploy	Set up job	2026-04-03T21:13:44.2580233Z Hosted Compute Agent
++deploy	Set up job	2026-04-03T21:13:44.2580837Z Version: 20260213.493
++deploy	Set up job	2026-04-03T21:13:44.2581459Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
++deploy	Set up job	2026-04-03T21:13:44.2582248Z Build Date: 2026-02-13T00:28:41Z
++deploy	Set up job	2026-04-03T21:13:44.2582871Z Worker ID: {69f67cd8-081a-4c13-81b9-f61e8b111eab}
++deploy	Set up job	2026-04-03T21:13:44.2583551Z Azure Region: westus
++deploy	Set up job	2026-04-03T21:13:44.2584136Z ##[endgroup]
++deploy	Set up job	2026-04-03T21:13:44.2585513Z ##[group]Operating System
++deploy	Set up job	2026-04-03T21:13:44.2586159Z Ubuntu
++deploy	Set up job	2026-04-03T21:13:44.2586761Z 24.04.4
++deploy	Set up job	2026-04-03T21:13:44.2587253Z LTS
++deploy	Set up job	2026-04-03T21:13:44.2587767Z ##[endgroup]
++deploy	Set up job	2026-04-03T21:13:44.2588759Z ##[group]Runner Image
++deploy	Set up job	2026-04-03T21:13:44.2589369Z Image: ubuntu-24.04
++deploy	Set up job	2026-04-03T21:13:44.2589996Z Version: 20260329.72.1
++deploy	Set up job	2026-04-03T21:13:44.2591046Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260329.72/images/ubuntu/Ubuntu2404-Readme.md
++deploy	Set up job	2026-04-03T21:13:44.2592786Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260329.72
++deploy	Set up job	2026-04-03T21:13:44.2593694Z ##[endgroup]
++deploy	Set up job	2026-04-03T21:13:44.2594954Z ##[group]GITHUB_TOKEN Permissions
++deploy	Set up job	2026-04-03T21:13:44.2596799Z Contents: read
++deploy	Set up job	2026-04-03T21:13:44.2597402Z Deployments: write
++deploy	Set up job	2026-04-03T21:13:44.2598286Z Metadata: read
++deploy	Set up job	2026-04-03T21:13:44.2598876Z ##[endgroup]
++deploy	Set up job	2026-04-03T21:13:44.2601250Z Secret source: Actions
++deploy	Set up job	2026-04-03T21:13:44.2602172Z Prepare workflow directory
++deploy	Set up job	2026-04-03T21:13:44.3090619Z Prepare all required actions
++deploy	Set up job	2026-04-03T21:13:44.3149664Z Getting action download info
++deploy	Set up job	2026-04-03T21:13:44.8445502Z Download action repository 'actions/checkout@v6.0.2' (SHA:de0fac2e4500dabe0009e67214ff5f5447ce83dd)
++deploy	Set up job	2026-04-03T21:13:44.9652013Z Download action repository 'actions/setup-node@v6.3.0' (SHA:53b83947a5a98c8d113130e565377fae1a50d02f)
++deploy	Set up job	2026-04-03T21:13:45.1608973Z Complete job name: deploy
++deploy	Run actions/checkout@v6.0.2	﻿2026-04-03T21:13:45.2300660Z ##[group]Run actions/checkout@v6.0.2
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2302083Z with:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2302906Z   repository: lcv-leo/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2304074Z   token: ***
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2304790Z   ssh-strict: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2305540Z   ssh-user: git
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2306303Z   persist-credentials: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2307085Z   clean: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2307815Z   sparse-checkout-cone-mode: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2309069Z   fetch-depth: 1
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2309860Z   fetch-tags: false
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2310618Z   show-progress: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2311373Z   lfs: false
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2312061Z   submodules: false
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2312820Z   set-safe-directory: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2313994Z env:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2314737Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2315742Z   NODE_OPTIONS: --no-deprecation
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2316664Z   WRANGLER_VERSION: latest
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.2317490Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4151644Z Syncing repository: lcv-leo/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4154398Z ##[group]Getting Git version info
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4155646Z Working directory is '/home/runner/work/mainsite-app/mainsite-app'
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4157378Z [command]/usr/bin/git version
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4160292Z git version 2.53.0
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4171490Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4177278Z Temporarily overriding HOME='/home/runner/work/_temp/9494447a-6bee-4fc9-875b-fad05687f4c1' before making global git config changes
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4179954Z Adding repository directory to the temporary git global config as a safe directory
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4182051Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mainsite-app/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4184899Z Deleting the contents of '/home/runner/work/mainsite-app/mainsite-app'
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4186688Z ##[group]Initializing the repository
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4188175Z [command]/usr/bin/git init /home/runner/work/mainsite-app/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4189806Z hint: Using 'master' as the name for the initial branch. This default branch name
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4191783Z hint: will change to "main" in Git 3.0. To configure the initial branch name
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4193477Z hint: to use in all of your new repositories, which will suppress this warning,
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4194730Z hint: call:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4195393Z hint:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4196202Z hint: 	git config --global init.defaultBranch <name>
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4197192Z hint:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4198405Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4200015Z hint: 'development'. The just-created branch can be renamed via this command:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4201232Z hint:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4201898Z hint: 	git branch -m <name>
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4202668Z hint:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4203687Z hint: Disable this message with "git config set advice.defaultBranchName false"
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4205423Z Initialized empty Git repository in /home/runner/work/mainsite-app/mainsite-app/.git/
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4208467Z [command]/usr/bin/git remote add origin https://github.com/lcv-leo/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4211149Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4212354Z ##[group]Disabling automatic garbage collection
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4213460Z [command]/usr/bin/git config --local gc.auto 0
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4215891Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4217022Z ##[group]Setting up auth
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4218170Z Removing SSH command configuration
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4219475Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4223034Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4306885Z Removing HTTP extra header
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4314197Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4349921Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4591024Z Removing includeIf entries pointing to credentials config files
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4594728Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4629485Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4866721Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4905461Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4938085Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.4972871Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.5004487Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.5036334Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.5037637Z ##[group]Fetching the repository
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:45.5046496Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +514a1be02a4a954c29853af8ca88e52bed480cb4:refs/remotes/origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0116174Z From https://github.com/lcv-leo/mainsite-app
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0118562Z  * [new ref]         514a1be02a4a954c29853af8ca88e52bed480cb4 -> origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0180041Z [command]/usr/bin/git branch --list --remote origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0248748Z   origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0263337Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0290584Z 514a1be02a4a954c29853af8ca88e52bed480cb4
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0302163Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0303521Z ##[group]Determining the checkout info
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0304996Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0305950Z [command]/usr/bin/git sparse-checkout disable
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0344405Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0372044Z ##[group]Checking out the ref
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0375374Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0501679Z Switched to a new branch 'main'
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0505141Z branch 'main' set up to track 'origin/main'.
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0513389Z ##[endgroup]
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0552635Z [command]/usr/bin/git log -1 --format=%H
++deploy	Run actions/checkout@v6.0.2	2026-04-03T21:13:46.0575760Z 514a1be02a4a954c29853af8ca88e52bed480cb4
++deploy	Run actions/setup-node@v6.3.0	﻿2026-04-03T21:13:46.0855988Z ##[group]Run actions/setup-node@v6.3.0
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0856721Z with:
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0857127Z   node-version: 24
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0857580Z   cache: npm
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0858736Z   cache-dependency-path: ./mainsite-worker/package-lock.json
++deploy	Run actions/setup-node@v6.3.0	./mainsite-frontend/package-lock.json
++deploy	Run actions/setup-node@v6.3.0	
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0859921Z   check-latest: false
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0860580Z   token: ***
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0861038Z   package-manager-cache: true
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0861582Z env:
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0862018Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0862695Z   NODE_OPTIONS: --no-deprecation
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0863278Z   WRANGLER_VERSION: latest
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.0863798Z ##[endgroup]
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.2522045Z Found in cache @ /opt/hostedtoolcache/node/24.14.1/x64
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.2532256Z ##[group]Environment details
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.8515540Z node: v24.14.1
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.8519939Z npm: 11.11.0
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.8521097Z yarn: 1.22.22
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.8523135Z ##[endgroup]
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:46.8541985Z [command]/opt/hostedtoolcache/node/24.14.1/x64/bin/npm config get cache
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:47.3736899Z /home/runner/.npm
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:47.6510080Z Cache hit for: node-cache-Linux-x64-npm-eca2a013c54d07e445a02cfe2dc65c7cbb8824ecfb610401c5437c140b11b5e0
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:48.9500724Z Received 0 of 167600789 (0.0%), 0.0 MBs/sec
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:49.9504039Z Received 121634816 of 167600789 (72.6%), 58.0 MBs/sec
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:50.3847672Z Received 167600789 of 167600789 (100.0%), 65.6 MBs/sec
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:50.3852001Z Cache Size: ~160 MB (167600789 B)
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:50.4005436Z [command]/usr/bin/tar -xf /home/runner/work/_temp/277240c0-bba4-4bb2-a787-344a0511b18d/cache.tzst -P -C /home/runner/work/mainsite-app/mainsite-app --use-compress-program unzstd
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:51.1883330Z Cache restored successfully
++deploy	Run actions/setup-node@v6.3.0	2026-04-03T21:13:51.1974060Z Cache restored from key: node-cache-Linux-x64-npm-eca2a013c54d07e445a02cfe2dc65c7cbb8824ecfb610401c5437c140b11b5e0
++deploy	Install e Deploy Worker	﻿2026-04-03T21:13:51.2187702Z ##[group]Run npm install
++deploy	Install e Deploy Worker	2026-04-03T21:13:51.2188432Z [36;1mnpm install[0m
++deploy	Install e Deploy Worker	2026-04-03T21:13:51.2188734Z [36;1mnpx wrangler@${WRANGLER_VERSION} deploy[0m
++deploy	Install e Deploy Worker	2026-04-03T21:13:51.2646155Z shell: /usr/bin/bash -e {0}
++deploy	Install e Deploy Worker	2026-04-03T21:13:51.2646479Z env:
++deploy	Install e Deploy Worker	2026-04-03T21:13:51.2646714Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
++deploy	Install e Deploy Worker	2026-04-03T21:13:51.2647032Z   NODE_OPTIONS: --no-deprecation
++deploy	Install e Deploy Worker	2026-04-03T21:13:51.2647302Z   WRANGLER_VERSION: latest
++deploy	Install e Deploy Worker	2026-04-03T21:13:51.2648392Z   CLOUDFLARE_API_TOKEN: ***
++deploy	Install e Deploy Worker	2026-04-03T21:13:51.2648740Z   CLOUDFLARE_ACCOUNT_ID: ***
++deploy	Install e Deploy Worker	2026-04-03T21:13:51.2648981Z ##[endgroup]
++deploy	Install e Deploy Worker	2026-04-03T21:13:54.0077647Z npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
++deploy	Install e Deploy Worker	2026-04-03T21:13:55.3200523Z 
++deploy	Install e Deploy Worker	2026-04-03T21:13:55.3203124Z added 131 packages, and audited 132 packages in 4s
++deploy	Install e Deploy Worker	2026-04-03T21:13:55.3209430Z 
++deploy	Install e Deploy Worker	2026-04-03T21:13:55.3210291Z 32 packages are looking for funding
++deploy	Install e Deploy Worker	2026-04-03T21:13:55.3210928Z   run `npm fund` for details
++deploy	Install e Deploy Worker	2026-04-03T21:13:55.3214994Z 
++deploy	Install e Deploy Worker	2026-04-03T21:13:55.3217521Z found 0 vulnerabilities
++deploy	Install e Deploy Worker	2026-04-03T21:13:56.3747626Z npm warn exec The following package was not found and will be installed: wrangler@4.80.0
++deploy	Install e Deploy Worker	2026-04-03T21:14:01.8126557Z 
++deploy	Install e Deploy Worker	2026-04-03T21:14:01.8143563Z  ⛅️ wrangler 4.80.0
++deploy	Install e Deploy Worker	2026-04-03T21:14:01.8145836Z ───────────────────
++deploy	Install e Deploy Worker	2026-04-03T21:14:03.9551401Z Total Upload: 998.88 KiB / gzip: 149.83 KiB
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8934860Z Your Worker has access to the following bindings:
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8954024Z Binding                                                                                 Resource                  
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8956750Z env.DB (bigdata_db)                                                                     D1 Database               
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8962582Z env.BUCKET (mainsite-media)                                                             R2 Bucket                 
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8964158Z env.CLOUDFLARE_PW (df90c0935ba1460899c3c2c457548a90/CLOUDFLARE_PW)                      Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8965803Z env.GEMINI_API_KEY (df90c0935ba1460899c3c2c457548a90/GEMINI_API_KEY)                    Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8967460Z env.RESEND_API_KEY (df90c0935ba1460899c3c2c457548a90/RESEND_APPKEY)                     Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8969279Z env.MP_ACCESS_TOKEN (df90c0935ba1460899c3c2c457548a90/MP_ACCESS_TOKEN)                  Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8971037Z env.SUMUP_API_KEY_PRIVATE (df90c0935ba1460899c3c2c457548a90/SUMUP_API_KEY_PRIVATE)      Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8972754Z env.SUMUP_MERCHANT_CODE (df90c0935ba1460899c3c2c457548a90/SUMUP_MERCHANT_CODE)          Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8974380Z env.CF_AI_GATEWAY (df90c0935ba1460899c3c2c457548a90/CF_AI_GATEWAY)                      Secrets Store Secret      
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8975763Z env.AI                                                                                  AI                        
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.8976998Z env.RL_CHATBOT (5 requests/60s)                                                         Rate Limit                
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9008664Z env.RL_EMAIL (3 requests/60s)                                                           Rate Limit                
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9010067Z env.GLOBAL_RATE_LIMITER (10 requests/60s)                                               Rate Limit                
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9010721Z 
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9010739Z 
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9012064Z Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9013229Z 
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9494691Z [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mA request to the Cloudflare API (/accounts/***/workers/scripts/mainsite-motor/versions) failed.[0m
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9495974Z 
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9498366Z   Secrets Store binding 'RESEND_API_KEY' references store 'df90c0935ba1460899c3c2c457548a90' and secret 'RESEND_APPKEY' which were not found. Verify the store and secret exist in your account and that the store_id and secret_name in your configuration are correct. [code: 10182]
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9502915Z   To learn more about this error, visit: [4mhttps://developers.cloudflare.com/secrets-store/[0m
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9503958Z 
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9504117Z   
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9505609Z   If you think this is a bug, please open an issue at: [4mhttps://github.com/cloudflare/workers-sdk/issues/new/choose[0m
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9507743Z 
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9507766Z 
++deploy	Install e Deploy Worker	2026-04-03T21:14:04.9569659Z 🪵  Logs were written to "/home/runner/.config/.wrangler/logs/wrangler-2026-04-03_21-14-01_374.log"
++deploy	Install e Deploy Worker	2026-04-03T21:14:05.0083418Z ##[error]Process completed with exit code 1.
++deploy	Post Run actions/checkout@v6.0.2	﻿2026-04-03T21:14:05.0205345Z Post job cleanup.
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1046206Z [command]/usr/bin/git version
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1089096Z git version 2.53.0
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1165052Z Temporarily overriding HOME='/home/runner/work/_temp/01669d38-8436-4a0b-bbd3-533eede4654e' before making global git config changes
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1167254Z Adding repository directory to the temporary git global config as a safe directory
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1170963Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mainsite-app/mainsite-app
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1206639Z Removing SSH command configuration
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1215374Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1257813Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1489350Z Removing HTTP extra header
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1494652Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1550414Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1920039Z Removing includeIf entries pointing to credentials config files
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1944545Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1960660Z includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1963179Z includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1966688Z includeif.gitdir:/github/workspace/.git.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1969336Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.1977481Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2009238Z /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2022562Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git.path /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2078608Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2112072Z /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2131757Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/mainsite-app/mainsite-app/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2181847Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2218450Z /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2232389Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2286724Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2347687Z /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2351767Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2391574Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
++deploy	Post Run actions/checkout@v6.0.2	2026-04-03T21:14:05.2627721Z Removing credentials config '/home/runner/work/_temp/git-credentials-fcbcb23b-3e18-4886-a724-0f979b233771.config'
++deploy	Complete job	﻿2026-04-03T21:14:05.2755801Z Cleaning up orphan processes
+
+commit a76348276988398604a07cd06249eab4614828d3
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 18:06:16 2026 -0300
+
+    chore(mainsite-worker): fix secret mappings, remove legacy SECRETS, and update Gateway configuration
+
+diff --git a/mainsite-worker/wrangler.json b/mainsite-worker/wrangler.json
+index e7c2f78..4fcd80e 100644
+--- a/mainsite-worker/wrangler.json
++++ b/mainsite-worker/wrangler.json
+@@ -68,35 +68,40 @@
+     "mode": "smart"
+   },
+   "secrets_store_secrets": [
++    {
++      "binding": "CLOUDFLARE_PW",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "CLOUDFLARE_PW"
++    },
+     {
+       "binding": "GEMINI_API_KEY",
+       "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "gemini-api-key"
++      "secret_name": "GEMINI_API_KEY"
+     },
+     {
+       "binding": "RESEND_API_KEY",
+       "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "resend-api-key"
++      "secret_name": "RESEND_APPKEY"
+     },
+     {
+       "binding": "MP_ACCESS_TOKEN",
+       "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "mp-access-token"
++      "secret_name": "MP_ACCESS_TOKEN"
+     },
+     {
+       "binding": "SUMUP_API_KEY_PRIVATE",
+       "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "sumup-api-key-private"
++      "secret_name": "SUMUP_API_KEY_PRIVATE"
+     },
+     {
+       "binding": "SUMUP_MERCHANT_CODE",
+       "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "sumup-merchant-code"
++      "secret_name": "MERCHANT_CODE"
+     },
+     {
+       "binding": "CF_AI_GATEWAY",
+       "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "cf-ai-gateway"
++      "secret_name": "CF_AI_GATEWAY"
+     }
+   ]
+ }
+\ No newline at end of file
+
+commit 29b838585bf373124a2e1aa3c260210272ab9cb6
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 17:47:43 2026 -0300
+
+    feat: implement automated AI-generated social media summaries for blog posts using Gemini and D1 storage
+
+diff --git a/mainsite-worker/src/routes/post-summaries.ts b/mainsite-worker/src/routes/post-summaries.ts
+index 9f31b46..cea1f67 100644
+--- a/mainsite-worker/src/routes/post-summaries.ts
++++ b/mainsite-worker/src/routes/post-summaries.ts
+@@ -120,8 +120,8 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async
+   try {
+     await ensureTable(c.env.DB);
+     const postId = c.req.param('postId');
+-    const apiKey = c.env.GEMINI_API_KEY;
+-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada' }, 503);
++    const gatewayToken = c.env.CF_AI_GATEWAY;
++    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada' }, 503);
+ 
+     const post = await c.env.DB.prepare(
+       'SELECT id, title, content FROM mainsite_posts WHERE id = ?'
+@@ -132,7 +132,7 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async
+     const cleanContent = stripHtml(post.content);
+     const contentHash = await hashContent(cleanContent);
+ 
+-    const result = await generateShareSummary(c.env.DB, post.title, post.content, apiKey, c.env);
++    const result = await generateShareSummary(c.env.DB, post.title, post.content, c.env);
+     if (!result) {
+       return c.json({ error: 'Falha na geração do resumo pela IA' }, 502);
+     }
+@@ -162,8 +162,8 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async
+ postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) => {
+   try {
+     await ensureTable(c.env.DB);
+-    const apiKey = c.env.GEMINI_API_KEY;
+-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada' }, 503);
++    const gatewayToken = c.env.CF_AI_GATEWAY;
++    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada' }, 503);
+ 
+     // Modo: 'missing' = só posts sem resumo; 'all' = todos (exceto manual overrides)
+     const mode = (c.req.query('mode') || 'missing') as string;
+@@ -218,7 +218,7 @@ postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) =>
+       }
+ 
+       try {
+-        const result = await generateShareSummary(c.env.DB, post.title, post.content, apiKey, c.env);
++        const result = await generateShareSummary(c.env.DB, post.title, post.content, c.env);
+         if (!result) {
+           failed++;
+           details.push({ postId: post.id, title: post.title, status: 'failed_ai' });
+diff --git a/mainsite-worker/src/routes/posts.ts b/mainsite-worker/src/routes/posts.ts
+index e9da8ca..edefba8 100644
+--- a/mainsite-worker/src/routes/posts.ts
++++ b/mainsite-worker/src/routes/posts.ts
+@@ -28,7 +28,6 @@ const posts = new Hono<{ Bindings: Env }>();
+  */
+ async function triggerSummaryGeneration(
+   db: D1Database,
+-  apiKey: string,
+   postId: string | number,
+   title: string,
+   content: string,
+@@ -72,7 +71,7 @@ async function triggerSummaryGeneration(
+     }
+ 
+     // Gera via Gemini
+-    const result = await generateShareSummary(db, title, content, apiKey, env);
++    const result = await generateShareSummary(db, title, content, env);
+     if (!result) {
+       structuredLog('warn', 'Share summary generation returned null', { postId });
+       return;
+@@ -141,10 +140,10 @@ posts.post('/api/posts', requireAuth, async (c) => {
+       .run();
+ 
+     // Fire-and-forget: gerar resumo IA para compartilhamento
+-    const apiKey = c.env.GEMINI_API_KEY;
+-    if (apiKey && title && content && result.meta?.last_row_id) {
++    const gatewayToken = c.env.CF_AI_GATEWAY;
++    if (gatewayToken && title && content && result.meta?.last_row_id) {
+       c.executionCtx.waitUntil(
+-        triggerSummaryGeneration(c.env.DB, apiKey, result.meta.last_row_id, title, content, c.env)
++        triggerSummaryGeneration(c.env.DB, result.meta.last_row_id, title, content, c.env)
+       );
+     }
+ 
+@@ -166,11 +165,10 @@ posts.put('/api/posts/:id', requireAuth, async (c) => {
+       .bind(title, content, authorVal, id)
+       .run();
+ 
+-    // Fire-and-forget: regenerar resumo IA se conteúdo mudou
+-    const apiKey = c.env.GEMINI_API_KEY;
+-    if (apiKey && title && content && id) {
++    const gatewayToken = c.env.CF_AI_GATEWAY;
++    if (gatewayToken && title && content && id) {
+       c.executionCtx.waitUntil(
+-        triggerSummaryGeneration(c.env.DB, apiKey, id, title, content, c.env)
++        triggerSummaryGeneration(c.env.DB, id, title, content, c.env)
+       );
+     }
+ 
+
+commit bca51fcdb30f9c7f067ffe48cf4665cf20ac2b03
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 17:43:30 2026 -0300
+
+    feat: implement centralized Google GenAI SDK wrapper and AI route handlers for the mainsite-worker
+
+diff --git a/mainsite-worker/src/routes/ai.ts b/mainsite-worker/src/routes/ai.ts
+index 832a066..b3f91eb 100644
+--- a/mainsite-worker/src/routes/ai.ts
++++ b/mainsite-worker/src/routes/ai.ts
+@@ -71,11 +71,11 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
+       text?: string;
+       instruction?: string;
+     };
+-    const apiKey = c.env.GEMINI_API_KEY;
+-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
++    const gatewayToken = c.env.CF_AI_GATEWAY;
++    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
+     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
+ 
+-    const client = createClient(apiKey, c.env);
++    const client = createClient(c.env);
+     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+ 
+     const inputTokens = await countTokens(client, text, modelStr);
+@@ -142,8 +142,8 @@ ai.post('/api/ai/public/chat', async (c) => {
+       currentContext?: { title?: string; content?: string };
+       askForDonation?: boolean;
+     };
+-    const apiKey = c.env.GEMINI_API_KEY;
+-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
++    const gatewayToken = c.env.CF_AI_GATEWAY;
++    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
+     if (!message) return c.json({ error: 'Mensagem ausente.' }, 400);
+ 
+     const { results } = await c.env.DB.prepare(
+@@ -239,7 +239,7 @@ ${dbContext}
+ 
+ PERGUNTA DO USUÁRIO: ${message}`;
+ 
+-    const client = createClient(apiKey, c.env);
++    const client = createClient(c.env);
+     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+ 
+     const inputTokens = await countTokens(client, systemPrompt, modelStr);
+@@ -353,11 +353,11 @@ ai.get('/api/chat-context-audit', requireAuth, async (c) => {
+ ai.post('/api/ai/public/summarize', async (c) => {
+   try {
+     const { text, postTitle } = (await c.req.json()) as { text?: string; postTitle?: string };
+-    const apiKey = c.env.GEMINI_API_KEY;
+-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
++    const gatewayToken = c.env.CF_AI_GATEWAY;
++    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
+     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
+ 
+-    const client = createClient(apiKey, c.env);
++    const client = createClient(c.env);
+     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+ 
+     const inputTokens = await countTokens(client, text, modelStr);
+@@ -397,11 +397,11 @@ ai.post('/api/ai/public/translate', async (c) => {
+       targetLanguage?: string;
+       postTitle?: string;
+     };
+-    const apiKey = c.env.GEMINI_API_KEY;
+-    if (!apiKey) return c.json({ error: 'GEMINI_API_KEY não configurada no Worker.' }, 503);
++    const gatewayToken = c.env.CF_AI_GATEWAY;
++    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
+     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
+ 
+-    const client = createClient(apiKey, c.env);
++    const client = createClient(c.env);
+     const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+     const lang = targetLanguage || 'English';
+ 
+
+commit bf4b9bcca573349f8eb7f4d017d78d528a410ebd
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 17:25:48 2026 -0300
+
+    fix(ai): corrige estrutura da baseUrl do Cloudflare AI Gateway para o padrao google-ai-studio
+
+diff --git a/mainsite-worker/src/env.ts b/mainsite-worker/src/env.ts
+index 2736a11..dc7c7a2 100644
+--- a/mainsite-worker/src/env.ts
++++ b/mainsite-worker/src/env.ts
+@@ -24,6 +24,7 @@ export interface Env {
+   API_SECRET: string;
+   GEMINI_API_KEY: string;
+   RESEND_API_KEY: string;
++  CF_AI_GATEWAY: string;
+ 
+   // --- SumUp ---
+   SUMUP_API_KEY_PRIVATE: string;
+diff --git a/mainsite-worker/src/lib/genai.ts b/mainsite-worker/src/lib/genai.ts
+index 9e9fc10..8670594 100644
+--- a/mainsite-worker/src/lib/genai.ts
++++ b/mainsite-worker/src/lib/genai.ts
+@@ -45,12 +45,12 @@ import type { Env } from '../env.ts';
+ 
+ /** Creates a GoogleGenAI client per-request (API key comes from Worker env). */
+ export function createClient(apiKey: string, env: Env): GoogleGenAI {
+-  return new GoogleGenAI({ 
+-    apiKey, 
++  return new GoogleGenAI({
++    apiKey: apiKey,
+     httpOptions: {
+-      baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-genai',
++      baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-ai-studio',
+       headers: {
+-        'cf-aig-authorization': env.CF_AI_GATEWAY ? `Bearer ${env.CF_AI_GATEWAY}` : ''
++        'cf-aig-authorization': `Bearer ${env.CF_AI_GATEWAY || ''}`
+       }
+     }
+   });
+
+commit c987d830fae4a48b99bd8dcf30e7a014267144fc
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 17:11:07 2026 -0300
+
+    fix(infra): remocao do secrets_store_secrets de projetos Pages (limitacao API)
+
+diff --git a/mainsite-frontend/wrangler.json b/mainsite-frontend/wrangler.json
+index 040cb70..986cf20 100644
+--- a/mainsite-frontend/wrangler.json
++++ b/mainsite-frontend/wrangler.json
+@@ -27,37 +27,5 @@
+   ],
+   "placement": {
+     "mode": "smart"
+-  },
+-  "secrets_store_secrets": [
+-    {
+-      "binding": "GEMINI_API_KEY",
+-      "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "gemini-api-key"
+-    },
+-    {
+-      "binding": "RESEND_API_KEY",
+-      "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "resend-api-key"
+-    },
+-    {
+-      "binding": "MP_ACCESS_TOKEN",
+-      "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "mp-access-token"
+-    },
+-    {
+-      "binding": "SUMUP_API_KEY_PRIVATE",
+-      "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "sumup-api-key-private"
+-    },
+-    {
+-      "binding": "SUMUP_MERCHANT_CODE",
+-      "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "sumup-merchant-code"
+-    },
+-    {
+-      "binding": "CF_AI_GATEWAY",
+-      "store_id": "df90c0935ba1460899c3c2c457548a90",
+-      "secret_name": "cf-ai-gateway"
+-    }
+-  ]
+-}
+\ No newline at end of file
++  }
++}
+
+commit a4b17595a2a659dfc991be9604fe9c59f060893c
+Author: Leonardo Cardozo Vargas <268063598+lcv-leo@users.noreply.github.com>
+Date:   Fri Apr 3 16:57:53 2026 -0300
+
+    fix(genai): injeção de bindings e header c.env do AI gateway integradol; chore(infra): adoção obrigatoria do secrets_store
+
+diff --git a/mainsite-frontend/wrangler.json b/mainsite-frontend/wrangler.json
+index a36175b..040cb70 100644
+--- a/mainsite-frontend/wrangler.json
++++ b/mainsite-frontend/wrangler.json
+@@ -27,5 +27,37 @@
+   ],
+   "placement": {
+     "mode": "smart"
+-  }
++  },
++  "secrets_store_secrets": [
++    {
++      "binding": "GEMINI_API_KEY",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "gemini-api-key"
++    },
++    {
++      "binding": "RESEND_API_KEY",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "resend-api-key"
++    },
++    {
++      "binding": "MP_ACCESS_TOKEN",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "mp-access-token"
++    },
++    {
++      "binding": "SUMUP_API_KEY_PRIVATE",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "sumup-api-key-private"
++    },
++    {
++      "binding": "SUMUP_MERCHANT_CODE",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "sumup-merchant-code"
++    },
++    {
++      "binding": "CF_AI_GATEWAY",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "cf-ai-gateway"
++    }
++  ]
+ }
+\ No newline at end of file
+diff --git a/mainsite-worker/src/lib/genai.ts b/mainsite-worker/src/lib/genai.ts
+index fed265c..9e9fc10 100644
+--- a/mainsite-worker/src/lib/genai.ts
++++ b/mainsite-worker/src/lib/genai.ts
+@@ -41,9 +41,19 @@ export type EndpointName = keyof typeof ENDPOINT_CONFIGS;
+ 
+ // ========== FACTORY ==========
+ 
++import type { Env } from '../env.ts';
++
+ /** Creates a GoogleGenAI client per-request (API key comes from Worker env). */
+-export function createClient(apiKey: string): GoogleGenAI {
+-  return new GoogleGenAI({ baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-ai-studio', apiKey });
++export function createClient(apiKey: string, env: Env): GoogleGenAI {
++  return new GoogleGenAI({ 
++    apiKey, 
++    httpOptions: {
++      baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-genai',
++      headers: {
++        'cf-aig-authorization': env.CF_AI_GATEWAY ? `Bearer ${env.CF_AI_GATEWAY}` : ''
++      }
++    }
++  });
+ }
+ 
+ // ========== DYNAMIC MODEL FROM ADMIN CONFIG ==========
+diff --git a/mainsite-worker/wrangler.json b/mainsite-worker/wrangler.json
+index ffae9b1..e7c2f78 100644
+--- a/mainsite-worker/wrangler.json
++++ b/mainsite-worker/wrangler.json
+@@ -66,5 +66,37 @@
+   },
+   "placement": {
+     "mode": "smart"
+-  }
++  },
++  "secrets_store_secrets": [
++    {
++      "binding": "GEMINI_API_KEY",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "gemini-api-key"
++    },
++    {
++      "binding": "RESEND_API_KEY",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "resend-api-key"
++    },
++    {
++      "binding": "MP_ACCESS_TOKEN",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "mp-access-token"
++    },
++    {
++      "binding": "SUMUP_API_KEY_PRIVATE",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "sumup-api-key-private"
++    },
++    {
++      "binding": "SUMUP_MERCHANT_CODE",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "sumup-merchant-code"
++    },
++    {
++      "binding": "CF_AI_GATEWAY",
++      "store_id": "df90c0935ba1460899c3c2c457548a90",
++      "secret_name": "cf-ai-gateway"
++    }
++  ]
+ }
+\ No newline at end of file

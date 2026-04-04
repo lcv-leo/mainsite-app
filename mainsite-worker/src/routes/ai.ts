@@ -448,7 +448,7 @@ ai.post('/api/ai/workers/translate', async (c) => {
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
     const lang = targetLanguage || 'English';
-    const gatewayId = gatewayToken.split('/')[5];
+    const gatewayId = 'workspace-gateway';
 
     const response = await c.env.AI.run(
       '@cf/meta/llama-3.1-8b-instruct-fast',
@@ -477,7 +477,7 @@ ai.post('/api/ai/workers/summarize', async (c) => {
     if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
-    const gatewayId = gatewayToken.split('/')[5];
+    const gatewayId = 'workspace-gateway';
 
     const response = await c.env.AI.run(
       '@cf/meta/llama-3.1-8b-instruct-fast',

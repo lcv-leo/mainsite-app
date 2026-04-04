@@ -1,5 +1,14 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.01.06] — 2026-04-03
+### SecOps & Fixes
+- **Restabelecimento Cloudflare AI Gateway**: Refatoração concluída no factory `createClient()` e nas chaves do `wrangler.json`. A proxy URL foi desacoplada corretamente para envio via `baseUrl` e a autenticação do token `CF_AI_GATEWAY` restabelecida via header explícito `cf-aig-authorization: Bearer <TOKEN>`.
+- **Ajuste de Scope ID no Workers AI**: Remoção de lógica legada de parsing de token usando `split('/')` em favor do literal isolado `workspace-gateway`.
+- **Secret Store Sync (Fix)**: Validado deployment 100% positivo; as chaves ausentes da Cloudflare CI/CD `PIX_KEY`, `PIX_NAME` e `PIX_CITY` bem como aliases corrigidos para SumUp e Resend foram fixadas. Pipelines Github Actions rodando em estado green.
+
+### Controle de versão
+- `mainsite-worker`: v02.01.05 → v02.01.06
+
 ## [v02.01.05] — 2026-04-03
 ### SecOps & Fixes
 - **Remoção de Secrets Legados**: Eliminadas senhas obsoletas (`API_SECRET` e `PIX_KEY`) tanto do código-fonte (midlewares e rotas) como do Cloudflare Secret Store, fechando vetor de segurança.
