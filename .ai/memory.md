@@ -1,5 +1,13 @@
 # AI Memory Log - mainsite
 
+## 2026-04-04 — Gemini Direct API Migration & Gateway Elimination
+### Scope
+Remoção integral do Cloudflare AI Gateway e do fallback estrito para Cloudflare Workers AI nas operações de geração e processamento de textos do MainSite e backends de edição, prevenindo erros `524 Timeout` em operações pesadas no proxy do Cloudflare.
+### Resolved
+- **Expurgo Ambiental**: Excluídos do worker (genai.ts e ai.ts), e do secret store os tokens `CF_AI_GATEWAY` e `CF_AI_TOKEN`.
+- **Intercepções Rompidas**: Bypasses como `httpOptions` (no genai.ts) ou chamadas de workers isoladas foram extintas. Todo processamento de interface, IA, tradução e sumarização obedece o único source-of-truth oficial do gateway: o `@google/genai` (SDK Oficial da Gemini).
+- **Avanço SDK GenAI (mainsite-worker)**: Adaptamos as assinaturas da biblioteca para lidar de frente e contarmos unicamente com o `generativelanguage.googleapis.com`.
+
 ## 2026-04-04 — MP BigInt Serialization & SDK Rejection Status Fallback
 ### Corrigido e Adicionado
 - **BigInt Serialization & SDK Error Destructuring (`mainsite-worker`)**: Corrigida a propensão de quebras de serialização (`TypeError: Do not know how to serialize a BigInt`) no processo `JSON.stringify` do endpoint `/api/mp-payment` que higieniza referências. Além disso, reestruturado o manipulador `catch` para destruturar apropriadamente exceções geradas pelo reject da API SDK Oficial V2 do Mercado Pago (que performa `throw await response.json()` quando `!ok`). Falsos positivos 500 na UI (durante rejeições legítimas 400 por regras antifraude) agora retornam corretamente o erro descritivo e o status original (`finalStatus = mpErr.status`).

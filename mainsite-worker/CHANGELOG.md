@@ -1,5 +1,15 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.01.08] — 2026-04-04
+### Segurança & Remoções (Tech Debt)
+- **Migração Concluída: Retorno ao SDK Gemini**: Finalizada com sucesso a remoção completa do Cloudflare AI Gateway e Workers AI. 
+- O arquivo `genai.ts` teve a configuração forçada da propriedade `httpOptions` banida, desativando a proxy Layer da Cloudflare e efetuando a requisição nativamente, a fim de expurgar o risco estrito de falhas de timeout formatuais (Erro 524) identificadas durante chamadas de texto pesadas nas features do app.
+- A rota `ai.ts` teve toda a infraestrutura baseada no Workers AI removida. O SDK `@google/genai` processa tudo direto pelo end-point da Google. 
+- A chave e variáveis `CF_AI_GATEWAY` foram erradicadas dos mapeamentos de `wrangler.json`, Types e Secrets Store para garantir estanqueidade da reversão. Adicionalmente `CF_AI_TOKEN` removida.
+
+### Controle de versão
+- `mainsite-worker`: v02.01.07 → v02.01.08
+
 ## [v02.01.07] — 2026-04-04
 ### Corrigido
 - **Workers AI max_tokens Limiter Fix**: Adicionado suporte direto na rota `/api/ai/workers/translate` e `summarize` para suportar cargas compridas no backend, parametrizando as chamadas ao Llama-3 com `max_tokens: 4000` limitador contra fragmentação decorrente do hard-limit nativo da Cloudflare (256 tokens).
