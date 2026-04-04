@@ -38,7 +38,6 @@ export interface RawEnv {
   CLOUDFLARE_PW: SecretStoreBinding;
   GEMINI_API_KEY: SecretStoreBinding;
   RESEND_API_KEY: SecretStoreBinding;
-  CF_AI_GATEWAY: SecretStoreBinding;
 
   // --- SumUp ---
   SUMUP_API_KEY_PRIVATE: SecretStoreBinding;
@@ -76,7 +75,6 @@ export interface Env {
   CLOUDFLARE_PW: string;
   GEMINI_API_KEY: string;
   RESEND_API_KEY: string;
-  CF_AI_GATEWAY: string;
 
   // --- SumUp ---
   SUMUP_API_KEY_PRIVATE: string;

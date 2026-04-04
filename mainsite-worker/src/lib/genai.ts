@@ -50,7 +50,7 @@ import type { Env } from '../env.ts';
  */
 export function createClient(env: Env): GoogleGenAI {
   return new GoogleGenAI({
-    apiKey: env.GEMINI_API_KEY,
+    apiKey: env.GEMINI_API_KEY
   });
 }
 
