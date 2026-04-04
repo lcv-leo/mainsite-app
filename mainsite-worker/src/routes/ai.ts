@@ -76,7 +76,7 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
     const client = createClient(c.env);
-    const modelStr = await getConfiguredModel(c.env.DB, 'chat');
+    const modelStr = await getConfiguredModel(c.env.DB, 'editor');
 
     const inputTokens = await countTokens(client, text, modelStr);
     const validation = validateInputTokens(inputTokens);
@@ -362,7 +362,7 @@ ai.post('/api/ai/public/summarize', async (c) => {
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
     const client = createClient(c.env);
-    const modelStr = await getConfiguredModel(c.env.DB, 'summary');
+    const modelStr = await getConfiguredModel(c.env.DB, 'reader');
 
     const inputTokens = await countTokens(client, text, modelStr);
     const validation = validateInputTokens(inputTokens);
@@ -406,7 +406,7 @@ ai.post('/api/ai/public/translate', async (c) => {
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
     const client = createClient(c.env);
-    const modelStr = await getConfiguredModel(c.env.DB, 'chat');
+    const modelStr = await getConfiguredModel(c.env.DB, 'reader');
     const lang = targetLanguage || 'English';
 
     const inputTokens = await countTokens(client, text, modelStr);

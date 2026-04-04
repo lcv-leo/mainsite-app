@@ -64,6 +64,9 @@ export function createClient(env: Env): GoogleGenAI {
 interface MainsiteConfig {
   chat?: string;
   summary?: string;
+  reader?: string;
+  editor?: string;
+  import?: string;
 }
 
 /**
