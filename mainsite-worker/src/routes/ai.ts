@@ -71,8 +71,6 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
       text?: string;
       instruction?: string;
     };
-    const gatewayToken = c.env.CF_AI_GATEWAY;
-    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
     const client = createClient(c.env);
@@ -142,8 +140,6 @@ ai.post('/api/ai/public/chat', async (c) => {
       currentContext?: { title?: string; content?: string };
       askForDonation?: boolean;
     };
-    const gatewayToken = c.env.CF_AI_GATEWAY;
-    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
     if (!message) return c.json({ error: 'Mensagem ausente.' }, 400);
 
     const { results } = await c.env.DB.prepare(
@@ -360,29 +356,6 @@ ai.post('/api/ai/public/summarize', async (c) => {
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
     const modelStr = await getConfiguredModel(c.env.DB, 'reader');
 
-    if (modelStr.startsWith('@cf/')) {
-      const response = await c.env.AI.run(
-        modelStr,
-        {
-          messages: [
-            {
-              role: 'system',
-              content: `Você é um assistente de leitura do site "Reflexos da Alma". Gere um resumo claro, conciso e elegante do texto${postTitle ? ` intitulado "${postTitle}"` : ''}. O resumo deve capturar as ideias centrais em no máximo 3-4 parágrafos e manter tom filosófico.`,
-            },
-            { role: 'user', content: text },
-          ],
-          max_tokens: 700,
-          temperature: 0.4,
-        }
-      );
-
-      const raw = (response as { response?: string }).response || '';
-      return c.json({ success: true, summary: raw });
-    }
-
-    const gatewayToken = c.env.CF_AI_GATEWAY;
-    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
-
     const client = createClient(c.env);
 
     const inputTokens = await countTokens(client, text, modelStr);
@@ -426,26 +399,6 @@ ai.post('/api/ai/public/translate', async (c) => {
     const modelStr = await getConfiguredModel(c.env.DB, 'reader');
     const lang = targetLanguage || 'English';
 
-    if (modelStr.startsWith('@cf/')) {
-      const response = await c.env.AI.run(
-        modelStr,
-        {
-          messages: [
-            { role: 'system', content: `You are a professional translator. Translate to ${lang} preserving meaning and formatting.` },
-            { role: 'user', content: text },
-          ],
-          max_tokens: 2048,
-          temperature: 0.2,
-        }
-      );
-
-      const raw = (response as { response?: string }).response || '';
-      return c.json({ success: true, translation: raw });
-    }
-
-    const gatewayToken = c.env.CF_AI_GATEWAY;
-    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
-
     const client = createClient(c.env);
 
     const inputTokens = await countTokens(client, text, modelStr);
@@ -478,65 +431,6 @@ ai.post('/api/ai/public/translate', async (c) => {
   }
 });
 
-// POST /api/ai/workers/translate (Edge Native, Zero Cost)
-ai.post('/api/ai/workers/translate', async (c) => {
-  try {
-    const { text, targetLanguage } = (await c.req.json()) as { text?: string; targetLanguage?: string; };
-    const gatewayToken = c.env.CF_AI_GATEWAY;
-    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
-    if (!text) return c.json({ error: 'Texto ausente.' }, 400);
-
-    const lang = targetLanguage || 'English';
-    const gatewayId = 'workspace-gateway';
-
-    const response = await c.env.AI.run(
-      '@cf/meta/llama-3.1-8b-instruct-fast',
-      {
-        messages: [
-          { role: 'system', content: `You are a professional translator. Translate the following text to ${lang}. Return ONLY the translation, preserve HTML formatting, do not explain.` },
-          { role: 'user', content: text }
-        ],
-        max_tokens: 2048
-      }
-    );
-
-    structuredLog('info', 'Workers AI translate completed', { endpoint: 'workers/translate', targetLanguage: lang });
-    return c.json({ success: true, translation: (response as any).response || text });
-  } catch (err) {
-    structuredLog('error', 'Workers AI translate error', { error: (err as Error).message });
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
-
-// POST /api/ai/workers/summarize (Edge Native, Zero Cost)
-ai.post('/api/ai/workers/summarize', async (c) => {
-  try {
-    const { text } = (await c.req.json()) as { text?: string; };
-    const gatewayToken = c.env.CF_AI_GATEWAY;
-    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada no Worker.' }, 503);
-    if (!text) return c.json({ error: 'Texto ausente.' }, 400);
-
-    const gatewayId = 'workspace-gateway';
-
-    const response = await c.env.AI.run(
-      '@cf/meta/llama-3.1-8b-instruct-fast',
-      {
-        messages: [
-          { role: 'system', content: 'Você é um resumidor super rápido. Extraia as 3 ideias mais vitais do texto abaixo em um parágrafo limpo e curto. Responda em Português.' },
-          { role: 'user', content: text }
-        ],
-        max_tokens: 500
-      },
-      { gateway: { id: gatewayId } }
-    );
-
-    structuredLog('info', 'Workers AI summarize completed', { endpoint: 'workers/summarize', gateway: gatewayId });
-    return c.json({ success: true, summary: (response as any).response || '' });
-  } catch (err) {
-    structuredLog('error', 'Workers AI summarize error', { error: (err as Error).message });
-    return c.json({ error: (err as Error).message }, 500);
-  }
-});
 
 // --- Admin Chat/Contact Logs ---
 ai.get('/api/chat-logs', requireAuth, async (c) => {

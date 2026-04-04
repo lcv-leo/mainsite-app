@@ -50,12 +50,6 @@ import type { Env } from '../env.ts';
 export function createClient(env: Env): GoogleGenAI {
   return new GoogleGenAI({
     apiKey: env.GEMINI_API_KEY,
-    httpOptions: {
-      baseUrl: 'https://gateway.ai.cloudflare.com/v1/d65b76a0e64c3791e932edd9163b1c71/workspace-gateway/google-ai-studio',
-      headers: {
-        'cf-aig-authorization': `Bearer ${env.CF_AI_GATEWAY}`,
-      },
-    },
   });
 }
 
