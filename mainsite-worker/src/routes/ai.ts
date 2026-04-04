@@ -434,7 +434,7 @@ ai.post('/api/ai/public/translate', async (c) => {
             { role: 'system', content: `You are a professional translator. Translate to ${lang} preserving meaning and formatting.` },
             { role: 'user', content: text },
           ],
-          max_tokens: 4000,
+          max_tokens: 2048,
           temperature: 0.2,
         }
       );
@@ -496,7 +496,7 @@ ai.post('/api/ai/workers/translate', async (c) => {
           { role: 'system', content: `You are a professional translator. Translate the following text to ${lang}. Return ONLY the translation, preserve HTML formatting, do not explain.` },
           { role: 'user', content: text }
         ],
-        max_tokens: 4000
+        max_tokens: 2048
       }
     );
 
