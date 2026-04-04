@@ -373,8 +373,7 @@ ai.post('/api/ai/public/summarize', async (c) => {
           ],
           max_tokens: 700,
           temperature: 0.4,
-        },
-        { gateway: { id: 'workspace-gateway' } },
+        }
       );
 
       const raw = (response as { response?: string }).response || '';
@@ -437,8 +436,7 @@ ai.post('/api/ai/public/translate', async (c) => {
           ],
           max_tokens: 4000,
           temperature: 0.2,
-        },
-        { gateway: { id: 'workspace-gateway' } },
+        }
       );
 
       const raw = (response as { response?: string }).response || '';
@@ -499,11 +497,10 @@ ai.post('/api/ai/workers/translate', async (c) => {
           { role: 'user', content: text }
         ],
         max_tokens: 4000
-      },
-      { gateway: { id: gatewayId } }
+      }
     );
 
-    structuredLog('info', 'Workers AI translate completed', { endpoint: 'workers/translate', targetLanguage: lang, gateway: gatewayId });
+    structuredLog('info', 'Workers AI translate completed', { endpoint: 'workers/translate', targetLanguage: lang });
     return c.json({ success: true, translation: (response as any).response || text });
   } catch (err) {
     structuredLog('error', 'Workers AI translate error', { error: (err as Error).message });
