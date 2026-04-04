@@ -43,7 +43,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     setIsSummarizing(true); setAiError(null);
     try {
       const [res] = await Promise.all([
-        fetch(`${API_URL}/ai/workers/summarize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: post.content, postTitle: post.title }) }),
+        fetch(`${API_URL}/ai/public/summarize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: post.content, postTitle: post.title }) }),
         new Promise<void>(resolve => setTimeout(resolve, 800))
       ]);
       const data = await res.json();
@@ -58,7 +58,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     setIsTranslating(true); setAiError(null);
     try {
       const [res] = await Promise.all([
-        fetch(`${API_URL}/ai/workers/translate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: post.content, targetLanguage: lang, postTitle: post.title }) }),
+        fetch(`${API_URL}/ai/public/translate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: post.content, targetLanguage: lang, postTitle: post.title }) }),
         new Promise<void>(resolve => setTimeout(resolve, 800))
       ]);
       const data = await res.json();
