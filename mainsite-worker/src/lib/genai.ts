@@ -17,7 +17,7 @@ import { structuredLog } from './logger.ts';
 // ========== CONFIG CENTRALIZADA ==========
 
 /** Fallback model when admin has not configured one */
-export const DEFAULT_GEMINI_MODEL = '';
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 800;
@@ -27,6 +27,7 @@ export const GEMINI_SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
   { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
 ];
 
 export const ENDPOINT_CONFIGS = {

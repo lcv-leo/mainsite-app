@@ -1,11 +1,21 @@
 # Changelog — Mainsite Frontend
 
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
+
 ## [v03.04.02] - 2026-04-04
 ### Corrigido
 - **Correção da Rota AI**: Consolidada a substituição do endpoint de tradução no `PostReader`, de `public` (Gemini) para `workers` (Cloudflare AI), removendo de fato o gargalo associado à infraestrutura original.
 
 ### Controle de versão
 - `mainsite-frontend`: APP v03.04.01 → APP v03.04.02
+
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
 
 ## [v03.04.01] - 2026-04-03
 ### Alterado
@@ -14,6 +24,11 @@
 ### Controle de versão
 - `mainsite-frontend`: APP v03.04.00 → APP v03.04.01
 
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
+
 ## [v03.04.00] - 2026-04-02
 ### Alterado
 - **Rebranding Final**: O site foi renomeado de "Divagações Filosóficas" para "Reflexos da Alma" em todos os metadados, títulos, descrições e configurações de pagamento.
@@ -21,6 +36,11 @@
 
 ### Controle de versão
 - \mainsite-frontend\: APP v03.03.07 → APP v03.04.00
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
+
 ## [v03.03.07] - 2026-04-02
 ### Alterado
 - **Controle de Rate Limit Integrado**: refatoração massiva da forma com que os seletores de IA interagem. Adicionado botão "Atualizar". Rate limits manuais erradicados de todos os aplicativos paralelos no workspace. A política de proteção contra abusu agora conta inteiramente com o Cloudflare WAF, viabilizando endpoints de api livres da responsabilidade de rastrear D1 state pra contar token de usage.
@@ -28,9 +48,19 @@
 ### Controle de versão
 - `mainsite-frontend`: APP v03.03.06 → APP v03.03.07
 
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
+
 ## [v03.03.06] - 2026-04-02
 ### Alterado
 - **Seletor de IA Dinâmico**: todos os componentes de Chat (Mainsite AI) implementam cache-busting real via refetch para permitir listagem ao vivo de modelos habilitados no painel de controle (Admin).
+
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
 
 ## [v03.03.05] - 2026-04-02
 ### Atualizações Tecnológicas (P3 e P4)
@@ -42,6 +72,11 @@
 ### Controle de versão
 - `mainsite-frontend`: APP v03.03.04 → APP v03.03.05
 
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
+
 ## [v03.03.04] - 2026-04-01
 ### Corrigido
 - **Text zoom reintegrado ao padrão visual do site**: os controles de zoom deixaram de usar um floating widget independente e passaram a compor o mesmo cluster vertical de FABs do `FloatingControls`.
@@ -52,6 +87,11 @@
 ### Controle de versão
 - `mainsite-frontend`: APP v03.03.03 → APP v03.03.04
 
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
+
 ## [v03.03.03] - 2026-04-01
 ### Corrigido
 - **Text zoom analytics sem backend**: o `PostReader` deixou de ativar tracking remoto para `/api/analytics/text-zoom` enquanto o endpoint não existe no `mainsite`, eliminando o `POST ... 404 (Not Found)` em produção.
@@ -59,6 +99,11 @@
 
 ### Controle de versão
 - `mainsite-frontend`: APP v03.03.02 → APP v03.03.03
+
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
 
 ## [v03.03.02] - 2026-04-01
 ### Corrigido
@@ -72,6 +117,11 @@
 
 ### Controle de versão
 - `mainsite-frontend`: APP v03.03.01 → APP v03.03.02
+
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
 
 ## [v03.03.01] - 2026-04-01
 ### Adicionado
@@ -88,6 +138,11 @@
 ### Controle de versão
 - `mainsite-frontend`: APP v03.03.00 → APP v03.03.01
 
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
+
 ## [v03.03.00] - 2026-04-01
 ### Adicionado
 - **Text Zoom Feature — Ferramenta de Escalabilidade de Texto**: Implementação de sistema elegante de aumentar/diminuir tamanho de texto no PostReader, mantendo formatação perfeita e excluindo o título do post.
@@ -101,6 +156,11 @@
 
 ### Controle de versão
 - `mainsite-frontend`: APP v03.02.05 → APP v03.03.00
+
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
 
 ## [v03.02.05] - 2026-03-31
 ### Corrigido
@@ -119,12 +179,22 @@
 ### Controle de versão
 - `mainsite-frontend`: APP v03.02.03 → APP v03.02.04
 
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
+
 ## [v03.02.03] - 2026-03-31
 ### Adicionado
 - **Governança de Licenciamento (GNU AGPLv3)**: Inserção do `LicencasModule` e `ComplianceBanner` no frontend para fechamento do SaaS Loophole com conformidade total.
 
 ### Controle de versão
 - `mainsite`: APP v03.02.02 -> APP v03.02.03
+
+## [v03.04.03] - 2026-04-04
+### Corrigido
+- **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.
+- **Segurança Cognitiva**: Incorporado HARM_CATEGORY_CIVIC_INTEGRITY englobando as checagens preventivas preexistentes (v1beta compliance).
 
 ## [v03.02.02] - 2026-03-31
 ### Corrigido
@@ -335,3 +405,4 @@
 ## [v02.09.00] — Anterior
 ### Histórico
 - Versão anterior à padronização do controle de versão
+
