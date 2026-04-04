@@ -84,7 +84,7 @@ TEXTO: ${cleanText}`;
 
   try {
     const client = createClient(env);
-    const modelStr = await getConfiguredModel(db, 'summaryModeloIA');
+    const modelStr = await getConfiguredModel(db, 'summary');
 
     const response = await generate({
       client,

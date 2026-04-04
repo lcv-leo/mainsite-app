@@ -1,5 +1,11 @@
 # AI Memory Log - mainsite
- 
+
+## 2026-04-04 — Mercado Pago SDK 500 Error Fix & TS Audit
+### Corrigido
+- **Mercado Pago API Circular JSON**: O endpoint da API `/api/mp-payment` e funções correlatas sofriam falhas e estouros 500 nas respostas devido à dependência do SDK node-fetch/undici contido no `@mercadopago/sdk` (v2), o qual injeta a propriedade cíclica `api_response` gerando exceções catastróficas durante o `c.json(data)` do Hono. Adicionada extração higienizada segura que descarta ponteiros circulares (`request`, `response`, `api_response`), garantindo o envio correto do JSON (HTTP 201) para a camada frontend sem quebrar logo após a transação aprovada na operadora.
+- **TypeScript Summary Fallback Model**: O key `"summaryModeloIA"` continha um *drift* para apenas `"summary"` em conformidade com a interface `MainsiteConfig`. A correção assegurou 100% de compliance `npx tsc --noEmit` em `genai.ts`.
+### Controle de versão
+- `mainsite-worker`: v02.01.04 → v02.01.05
 
 ## 2026-04-03 — Cloudflare Paid Scale Integration
 ### Escopo

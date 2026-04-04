@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -96,9 +96,24 @@ mp.post('/api/mp-payment', async (c) => {
       requestOptions: { idempotencyKey: crypto.randomUUID() },
     });
 
-    return c.json(data, 201);
+    const cache = new Set();
+    const safeData = JSON.parse(JSON.stringify(data, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (cache.has(value)) return undefined;
+        cache.add(value);
+      }
+      if (key === 'api_response' || key === 'request' || key === 'response' || key === 'config') return undefined;
+      return value;
+    }));
+
+    return c.json(safeData, 201);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    console.error('MercadoPago Payment Creation Error:', err);
+    structuredLog('error', 'MP Payment Error', { err: String(err), stack: (err as Error).stack, details: JSON.stringify(err) });
+    return c.json({ 
+      error: (err as Error).message, 
+      details: String(err)
+    }, 500);
   }
 });
 
