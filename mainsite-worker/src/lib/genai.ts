@@ -62,41 +62,28 @@ export function createClient(env: Env): GoogleGenAI {
 // ========== DYNAMIC MODEL FROM ADMIN CONFIG ==========
 
 interface MainsiteConfig {
-  modeloIA?: string;
-  summaryModeloIA?: string;
+  chat?: string;
+  summary?: string;
 }
-
-let configTableReady = false;
 
 /**
  * Reads the Gemini model configured by the admin for the MainSite module.
  * Falls back to DEFAULT_GEMINI_MODEL if no model is configured.
  *
  * @param db - D1 database binding (same bigdata_db used by admin-app)
- * @param configKey - which model to read: 'modeloIA' for chat/transform/etc, 'summaryModeloIA' for share summaries
+ * @param configKey - which model to read: 'chat' or 'summary'
  */
 export async function getConfiguredModel(
   db: D1Database,
-  configKey: keyof MainsiteConfig = 'modeloIA',
+  configKey: keyof MainsiteConfig = 'chat',
 ): Promise<string> {
   try {
-    if (!configTableReady) {
-      await db.prepare(`
-        CREATE TABLE IF NOT EXISTS admin_module_configs (
-          module_key TEXT PRIMARY KEY,
-          config_json TEXT NOT NULL,
-          updated_at TEXT DEFAULT (datetime('now'))
-        )
-      `).run();
-      configTableReady = true;
-    }
-
     const row = await db.prepare(
-      'SELECT config_json FROM admin_module_configs WHERE module_key = ?'
-    ).bind('mainsite-config').first<{ config_json: string }>();
+      'SELECT payload FROM mainsite_settings WHERE id = ? LIMIT 1'
+    ).bind('mainsite/ai_models').first<{ payload: string }>();
 
-    if (row?.config_json) {
-      const parsed = JSON.parse(row.config_json) as MainsiteConfig;
+    if (row?.payload) {
+      const parsed = JSON.parse(row.payload) as MainsiteConfig;
       const model = parsed[configKey];
       if (model && model.trim().length > 0) {
         return model.trim();

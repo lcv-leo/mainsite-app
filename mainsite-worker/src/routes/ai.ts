@@ -76,7 +76,7 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
     const client = createClient(c.env);
-    const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+    const modelStr = await getConfiguredModel(c.env.DB, 'chat');
 
     const inputTokens = await countTokens(client, text, modelStr);
     const validation = validateInputTokens(inputTokens);
@@ -244,7 +244,7 @@ ${dbContext}
 PERGUNTA DO USUÁRIO: ${message}`;
 
     const client = createClient(c.env);
-    const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+    const modelStr = await getConfiguredModel(c.env.DB, 'chat');
 
     const inputTokens = await countTokens(client, systemPrompt, modelStr);
     const validation = validateInputTokens(inputTokens);
@@ -362,7 +362,7 @@ ai.post('/api/ai/public/summarize', async (c) => {
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
     const client = createClient(c.env);
-    const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+    const modelStr = await getConfiguredModel(c.env.DB, 'summary');
 
     const inputTokens = await countTokens(client, text, modelStr);
     const validation = validateInputTokens(inputTokens);
@@ -406,7 +406,7 @@ ai.post('/api/ai/public/translate', async (c) => {
     if (!text) return c.json({ error: 'Texto ausente.' }, 400);
 
     const client = createClient(c.env);
-    const modelStr = await getConfiguredModel(c.env.DB, 'modeloIA');
+    const modelStr = await getConfiguredModel(c.env.DB, 'chat');
     const lang = targetLanguage || 'English';
 
     const inputTokens = await countTokens(client, text, modelStr);
