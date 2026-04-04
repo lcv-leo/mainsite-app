@@ -1,5 +1,12 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.01.07] — 2026-04-04
+### Corrigido
+- **Workers AI max_tokens Limiter Fix**: Adicionado suporte direto na rota `/api/ai/workers/translate` e `summarize` para suportar cargas compridas no backend, parametrizando as chamadas ao Llama-3 com `max_tokens: 4000` limitador contra fragmentação decorrente do hard-limit nativo da Cloudflare (256 tokens).
+
+### Controle de versão
+- `mainsite-worker`: v02.01.06 → v02.01.07
+
 ## [v02.01.06] — 2026-04-03
 ### SecOps & Fixes
 - **Restabelecimento Cloudflare AI Gateway**: Refatoração concluída no factory `createClient()` e nas chaves do `wrangler.json`. A proxy URL foi desacoplada corretamente para envio via `baseUrl` e a autenticação do token `CF_AI_GATEWAY` restabelecida via header explícito `cf-aig-authorization: Bearer <TOKEN>`.

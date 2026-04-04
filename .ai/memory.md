@@ -1,5 +1,13 @@
 # AI Memory Log - mainsite
 
+## 2026-04-04 — Translation Truncation Fix & Workers AI Integration
+### Corrigido e Alterado
+- **Migração Efetivada no Frontend**: Corrigida a regressão no `PostReader.tsx` que continuava apontando para a rota pública do Gemini (`/api/ai/public/...`). As chamadas de tradução e resumo agora apontam de fato para as rotas nativas da infraestrutura da Cloudflare (`/api/ai/workers/translate` e `summarize`).
+- **Resolução de Truncamento Llama-3**: A engine `env.AI.run` nas rotas do `mainsite-worker` foi parametrizada com limites robustos de resposta (`max_tokens: 4000` para tradução e `500` para resumo). Isso impede o truncamento agressivo provocado pelo limite default extremamente restritivo da plataforma Cloudflare (256 tokens) em geração de textos mais compridos.
+### Controle de versão
+- `mainsite-worker`: v02.01.06 → v02.01.07
+- `mainsite-frontend`: APP v03.04.01 → APP v03.04.02
+
 ## 2026-04-04 — Mercado Pago SDK 500 Error Fix & TS Audit
 ### Corrigido
 - **Mercado Pago API Circular JSON**: O endpoint da API `/api/mp-payment` e funções correlatas sofriam falhas e estouros 500 nas respostas devido à dependência do SDK node-fetch/undici contido no `@mercadopago/sdk` (v2), o qual injeta a propriedade cíclica `api_response` gerando exceções catastróficas durante o `c.json(data)` do Hono. Adicionada extração higienizada segura que descarta ponteiros circulares (`request`, `response`, `api_response`), garantindo o envio correto do JSON (HTTP 201) para a camada frontend sem quebrar logo após a transação aprovada na operadora.

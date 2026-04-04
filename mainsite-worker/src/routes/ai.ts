@@ -456,7 +456,8 @@ ai.post('/api/ai/workers/translate', async (c) => {
         messages: [
           { role: 'system', content: `You are a professional translator. Translate the following text to ${lang}. Return ONLY the translation, preserve HTML formatting, do not explain.` },
           { role: 'user', content: text }
-        ]
+        ],
+        max_tokens: 4000
       },
       { gateway: { id: gatewayId } }
     );
@@ -485,7 +486,8 @@ ai.post('/api/ai/workers/summarize', async (c) => {
         messages: [
           { role: 'system', content: 'Você é um resumidor super rápido. Extraia as 3 ideias mais vitais do texto abaixo em um parágrafo limpo e curto. Responda em Português.' },
           { role: 'user', content: text }
-        ]
+        ],
+        max_tokens: 500
       },
       { gateway: { id: gatewayId } }
     );
