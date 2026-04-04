@@ -31,11 +31,11 @@ export const GEMINI_SAFETY_SETTINGS = [
 ];
 
 export const ENDPOINT_CONFIGS = {
-  transform: { maxOutputTokens: 6000, temperature: 0.5 },
+  transform: { maxOutputTokens: 8192, temperature: 0.5 },
   chat: { maxOutputTokens: 8192, temperature: 0.3 },
-  summarize: { maxOutputTokens: 4096, temperature: 0.4 },
-  translate: { maxOutputTokens: 5000, temperature: 0.2 },
-  shareSummary: { maxOutputTokens: 512, temperature: 0.3 },
+  summarize: { maxOutputTokens: 8192, temperature: 0.4 },
+  translate: { maxOutputTokens: 8192, temperature: 0.2 },
+  shareSummary: { maxOutputTokens: 8192, temperature: 0.3 },
 } as const;
 
 export type EndpointName = keyof typeof ENDPOINT_CONFIGS;
@@ -210,3 +210,4 @@ export function extractText(response: GenerateContentResponse): string {
       .join('');
   }
 }
+

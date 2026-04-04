@@ -1,4 +1,14 @@
-# AI Memory Log - mainsite
+# AI Memory Log - MainSite
+
+## 2026-04-04 - Tokens Restruturados no Mainsite Worker
+### Scope
+Extensão preventiva na biblioteca genai.ts do mainsite-worker frente às novas regras de Thinking Models.
+### Resolved
+- **Tokens Maximizados**: Os endopints shareSummary, 	ranslate, summarize e 	ransform não encaram mais tetos rígidos abaixo da linha base suportada. Elevados para 8192 na matriz de configuração.
+
+### Controle de versão
+- mainsite-frontend: APP v03.04.03 -> APP v03.04.04
+
 
 ## 2026-04-04 — Gemini Direct API Migration & Gateway Elimination
 ### Scope
@@ -487,3 +497,4 @@ Migração arquitetural unificada para aproveitamento da infraestrutura Cloudfla
 
 ### Label Accessibility
 - Labels sem campo associado convertidas para `<p className="field-label">` em ConfigModule.
+
