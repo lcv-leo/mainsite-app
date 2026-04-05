@@ -33,8 +33,6 @@ export const GEMINI_SAFETY_SETTINGS = [
 export const ENDPOINT_CONFIGS = {
   transform: { maxOutputTokens: 8192, temperature: 0.5 },
   chat: { maxOutputTokens: 8192, temperature: 0.3 },
-  summarize: { maxOutputTokens: 8192, temperature: 0.4 },
-  translate: { maxOutputTokens: 8192, temperature: 0.2 },
   shareSummary: { maxOutputTokens: 8192, temperature: 0.3 },
 } as const;
 
@@ -59,7 +57,6 @@ export function createClient(env: Env): GoogleGenAI {
 interface MainsiteConfig {
   chat?: string;
   summary?: string;
-  reader?: string;
   editor?: string;
   import?: string;
 }

@@ -1,5 +1,18 @@
 # Changelog — Mainsite Frontend
 
+## [v03.04.04] - 2026-04-05
+### Removido
+- **Botões de IA Públicos (PostReader)**: Removidos os botões "Resumo por IA" e "Traduzir Para" do `PostReader.tsx`. Eliminados os handlers `handleSummarize` e `handleTranslate`, todos os estados associados (`postSummary`, `translatedContent`, `isSummarizing`, `isTranslating`, `aiError`), o CSS das classes `.ai-btn`, `.ai-select`, `.ai-error-msg`, `.ai-summary-box`, `.ai-actions-container`, `.processing-active`, e o `<div className="ai-actions-container">` no JSX.
+- **Imports órfãos removidos**: `ChangeEvent`, `useEffect` (react), `AlignLeft`, `Languages`, `X`, `AlertTriangle`, `Sparkles` (lucide-react) e a prop `API_URL` da interface `PostReaderProps`.
+- **Endpoint de IA no worker**: Removidas as rotas `POST /api/ai/public/summarize` e `POST /api/ai/public/translate` de `mainsite-worker/src/routes/ai.ts`.
+- **Configurações do genai**: Removidos `reader` de `MainsiteConfig` e as entradas `summarize` e `translate` de `ENDPOINT_CONFIGS` em `genai.ts`.
+- **Seletor de modelo no admin**: Removido o fieldset "Modelo do Leitor (Tradução/Resumo Público)" do `ConfigModule.tsx` no `admin-app`, incluindo o campo `reader` no estado `msAiModels`, no tipo do `handleAiModelChange` e no loader de configurações.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.04.03 → APP v03.04.04
+- `mainsite-worker`: sem incremento de versão (remoção de rotas)
+- `admin-app`: APP v01.77.41 → APP v01.77.42
+
 ## [v03.04.03] - 2026-04-04
 ### Corrigido
 - **Gemini Fallback Model Base**: Mitigada a nulidade da constante `DEFAULT_GEMINI_MODEL` na engine backend, protegendo contra interrupções de 500 caso as diretrizes de configuração estivessem vazias.

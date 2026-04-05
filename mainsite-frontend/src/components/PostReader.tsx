@@ -6,16 +6,15 @@
 // Version: v2.0.0
 // Description: Fase 4 visual redesign — editorial title, gradient divider, byline, left accent border, minimal share icons.
 
-import { type ChangeEvent, useState, useEffect } from 'react';
+
 import DOMPurify from 'dompurify';
-import { Loader2, AlignLeft, Languages, X, AlertTriangle, Sparkles, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart } from 'lucide-react';
+import { Loader2, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart } from 'lucide-react';
 import type { ActivePalette, SiteSettings, Post } from '../types';
 
 interface PostReaderProps {
   post: Post
   activePalette: ActivePalette
   settings: SiteSettings
-  API_URL: string
   onShare: (type: 'whatsapp' | 'link' | 'email') => void
   onContact: () => void
   onComment: () => void
@@ -25,50 +24,11 @@ interface PostReaderProps {
   zoomLevel: number
 }
 
-const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage, zoomLevel }: PostReaderProps) => {
-  const [postSummary, setPostSummary] = useState<string | null>(null);
-  const [translatedContent, setTranslatedContent] = useState<string | null>(null);
-  const [isSummarizing, setIsSummarizing] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+const PostReader = ({ post, activePalette, settings, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage, zoomLevel }: PostReaderProps) => {
 
-  const isAILoading = isSummarizing || isTranslating;
-
-  useEffect(() => {
-    setPostSummary(null); setTranslatedContent(null); setAiError(null);
-  }, [post.id]);
-
-  const handleSummarize = async () => {
-    if (!post) return;
-    setIsSummarizing(true); setAiError(null);
-    try {
-      const [res] = await Promise.all([
-        fetch(`${API_URL}/ai/public/summarize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: post.content, postTitle: post.title }) }),
-        new Promise<void>(resolve => setTimeout(resolve, 800))
-      ]);
-      const data = await res.json();
-      if (res.ok) setPostSummary(data.summary);
-      else throw new Error(data.error || "Server response failed.");
-    } catch { setAiError("Não foi possível gerar o resumo no momento."); } finally { setIsSummarizing(false); }
-  };
-
-  const handleTranslate = async (e: ChangeEvent<HTMLSelectElement>) => {
-    const lang = e.target.value;
-    if (!lang || !post) return;
-    setIsTranslating(true); setAiError(null);
-    try {
-      const [res] = await Promise.all([
-        fetch(`${API_URL}/ai/public/translate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: post.content, targetLanguage: lang, postTitle: post.title }) }),
-        new Promise<void>(resolve => setTimeout(resolve, 800))
-      ]);
-      const data = await res.json();
-      if (res.ok) setTranslatedContent(data.translation);
-      else throw new Error(data.error || "Server response failed.");
-    } catch { setAiError(`Falha ao traduzir para ${lang}.`); } finally { setIsTranslating(false); e.target.value = ''; }
-  };
 
   const renderContent = (content: string) => {
-    const activeContent = translatedContent || content || '';
+    const activeContent = content || '';
     const isHtml = /<\/?[a-z][\s\S]*>/i.test(activeContent);
     if (isHtml) {
       const safeHtml = DOMPurify.sanitize(activeContent, {
@@ -146,7 +106,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     "wordCount": wordCount,
     "speakable": {
       "@type": "SpeakableSpecification",
-      "cssSelector": [".h1-title", ".ai-summary-box", ".p-content"]
+      "cssSelector": [".h1-title", ".p-content"]
     }
   };
 
@@ -156,34 +116,15 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
     <article aria-label={post.title}>
       <style>{`
         :root { --text-zoom-scale: ${zoomLevel}; }
-        @keyframes pulseGlow { 0% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } 50% { box-shadow: 0 0 20px rgba(77, 166, 255, 0.8); border-color: rgba(77, 166, 255, 1); } 100% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.2); border-color: rgba(77, 166, 255, 0.4); } }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-spin { animation: spin 1s linear infinite; }
-        .processing-active { animation: pulseGlow 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; color: #4da6ff !important; }
         
         .h1-title { text-align: center; font-size: clamp(32px, 5vw, 52px); letter-spacing: -0.03em; margin-bottom: 0; color: ${activePalette.titleColor}; text-transform: none; font-weight: 800; transition: color 0.5s ease; line-height: 1.1; }
         
         .post-gradient-divider { width: 80px; height: 3px; background: linear-gradient(90deg, #4285f4, #7c3aed); margin: 1.5rem auto; border-radius: 3px; }
         
         .post-byline { text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.5; margin-bottom: 2.5rem; }
-        
-        .ai-actions-container { margin-bottom: 3rem; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; }
-        .ai-actions-bar { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; width: 100%; }
-        
-        .ai-btn { max-width: 240px; box-sizing: border-box; background: rgba(128,128,128,0.04); border: 1px solid rgba(128,128,128,0.15); color: ${activePalette.fontColor}; padding: 10px 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.8px; transition: all 0.3s ease; border-radius: 100px; box-shadow: none; font-weight: 600; }
-        .ai-btn:hover:not(:disabled) { background: rgba(128,128,128,0.08); border-color: #4285f4; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(66, 133, 244, 0.15); }
-        .ai-btn:disabled { opacity: 1; cursor: wait; background: ${activePalette.bgColor}; }
-        .ai-btn.revert-btn { border-color: var(--semantic-error-border); color: var(--semantic-error); }
-        .ai-btn.revert-btn:hover { border-color: var(--semantic-error); box-shadow: 0 8px 24px rgba(211, 47, 47, 0.15); }
-        
-        .ai-select { width: 100%; text-align: center; text-align-last: center; background: transparent; color: inherit; border: none; outline: none; cursor: pointer; font-family: inherit; appearance: none; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
-        .ai-select:disabled { cursor: wait; color: inherit; }
-        .ai-select option { background: ${activePalette.bgColor}; color: ${activePalette.fontColor}; text-transform: none; text-align: left; }
-        
-        .ai-error-msg { display: flex; align-items: center; gap: 8px; color: var(--semantic-error); font-size: 13px; font-weight: 600; background: var(--semantic-error-soft); padding: 10px 20px; border-radius: 100px; border: 1px solid var(--semantic-error-border); animation: fadeIn 0.3s ease-out; }
-        
-        .ai-summary-box { background: ${isDarkBase ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)'}; border-left: 4px solid #4da6ff; padding: 30px; margin-bottom: 3.5rem; font-style: italic; line-height: 1.8; border-radius: 24px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 16px 32px rgba(0,0,0,0.05); border: 1px solid rgba(128,128,128,0.1); border-left-width: 4px; }
         
         .post-content-area { border-left: 2px solid ${isDarkBase ? 'rgba(138,180,248,0.3)' : 'rgba(66,133,244,0.25)'}; padding-left: 24px; }
         @media (max-width: 768px) { .post-content-area { border-left: none; padding-left: 0; } }
@@ -278,45 +219,7 @@ const PostReader = ({ post, activePalette, settings, API_URL, onShare, onContact
       <div className="post-byline">
         Por {postAuthor}{post.created_at && ` · ${new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
       </div>
-      <div className="ai-actions-container">
-        <div className="ai-actions-bar">
-          <button onClick={handleSummarize} disabled={isAILoading} className={`ai-btn ${isSummarizing ? 'processing-active' : ''}`}>
-            {isSummarizing ? <Loader2 size={18} className="animate-spin" /> : <AlignLeft size={18} />}
-            {isSummarizing ? 'GERANDO RESUMO...' : 'RESUMO POR IA'}
-          </button>
 
-          <div className={`ai-btn ${isTranslating ? 'processing-active' : ''}`} role="group" aria-label="Traduzir artigo" style={{ padding: '0', background: isTranslating ? `rgba(${isDarkBase ? '255,255,255' : '0,0,0'},0.2)` : '' }}>
-            <div style={{ padding: '14px 0 14px 20px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-              {isTranslating ? <Loader2 size={18} className="animate-spin" /> : <Languages size={18} />}
-            </div>
-            <select id="post-translate-language" name="postTranslateLanguage" autoComplete="off" onChange={handleTranslate} className="ai-select" disabled={isAILoading} aria-label="Selecionar idioma de tradução" style={{ padding: '14px 14px 14px 6px' }}>
-              <option value="">{isTranslating ? 'TRADUZINDO...' : 'TRADUZIR PARA...'}</option>
-              <option value="Inglês">English</option>
-              <option value="Espanhol">Español</option>
-              <option value="Francês">Français</option>
-              <option value="Alemão">Deutsch</option>
-            </select>
-          </div>
-
-          {translatedContent && (
-            <button onClick={() => setTranslatedContent(null)} className="ai-btn revert-btn">
-              <X size={18} /> REVERTER TRADUÇÃO
-            </button>
-          )}
-        </div>
-        {aiError && (
-          <div className="ai-error-msg" role="alert"><AlertTriangle size={16} /> {aiError}</div>
-        )}
-      </div>
-
-      {postSummary && (
-        <div className="ai-summary-box">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', marginBottom: '16px', color: '#4da6ff', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            <Sparkles size={20} /> TL;DR (Gerado por IA)
-          </div>
-          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(postSummary) }} />
-        </div>
-      )}
 
       <div className="post-content-area">
         <div className="protected-content" onCopy={(e) => { e.preventDefault(); return false; }} onContextMenu={(e) => { e.preventDefault(); return false; }} onDragStart={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }}>

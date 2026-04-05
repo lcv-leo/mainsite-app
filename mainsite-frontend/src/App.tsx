@@ -450,7 +450,6 @@ const App = () => {
                   post={currentPost}
                   activePalette={activePalette}
                   settings={settings}
-                  API_URL={API_URL}
                   onShare={handleShare}
                   onContact={() => setShowContactModal(true)}
                   onComment={() => setShowCommentModal(true)}
