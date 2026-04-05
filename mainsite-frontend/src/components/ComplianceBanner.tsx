@@ -47,7 +47,7 @@ export const ComplianceBanner: React.FC<ComplianceBannerProps> = ({ onViewLicens
         Licenças (GNU AGPLv3 + Apache 2.0)
       </a>
       <span aria-hidden="true">|</span>
-      <a href="https://github.com/lcv-leo/mainsite" target="_blank" rel="noopener noreferrer" style={linkStyle}>
+      <a href="https://github.com/lcv-leo/mainsite-app" target="_blank" rel="noopener noreferrer" style={linkStyle}>
         Código Fonte (GitHub)
       </a>
     </footer>
