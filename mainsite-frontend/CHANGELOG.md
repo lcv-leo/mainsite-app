@@ -1,6 +1,29 @@
 # Changelog — Mainsite Frontend
 
-## [v03.04.04] - 2026-04-05
+## [v03.05.01] - 2026-04-06
+### Removido
+- **Pages Functions R2 migradas para o worker**: `functions/api/media/[filename].js` e `functions/api/mainsite/media/[filename].js` removidas — rotas agora servidas nativamente pelo mainsite-motor (mesmo bucket R2 `mainsite-media`).
+- **Binding R2 `MEDIA_BUCKET` removido**: `wrangler.json` do frontend não precisa mais do binding R2; media é servida pelo worker via Service Binding proxy.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.05.00 → APP v03.05.01
+
+## [v03.05.00] - 2026-04-06
+### Alterado
+- **Migração de Domínio Principal**: domínio primário migrado de `lcv.rio.br` para `reflexosdaalma.blog` (com e sem www) em todos os metadados, URLs canônicas, Open Graph, Twitter Cards e Schema.org JSON-LD.
+- **SITE_URL**: constante global atualizada de `https://www.lcv.rio.br` para `https://www.reflexosdaalma.blog`.
+- **Edge Function `[[path]].ts`**: redirect de `*.pages.dev` agora aponta para `reflexosdaalma.blog`; canonical URLs, Schema.org Article, BreadcrumbList e author/publisher URLs atualizados.
+- **Sitemap `sitemap.xml.ts`**: `siteUrl` atualizado para `https://www.reflexosdaalma.blog`.
+- **`index.html`**: todas as meta tags OG/Twitter/canonical e Schema.org WebSite/Person atualizados.
+- **`PostReader.tsx`**: Schema.org Article JSON-LD (author, publisher, logo, mainEntityOfPage) atualizados.
+
+### Corrigido
+- **`[[path]].ts` lint**: `HTMLRewriter` declarado como global do runtime Cloudflare (`declare const`) em vez de `import type`, corrigindo erro TS "cannot be used as value".
+- **`sitemap.xml.ts` lint**: resultado de `.all()` tipado explicitamente com cast `as { id: number; created_at: string }[]`, resolvendo erro de overload no `new Date()`.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.04.04 → APP v03.05.00
+
 ### Removido
 - **Botões de IA Públicos (PostReader)**: Removidos os botões "Resumo por IA" e "Traduzir Para" do `PostReader.tsx`. Eliminados os handlers `handleSummarize` e `handleTranslate`, todos os estados associados (`postSummary`, `translatedContent`, `isSummarizing`, `isTranslating`, `aiError`), o CSS das classes `.ai-btn`, `.ai-select`, `.ai-error-msg`, `.ai-summary-box`, `.ai-actions-container`, `.processing-active`, e o `<div className="ai-actions-container">` no JSX.
 - **Imports órfãos removidos**: `ChangeEvent`, `useEffect` (react), `AlignLeft`, `Languages`, `X`, `AlertTriangle`, `Sparkles` (lucide-react) e a prop `API_URL` da interface `PostReaderProps`.

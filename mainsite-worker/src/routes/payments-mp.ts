@@ -200,37 +200,7 @@ mp.post('/api/webhooks/mercadopago', async (c) => {
       }
     }
 
-    // Sem D1 — webhook apenas faz ACK e envia notificação por e-mail
-
-    if (c.env.RESEND_API_KEY) {
-      const htmlMsg = `
-        <div style="font-family: sans-serif; color: #333;">
-          <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Notificação de Pagamento (Mercado Pago)</h2>
-          <p><strong>ID da Transação:</strong> ${id}</p>
-          <p><strong>Referência Interna:</strong> ${extRef}</p>
-          <div style="background: #f0f9ff; padding: 15px; border-left: 4px solid #0ea5e9; margin: 20px 0;">
-            <p style="margin: 0; font-size: 18px;"><strong>Status: <span style="color: ${status === 'approved' ? '#10b981' : (status === 'refunded' ? '#ef4444' : '#f59e0b')}">${status.toUpperCase()}</span></strong></p>
-            <p style="margin: 10px 0 0 0;">Valor: R$ ${amount.toFixed(2)}</p>
-          </div>
-          <p><strong>Método Utilizado:</strong> ${method.toUpperCase()}</p>
-          <p><strong>E-mail do Apoiador:</strong> ${email}</p>
-        </div>
-      `;
-
-      c.executionCtx.waitUntil(
-        fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            from: 'Financeiro do Site <mainsite@lcv.app.br>',
-            to: 'lcv@lcv.rio.br',
-            subject: `[MP Webhook] Pagamento ${status.toUpperCase()} - R$${amount}`,
-            html: htmlMsg,
-          }),
-        })
-      );
-    }
-
+    // Webhook apenas faz ACK — sem ação de e-mail
     return c.text('OK', 200);
   } catch {
     return c.text('Erro interno no Webhook', 500);

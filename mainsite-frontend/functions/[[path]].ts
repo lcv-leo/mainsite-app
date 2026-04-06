@@ -12,6 +12,11 @@ interface Env {
   DB: D1Database;
 }
 
+// HTMLRewriter é um global do runtime Cloudflare Pages — não exportado como valor pelo @cloudflare/workers-types
+declare const HTMLRewriter: {
+  new (): import('@cloudflare/workers-types').HTMLRewriter;
+};
+
 export async function onRequest(context: EventContext<Env, string, Record<string, unknown>>) {
   const url = new URL(context.request.url);
 
@@ -19,7 +24,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
   // O mainsite tem múltiplos domínios (lcv.rio.br, cardozovargas.com, etc.), servindo tudo transparente.
   // Requisições diretas ao origin host (*.pages.dev) devem ser redirecionadas (301) ao domínio principal.
   if (url.hostname.endsWith('.pages.dev')) {
-    return Response.redirect(`https://lcv.rio.br${url.pathname}${url.search}`, 301);
+    return Response.redirect(`https://reflexosdaalma.blog${url.pathname}${url.search}`, 301);
   }
 
   // Bypass para sitemap — /functions/sitemap.xml.js gera o sitemap dinâmico
@@ -86,7 +91,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
     const longDesc = (aiSummary && (aiSummary.summary_ld || aiSummary.summary_og)) || fallbackLong;
     const wordCount = cleanBase.split(/\s+/).filter(Boolean).length;
     const pageTitle = `${post.title} | Reflexos da Alma`;
-    const canonicalUrl = `https://www.lcv.rio.br/p/${post.id}`;
+    const canonicalUrl = `https://www.reflexosdaalma.blog/p/${post.id}`;
 
     // 5. Calcula datas ISO 8601
     const toISO = (raw: string) => {
@@ -106,7 +111,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       "author": {
         "@type": "Person",
         "name": postAuthor,
-        "url": "https://www.lcv.rio.br",
+        "url": "https://www.reflexosdaalma.blog",
         "sameAs": [
           "https://github.com/lcv-leo",
           "https://www.linkedin.com/in/lcv-leo"
@@ -117,8 +122,8 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       "publisher": {
         "@type": "Organization",
         "name": "Reflexos da Alma",
-        "url": "https://www.lcv.rio.br",
-        "logo": { "@type": "ImageObject", "url": "https://www.lcv.rio.br/favicon.svg" }
+        "url": "https://www.reflexosdaalma.blog",
+        "logo": { "@type": "ImageObject", "url": "https://www.reflexosdaalma.blog/favicon.svg" }
       },
       "mainEntityOfPage": { "@type": "WebPage", "@id": canonicalUrl },
       "inLanguage": "pt-BR",
@@ -139,7 +144,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
           "@type": "ListItem",
           "position": 1,
           "name": "Home",
-          "item": "https://www.lcv.rio.br"
+          "item": "https://www.reflexosdaalma.blog"
         },
         {
           "@type": "ListItem",

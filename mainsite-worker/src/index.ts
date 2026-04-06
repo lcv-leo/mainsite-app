@@ -46,7 +46,7 @@ const app = new Hono<{ Bindings: Env }>();
 // This middleware eagerly resolves all secret values so downstream
 // handlers can use c.env.GEMINI_API_KEY as a plain string.
 const SECRET_KEYS = [
-  'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY', 'CF_AI_GATEWAY',
+  'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY',
   'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE', 'MP_ACCESS_TOKEN',
   'MERCADO_PAGO_WEBHOOK_SECRET', 'PIX_KEY', 'PIX_NAME', 'PIX_CITY'
 ] as const;
@@ -76,8 +76,22 @@ app.use('/api/*', cors({
     if (!origin) return null;
     try {
       const hostname = new URL(origin).hostname.toLowerCase();
-      if (hostname === 'lcv.rio.br' || hostname.endsWith('.lcv.rio.br')) {
-        return origin;
+      // Lista de todos os domínios personalizados vinculados ao mainsite-frontend
+      const allowedDomains = [
+        'reflexosdaalma.blog',
+        'lcv.rio.br',
+        'lcv.eng.br',
+        'lcv.psc.br',
+        'cardozovargas.com',
+        'cardozovargas.com.br',
+        'lcvleo.com',
+        'lcvmail.com',
+        'lcvmasker.com',
+      ];
+      for (const domain of allowedDomains) {
+        if (hostname === domain || hostname === `www.${domain}`) {
+          return origin;
+        }
       }
       return null;
     } catch {

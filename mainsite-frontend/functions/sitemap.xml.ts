@@ -17,7 +17,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       'SELECT id, created_at FROM mainsite_posts ORDER BY created_at DESC'
     ).all();
 
-    const siteUrl = 'https://www.lcv.rio.br';
+    const siteUrl = 'https://www.reflexosdaalma.blog';
 
     // Monta o XML do sitemap
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -33,7 +33,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
     // Cada post publicado
     for (const post of results || []) {
       const lastmod = post.created_at
-        ? new Date(post.created_at).toISOString().split('T')[0]
+        ? new Date(post.created_at as string).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
 
       xml += '  <url>\n';

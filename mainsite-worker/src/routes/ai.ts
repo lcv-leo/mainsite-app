@@ -224,7 +224,7 @@ Se o leitor confirmar a intenção de envio e ditar a mensagem, você OBRIGATORI
 [TRANSCREVA AQUI A MENSAGEM EXATA E REAL DO LEITOR]
 [[/ENVIAR_EMAIL]]
 
-ATENÇÃO CRÍTICA: Substitua o texto entre colchetes pela mensagem VERDADEIRA do usuário. NÃO invente textos e NÃO use exemplos genéricos. O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor (lcv@lcv.rio.br).${donationPrompt}
+ATENÇÃO CRÍTICA: Substitua o texto entre colchetes pela mensagem VERDADEIRA do usuário. NÃO invente textos e NÃO use exemplos genéricos. O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor (cal@reflexosdaalma.blog).${donationPrompt}
 
 REGRAS GERAIS DE RESPOSTA:
 O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
@@ -297,7 +297,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
             headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               from: 'Consciência Auxiliar <mainsite@lcv.app.br>',
-              to: 'lcv@lcv.rio.br',
+              to: 'cal@reflexosdaalma.blog',
               subject: `Interação do Leitor no Chatbot: ${contextTitleLog}`,
               html: aiHtml,
             }),

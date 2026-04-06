@@ -1,5 +1,29 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.02.01] — 2026-04-06
+### Migração de Pages Functions + Limpeza AI Gateway
+- **Rotas R2 media migradas do frontend**: `GET /api/media/:filename` e `GET /api/mainsite/media/:filename` agora servidas nativamente pelo worker via binding `BUCKET` (mesmo bucket R2 `mainsite-media`). Pages Functions correspondentes deletadas.
+- **Sitemap duplicado removido (`misc.ts`)**: rota `GET /api/sitemap.xml` removida — o sitemap canônico é servido pela Pages Function `sitemap.xml.ts` em `/sitemap.xml`.
+- **Expurgo final CF_AI_GATEWAY**: substituídas todas as 6 referências residuais de `CF_AI_GATEWAY` por `GEMINI_API_KEY` em `posts.ts`, `post-summaries.ts` e `index.ts`. Guard conditions agora validam a credencial real usada pelo SDK Gemini.
+- **Arquivos obsoletos removidos**: `test-genai.ts` (teste AI Gateway) e `log.txt` (log de debug) deletados.
+
+### Controle de versão
+- `mainsite-worker`: v02.02.00 → v02.02.01
+
+## [v02.02.00] — 2026-04-06
+### Alterado
+- **Migração de Domínio Principal**: todas as URLs hardcoded de `www.lcv.rio.br` substituídas por `www.reflexosdaalma.blog` nos sitemaps (`misc.ts`) e URLs internas.
+- **CORS Expandido (`index.ts`)**: origin check ampliado de apenas `lcv.rio.br` para todos os 9 domínios personalizados do mainsite-frontend (reflexosdaalma.blog, cardozovargas.com, lcvleo.com, etc.), com suporte a www.
+- **Uploads CORS (`uploads.ts`)**: `Access-Control-Allow-Origin` alterado de `https://www.lcv.rio.br` para `*` por servir assets para múltiplos domínios.
+- **E-mail do autor (`ai.ts`)**: `lcv@lcv.rio.br` substituído por `cal@reflexosdaalma.blog` no system prompt e no recipient do Resend.
+
+### Removido
+- **Webhook MP — notificação por e-mail (`payments-mp.ts`)**: removido o bloco de envio de e-mail via Resend no webhook do Mercado Pago. Webhook mantido plenamente funcional (HMAC + timestamp + ACK) como exigência de compliance, porém sem ação de e-mail.
+- **Custom domain route (`wrangler.json`)**: removida a rota `mainsite-app.lcv.rio.br` com `custom_domain: true`. O worker opera exclusivamente via domínio interno `.workers.dev` e Service Binding.
+
+### Controle de versão
+- `mainsite-worker`: v02.01.08 → v02.02.00
+
 ## [v02.01.08] — 2026-04-04
 ### Segurança & Remoções (Tech Debt)
 - **Migração Concluída: Retorno ao SDK Gemini**: Finalizada com sucesso a remoção completa do Cloudflare AI Gateway e Workers AI. 

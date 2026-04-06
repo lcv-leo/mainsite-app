@@ -27,9 +27,9 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.04.04';
+const APP_VERSION = 'APP v03.05.01';
 const SITE_NAME = 'Reflexos da Alma';
-const SITE_URL = 'https://www.lcv.rio.br';
+const SITE_URL = 'https://www.reflexosdaalma.blog';
 
 const DEFAULT_SETTINGS: SiteSettings = {
   allowAutoMode: true,

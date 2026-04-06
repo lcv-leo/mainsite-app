@@ -4,13 +4,6 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-03-14",
   "preview_urls": false,
-  "routes": [
-    {
-      "pattern": "mainsite-app.lcv.rio.br",
-      "zone_name": "lcv.rio.br",
-      "custom_domain": true
-    }
-  ],
   "compatibility_flags": [
     "nodejs_compat"
   ],

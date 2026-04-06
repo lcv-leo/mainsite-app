@@ -1,6 +1,30 @@
 # AI Memory Log - MainSite
 
-## 2026-04-04 - Tokens Restruturados no Mainsite Worker
+## 2026-04-06 — Pages Functions Migration + CF_AI_GATEWAY Expurgo Final
+### Scope
+Migração das 2 Pages Functions R2 restantes para o worker, remoção do sitemap duplicado, e limpeza final de toda referência residual ao Cloudflare AI Gateway.
+### Resolvido
+- **Pages Functions R2 migradas**: `functions/api/media/[filename].js` e `functions/api/mainsite/media/[filename].js` removidas — rotas agora servidas nativamente pelo worker (`uploads.ts`) usando o binding `BUCKET` que acessa o mesmo bucket R2 `mainsite-media`.
+- **Binding R2 `MEDIA_BUCKET` removido**: `wrangler.json` do frontend não precisa mais do binding R2.
+- **Sitemap duplicado removido**: rota `GET /api/sitemap.xml` removida de `misc.ts` — sitemap canônico é servido pela Pages Function `sitemap.xml.ts`.
+- **CF_AI_GATEWAY expurgado**: substituídas 6 referências residuais em `posts.ts`, `post-summaries.ts` e `index.ts` por `GEMINI_API_KEY`. Removida da lista `SECRET_KEYS`.
+- **Arquivos obsoletos deletados**: `test-genai.ts` e `log.txt`.
+### Controle de versão
+- `mainsite-frontend`: APP v03.05.00 → APP v03.05.01
+- `mainsite-worker`: v02.02.00 → v02.02.01
+
+## 2026-04-06 — Migração de Domínio Principal (lcv.rio.br → reflexosdaalma.blog)
+### Scope
+Migração do domínio principal do mainsite de `lcv.rio.br` para `reflexosdaalma.blog`. Substituição global de e-mail `lcv@lcv.rio.br` → `cal@reflexosdaalma.blog`.
+### Resolvido
+- **Frontend**: `index.html` (OG/Twitter/Schema.org), `App.tsx` (SITE_URL), `PostReader.tsx` (Schema.org Article), `[[path]].ts` (redirect + Schema.org), `sitemap.xml.ts` (siteUrl).
+- **Worker**: `index.ts` (CORS expandido para 9 domínios), `uploads.ts` (CORS `*`), `ai.ts` (e-mail), `contact.ts` (e-mail), `wrangler.json` (custom domain route removida).
+- **Webhook MP**: bloco de e-mail removido de `payments-mp.ts` (webhook "fantasma" mantido funcional por compliance).
+- **Lint fixes**: `HTMLRewriter` declarado como global, `sitemap.xml.ts` tipagem D1 corrigida.
+### Controle de versão
+- `mainsite-frontend`: APP v03.04.04 → APP v03.05.00
+- `mainsite-worker`: v02.01.08 → v02.02.00
+
 ### Scope
 Extensão preventiva na biblioteca genai.ts do mainsite-worker frente às novas regras de Thinking Models.
 ### Resolved

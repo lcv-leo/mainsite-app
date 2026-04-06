@@ -40,7 +40,7 @@ uploads.get('/api/uploads/:filename', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', 'https://www.lcv.rio.br');
+    headers.set('Access-Control-Allow-Origin', '*');
     return new Response(object.body, { headers });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
@@ -57,7 +57,43 @@ uploads.get('/api/uploads/brands/:filename', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', 'https://www.lcv.rio.br');
+    headers.set('Access-Control-Allow-Origin', '*');
+    return new Response(object.body, { headers });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+// GET /api/media/:filename (público — migrado de Pages Function)
+// Serve imagens R2 no path legado (posts antigos e frontend).
+uploads.get('/api/media/:filename', async (c) => {
+  const filename = c.req.param('filename');
+  try {
+    const object = await c.env.BUCKET.get(filename);
+    if (!object) return c.text('Arquivo não encontrado.', 404);
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('etag', object.httpEtag);
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    headers.set('Access-Control-Allow-Origin', '*');
+    return new Response(object.body, { headers });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+// GET /api/mainsite/media/:filename (público — migrado de Pages Function)
+// Espelha a rota /api/mainsite/media/:filename do admin-app.
+uploads.get('/api/mainsite/media/:filename', async (c) => {
+  const filename = c.req.param('filename');
+  try {
+    const object = await c.env.BUCKET.get(filename);
+    if (!object) return c.text('Arquivo não encontrado.', 404);
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('etag', object.httpEtag);
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    headers.set('Access-Control-Allow-Origin', '*');
     return new Response(object.body, { headers });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
@@ -65,3 +101,4 @@ uploads.get('/api/uploads/brands/:filename', async (c) => {
 });
 
 export default uploads;
+

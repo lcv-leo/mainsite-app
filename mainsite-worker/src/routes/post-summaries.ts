@@ -120,8 +120,8 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async 
   try {
     await ensureTable(c.env.DB);
     const postId = c.req.param('postId');
-    const gatewayToken = c.env.CF_AI_GATEWAY;
-    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada' }, 503);
+    const geminiKey = c.env.GEMINI_API_KEY;
+    if (!geminiKey) return c.json({ error: 'GEMINI_API_KEY não configurada' }, 503);
 
     const post = await c.env.DB.prepare(
       'SELECT id, title, content FROM mainsite_posts WHERE id = ?'
@@ -162,8 +162,8 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async 
 postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) => {
   try {
     await ensureTable(c.env.DB);
-    const gatewayToken = c.env.CF_AI_GATEWAY;
-    if (!gatewayToken) return c.json({ error: 'CF_AI_GATEWAY não configurada' }, 503);
+    const geminiKey = c.env.GEMINI_API_KEY;
+    if (!geminiKey) return c.json({ error: 'GEMINI_API_KEY não configurada' }, 503);
 
     // Modo: 'missing' = só posts sem resumo; 'all' = todos (exceto manual overrides)
     const mode = (c.req.query('mode') || 'missing') as string;
