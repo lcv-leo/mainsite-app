@@ -85,7 +85,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
     const shortDesc = (aiSummary && aiSummary.summary_og) || fallbackShort;
     const longDesc = (aiSummary && (aiSummary.summary_ld || aiSummary.summary_og)) || fallbackLong;
     const wordCount = cleanBase.split(/\s+/).filter(Boolean).length;
-    const pageTitle = `${post.title} | Divagações Filosóficas`;
+    const pageTitle = `${post.title} | Reflexos da Alma`;
     const canonicalUrl = `https://www.lcv.rio.br/p/${post.id}`;
 
     // 5. Calcula datas ISO 8601
@@ -116,7 +116,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       "dateModified": dateModified,
       "publisher": {
         "@type": "Organization",
-        "name": "Divagações Filosóficas",
+        "name": "Reflexos da Alma",
         "url": "https://www.lcv.rio.br",
         "logo": { "@type": "ImageObject", "url": "https://www.lcv.rio.br/favicon.svg" }
       },
@@ -165,7 +165,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       .on('link[rel="canonical"]', { element(e: Element) { e.setAttribute('href', canonicalUrl); } })
       .on('head', {
         element(e: Element) {
-          e.append(`<meta property="og:site_name" content="Divagações Filosóficas">`, { html: true });
+          e.append(`<meta property="og:site_name" content="Reflexos da Alma">`, { html: true });
           e.append(`<meta property="article:published_time" content="${datePublished}">`, { html: true });
           e.append(`<meta property="article:modified_time" content="${dateModified}">`, { html: true });
           e.append(`<meta property="article:author" content="${postAuthor}">`, { html: true });
