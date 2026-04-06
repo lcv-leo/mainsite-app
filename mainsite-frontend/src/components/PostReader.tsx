@@ -28,7 +28,15 @@ const PostReader = ({ post, activePalette, settings, onShare, onContact, onComme
 
 
   const renderContent = (content: string) => {
-    const activeContent = content || '';
+    // Normaliza links internos para paths relativos — funciona em qualquer domínio.
+    // Converte ex.: https://www.lcv.rio.br/p/42 → /p/42
+    const INTERNAL_DOMAINS = [
+      'reflexosdaalma.blog', 'lcv.rio.br', 'lcv.eng.br', 'lcv.psc.br',
+      'cardozovargas.com', 'cardozovargas.com.br', 'lcvleo.com', 'lcvmail.com', 'lcvmasker.com',
+    ];
+    const domainPattern = INTERNAL_DOMAINS.map(d => `(?:www\\.)?${d.replace(/\./g, '\\.')}`).join('|');
+    const internalLinkRegex = new RegExp(`https?://(?:${domainPattern})(/[^"'\\s<>]*)`, 'gi');
+    const activeContent = (content || '').replace(internalLinkRegex, '$1');
     const isHtml = /<\/?[a-z][\s\S]*>/i.test(activeContent);
     if (isHtml) {
       const safeHtml = DOMPurify.sanitize(activeContent, {
@@ -42,7 +50,10 @@ const PostReader = ({ post, activePalette, settings, onShare, onContact, onComme
       container.innerHTML = safeHtml;
       container.querySelectorAll('a[href]').forEach(a => {
         const href = a.getAttribute('href') || '';
-        if (!/(?:youtube\.com|youtu\.be)\//i.test(href)) {
+        // Links internos (relativos) abrem na mesma aba; externos em nova aba
+        if (href.startsWith('/')) {
+          a.removeAttribute('target');
+        } else if (!/(?:youtube\.com|youtu\.be)\//i.test(href)) {
           a.setAttribute('target', '_blank');
           a.setAttribute('rel', 'noopener noreferrer');
         }
