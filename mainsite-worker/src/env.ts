@@ -33,6 +33,7 @@ export interface RawEnv {
   // --- Rate Limiting (native Cloudflare binding) ---
   RL_CHATBOT: RateLimit;
   RL_EMAIL: RateLimit;
+  RL_COMMENTS: RateLimit;
 
   // --- Secrets & Tokens (Secret Store → .get()) ---
   CLOUDFLARE_PW: SecretStoreBinding;
@@ -51,6 +52,10 @@ export interface RawEnv {
   PIX_KEY: SecretStoreBinding;
   PIX_NAME: SecretStoreBinding;
   PIX_CITY: SecretStoreBinding;
+
+  // --- Moderação (GCP NL API + Turnstile) ---
+  GCP_NL_API_KEY: SecretStoreBinding;
+  TURNSTILE_SECRET_KEY: SecretStoreBinding;
 }
 
 /**
@@ -70,6 +75,7 @@ export interface Env {
   // --- Rate Limiting (native Cloudflare binding) ---
   RL_CHATBOT: RateLimit;
   RL_EMAIL: RateLimit;
+  RL_COMMENTS: RateLimit;
 
   // --- Secrets & Tokens (resolved to string by middleware) ---
   CLOUDFLARE_PW: string;
@@ -88,4 +94,8 @@ export interface Env {
   PIX_KEY: string;
   PIX_NAME: string;
   PIX_CITY: string;
+
+  // --- Moderação (GCP NL API + Turnstile) ---
+  GCP_NL_API_KEY: string;
+  TURNSTILE_SECRET_KEY: string;
 }

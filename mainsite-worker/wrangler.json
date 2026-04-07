@@ -44,6 +44,14 @@
         "limit": 10,
         "period": 60
       }
+    },
+    {
+      "name": "RL_COMMENTS",
+      "namespace_id": "1004",
+      "simple": {
+        "limit": 3,
+        "period": 60
+      }
     }
   ],
   "observability": {
@@ -108,6 +116,16 @@
       "binding": "PIX_CITY",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
       "secret_name": "PIX_CITY"
+    },
+    {
+      "binding": "GCP_NL_API_KEY",
+      "store_id": "df90c0935ba1460899c3c2c457548a90",
+      "secret_name": "gcp-nl-api-key"
+    },
+    {
+      "binding": "TURNSTILE_SECRET_KEY",
+      "store_id": "df90c0935ba1460899c3c2c457548a90",
+      "secret_name": "turnstile-secret-key"
     }
   ]
 }

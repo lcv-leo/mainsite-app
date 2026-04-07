@@ -37,6 +37,8 @@ import miscRoutes from './routes/misc.ts';
 import paymentsSumupRoutes from './routes/payments-sumup.ts';
 import paymentsMpRoutes from './routes/payments-mp.ts';
 import postSummariesRoutes from './routes/post-summaries.ts';
+import commentsRoutes from './routes/comments.ts';
+import ratingsRoutes from './routes/ratings.ts';
 import { bumpContentVersion } from './lib/content-version.ts';
 
 
@@ -49,7 +51,8 @@ const app = new Hono<{ Bindings: Env }>();
 const SECRET_KEYS = [
   'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY',
   'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE', 'MP_ACCESS_TOKEN',
-  'MERCADO_PAGO_WEBHOOK_SECRET', 'PIX_KEY', 'PIX_NAME', 'PIX_CITY'
+  'MERCADO_PAGO_WEBHOOK_SECRET', 'PIX_KEY', 'PIX_NAME', 'PIX_CITY',
+  'GCP_NL_API_KEY', 'TURNSTILE_SECRET_KEY'
 ] as const;
 
 app.use('*', async (c, next) => {
@@ -109,12 +112,13 @@ app.use('/api/*', cors({
 // Limites definidos via infrastructure-as-code em wrangler.json
 // Toggle enabled/disabled lido do D1 para preservar controle admin
 
-const RATE_LIMIT_BINDINGS: Record<string, keyof Pick<Env, 'RL_CHATBOT' | 'RL_EMAIL'>> = {
+const RATE_LIMIT_BINDINGS: Record<string, keyof Pick<Env, 'RL_CHATBOT' | 'RL_EMAIL' | 'RL_COMMENTS'>> = {
   chatbot: 'RL_CHATBOT',
   email: 'RL_EMAIL',
+  comments: 'RL_COMMENTS',
 };
 
-interface RlToggleConfig { chatbot: { enabled: boolean }; email: { enabled: boolean } }
+interface RlToggleConfig { chatbot: { enabled: boolean }; email: { enabled: boolean }; comments: { enabled: boolean } }
 let cachedRlToggle: RlToggleConfig | null = null;
 let rlToggleFetchedAt = 0;
 
@@ -128,18 +132,19 @@ async function getRlEnabled(env: Env): Promise<RlToggleConfig> {
       cachedRlToggle = {
         chatbot: { enabled: Boolean(parsed?.chatbot?.enabled ?? parsed?.enabled) },
         email: { enabled: Boolean(parsed?.email?.enabled) },
+        comments: { enabled: Boolean(parsed?.comments?.enabled ?? true) },
       };
     } else {
-      cachedRlToggle = { chatbot: { enabled: false }, email: { enabled: false } };
+      cachedRlToggle = { chatbot: { enabled: false }, email: { enabled: false }, comments: { enabled: true } };
     }
     rlToggleFetchedAt = now;
   } catch {
-    cachedRlToggle = { chatbot: { enabled: false }, email: { enabled: false } };
+    cachedRlToggle = { chatbot: { enabled: false }, email: { enabled: false }, comments: { enabled: true } };
   }
-  return cachedRlToggle;
+  return cachedRlToggle ?? { chatbot: { enabled: false }, email: { enabled: false }, comments: { enabled: true } };
 }
 
-function createRateLimiterMiddleware(bucketName: 'chatbot' | 'email') {
+function createRateLimiterMiddleware(bucketName: 'chatbot' | 'email' | 'comments') {
   return async (c: { req: { header: (name: string) => string | undefined }; json: (data: unknown, status?: number) => Response; env: Env }, next: () => Promise<void>) => {
     const toggles = await getRlEnabled(c.env);
     if (!toggles[bucketName]?.enabled) return next();
@@ -165,6 +170,8 @@ app.use('/api/ai/public/*', createRateLimiterMiddleware('chatbot') as Parameters
 app.use('/api/share/email', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 app.use('/api/contact', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 app.use('/api/comment', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
+app.use('/api/comments', createRateLimiterMiddleware('comments') as Parameters<typeof app.use>[1]);
+app.use('/api/ratings', createRateLimiterMiddleware('comments') as Parameters<typeof app.use>[1]);
 
 
 // ========== MOUNT ROUTE MODULES ==========
@@ -177,6 +184,8 @@ app.route('/', miscRoutes);
 app.route('/', paymentsSumupRoutes);
 app.route('/', paymentsMpRoutes);
 app.route('/', postSummariesRoutes);
+app.route('/', commentsRoutes);
+app.route('/', ratingsRoutes);
 
 // ========== CRON JOBS (ROTAÇÃO DE TEXTOS) ==========
 

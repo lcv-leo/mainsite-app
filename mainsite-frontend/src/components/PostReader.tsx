@@ -10,6 +10,8 @@
 import DOMPurify from 'dompurify';
 import { Loader2, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart } from 'lucide-react';
 import type { ActivePalette, SiteSettings, Post } from '../types';
+import RatingWidget from './RatingWidget';
+import CommentsSection from './CommentsSection';
 
 interface PostReaderProps {
   post: Post
@@ -22,9 +24,11 @@ interface PostReaderProps {
   isSendingEmail: boolean
   isNotHomePage: boolean
   zoomLevel: number
+  apiUrl: string
+  turnstileSiteKey?: string
 }
 
-const PostReader = ({ post, activePalette, settings, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage, zoomLevel }: PostReaderProps) => {
+const PostReader = ({ post, activePalette, settings, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage, zoomLevel, apiUrl, turnstileSiteKey }: PostReaderProps) => {
 
 
   const renderContent = (content: string) => {
@@ -255,6 +259,12 @@ const PostReader = ({ post, activePalette, settings, onShare, onContact, onComme
           </div>
         );
       })()}
+
+      {/* Rating Widget — avaliação por estrelas + reações */}
+      <RatingWidget postId={post.id} activePalette={activePalette} apiUrl={apiUrl} />
+
+      {/* Seção pública de comentários (threading 2 níveis) */}
+      <CommentsSection postId={post.id} activePalette={activePalette} apiUrl={apiUrl} turnstileSiteKey={turnstileSiteKey} />
 
       <nav aria-label="Compartilhamento e interação" className="share-bar">
         <button onClick={() => onShare('whatsapp')} className="share-btn share-whatsapp" title="Compartilhar no WhatsApp">
