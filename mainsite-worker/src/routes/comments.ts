@@ -316,6 +316,31 @@ comments.post('/api/comments', async (c) => {
   }
 });
 
+// ── GET /api/comments/config — Settings públicas para o formulário ───────────
+
+comments.get('/api/comments/config', async (c) => {
+  try {
+    const settings = await getModerationSettings(c.env.DB);
+    // Expõe apenas as configurações necessárias para o formulário público
+    return c.json({
+      commentsEnabled: settings.commentsEnabled,
+      allowAnonymous: settings.allowAnonymous,
+      requireEmail: settings.requireEmail,
+      minCommentLength: settings.minCommentLength,
+      maxCommentLength: settings.maxCommentLength,
+    });
+  } catch {
+    // Fallback seguro: formulário funcional com defaults
+    return c.json({
+      commentsEnabled: true,
+      allowAnonymous: true,
+      requireEmail: false,
+      minCommentLength: 3,
+      maxCommentLength: 2000,
+    });
+  }
+});
+
 // ── GET /api/comments/:postId — Lista comentários aprovados (público) ───────
 
 comments.get('/api/comments/:postId', async (c) => {
@@ -575,31 +600,6 @@ comments.put('/api/comments/admin/settings', requireAuth, async (c) => {
     return c.json({ success: true, settings: merged });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
-  }
-});
-
-// ── GET /api/comments/config — Settings públicas para o formulário ───────────
-
-comments.get('/api/comments/config', async (c) => {
-  try {
-    const settings = await getModerationSettings(c.env.DB);
-    // Expõe apenas as configurações necessárias para o formulário público
-    return c.json({
-      commentsEnabled: settings.commentsEnabled,
-      allowAnonymous: settings.allowAnonymous,
-      requireEmail: settings.requireEmail,
-      minCommentLength: settings.minCommentLength,
-      maxCommentLength: settings.maxCommentLength,
-    });
-  } catch {
-    // Fallback seguro: formulário funcional com defaults
-    return c.json({
-      commentsEnabled: true,
-      allowAnonymous: true,
-      requireEmail: false,
-      minCommentLength: 3,
-      maxCommentLength: 2000,
-    });
   }
 });
 

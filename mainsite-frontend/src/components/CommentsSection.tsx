@@ -433,6 +433,9 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                 <input
                   type="text"
+                  id="name"
+                  name="name"
+                  autoComplete="name"
                   placeholder={namePlaceholder}
                   required={nameRequired}
                   value={authorName}
@@ -447,6 +450,9 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
                 />
                 <input
                   type="email"
+                  id="email"
+                  name="email"
+                  autoComplete="email"
                   placeholder={emailPlaceholder}
                   required={emailRequired}
                   value={authorEmail}
