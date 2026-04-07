@@ -150,7 +150,7 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
         sitekey: turnstileSiteKey!,
         callback: (token: string) => setTurnstileToken(token),
         theme: isDark ? 'dark' : 'light',
-        size: 'compact',
+        size: 'normal',
       });
     }
 
