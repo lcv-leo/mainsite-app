@@ -1,5 +1,16 @@
 # AI Memory Log - MainSite
 
+## 2026-04-07 — Mainsite Worker v02.04.00 — Moderation Engine Full Configurability
+### Scope
+Expansão do motor de moderação de comentários com 18 parâmetros configuráveis, rotas admin GET/PUT settings, e enforcement backend completo.
+### Adicionado
+- **ModerationSettings Interface**: Expandida com `rateLimitPerIpPerHour`, `blocklistWords`, `linkPolicy`, `duplicateWindowHours`, `autoCloseAfterDays`, `notifyOnNewComment`, `notifyEmail`, `requireEmail`, `minCommentLength`, `maxCommentLength`, `requireApproval`.
+- **Settings Routes**: `GET/PUT /api/comments/admin/settings` com merge forward-compatible e cache 60s com invalidação no PUT.
+- **Enforcement**: POST handler agora verifica rate limiting (contagem D1 por IP/hora), blocklist (match case-insensitive), link policy (regex URL detect → pending/block), auto-close (delta dias), comprimento min/max, email obrigatório, detecção de duplicatas.
+- **notifyAdminNewComment**: 3º parâmetro `toEmail` dinâmico extraído das settings.
+### Controle de versão
+- `mainsite-worker`: v02.03.00 → v02.04.00
+
 ## 2026-04-07 — Autoupdate: Fix Navegação Presa em Link Curto
 ### Scope
 Correção do `refreshPosts` que fazia `pushState('/p/{id}')` após aceitar autoupdate, prendendo o leitor em link curto com `isDeepLinkedPost = true`.

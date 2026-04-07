@@ -1,5 +1,16 @@
 # Changelog — Mainsite Frontend
 
+## [mainsite-worker v02.04.00] - 2026-04-07
+### Adicionado
+- **Motor de Moderação Configurável**: Expansão de `ModerationSettings` com 18 parâmetros (rate limit, blocklist, link policy, auto-close, require email, min/max length, duplicate detection, notification email config).
+- **Rotas Admin Settings**: `GET/PUT /api/comments/admin/settings` para gerenciar configurações de moderação via D1 `mainsite_settings` (key: `mainsite/moderation`).
+- **Enforcement Backend**: Verificações de rate limiting, blocklist, link policy, auto-close, comprimento mínimo/máximo e email obrigatório inseridos no fluxo de POST de comentários.
+- **Cache Inteligente**: Cache de 60s em memória para settings de moderação com invalidação automática no PUT.
+
+### Alterado
+- **`notifyAdminNewComment`**: Aceita 3º parâmetro (`toEmail`) para destinatário configurável de notificações por email.
+- **Defaults Forward-Compatible**: `getSettings()` faz merge `{ ...DEFAULT, ...stored }` para compatibilidade com campos adicionados em versões futuras.
+
 ## [v03.06.04] - 2026-04-07
 ### Adicionado
 - **Turnstile CAPTCHA Integration**: Prop `turnstileSiteKey` injetada no `PostReader` via `App.tsx`, habilitando o widget Cloudflare Turnstile no formulário de comentários públicos.

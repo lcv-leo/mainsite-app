@@ -34,15 +34,36 @@ export interface ModerationDecision {
 }
 
 export interface ModerationSettings {
-  autoApproveThreshold: number;
-  autoRejectThreshold: number;
-  criticalCategories: string[];
-  requireApproval: boolean;
+  // ── Funcionalidades ──
   commentsEnabled: boolean;
   ratingsEnabled: boolean;
   allowAnonymous: boolean;
+  requireEmail: boolean;
+  requireApproval: boolean;
+
+  // ── Limites de conteúdo ──
+  minCommentLength: number;
   maxCommentLength: number;
   maxNestingDepth: number;
+
+  // ── Moderação automática (GCP NL API v2) ──
+  autoApproveThreshold: number;
+  autoRejectThreshold: number;
+  criticalCategories: string[];
+  apiUnavailableBehavior: 'pending' | 'approve'; // O que fazer quando GCP API está offline
+
+  // ── Anti-spam ──
+  rateLimitPerIpPerHour: number;      // 0 = sem limite
+  blocklistWords: string[];           // Palavras/frases que causam rejeição imediata
+  linkPolicy: 'allow' | 'pending' | 'block'; // Política para comentários com URLs
+  duplicateWindowHours: number;       // Janela de dedup (padrão 24h)
+
+  // ── Ciclo de vida ──
+  autoCloseAfterDays: number;         // 0 = nunca fecha; >0 = fecha comentários após N dias
+
+  // ── Notificações ──
+  notifyOnNewComment: boolean;
+  notifyEmail: string;                // Email de destino para notificações
 }
 
 // ── GCP Natural Language API v2 — moderateText ──────────────────────────────
@@ -337,6 +358,7 @@ export async function verifyTurnstile(token: string, secretKey: string, ip: stri
 export async function notifyAdminNewComment(
   resendApiKey: string,
   comment: { authorName: string; content: string; postTitle: string; status: string },
+  toEmail = 'cal@reflexosdaalma.blog',
 ): Promise<void> {
   const statusLabel = comment.status === 'approved' ? '✅ Aprovado automaticamente'
     : comment.status === 'rejected_auto' ? '🚫 Rejeitado automaticamente'
@@ -375,7 +397,7 @@ export async function notifyAdminNewComment(
       },
       body: JSON.stringify({
         from: 'Reflexos da Alma <mainsite@lcv.app.br>',
-        to: 'cal@reflexosdaalma.blog',
+        to: toEmail,
         subject: `${statusLabel} — Comentário de ${comment.authorName}: ${comment.postTitle}`,
         html,
       }),

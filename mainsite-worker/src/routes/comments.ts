@@ -34,6 +34,28 @@ const comments = new Hono<{ Bindings: Env }>();
 let cachedModSettings: ModerationSettings | null = null;
 let modSettingsFetchedAt = 0;
 
+const DEFAULT_MOD_SETTINGS: ModerationSettings = {
+  commentsEnabled: true,
+  ratingsEnabled: true,
+  allowAnonymous: true,
+  requireEmail: false,
+  requireApproval: false,
+  minCommentLength: 3,
+  maxCommentLength: 2000,
+  maxNestingDepth: 2,
+  autoApproveThreshold: 0.3,
+  autoRejectThreshold: 0.8,
+  criticalCategories: ['Toxic', 'Insult', 'Profanity', 'Sexual', 'Violent', 'Derogatory'],
+  apiUnavailableBehavior: 'pending',
+  rateLimitPerIpPerHour: 10,
+  blocklistWords: [],
+  linkPolicy: 'allow',
+  duplicateWindowHours: 24,
+  autoCloseAfterDays: 0,
+  notifyOnNewComment: true,
+  notifyEmail: 'cal@reflexosdaalma.blog',
+};
+
 async function getModerationSettings(db: D1Database): Promise<ModerationSettings> {
   const now = Date.now();
   if (cachedModSettings && now - modSettingsFetchedAt < 60_000) return cachedModSettings;
@@ -43,20 +65,11 @@ async function getModerationSettings(db: D1Database): Promise<ModerationSettings
   ).first<{ payload: string }>();
 
   if (record) {
-    cachedModSettings = JSON.parse(record.payload) as ModerationSettings;
+    // Merge com defaults para garantir que novos campos tenham valor
+    const stored = JSON.parse(record.payload) as Partial<ModerationSettings>;
+    cachedModSettings = { ...DEFAULT_MOD_SETTINGS, ...stored };
   } else {
-    // Defaults seguros caso settings estejam ausentes
-    cachedModSettings = {
-      autoApproveThreshold: 0.3,
-      autoRejectThreshold: 0.8,
-      criticalCategories: ['Toxic', 'Insult', 'Profanity', 'Sexual', 'Violent', 'Derogatory'],
-      requireApproval: false,
-      commentsEnabled: true,
-      ratingsEnabled: true,
-      allowAnonymous: true,
-      maxCommentLength: 2000,
-      maxNestingDepth: 2,
-    };
+    cachedModSettings = { ...DEFAULT_MOD_SETTINGS };
   }
   modSettingsFetchedAt = now;
   return cachedModSettings;
@@ -100,10 +113,17 @@ comments.post('/api/comments', async (c) => {
       return c.json({ error: 'Post ID e conteúdo são obrigatórios.' }, 400);
     }
 
-    // Validação de comprimento
+    // Validação de comprimento máximo
     if (body.content.length > settings.maxCommentLength) {
       return c.json({
         error: `Comentário excede o limite de ${settings.maxCommentLength} caracteres.`,
+      }, 400);
+    }
+
+    // Validação de comprimento mínimo
+    if (body.content.trim().length < settings.minCommentLength) {
+      return c.json({
+        error: `Comentário deve ter ao menos ${settings.minCommentLength} caractere(s).`,
       }, 400);
     }
 
@@ -112,8 +132,32 @@ comments.post('/api/comments', async (c) => {
       return c.json({ error: 'Nome é obrigatório.' }, 400);
     }
 
-    // Validação de threading (profundidade máxima)
+    // Validação de email (se requireEmail habilitado)
+    if (settings.requireEmail && (!body.author_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.author_email.trim()))) {
+      return c.json({ error: 'Email válido é obrigatório.' }, 400);
+    }
+
+    // ── Auto-close: rejeitar em posts antigos ────────────────────────────
+    if (settings.autoCloseAfterDays > 0) {
+      const post = await c.env.DB.prepare(
+        "SELECT created_at FROM mainsite_posts WHERE id = ?"
+      ).bind(body.post_id).first<{ created_at: string }>();
+
+      if (post) {
+        const postDate = new Date(post.created_at.replace(' ', 'T') + (post.created_at.includes('Z') ? '' : 'Z'));
+        const ageDays = (Date.now() - postDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (ageDays > settings.autoCloseAfterDays) {
+          return c.json({ error: `Comentários foram encerrados para este post (após ${settings.autoCloseAfterDays} dias).` }, 403);
+        }
+      }
+    }
+
+    // Validação de threading (profundidade máxima configurável)
     if (body.parent_id) {
+      if (settings.maxNestingDepth === 0) {
+        return c.json({ error: 'Respostas a comentários estão desabilitadas.' }, 400);
+      }
+
       const parent = await c.env.DB.prepare(
         'SELECT parent_id FROM mainsite_comments WHERE id = ? AND status = ?'
       ).bind(body.parent_id, 'approved').first<{ parent_id: number | null }>();
@@ -146,11 +190,25 @@ comments.post('/api/comments', async (c) => {
     const userAgent = c.req.header('user-agent') || 'unknown';
     const ipHash = await hashIdentity(clientIp, userAgent, `comment:${body.post_id}`);
 
-    // Detecção de conteúdo duplicado (mesmo autor, mesmo conteúdo, mesmo post, últimas 24h)
+    // ── Rate limiting por IP (configurável) ──────────────────────────────
+    if (settings.rateLimitPerIpPerHour > 0) {
+      const windowHours = 1;
+      const recentCount = await c.env.DB.prepare(
+        `SELECT COUNT(*) as cnt FROM mainsite_comments
+         WHERE author_ip_hash = ? AND created_at > datetime('now', '-${windowHours} hours')`
+      ).bind(ipHash).first<{ cnt: number }>();
+
+      if (recentCount && recentCount.cnt >= settings.rateLimitPerIpPerHour) {
+        return c.json({ error: 'Limite de comentários por hora atingido. Tente novamente mais tarde.' }, 429);
+      }
+    }
+
+    // Detecção de conteúdo duplicado (janela configurável)
+    const dupWindow = settings.duplicateWindowHours || 24;
     const duplicateCheck = await c.env.DB.prepare(
       `SELECT id FROM mainsite_comments
        WHERE post_id = ? AND author_ip_hash = ? AND content = ?
-       AND created_at > datetime('now', '-1 day')
+       AND created_at > datetime('now', '-${dupWindow} hours')
        LIMIT 1`
     ).bind(body.post_id, ipHash, body.content).first();
 
@@ -167,6 +225,29 @@ comments.post('/api/comments', async (c) => {
       return c.json({ error: 'Comentário não pode estar vazio.' }, 400);
     }
 
+    // ── Blocklist de palavras (rejeição imediata) ────────────────────────
+    if (settings.blocklistWords.length > 0) {
+      const contentLower = sanitizedContent.toLowerCase();
+      const blocked = settings.blocklistWords.find(
+        word => contentLower.includes(word.toLowerCase())
+      );
+      if (blocked) {
+        return c.json({ error: 'Comentário contém conteúdo não permitido.' }, 403);
+      }
+    }
+
+    // ── Política de links ────────────────────────────────────────────────
+    const hasLinks = /https?:\/\/|www\./i.test(sanitizedContent);
+    let linkOverrideStatus: string | null = null;
+    if (hasLinks) {
+      if (settings.linkPolicy === 'block') {
+        return c.json({ error: 'Links não são permitidos nos comentários.' }, 400);
+      }
+      if (settings.linkPolicy === 'pending') {
+        linkOverrideStatus = 'pending';
+      }
+    }
+
     // ── Moderação via GCP Natural Language API ───────────────────────────
     const gcpApiKey = c.env.GCP_NL_API_KEY;
     let moderationScores: string | null = null;
@@ -181,11 +262,14 @@ comments.post('/api/comments', async (c) => {
       moderationDecisionJson = JSON.stringify(decision);
       commentStatus = decision.action;
     } else {
-      // Sem chave GCP → todos pendentes para revisão manual
-      commentStatus = 'pending';
+      // Sem chave GCP → comportamento configurável
+      commentStatus = settings.apiUnavailableBehavior === 'approve' ? 'approved' : 'pending';
     }
 
-
+    // Link policy override (se linkPolicy = 'pending', força pending independente da IA)
+    if (linkOverrideStatus === 'pending' && commentStatus === 'approved') {
+      commentStatus = 'pending';
+    }
 
     // ── Persistência ────────────────────────────────────────────────────
     const result = await c.env.DB.prepare(
@@ -207,14 +291,14 @@ comments.post('/api/comments', async (c) => {
 
     // ── Notificação por email (async, non-blocking) ─────────────────────
     const postTitle = await getPostTitle(c.env.DB, body.post_id);
-    if (c.env.RESEND_API_KEY) {
+    if (settings.notifyOnNewComment && c.env.RESEND_API_KEY && settings.notifyEmail) {
       c.executionCtx.waitUntil(
         notifyAdminNewComment(c.env.RESEND_API_KEY, {
           authorName: (body.author_name || 'Anônimo').trim(),
           content: sanitizedContent.substring(0, 500),
           postTitle,
           status: commentStatus,
-        })
+        }, settings.notifyEmail)
       );
     }
 
@@ -438,4 +522,61 @@ comments.post('/api/comments/admin/bulk', requireAuth, async (c) => {
   }
 });
 
+// ── GET /api/comments/admin/settings — Carrega configurações de moderação ──
+
+comments.get('/api/comments/admin/settings', requireAuth, async (c) => {
+  try {
+    const settings = await getModerationSettings(c.env.DB);
+    return c.json({ settings });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+// ── PUT /api/comments/admin/settings — Salva configurações de moderação ──
+
+comments.put('/api/comments/admin/settings', requireAuth, async (c) => {
+  try {
+    const body = await c.req.json<Partial<ModerationSettings>>();
+
+    // Carrega settings atuais como base (já inclui todos os defaults)
+    const current = await getModerationSettings(c.env.DB);
+
+    // Merge: current (com defaults) + body (override parcial)
+    const merged: ModerationSettings = { ...current, ...body };
+
+    // Validações
+    if (merged.autoApproveThreshold < 0 || merged.autoApproveThreshold > 1) {
+      return c.json({ error: 'autoApproveThreshold deve estar entre 0 e 1' }, 400);
+    }
+    if (merged.autoRejectThreshold < 0 || merged.autoRejectThreshold > 1) {
+      return c.json({ error: 'autoRejectThreshold deve estar entre 0 e 1' }, 400);
+    }
+    if (merged.autoApproveThreshold >= merged.autoRejectThreshold) {
+      return c.json({ error: 'autoApproveThreshold deve ser menor que autoRejectThreshold' }, 400);
+    }
+    if (merged.maxCommentLength < 10 || merged.maxCommentLength > 10000) {
+      return c.json({ error: 'maxCommentLength deve estar entre 10 e 10000' }, 400);
+    }
+    if (merged.minCommentLength < 1 || merged.minCommentLength > merged.maxCommentLength) {
+      return c.json({ error: 'minCommentLength deve estar entre 1 e maxCommentLength' }, 400);
+    }
+
+    // Upsert no D1
+    await c.env.DB.prepare(
+      `INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/moderation', ?)
+       ON CONFLICT(id) DO UPDATE SET payload = excluded.payload`
+    ).bind(JSON.stringify(merged)).run();
+
+    // Invalida cache in-memory
+    cachedModSettings = null;
+    modSettingsFetchedAt = 0;
+
+    return c.json({ success: true, settings: merged });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
 export default comments;
+
