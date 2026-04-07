@@ -1,5 +1,16 @@
 # Changelog — Mainsite Frontend
 
+## [v03.06.04] - 2026-04-07
+### Adicionado
+- **Turnstile CAPTCHA Integration**: Prop `turnstileSiteKey` injetada no `PostReader` via `App.tsx`, habilitando o widget Cloudflare Turnstile no formulário de comentários públicos.
+- **Build Pipeline — `VITE_TURNSTILE_SITE_KEY`**: Variável de ambiente injetada no `deploy.yml` (GitHub Actions) para disponibilização em build-time do Vite.
+
+### Segurança
+- **Vite 8.0.3 → 8.0.7**: Correção de 3 CVEs (CVE-2026-39364 server.fs.deny bypass, CVE-2026-39363 WebSocket arbitrary file read, CVE-2026-39365 path traversal `.map` handling).
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.03 → APP v03.06.04
+
 ## [v03.06.03] - 2026-04-07
 ### Corrigido
 - **Autoupdate (ContentSync) — Navegação para Home**: Corrigido bug onde o `refreshPosts` fazia `pushState('/p/{id}')` após aceitar a atualização de conteúdo. Isso fixava a URL em link curto (`/p/123`), tornava `isDeepLinkedPost = true` e prendia o leitor nesse link com o botão Home Page visível. Agora o `refreshPosts` navega para `/` (raiz) — comportamento idêntico ao botão Home Page — mantendo `isDeepLinkedPost = false` e carregando o headline atualizado como o primeiro post da home.

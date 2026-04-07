@@ -1,5 +1,19 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.03.01] — 2026-04-07
+### Adicionado
+- **GCP NL API — Dual-Mode Auth (`moderation.ts`)**: Detecção automática do formato de credencial. Se `GCP_NL_API_KEY` contém JSON de Service Account, gera JWT via Web Crypto API e troca por access token OAuth2. Se é API Key simples (`AIzaSy...`), usa `?key=` na URL. Compatível com ambos os cenários sem configuração manual.
+- **Error Logging — GCP NL API**: Response body agora logado em caso de erro HTTP, permitindo diagnóstico preciso (quota, API desabilitada, credencial inválida).
+
+### Corrigido
+- **Turnstile — Validação Estrita Restaurada**: Revertido o afrouxamento temporário da validação Turnstile. Comentários sem token são rejeitados com HTTP 400. Tokens inválidos são rejeitados com HTTP 403.
+
+### Alterado
+- **Secrets Store Cleanup (`wrangler.json`)**: Removidos `GCP_NL_API_KEY` e `TURNSTILE_SECRET_KEY` do `secrets_store_secrets` (excedem limite de caracteres). Gerenciados como Environment Variables no Dashboard Cloudflare.
+
+### Controle de versão
+- `mainsite-worker`: v02.03.00 → v02.03.01
+
 ## [v02.03.00] — 2026-04-07
 ### Adicionado
 - **Content Fingerprint System**: Motor de versionamento atômico para sincronização em tempo real com o frontend.
