@@ -30,9 +30,7 @@ const comments = new Hono<{ Bindings: Env }>();
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Carrega as configurações de moderação do D1 com cache in-memory de 60s */
-let cachedModSettings: ModerationSettings | null = null;
-let modSettingsFetchedAt = 0;
+/** Carrega as configurações de moderação diretamente do D1 (sem cache) */
 
 const DEFAULT_MOD_SETTINGS: ModerationSettings = {
   commentsEnabled: true,
@@ -57,22 +55,15 @@ const DEFAULT_MOD_SETTINGS: ModerationSettings = {
 };
 
 async function getModerationSettings(db: D1Database): Promise<ModerationSettings> {
-  const now = Date.now();
-  if (cachedModSettings && now - modSettingsFetchedAt < 60_000) return cachedModSettings;
-
   const record = await db.prepare(
     "SELECT payload FROM mainsite_settings WHERE id = 'mainsite/moderation'"
   ).first<{ payload: string }>();
 
   if (record) {
-    // Merge com defaults para garantir que novos campos tenham valor
     const stored = JSON.parse(record.payload) as Partial<ModerationSettings>;
-    cachedModSettings = { ...DEFAULT_MOD_SETTINGS, ...stored };
-  } else {
-    cachedModSettings = { ...DEFAULT_MOD_SETTINGS };
+    return { ...DEFAULT_MOD_SETTINGS, ...stored };
   }
-  modSettingsFetchedAt = now;
-  return cachedModSettings;
+  return { ...DEFAULT_MOD_SETTINGS };
 }
 
 /** Busca o título do post pelo ID */
@@ -593,9 +584,8 @@ comments.put('/api/comments/admin/settings', requireAuth, async (c) => {
        ON CONFLICT(id) DO UPDATE SET payload = excluded.payload`
     ).bind(JSON.stringify(merged)).run();
 
-    // Invalida cache in-memory
-    cachedModSettings = null;
-    modSettingsFetchedAt = 0;
+
+
 
     return c.json({ success: true, settings: merged });
   } catch (err) {
