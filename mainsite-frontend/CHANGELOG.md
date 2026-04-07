@@ -1,5 +1,13 @@
 # Changelog — Mainsite Frontend
 
+## [v03.06.06] - 2026-04-07
+### Corrigido
+- **Ícones de Pagamento (DonationModal)**: Corrigida regressão crítica onde ícones de bandeiras (Mastercard, Visa, Elo, Amex) não apareciam no formulário SumUp. Causa raiz: `VITE_BRAND_ICONS_BASE_URL` no `deploy.yml` apontava para domínio externo defunto (`mainsite-app.lcv.rio.br`), violando diretiva de integração interna Cloudflare. Corrigido para path relativo `/api/uploads/brands`.
+- **Ordem de Rotas (Pages Functions)**: Movido bypass `/api/*` no `[[path]].ts` para ANTES da checagem de extensão estática, evitando que URLs como `/api/uploads/brands/*.svg` fossem incorretamente interceptadas pelo handler de arquivos estáticos.
+
+### Adicionado
+- **SumUp Logo (R2)**: Upload do logo oficial da SumUp como SVG no bucket R2 (`brands/sumup.svg`).
+
 ## [v03.06.05] - 2026-04-07
 ### Adicionado
 - **Placeholders Dinâmicos (CommentsSection)**: Campos Nome e E-mail mudam automaticamente entre "(obrigatório)" e "(opcional)" conforme configuração do admin (fetch de `/api/comments/config`).

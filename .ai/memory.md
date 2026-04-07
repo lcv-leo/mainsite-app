@@ -1,5 +1,19 @@
 # AI Memory Log - MainSite
 
+## 2026-04-07 — Mainsite v03.06.06 — Brand Icons Fix + Route Order Hardening
+### Scope
+Correção de regressão crítica dos ícones de bandeiras de pagamento no formulário de doação SumUp.
+### Causa Raiz
+`VITE_BRAND_ICONS_BASE_URL` no `deploy.yml` do GitHub Actions apontava para o domínio externo defunto `https://mainsite-app.lcv.rio.br/api/uploads/brands`, causando `ERR_NAME_NOT_RESOLVED` em todas as `<img>` de brand icons. Violava a diretiva Cloudflare Internal Integration.
+### Corrigido
+- **deploy.yml**: URL absoluta substituída por path relativo `/api/uploads/brands` — resolvido via Service Binding interno.
+- **[[path]].ts (Pages Functions)**: Bypass de `/api/*` movido para ANTES da checagem de extensão estática, prevenindo interceptação incorreta de URLs como `/api/uploads/brands/*.svg`.
+### Adicionado
+- **brands/sumup.svg (R2)**: Logo oficial da SumUp convertido de PNG para SVG com dados raster embarcados via base64, uploadado ao bucket `mainsite-media`.
+### Lição Operacional
+- **Never use external URLs for intra-Cloudflare communication**: URLs absolutas para domínios que podem ser renomeados ou removidos sempre quebrarão. Preferir paths relativos com Service Binding.
+- **Route order matters in catch-all middleware**: Checagens de API devem preceder checagens de extensão de arquivo para evitar colisões com assets servidos por workers.
+
 ## 2026-04-07 — Mainsite v03.06.05 + Worker v02.04.01 — Dynamic Config & Cache Removal
 ### Scope
 Ajustes de UX no formulário de comentários com placeholders dinâmicos baseados em configuração do admin, remoção do cache de 60s do motor de moderação e correção de roteamento.

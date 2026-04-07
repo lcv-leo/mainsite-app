@@ -32,6 +32,13 @@ export async function onRequest(context: EventContext<Env, string, Record<string
     return context.next();
   }
 
+  // Bypass para rotas de API — deve ficar ANTES da checagem de extensão estática
+  // para que URLs como /api/uploads/brands/mastercard.svg não sejam interceptadas
+  // pelo handler de arquivos estáticos.
+  if (url.pathname.startsWith('/api/')) {
+    return context.next();
+  }
+
   // Bypass para arquivos estáticos com extensão conhecida.
   // Se o servidor retornar text/html para um asset (fallback SPA),
   // responde 404 limpo em vez de HTML com MIME errado.
@@ -43,11 +50,6 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       return new Response('Not Found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     }
     return assetResponse;
-  }
-
-  // Bypass para rotas de API
-  if (url.pathname.startsWith('/api/')) {
-    return context.next();
   }
 
   // 1. Obtém a resposta original (index.html estático do React/Vite)
