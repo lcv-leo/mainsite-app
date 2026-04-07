@@ -149,32 +149,129 @@ const App = () => {
     return () => window.removeEventListener('pointerdown', trackPointer);
   }, []);
 
+  // ── Global Content Protection Layer ───────────────────────────
   useEffect(() => {
+    // --- Keyboard shortcut interception ---
     const handleKeydown = (e: KeyboardEvent) => {
       const isMeta = e.ctrlKey || e.metaKey;
+      const isShift = e.shiftKey;
       const key = (e.key || '').toLowerCase();
 
+      // PrintScreen — clear clipboard as OS captures before JS fires
       if (e.key === 'PrintScreen') {
         e.preventDefault();
+        try { navigator.clipboard.writeText(''); } catch { /* noop */ }
         showNotification('Capturas de tela não são permitidas neste conteúdo.', 'error');
         return;
       }
 
+      // Ctrl+P — print
       if (isMeta && key === 'p') {
         e.preventDefault();
         showNotification('Impressão desabilitada para proteção do conteúdo.', 'error');
         return;
       }
 
+      // Ctrl+C — copy
       if (isMeta && key === 'c' && !isEditableTarget(e.target)) {
         e.preventDefault();
         showNotification('Cópia de conteúdo desabilitada.', 'error');
+        return;
+      }
+
+      // Ctrl+X — cut
+      if (isMeta && key === 'x' && !isEditableTarget(e.target)) {
+        e.preventDefault();
+        return;
+      }
+
+      // Ctrl+A — select all
+      if (isMeta && key === 'a' && !isEditableTarget(e.target)) {
+        e.preventDefault();
+        showNotification('Seleção de conteúdo desabilitada.', 'error');
+        return;
+      }
+
+      // Ctrl+S — save page
+      if (isMeta && key === 's') {
+        e.preventDefault();
+        showNotification('Salvamento de página desabilitado.', 'error');
+        return;
+      }
+
+      // Ctrl+U — view source
+      if (isMeta && key === 'u') {
+        e.preventDefault();
+        return;
+      }
+
+      // F12 / Ctrl+Shift+I / Ctrl+Shift+C / Ctrl+Shift+J — DevTools
+      if (e.key === 'F12') { e.preventDefault(); return; }
+      if (isMeta && isShift && (key === 'i' || key === 'c' || key === 'j')) {
+        e.preventDefault();
+        return;
       }
     };
 
+    // --- Context menu (right-click) blocked globally ---
+    const handleContextMenu = (e: Event) => {
+      e.preventDefault();
+      return false;
+    };
+
+    // --- Copy/Cut/Drag events blocked globally ---
+    const handleCopy = (e: Event) => {
+      if (!isEditableTarget(e.target as EventTarget)) {
+        e.preventDefault();
+      }
+    };
+
+    // --- Selection clearing: prevent text from staying selected ---
+    const handleSelectionChange = () => {
+      const sel = document.getSelection();
+      if (sel && sel.toString().length > 0) {
+        // Allow selection inside editable fields (forms)
+        const anchor = sel.anchorNode;
+        const parentEl = anchor instanceof HTMLElement ? anchor : anchor?.parentElement;
+        if (parentEl && isEditableTarget(parentEl)) return;
+        sel.removeAllRanges();
+      }
+    };
+
+    // --- Visibility change: wipe clipboard when user leaves tab ---
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        try { navigator.clipboard.writeText(''); } catch { /* noop */ }
+      }
+    };
+
+    // --- Global protection CSS ---
     const style = document.createElement('style');
-    style.setAttribute('data-print-protection', 'true');
+    style.setAttribute('data-content-protection', 'true');
     style.textContent = `
+      /* Global selection/copy/drag prevention */
+      body, body * {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -ms-user-select: none !important;
+        -moz-user-select: none !important;
+        -webkit-touch-callout: none !important;
+      }
+      /* Allow selection in form fields */
+      input, textarea, select, [contenteditable="true"] {
+        user-select: text !important;
+        -webkit-user-select: text !important;
+        -ms-user-select: text !important;
+        -moz-user-select: text !important;
+        -webkit-touch-callout: default !important;
+      }
+      /* Prevent drag on images and links */
+      img, a, svg, video, canvas {
+        -webkit-user-drag: none !important;
+        user-drag: none !important;
+        pointer-events: auto;
+      }
+      /* Print: hide everything, show warning */
       @media print {
         body * {
           visibility: hidden !important;
@@ -200,9 +297,22 @@ const App = () => {
     `;
 
     document.head.appendChild(style);
-    window.addEventListener('keydown', handleKeydown);
+    document.addEventListener('keydown', handleKeydown, { capture: true });
+    document.addEventListener('contextmenu', handleContextMenu, { capture: true });
+    document.addEventListener('copy', handleCopy, { capture: true });
+    document.addEventListener('cut', handleCopy, { capture: true });
+    document.addEventListener('dragstart', handleContextMenu, { capture: true });
+    document.addEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
-      window.removeEventListener('keydown', handleKeydown);
+      document.removeEventListener('keydown', handleKeydown, { capture: true });
+      document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
+      document.removeEventListener('copy', handleCopy, { capture: true });
+      document.removeEventListener('cut', handleCopy, { capture: true });
+      document.removeEventListener('dragstart', handleContextMenu, { capture: true });
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.head.removeChild(style);
     };
   }, []);

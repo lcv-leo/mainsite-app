@@ -140,7 +140,7 @@ const PostReader = ({ post, activePalette, settings, onShare, onContact, onComme
         .post-content-area { border-left: 2px solid ${isDarkBase ? 'rgba(138,180,248,0.3)' : 'rgba(66,133,244,0.25)'}; padding-left: 24px; }
         @media (max-width: 768px) { .post-content-area { border-left: none; padding-left: 0; } }
         
-        .protected-content { user-select: none; -webkit-user-select: none; -ms-user-select: none; }
+        
         .p-content, .html-content p, .html-content ul, .html-content ol, .html-content blockquote, .html-content table { font-size: calc(${settings.shared.fontSize} * var(--text-zoom-scale, 1)); color: ${activePalette.fontColor}; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; }
         .html-content h1 { color: ${activePalette.titleColor}; margin: 2.5rem 0 1.2rem 0; font-weight: ${settings.shared.titleWeight || '700'}; font-size: ${settings.shared.titleFontSize || '1.8rem'}; letter-spacing: -0.02em; line-height: 1.2; transition: color 0.5s ease; }
         .html-content h2 { color: ${activePalette.titleColor}; margin: 2.5rem 0 1rem 0; font-weight: ${settings.shared.titleWeight || '700'}; font-size: revert; letter-spacing: -0.01em; line-height: 1.25; transition: color 0.5s ease; }
@@ -233,7 +233,7 @@ const PostReader = ({ post, activePalette, settings, onShare, onContact, onComme
 
 
       <div className="post-content-area">
-        <div className="protected-content" onCopy={(e) => { e.preventDefault(); return false; }} onContextMenu={(e) => { e.preventDefault(); return false; }} onDragStart={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }}>
+        <div>
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrgJSONLD) }} />
           {renderContent(post.content)}
         </div>
