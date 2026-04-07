@@ -621,6 +621,7 @@ const App = () => {
                   isNotHomePage={isDeepLinkedPost}
                   zoomLevel={zoomLevel}
                   apiUrl={API_URL}
+                  turnstileSiteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                 />
               ) : (<div style={{ textAlign: 'center', padding: '60px', opacity: 0.5, fontWeight: '700', letterSpacing: '2px' }}>A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>)}
           </>
