@@ -52,6 +52,15 @@ declare global {
 
 // ── Component ───────────────────────────────────────────────────────────────
 
+/** Settings públicas do formulário de comentários */
+interface CommentFormConfig {
+  commentsEnabled: boolean;
+  allowAnonymous: boolean;
+  requireEmail: boolean;
+  minCommentLength: number;
+  maxCommentLength: number;
+}
+
 const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: CommentsSectionProps) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [totalComments, setTotalComments] = useState(0);
@@ -59,6 +68,15 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
   const [showForm, setShowForm] = useState(false);
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Form config from backend moderation settings
+  const [formConfig, setFormConfig] = useState<CommentFormConfig>({
+    commentsEnabled: true,
+    allowAnonymous: true,
+    requireEmail: false,
+    minCommentLength: 3,
+    maxCommentLength: 2000,
+  });
 
   // Form state
   const [authorName, setAuthorName] = useState('');
@@ -72,6 +90,12 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
   const turnstileWidgetId = useRef<string | null>(null);
 
   const isDark = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
+
+  // Placeholders dinâmicos baseados nas configurações de moderação
+  const nameRequired = !formConfig.allowAnonymous;
+  const emailRequired = formConfig.requireEmail;
+  const namePlaceholder = `Nome (${nameRequired ? 'obrigatório' : 'opcional'})`;
+  const emailPlaceholder = `E-mail (${emailRequired ? 'obrigatório' : 'opcional'})`;
 
   // ── Fetch approved comments ───────────────────────────────────────────
 
@@ -88,6 +112,20 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
   }, [apiUrl, postId]);
 
   useEffect(() => { fetchComments(); }, [fetchComments]);
+
+  // ── Fetch form config (moderation settings públicas) ──────────────────
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${apiUrl}/comments/config`);
+        if (res.ok) {
+          const cfg = await res.json() as CommentFormConfig;
+          setFormConfig(cfg);
+        }
+      } catch { /* usa defaults */ }
+    })();
+  }, [apiUrl]);
 
   // ── Turnstile initialization ──────────────────────────────────────────
 
@@ -395,7 +433,8 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                 <input
                   type="text"
-                  placeholder="Nome (opcional)"
+                  placeholder={namePlaceholder}
+                  required={nameRequired}
                   value={authorName}
                   onChange={e => setAuthorName(e.target.value)}
                   maxLength={100}
@@ -408,7 +447,8 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
                 />
                 <input
                   type="email"
-                  placeholder="E-mail (opcional)"
+                  placeholder={emailPlaceholder}
+                  required={emailRequired}
                   value={authorEmail}
                   onChange={e => setAuthorEmail(e.target.value)}
                   maxLength={255}
@@ -425,7 +465,7 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
                 placeholder="Compartilhe sua reflexão..."
                 value={content}
                 onChange={e => setContent(e.target.value)}
-                maxLength={2000}
+                maxLength={formConfig.maxCommentLength}
                 rows={4}
                 required
                 style={{
