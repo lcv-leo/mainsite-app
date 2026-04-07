@@ -1,5 +1,24 @@
 # AI Memory Log - MainSite
 
+## 2026-04-07 — Mainsite v03.06.05 + Worker v02.04.01 — Dynamic Config & Cache Removal
+### Scope
+Ajustes de UX no formulário de comentários com placeholders dinâmicos baseados em configuração do admin, remoção do cache de 60s do motor de moderação e correção de roteamento.
+### Corrigido
+- **Rota `/api/comments/config`**: Movida antes de `/:postId` no Hono para evitar captura parametrizada incorreta que retornava "Post ID inválido".
+- **Cache 60s Removido**: Settings de moderação agora são lidos diretamente do D1 a cada request — propagação instantânea de alterações do admin.
+### Adicionado
+- **Placeholders Dinâmicos (CommentsSection)**: Fetch de `/api/comments/config` no mount → campos Nome e E-mail exibem "(obrigatório)" ou "(opcional)" conforme `allowAnonymous` / `requireEmail`.
+- **Autocomplete Browser**: Atributos `id="name"`, `name="name"`, `autoComplete="name"` no campo Nome e equivalentes no E-mail.
+### Alterado
+- **Turnstile Widget**: `compact` (150×140) → `normal` (300×65) para formato retangular largo e fino.
+- **ModerationPanel (admin-app v01.81.01)**: Toggle "Permitir anônimos" renomeado para "Exigir nome" com lógica invertida (`!allowAnonymous`), paritário com "Exigir email". Mensagem de cache removida.
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.04 → APP v03.06.05
+- `mainsite-worker`: v02.04.00 → v02.04.01
+- `admin-app`: APP v01.81.00 → APP v01.81.01
+### Diretiva
+- **Deploy somente via GitHub Actions** (git push → CI/CD). Nunca via `wrangler deploy` direto.
+
 ## 2026-04-07 — Mainsite Worker v02.04.00 — Moderation Engine Full Configurability
 ### Scope
 Expansão do motor de moderação de comentários com 18 parâmetros configuráveis, rotas admin GET/PUT settings, e enforcement backend completo.

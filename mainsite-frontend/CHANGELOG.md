@@ -1,5 +1,21 @@
 # Changelog — Mainsite Frontend
 
+## [v03.06.05] - 2026-04-07
+### Adicionado
+- **Placeholders Dinâmicos (CommentsSection)**: Campos Nome e E-mail mudam automaticamente entre "(obrigatório)" e "(opcional)" conforme configuração do admin (fetch de `/api/comments/config`).
+- **Autocomplete Browser**: Atributos `id`, `name` e `autoComplete` adicionados aos campos Nome e E-mail para compatibilidade com preenchimento automático do navegador.
+
+### Alterado
+- **Turnstile Widget**: Alterado de `compact` (150×140px, quadrado) para `normal` (300×65px, retângulo largo e fino).
+
+### Corrigido
+- **Rota /api/comments/config**: Movida antes da rota parametrizada `/:postId` para evitar captura incorreta pelo Hono.
+
+## [mainsite-worker v02.04.01] - 2026-04-07
+### Alterado
+- **Cache de Settings Removido**: Cache in-memory de 60s eliminado. Configurações de moderação são lidas diretamente do D1 a cada request para propagação instantânea.
+- **Rota /config Pública**: Endpoint GET `/api/comments/config` expõe `allowAnonymous`, `requireEmail`, `minCommentLength`, `maxCommentLength` para o frontend sem dados sensíveis.
+
 ## [mainsite-worker v02.04.00] - 2026-04-07
 ### Adicionado
 - **Motor de Moderação Configurável**: Expansão de `ModerationSettings` com 18 parâmetros (rate limit, blocklist, link policy, auto-close, require email, min/max length, duplicate detection, notification email config).
