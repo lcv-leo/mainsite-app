@@ -1,5 +1,39 @@
 # AI Memory Log - MainSite
 
+## 2026-04-07 — Autoupdate: Fix Navegação Presa em Link Curto
+### Scope
+Correção do `refreshPosts` que fazia `pushState('/p/{id}')` após aceitar autoupdate, prendendo o leitor em link curto com `isDeepLinkedPost = true`.
+### Corrigido
+- **pushState → '/'**: Alterado de `/p/${target.id}` para `/` (raiz). Agora o leitor vai para a home (headline atualizado como primeiro post), idêntico ao botão Home Page. `isDeepLinkedPost` permanece `false`.
+- **newHeadlineId não mais consumido**: O `refreshPosts` não depende mais de `contentSync.newHeadlineId` — sempre carrega o primeiro post (headline) da lista atualizada. O campo permanece no hook para uso futuro.
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.02 → APP v03.06.03
+
+## 2026-04-07 — Anti-Screenshot: Window Blur Defense
+### Scope
+Mitigação contra Ferramenta de Captura do Windows (Win+Shift+S), Game Bar e aplicativos de screenshot via `window.blur`/`focus` defense.
+### Adicionado
+- **Window Blur → CSS Blur**: Quando o browser perde foco (`window.blur`), `filter: blur(32px)` é aplicado instantaneamente ao `body`. Capturas de tela registram conteúdo borrado. Blur removido com transição suave (300ms) no `window.focus`.
+- **Win+Shift+S interception**: Combinação de teclas (`e.metaKey && e.shiftKey && key === 's'`) interceptada com `preventDefault()` e notificação.
+- **Limitação documentada**: Nenhuma solução web é 100% eficaz contra capturas no nível do SO — o framebuffer é capturado antes do JS reagir. O blur no `blur` event é a mitigação mais eficaz dentro das capacidades do browser.
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.01 → APP v03.06.02
+
+## 2026-04-07 — PostReader Heading Scaling Fix + Global Content Protection Overhaul
+### Scope
+Correção de escala de títulos no PostReader (H2-H6 maiores que H1) e refatoração total das proteções anti-cópia de escopo local (PostReader) para escopo global (App.tsx/document-level).
+### Corrigido
+- **Heading Scaling**: Removidos `font-size` hardcoded de H2-H6 no PostReader CSS. Agora usam `font-size: revert` — reseta para defaults do User-Agent (hierarquia nativa H1 > H2 > H3...). Inline styles do PostEditor/TipTap `FontSize` extension têm prioridade. `.h1-title` (banner) continua vinculado ao `titleFontSize` do admin Configurações.
+### Alterado
+- **Content Protection — Escopo Global**: Handlers locais do PostReader (`onCopy`, `onContextMenu`, `onDragStart`, `onCut` e CSS `.protected-content`) substituídos por 7 document-level event listeners em `App.tsx` com `{ capture: true }`:
+  - **Keyboard**: Ctrl+C/X/A/S/U/P, F12, Ctrl+Shift+I/C/J, PrintScreen (+ clipboard wipe)
+  - **DOM Events**: `contextmenu`, `copy`, `cut`, `dragstart`, `selectionchange` (auto-clear), `visibilitychange` (clipboard wipe on tab switch)
+  - **CSS Injetado Global**: `user-select: none !important` em `body *`, `-webkit-touch-callout: none` (iOS), `user-drag: none` em img/a/svg/video/canvas. Form fields isentos.
+  - **@media print**: Oculta tudo, exibe mensagem de aviso
+- **Form Fields UX**: `input`, `textarea`, `select`, `[contenteditable]` mantêm `user-select: text` para preservar digitação
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.00 → APP v03.06.01
+
 ## 2026-04-07 — Content Fingerprint System + Title Font Size Fix
 ### Scope
 Implementação do sistema de sincronização em tempo real entre `admin-app` e `mainsite-frontend` via Content Fingerprint, e correção do controle de tamanho de fonte do título principal.

@@ -1,6 +1,43 @@
 # Changelog — Mainsite Frontend
 
-## [v03.06.00] - 2026-04-07
+## [v03.06.03] - 2026-04-07
+### Corrigido
+- **Autoupdate (ContentSync) — Navegação para Home**: Corrigido bug onde o `refreshPosts` fazia `pushState('/p/{id}')` após aceitar a atualização de conteúdo. Isso fixava a URL em link curto (`/p/123`), tornava `isDeepLinkedPost = true` e prendia o leitor nesse link com o botão Home Page visível. Agora o `refreshPosts` navega para `/` (raiz) — comportamento idêntico ao botão Home Page — mantendo `isDeepLinkedPost = false` e carregando o headline atualizado como o primeiro post da home.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.02 → APP v03.06.03
+
+## [v03.06.02] - 2026-04-07
+### Adicionado
+- **Anti-Screenshot — Window Blur Defense**: Quando a janela do browser perde foco (`window.blur`), aplica-se `filter: blur(32px)` instantâneo ao `body`. Ferramentas de captura (Ferramenta de Captura do Windows / Win+Shift+S / Game Bar / aplicativos de screenshot) causam perda de foco no browser, fazendo qualquer captura registrar conteúdo completamente borrado. O blur é removido suavemente (300ms ease) ao retornar o foco (`window.focus`).
+- **Interceptação Win+Shift+S**: Combinação de teclas da Ferramenta de Captura do Windows (`Meta+Shift+S`) interceptada no handler `keydown` com `preventDefault()` e notificação de aviso.
+
+### Nota técnica
+- **Limitação inerente**: Nenhuma solução web é 100% eficaz contra capturas de tela no nível do OS (o sistema operacional captura o framebuffer antes do JavaScript reagir). A defesa por blur no `window.blur` é a mitigação mais eficaz possível dentro das capacidades do browser — captura-se conteúdo borrado em vez de limpo.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.01 → APP v03.06.02
+
+## [v03.06.01] - 2026-04-07
+### Corrigido
+- **PostReader — Escala de Títulos H2-H6**: Removidos `font-size` hardcoded (`1.75rem`, `1.4rem`, etc.) dos headings H2-H6 que causavam hierarquia invertida (H2/H3 maiores que H1). Agora utilizam `font-size: revert` — reseta para os defaults do User-Agent do navegador (hierarquia nativa H1 > H2 > H3...). Estilos inline do PostEditor (TipTap `FontSize` extension) continuam tendo prioridade. O título banner (`.h1-title`) permanece vinculado ao `titleFontSize` do admin Configurações.
+- **CSS `.protected-content` removido**: Regra de `user-select: none` escopada ao PostReader eliminada — proteção agora é global no `App.tsx`.
+
+### Alterado
+- **Proteção Anti-Cópia — Overhaul Global (`App.tsx`)**: Refatoração completa das proteções de conteúdo, anteriormente escopadas apenas ao `PostReader.protected-content`. Agora aplicadas globalmente em todo o `mainsite-frontend` via `document`-level event listeners com `{ capture: true }`:
+  - **Teclado**: Ctrl+C (copy), Ctrl+X (cut), Ctrl+A (select all), Ctrl+S (save), Ctrl+U (view source), Ctrl+P (print), F12, Ctrl+Shift+I/C/J (DevTools), PrintScreen (com wipe de clipboard).
+  - **Eventos DOM**: `contextmenu` (right-click), `copy`, `cut`, `dragstart` — todos bloqueados no nível do `document`.
+  - **Selection Clearing**: Listener `selectionchange` limpa automaticamente qualquer seleção de texto fora de campos editáveis.
+  - **Visibility Change**: Quando o usuário troca de aba, o clipboard é limpo (anti-screenshot tools).
+  - **CSS Global Injetado**: `user-select: none !important` em `body *`, `-webkit-touch-callout: none` (iOS long-press), `user-drag: none` em imagens/links/SVG. Campos de formulário (`input`, `textarea`, `select`) são isentos para preservar UX.
+  - **Print Bloqueada**: Regra `@media print` oculta todo o conteúdo e exibe mensagem de aviso.
+  - **Mitigação de PrintScreen**: `navigator.clipboard.writeText('')` tenta limpar o clipboard após detecção da tecla (limitação: OS captura antes do JS).
+
+### Removido
+- **PostReader — handlers inline de proteção**: `onCopy`, `onContextMenu`, `onDragStart`, `onCut` removidos do `<div className="protected-content">` — substituídos por listeners globais no `App.tsx`.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.00 → APP v03.06.01
 ### Adicionado
 - **Content Fingerprint — Notificação em Tempo Real**: Sistema de sincronização em tempo real entre `admin-app` e `mainsite-frontend`. Quando a matéria da homepage muda (rotação automática via cron ou ação manual do admin), o leitor é notificado com um toast premium.
   - **`useContentSync.ts`**: Hook de smart polling (30s) que detecta mudanças de versão no endpoint `GET /api/content-fingerprint`. Pausa automaticamente em background tabs e ignora o carregamento inicial para evitar falsos positivos.

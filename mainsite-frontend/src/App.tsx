@@ -29,7 +29,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.06.00';
+const APP_VERSION = 'APP v03.06.03';
 const SITE_NAME = 'Reflexos da Alma';
 const SITE_URL = 'https://www.reflexosdaalma.blog';
 
@@ -97,15 +97,13 @@ const App = () => {
       const freshPosts: Post[] = await res.json();
       setPosts(freshPosts);
 
-      // Navega para o novo headline
-      const targetId = contentSync.newHeadlineId;
-      const target = targetId
-        ? freshPosts.find(p => p.id === targetId)
-        : (freshPosts.length > 0 ? freshPosts[0] : null);
+      // Navega para a home (primeiro post = headline) — mesma função do botão Home.
+      // Usa '/' para que isDeepLinkedPost permaneça false.
+      const target = freshPosts.length > 0 ? freshPosts[0] : null;
 
       if (target) {
         setCurrentPost(target);
-        window.history.pushState({}, '', `/p/${target.id}`);
+        window.history.pushState({}, '', '/');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch {
@@ -211,6 +209,13 @@ const App = () => {
         e.preventDefault();
         return;
       }
+
+      // Win+Shift+S — Snipping Tool (Windows)
+      if (e.metaKey && isShift && key === 's') {
+        e.preventDefault();
+        showNotification('Capturas de tela não são permitidas neste conteúdo.', 'error');
+        return;
+      }
     };
 
     // --- Context menu (right-click) blocked globally ---
@@ -243,6 +248,18 @@ const App = () => {
       if (document.visibilityState === 'hidden') {
         try { navigator.clipboard.writeText(''); } catch { /* noop */ }
       }
+    };
+
+    // --- Anti-screenshot: blur content when window loses focus ---
+    // Snipping Tool, Game Bar, and other capture tools cause the browser
+    // to lose focus. By applying an instant blur, any capture gets blurred content.
+    const handleWindowBlur = () => {
+      document.body.style.filter = 'blur(32px)';
+      document.body.style.transition = 'filter 0ms';
+    };
+    const handleWindowFocus = () => {
+      document.body.style.transition = 'filter 300ms ease';
+      document.body.style.filter = 'none';
     };
 
     // --- Global protection CSS ---
@@ -304,6 +321,8 @@ const App = () => {
     document.addEventListener('dragstart', handleContextMenu, { capture: true });
     document.addEventListener('selectionchange', handleSelectionChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       document.removeEventListener('keydown', handleKeydown, { capture: true });
@@ -313,6 +332,10 @@ const App = () => {
       document.removeEventListener('dragstart', handleContextMenu, { capture: true });
       document.removeEventListener('selectionchange', handleSelectionChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.body.style.filter = '';
+      document.body.style.transition = '';
       document.head.removeChild(style);
     };
   }, []);
