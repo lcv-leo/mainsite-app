@@ -53,3 +53,4 @@ jobs:
           VITE_MERCADOPAGO_PUBLIC_KEY: ${{ secrets.VITE_MERCADOPAGO_PUBLIC_KEY }}
           VITE_SUMUP_PUBLIC_API_KEY: ${{ secrets.VITE_SUMUP_PUBLIC_API_KEY }}
           VITE_BRAND_ICONS_BASE_URL: https://mainsite-app.lcv.rio.br/api/uploads/brands
+          VITE_TURNSTILE_SITE_KEY: 0x4AAAAAAC11tvghUM34XXGV

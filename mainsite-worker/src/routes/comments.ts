@@ -185,6 +185,8 @@ comments.post('/api/comments', async (c) => {
       commentStatus = 'pending';
     }
 
+
+
     // ── Persistência ────────────────────────────────────────────────────
     const result = await c.env.DB.prepare(
       `INSERT INTO mainsite_comments
