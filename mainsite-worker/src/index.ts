@@ -37,6 +37,7 @@ import miscRoutes from './routes/misc.ts';
 import paymentsSumupRoutes from './routes/payments-sumup.ts';
 import paymentsMpRoutes from './routes/payments-mp.ts';
 import postSummariesRoutes from './routes/post-summaries.ts';
+import { bumpContentVersion } from './lib/content-version.ts';
 
 
 const app = new Hono<{ Bindings: Env }>();
@@ -209,6 +210,9 @@ export default {
 
       config.last_rotated_at = now;
       await env.DB.prepare("UPDATE mainsite_settings SET payload = ? WHERE id = 'mainsite/rotation'").bind(JSON.stringify(config)).run();
+
+      // Sinaliza mudança para o polling de content-fingerprint
+      ctx.waitUntil(bumpContentVersion(env.DB));
     } catch (err) {
       console.error('Falha no Job:', err);
     }

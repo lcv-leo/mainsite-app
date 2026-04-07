@@ -6,7 +6,7 @@
 // Versão: v02.13.00
 // Descrição: TypeScript migration. Frontend Orchestrator — fully typed state, events, refs and component props.
 
-import { useState, useEffect, useMemo, Suspense, lazy, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense, lazy, useRef, type FormEvent } from 'react';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 
 import type { Post, SiteSettings, DisclaimersConfig, ShareModalState, ToastState, ActivePalette, ContactFormData } from './types';
@@ -15,9 +15,11 @@ import PostReader from './components/PostReader';
 import ArchiveMenu from './components/ArchiveMenu';
 import FloatingControls from './components/FloatingControls';
 import { ComplianceBanner } from './components/ComplianceBanner';
+import ContentUpdateToast from './components/ContentUpdateToast';
 import { LicencasModule } from './modules/compliance/LicencasModule';
 import { useTextZoom } from './hooks/useTextZoom';
 import { useTextZoomCloud } from './hooks/useTextZoomCloud';
+import { useContentSync } from './hooks/useContentSync';
 
 const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
 const ContactModal = lazy(() => import('./components/ContactModal'));
@@ -27,7 +29,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.05.01';
+const APP_VERSION = 'APP v03.06.00';
 const SITE_NAME = 'Reflexos da Alma';
 const SITE_URL = 'https://www.reflexosdaalma.blog';
 
@@ -84,6 +86,34 @@ const App = () => {
     userId: undefined,
     enabled: true,
   });
+
+  // --- Content Sync: polling leve para detectar mudanças na homepage ---
+  const contentSync = useContentSync(API_URL, !loading);
+
+  const refreshPosts = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/posts`);
+      if (!res.ok) return;
+      const freshPosts: Post[] = await res.json();
+      setPosts(freshPosts);
+
+      // Navega para o novo headline
+      const targetId = contentSync.newHeadlineId;
+      const target = targetId
+        ? freshPosts.find(p => p.id === targetId)
+        : (freshPosts.length > 0 ? freshPosts[0] : null);
+
+      if (target) {
+        setCurrentPost(target);
+        window.history.pushState({}, '', `/p/${target.id}`);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } catch {
+      // Falha silenciosa
+    } finally {
+      contentSync.refresh();
+    }
+  }, [contentSync]);
 
   const getUrlPostId = (): string | null => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -501,6 +531,12 @@ const App = () => {
         <DonationModal show={showDonationModal} onClose={() => setShowDonationModal(false)} activePalette={activePalette} API_URL={API_URL} />
         <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} activePalette={activePalette} API_URL={API_URL} triggerDonation={() => setShowDonationModal(true)} />
       </Suspense>
+      <ContentUpdateToast
+        visible={contentSync.hasUpdate}
+        activePalette={activePalette}
+        onRefresh={refreshPosts}
+        onDismiss={contentSync.dismiss}
+      />
       <ComplianceBanner onViewLicenses={() => setShowLicenses(true)} />
     </div>
   );

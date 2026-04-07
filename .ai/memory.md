@@ -1,5 +1,21 @@
 # AI Memory Log - MainSite
 
+## 2026-04-07 — Content Fingerprint System + Title Font Size Fix
+### Scope
+Implementação do sistema de sincronização em tempo real entre `admin-app` e `mainsite-frontend` via Content Fingerprint, e correção do controle de tamanho de fonte do título principal.
+### Adicionado
+- **Content Fingerprint Backend**: `lib/content-version.ts` com `bumpContentVersion()` (incremento atômico no D1) e `getContentFingerprint()` (retorna versão + headline post ID). Endpoint `GET /api/content-fingerprint` (1 query D1, Cache-Control: 5s). Hooks em todas as mutações de posts (create, update, delete, pin, reorder, cron rotation) via `waitUntil`.
+- **Frontend Sync**: `useContentSync.ts` — smart polling 30s com pausa em background tab. `ContentUpdateToast.tsx` — glassmorphism centrado no viewport (diretiva: toasts interativos = viewport center), sparkle animation, progress bar 15s, light/dark mode.
+- **App.tsx**: Toast renderizado em qualquer rota (homepage + deep-link). Botão "Atualizar" executa re-fetch + navega para novo headline post.
+### Corrigido
+- **`.h1-title` ignoring `titleFontSize`**: PostReader usava `clamp(32px, 5vw, 52px)` hardcoded. Agora usa `calc(titleFontSize * 1.6 * --text-zoom-scale)`.
+### Diretiva de UX Registrada
+- Toasts/notificações **com input do usuário** → centrados no viewport.
+- Toasts **informativos** → canto superior direito do viewport.
+### Controle de versão
+- `mainsite-frontend`: APP v03.05.01 → APP v03.06.00
+- `mainsite-worker`: v02.02.03 → v02.03.00
+
 ## 2026-04-06 — Pages Functions Migration + CF_AI_GATEWAY Expurgo Final
 ### Scope
 Migração das 2 Pages Functions R2 restantes para o worker, remoção do sitemap duplicado, e limpeza final de toda referência residual ao Cloudflare AI Gateway.

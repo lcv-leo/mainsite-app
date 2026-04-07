@@ -1,5 +1,15 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.03.00] — 2026-04-07
+### Adicionado
+- **Content Fingerprint System**: Motor de versionamento atômico para sincronização em tempo real com o frontend.
+  - **`lib/content-version.ts`**: Funções `bumpContentVersion()` (incrementa atomicamente o counter em D1) e `getContentFingerprint()` (retorna versão + headline post ID).
+  - **`GET /api/content-fingerprint`**: Endpoint público ultra-leve (1 query D1, ~200 bytes, Cache-Control: 5s) para smart polling do frontend.
+  - **Hooks de mutação**: `bumpContentVersion()` integrado via `executionCtx.waitUntil()` em todas as mutações de posts (create, update, delete, pin, reorder) em `posts.ts` e no cron `scheduled()` em `index.ts`.
+
+### Controle de versão
+- `mainsite-worker`: v02.02.03 → v02.03.00
+
 ## [v02.02.03] — 2026-04-06
 ### Adicionado
 - **Cross-Service AI Telemetry**: `logAiUsage` centralizado em `genai.ts` dentro da função `generate()`, instrumentando automaticamente todos os endpoints AI (chat, transform, shareSummary). Registro de tokens, latência e status no `ai_usage_logs` (D1).

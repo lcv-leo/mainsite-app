@@ -131,7 +131,7 @@ const PostReader = ({ post, activePalette, settings, onShare, onContact, onComme
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-spin { animation: spin 1s linear infinite; }
         
-        .h1-title { text-align: center; font-size: clamp(32px, 5vw, 52px); letter-spacing: -0.03em; margin-bottom: 0; color: ${activePalette.titleColor}; text-transform: none; font-weight: 800; transition: color 0.5s ease; line-height: 1.1; }
+        .h1-title { text-align: center; font-size: calc(${settings.shared.titleFontSize || '1.8rem'} * 1.6 * var(--text-zoom-scale, 1)); letter-spacing: -0.03em; margin-bottom: 0; color: ${activePalette.titleColor}; text-transform: none; font-weight: 800; transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; line-height: 1.1; }
         
         .post-gradient-divider { width: 80px; height: 3px; background: linear-gradient(90deg, #4285f4, #7c3aed); margin: 1.5rem auto; border-radius: 3px; }
         

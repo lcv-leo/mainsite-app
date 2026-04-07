@@ -15,6 +15,7 @@ import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
 import { generateShareSummary, hashContent, stripHtml } from '../lib/gemini.ts';
 import { structuredLog } from '../lib/logger.ts';
+import { bumpContentVersion } from '../lib/content-version.ts';
 
 const posts = new Hono<{ Bindings: Env }>();
 
@@ -147,6 +148,9 @@ posts.post('/api/posts', requireAuth, async (c) => {
       );
     }
 
+    // Sinaliza mudança para o polling de content-fingerprint
+    c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
+
     return c.json({ success: true }, 201);
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
@@ -172,6 +176,8 @@ posts.put('/api/posts/:id', requireAuth, async (c) => {
       );
     }
 
+    c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
+
     return c.json({ success: true });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
@@ -183,6 +189,7 @@ posts.delete('/api/posts/:id', requireAuth, async (c) => {
   const id = c.req.param('id');
   try {
     await c.env.DB.prepare('DELETE FROM mainsite_posts WHERE id = ?').bind(id).run();
+    c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
     return c.json({ success: true });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
@@ -199,6 +206,7 @@ posts.put('/api/posts/:id/pin', requireAuth, async (c) => {
     const newStatus = post && post.is_pinned ? 0 : 1;
     if (newStatus === 1) await c.env.DB.prepare('UPDATE mainsite_posts SET is_pinned = 0').run();
     await c.env.DB.prepare('UPDATE mainsite_posts SET is_pinned = ? WHERE id = ?').bind(newStatus, id).run();
+    c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
     return c.json({ success: true, is_pinned: newStatus });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
@@ -213,6 +221,7 @@ posts.put('/api/posts/reorder', requireAuth, async (c) => {
       c.env.DB.prepare('UPDATE mainsite_posts SET display_order = ? WHERE id = ?').bind(item.display_order, item.id)
     );
     await c.env.DB.batch(statements);
+    c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
     return c.json({ success: true });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);

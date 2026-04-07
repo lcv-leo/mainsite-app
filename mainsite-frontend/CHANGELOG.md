@@ -1,6 +1,21 @@
 # Changelog — Mainsite Frontend
 
-## [v03.05.01] - 2026-04-06
+## [v03.06.00] - 2026-04-07
+### Adicionado
+- **Content Fingerprint — Notificação em Tempo Real**: Sistema de sincronização em tempo real entre `admin-app` e `mainsite-frontend`. Quando a matéria da homepage muda (rotação automática via cron ou ação manual do admin), o leitor é notificado com um toast premium.
+  - **`useContentSync.ts`**: Hook de smart polling (30s) que detecta mudanças de versão no endpoint `GET /api/content-fingerprint`. Pausa automaticamente em background tabs e ignora o carregamento inicial para evitar falsos positivos.
+  - **`ContentUpdateToast.tsx`**: Componente glassmorphism com sparkle animation, progress bar de auto-dismiss (15s), botões "Atualizar Agora" / "Dispensar". Posicionado no **centro da viewport** do leitor (conforme diretiva: toasts com input do usuário ficam centralizados). Suporte a light/dark mode.
+  - **Integração `App.tsx`**: Toast renderizado em qualquer página (homepage e deep-link). Botão "Atualizar" executa re-fetch silencioso e navega para o novo post principal.
+
+### Corrigido
+- **Título principal (`.h1-title`) não respeitava `titleFontSize`**: O PostReader usava `clamp(32px, 5vw, 52px)` hardcoded. Agora usa `calc(titleFontSize * 1.6 * var(--text-zoom-scale, 1))`, respeitando o controle do admin em ConfigModule → "Tamanho da Fonte dos Títulos (H1)".
+
+### Diretiva de UX registrada
+- Toasts/notificações **com input do usuário** → centrados no viewport.
+- Toasts **informativos** → canto superior direito do viewport.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.05.01 → APP v03.06.00
 ### Removido
 - **Pages Functions R2 migradas para o worker**: `functions/api/media/[filename].js` e `functions/api/mainsite/media/[filename].js` removidas — rotas agora servidas nativamente pelo mainsite-motor (mesmo bucket R2 `mainsite-media`).
 - **Binding R2 `MEDIA_BUCKET` removido**: `wrangler.json` do frontend não precisa mais do binding R2; media é servida pelo worker via Service Binding proxy.

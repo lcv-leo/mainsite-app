@@ -10,6 +10,7 @@ import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
 import { normalizeRateLimitConfig, DEFAULT_RATE_LIMIT } from '../lib/rate-limit.ts';
+import { getContentFingerprint } from '../lib/content-version.ts';
 
 const settings = new Hono<{ Bindings: Env }>();
 
@@ -108,6 +109,19 @@ settings.put('/api/settings/disclaimers', requireAuth, async (c) => {
       .bind(payload)
       .run();
     return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+
+// --- Content Fingerprint (polling para sincronização em tempo real) ---
+settings.get('/api/content-fingerprint', async (c) => {
+  try {
+    const fingerprint = await getContentFingerprint(c.env.DB);
+    return c.json(fingerprint, 200, {
+      'Cache-Control': 'public, max-age=5',
+    });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
   }
