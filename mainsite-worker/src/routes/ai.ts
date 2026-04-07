@@ -114,6 +114,7 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
       prompt: `${promptContext}\n\n"${text}"`,
       endpoint: 'transform',
       model: modelStr,
+      db: c.env.DB,
     });
 
     const usage = extractUsage(response);
@@ -258,6 +259,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
       prompt: systemPrompt,
       endpoint: 'chat',
       model: modelStr,
+      db: c.env.DB,
     });
 
     const usage = extractUsage(response);

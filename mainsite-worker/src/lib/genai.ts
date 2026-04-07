@@ -109,6 +109,37 @@ export async function countTokens(client: GoogleGenAI, text: string, model?: str
   }
 }
 
+// ── Telemetria: registra uso de AI no BIGDATA_DB ──
+function logAiUsage(
+  db: D1Database | undefined,
+  entry: { module: string; model: string; input_tokens: number; output_tokens: number; latency_ms: number; status: string; error_detail?: string },
+) {
+  if (!db) return;
+  (async () => {
+    try {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS ai_usage_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+          module TEXT NOT NULL, model TEXT NOT NULL, input_tokens INTEGER DEFAULT 0,
+          output_tokens INTEGER DEFAULT 0, latency_ms INTEGER DEFAULT 0,
+          status TEXT DEFAULT 'ok', error_detail TEXT
+        )
+      `).run();
+      await db.prepare(`
+        INSERT INTO ai_usage_logs (module, model, input_tokens, output_tokens, latency_ms, status, error_detail)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        entry.module, entry.model,
+        entry.input_tokens, entry.output_tokens,
+        entry.latency_ms, entry.status,
+        entry.error_detail || null,
+      ).run();
+    } catch (err) {
+      console.warn('[telemetry] ai_usage_logs INSERT failed:', err instanceof Error ? err.message : err);
+    }
+  })();
+}
+
 // ========== CONTENT GENERATION (with retry) ==========
 
 interface GenerateOptions {
@@ -117,6 +148,8 @@ interface GenerateOptions {
   endpoint: EndpointName;
   model?: string;
   enableThinking?: boolean;
+  /** Optional D1Database for telemetry logging (ai_usage_logs) */
+  db?: D1Database;
 }
 
 /**
@@ -124,11 +157,12 @@ interface GenerateOptions {
  * Returns the full SDK response for the caller to extract what it needs.
  */
 export async function generate(opts: GenerateOptions): Promise<GenerateContentResponse> {
-  const { client, prompt, endpoint, model, enableThinking = true } = opts;
+  const { client, prompt, endpoint, model, enableThinking = true, db } = opts;
   const config = ENDPOINT_CONFIGS[endpoint];
   const resolvedModel = model || DEFAULT_GEMINI_MODEL;
 
   let lastError: unknown;
+  const _telStart = Date.now();
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -154,6 +188,14 @@ export async function generate(opts: GenerateOptions): Promise<GenerateContentRe
         cachedTokens: response.usageMetadata?.cachedContentTokenCount ?? 0,
       });
 
+      // Telemetria de sucesso
+      void logAiUsage(db, {
+        module: `mainsite-${endpoint}`, model: resolvedModel,
+        input_tokens: response.usageMetadata?.promptTokenCount ?? 0,
+        output_tokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+        latency_ms: Date.now() - _telStart, status: 'ok'
+      });
+
       return response;
     } catch (err) {
       lastError = err;
@@ -173,6 +215,14 @@ export async function generate(opts: GenerateOptions): Promise<GenerateContentRe
     endpoint,
     totalAttempts: MAX_RETRIES,
     lastError: (lastError as Error)?.message,
+  });
+
+  // Telemetria de falha
+  void logAiUsage(db, {
+    module: `mainsite-${endpoint}`, model: resolvedModel,
+    input_tokens: 0, output_tokens: 0,
+    latency_ms: Date.now() - _telStart, status: 'error',
+    error_detail: ((lastError as Error)?.message || 'Unknown').slice(0, 200),
   });
 
   throw new Error(`Gemini API failed after ${MAX_RETRIES} attempts: ${(lastError as Error)?.message}`);

@@ -1,5 +1,14 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.02.03] — 2026-04-06
+### Adicionado
+- **Cross-Service AI Telemetry**: `logAiUsage` centralizado em `genai.ts` dentro da função `generate()`, instrumentando automaticamente todos os endpoints AI (chat, transform, shareSummary). Registro de tokens, latência e status no `ai_usage_logs` (D1).
+### Alterado
+- **Compatibility Date**: `wrangler.json` atualizado para `2026-04-06`.
+### Controle de versão
+- `mainsite-worker`: v02.02.02 → v02.02.03
+
+
 ## [v02.02.02] — 2026-04-06
 ### Alterado
 - **Observability 100%**: `head_sampling_rate: 1`, `invocation_logs: true` e `logs.enabled: true` ativados no `wrangler.json` do mainsite-motor.
