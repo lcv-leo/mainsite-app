@@ -48,6 +48,91 @@ export interface ModerationSettings {
 // ── GCP Natural Language API v2 — moderateText ──────────────────────────────
 
 const GCP_NL_API_URL = 'https://language.googleapis.com/v2/documents:moderateText';
+const GCP_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const NL_SCOPE = 'https://www.googleapis.com/auth/cloud-language';
+
+/**
+ * Converte ArrayBuffer para base64url (sem padding).
+ */
+function bufferToBase64Url(buffer: ArrayBuffer | Uint8Array): string {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * Gera um access token OAuth2 a partir do JSON de Service Account do GCP.
+ * Usa Web Crypto API nativa do Workers (compatível com Cloudflare Workers runtime).
+ */
+async function getAccessTokenFromServiceAccount(jsonKey: string): Promise<string | null> {
+  try {
+    const sa = JSON.parse(jsonKey) as {
+      client_email: string;
+      private_key: string;
+      token_uri?: string;
+    };
+
+    const now = Math.floor(Date.now() / 1000);
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const claimSet = {
+      iss: sa.client_email,
+      scope: NL_SCOPE,
+      aud: sa.token_uri || GCP_TOKEN_URL,
+      iat: now,
+      exp: now + 3600,
+    };
+
+    const encodedHeader = bufferToBase64Url(new TextEncoder().encode(JSON.stringify(header)) as Uint8Array);
+    const encodedClaims = bufferToBase64Url(new TextEncoder().encode(JSON.stringify(claimSet)) as Uint8Array);
+    const signingInput = `${encodedHeader}.${encodedClaims}`;
+
+    // Importa a chave RSA privada do PEM
+    const pemBody = sa.private_key
+      .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+      .replace(/-----END PRIVATE KEY-----/g, '')
+      .replace(/\s/g, '');
+    const binaryKey = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+
+    const cryptoKey = await crypto.subtle.importKey(
+      'pkcs8',
+      binaryKey.buffer,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+
+    const signature = await crypto.subtle.sign(
+      'RSASSA-PKCS1-v1_5',
+      cryptoKey,
+      new TextEncoder().encode(signingInput),
+    );
+
+    const jwt = `${signingInput}.${bufferToBase64Url(signature)}`;
+
+    // Troca JWT por access token
+    const tokenResponse = await fetch(sa.token_uri || GCP_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: jwt,
+      }).toString(),
+    });
+
+    if (!tokenResponse.ok) {
+      const errBody = await tokenResponse.text().catch(() => '');
+      console.error(`[Moderation] Token exchange failed: ${tokenResponse.status} — ${errBody}`);
+      return null;
+    }
+
+    const tokenData = (await tokenResponse.json()) as { access_token?: string };
+    return tokenData.access_token || null;
+  } catch (err) {
+    console.error('[Moderation] Falha ao gerar access token:', err);
+    return null;
+  }
+}
 
 /**
  * Chama a API moderateText v2 do Google Cloud Natural Language.
@@ -56,9 +141,28 @@ const GCP_NL_API_URL = 'https://language.googleapis.com/v2/documents:moderateTex
  */
 export async function moderateText(content: string, apiKey: string): Promise<ModerationResult> {
   try {
-    const response = await fetch(`${GCP_NL_API_URL}?key=${encodeURIComponent(apiKey)}`, {
+    // Detecta se é JSON de Service Account ou API Key simples
+    const trimmedKey = apiKey.trim();
+    let authUrl: string;
+    let authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+
+    if (trimmedKey.startsWith('{')) {
+      // Service Account JSON → precisa gerar access token via JWT
+      const accessToken = await getAccessTokenFromServiceAccount(trimmedKey);
+      if (!accessToken) {
+        console.error('[Moderation] Falha ao gerar access token do Service Account JSON');
+        return { categories: [], languageCode: 'pt', languageSupported: true };
+      }
+      authUrl = GCP_NL_API_URL;
+      authHeaders['Authorization'] = `Bearer ${accessToken}`;
+    } else {
+      // API Key simples (AIzaSy...)
+      authUrl = `${GCP_NL_API_URL}?key=${encodeURIComponent(trimmedKey)}`;
+    }
+
+    const response = await fetch(authUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({
         document: {
           type: 'PLAIN_TEXT',
@@ -70,7 +174,8 @@ export async function moderateText(content: string, apiKey: string): Promise<Mod
     });
 
     if (!response.ok) {
-      console.error(`[Moderation] GCP NL API error: ${response.status} ${response.statusText}`);
+      const errorBody = await response.text().catch(() => 'Unable to read body');
+      console.error(`[Moderation] GCP NL API error: ${response.status} ${response.statusText} — ${errorBody}`);
       return { categories: [], languageCode: 'pt', languageSupported: true };
     }
 
