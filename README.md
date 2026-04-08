@@ -1,71 +1,22 @@
-﻿\# Mainsite: Reflexos da Alma
+# mainsite-app
 
+> Website público principal (frontend e worker). Hospeda o blog Reflexos da Alma, conectando o PostReader ao banco D1 com atualização Real-Time via polling/cache nativos.
 
+## Sub-módulos Operacionais
 
-Arquitetura modular de Edge Computing focada em altíssima performance, renderização nativa de inteligência artificial e design minimalista (Dark/Light responsivo).
+Este app pode abrigar módulos internos como:
+- `mainsite-frontend`: Toda a User Interface (UI), PostReader, ContentSync.
+- `mainsite-worker`: Backend responsivo que integra D1, Gateway AI do Google e moderação.
 
+## Ecossistema LCV Workspace
 
+Este repositório faz parte do workspace global LCV / Reflexos da Alma e opera de modo integrado aos demais serviços.
 
-\## 🏗 Topologia da Arquitetura
+## Arquitetura & Governança
 
+- **Cloudflare**: Implementado utilizando Workers/Pages, KV, D1, e integrações nativas como AI Gateway.
+- **Padrões de Qualidade**: Obedece estritamente às diretivas de `AGENTS.md` e regras de paridade contidas no `.ai/GEMINI.md` e `.github/copilot-instructions.md`.
+- **Yolo Mode & AI Automation**: O desenvolvimento deve priorizar o uso dos MCPs `ultrathink` e `code-reasoning` para planejamento.
 
-
-O ecossistema é construído sob um paradigma \*Serverless\* distribuído, operando 100% na borda da rede (Edge) através da infraestrutura da Cloudflare.
-
-
-
-A aplicação é dividida em três microsserviços independentes:
-
-
-
-1\. \*\*`mainsite-worker` (Backend API)\*\*
-
-&#x20;  - \*\*Motor:\*\* Cloudflare Workers (Node.js via Hono framework).
-
-&#x20;  - \*\*Responsabilidade:\*\* Orquestração de rotas, injeção segura de chaves (Secrets), comunicação com a API do Google Gemini 2.5 Pro, e interface com os bancos de dados.
-
-&#x20;  - \*\*Armazenamento:\*\* Integrado nativamente com Cloudflare D1 (SQL Serverless) e Cloudflare R2 (Object Storage para mídias).
-
-
-
-2\. \*\*`mainsite-admin` (Frontend CMS Privado)\*\*
-
-&#x20;  - \*\*Motor:\*\* React + Vite + Tiptap Editor.
-
-&#x20;  - \*\*Responsabilidade:\*\* Painel de controle privado protegido por Bearer Token. Permite a criação/edição de textos via editor rico (Markdown-friendly), gestão de ordem/fixação de posts, upload de imagens direto para o R2, e controle em tempo real da aparência global (Multi-tema).
-
-&#x20;  - \*\*Hospedagem:\*\* Cloudflare Pages.
-
-
-
-3\. \*\*`mainsite-frontend` (Frontend UI Pública)\*\*
-
-&#x20;  - \*\*Motor:\*\* React + Vite (Arquitetura CSS-in-JS).
-
-&#x20;  - \*\*Responsabilidade:\*\* Interface de leitura ultra-otimizada. Renderiza a "Malha de Consciência" em CSS puro responsivo (Zero imagens externas). Provê ferramentas de IA na ponta do cliente: Resumo de parágrafo, Tradução Universal e Chatbot RAG com busca semântica em todo o acervo.
-
-&#x20;  - \*\*Hospedagem:\*\* Cloudflare Pages com políticas agressivas de Cache-Control (`\_headers`).
-
-
-
-\---
-
-
-
-\## 🔐 Gestão de Segurança e Segredos (Secrets)
-
-
-
-Para garantir que credenciais não vazem no controle de versão (Git), a aplicação utiliza o padrão `.dev.vars` para desenvolvimento local e o cofre criptografado da Cloudflare para produção.
-
-
-
-\*\*Ambiente Local:\*\*
-
-Crie um arquivo `.dev.vars` na raiz do `mainsite-worker` com o seguinte conteúdo:
-
-```env
-
-API_SECRET="__REPLACE_ME__"
-
-GEMINI_API_KEY="__REPLACE_ME__"
+---
+*Documentação gerada e sincronizada para o Workspace LCV.*
