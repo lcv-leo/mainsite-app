@@ -1,5 +1,9 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.04.02] — 2026-04-08
+### Corrigido
+- **NPM Audit Fix**: Atualizadas as versões de subdependências vulneráveis (hono, @hono/node-server) em virtude de alertas Moderate reportados pelo Dependabot para fechar riscos de directory traversal e proxy bypass.
+
 ## [v02.03.01] — 2026-04-07
 ### Adicionado
 - **GCP NL API — Dual-Mode Auth (`moderation.ts`)**: Detecção automática do formato de credencial. Se `GCP_NL_API_KEY` contém JSON de Service Account, gera JWT via Web Crypto API e troca por access token OAuth2. Se é API Key simples (`AIzaSy...`), usa `?key=` na URL. Compatível com ambos os cenários sem configuração manual.
