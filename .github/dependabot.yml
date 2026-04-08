@@ -4,7 +4,7 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-      time: "05:00"
+      time: "06:40"
       timezone: "America/Sao_Paulo"
     labels:
       - "dependencies"
@@ -20,7 +20,7 @@ updates:
     directory: "/mainsite-frontend"
     schedule:
       interval: "daily"
-      time: "05:20"
+      time: "07:00"
       timezone: "America/Sao_Paulo"
     labels:
       - "dependencies"
@@ -38,6 +38,9 @@ updates:
           - "eslint*"
           - "typescript"
           - "@types/*"
+          - "wrangler"
+          - "@cloudflare/*"
+          - "vite*"
         update-types:
           - "major"
           - "minor"
@@ -48,7 +51,7 @@ updates:
     directory: "/mainsite-worker"
     schedule:
       interval: "daily"
-      time: "05:40"
+      time: "07:20"
       timezone: "America/Sao_Paulo"
     labels:
       - "dependencies"
@@ -67,8 +70,10 @@ updates:
           - "typescript"
           - "@types/*"
           - "wrangler"
+          - "@cloudflare/*"
+          - "vite*"
         update-types:
           - "major"
           - "minor"
           - "patch"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10

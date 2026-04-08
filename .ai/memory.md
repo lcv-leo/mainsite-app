@@ -1,5 +1,9 @@
 # AI Memory Log - MainSite
 
+## 2026-04-08 — GitHub Actions Purge & Dependabot Standardization
+### Escopo
+Auditoria completa de CI/CD para eliminação de "ghost runs" em toda a rede de repositórios do workspace, juntamente com a universalização da configuração do Dependabot ajustada às necessidades de empacotamento locais para mitigar tráfego e limites no API.
+
 ## 2026-04-08 — Security Hotfix: Hono Path Traversal & Proxy Bypass (Dependabot)
 ### Escopo
 Auditoria e resolução guiada de pacotes vulneráveis acionados a partir de alertas de segurança do Dependabot da nuvem (GitHub).
@@ -621,4 +625,5 @@ Migração arquitetural unificada para aproveitamento da infraestrutura Cloudfla
 
 ### Label Accessibility
 - Labels sem campo associado convertidas para `<p className="field-label">` em ConfigModule.
+
 
