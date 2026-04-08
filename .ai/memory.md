@@ -1,5 +1,11 @@
 # AI Memory Log - MainSite
 
+## 2026-04-08 — Security Hotfix: Hono Path Traversal & Proxy Bypass (Dependabot)
+### Escopo
+Auditoria e resolução guiada de pacotes vulneráveis acionados a partir de alertas de segurança do Dependabot da nuvem (GitHub).
+### Resolvido
+- **NPM Audit Fix**: Atualizadas e forçadas as versões estáveis para `hono` (v4.12.12) e `@hono/node-server` (v1.19.13). Mitigadas as 2 vulnerabilidades 'Moderate' catalogadas sob bypass de cookies, directory traversal e proxy request bypass referenciados no app `mainsite-app`.
+
 ## 2026-04-07 — Mainsite v03.06.06 — Brand Icons Fix + Route Order Hardening
 ### Scope
 Correção de regressão crítica dos ícones de bandeiras de pagamento no formulário de doação SumUp.
