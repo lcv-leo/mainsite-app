@@ -470,4 +470,14 @@ Migração arquitetural unificada para aproveitamento da infraestrutura Cloudfla
 - Labels sem campo associado convertidas para `<p className="field-label">` em ConfigModule.
 
 
+
+## 🤖 Claude Code — Memória Sincronizada (2026-04-09)
+
+A memória persistente do **Claude Code** está em:
+`C:\Users\leona\.claude\projects\c--Users-leona-lcv-workspace\memory\`
+
+Arquivos: `MEMORY.md` (índice) · `project_workspace.md` · `version_control.md` · `infra_directives.md` · `app_memories_ref.md` · `ai_agents_files.md`
+
+**Diretiva:** Ao atualizar esta memória, atualizar também os arquivos correspondentes da memória do Claude Code para manter paridade entre Gemini, Copilot e Claude Code.
+
 > **DIRETIVA DE SEGURANÇA:** Ao sugerir código ou responder perguntas, leia rigorosamente o contexto e as memórias históricas acima para não divergir das decisões já tomadas pelo outro agente.
