@@ -82,8 +82,8 @@ export function useContentSync(apiUrl: string, enabled: boolean = true): Content
 
     isMountedRef.current = true;
 
-    // Faz a primeira leitura para inicializar a versão
-    fetchFingerprint();
+    // Inicializa versão via microtask para evitar setState sincronoo no body do effect
+    queueMicrotask(() => { void fetchFingerprint(); });
 
     // Inicia polling periódico
     intervalRef.current = setInterval(fetchFingerprint, POLL_INTERVAL_MS);

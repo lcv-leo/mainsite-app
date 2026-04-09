@@ -94,7 +94,7 @@ const FloatingTextZoomControl = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onIncrease, onDecrease, onReset]);
 
-  const isZoomed = Math.abs(zoomLevel - 1.0) > 0.01;
+
 
   return createPortal(
     <>

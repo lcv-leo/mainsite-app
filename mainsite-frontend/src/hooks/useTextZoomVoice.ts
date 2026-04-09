@@ -6,7 +6,7 @@
 // Purpose: Voice control for text zoom (Web Speech API)
 // Features: voice commands, accessibility
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 interface VoiceCommand {
   command: RegExp;
@@ -26,7 +26,7 @@ export const useTextZoomVoice = (
 
   const SpeechRecognition =
     typeof window !== 'undefined'
-      ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      ? (window as Window & { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition
       : null;
 
   const startVoiceControl = useCallback(() => {
@@ -46,9 +46,9 @@ export const useTextZoomVoice = (
       setError(null);
     };
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: Event & { results: SpeechRecognitionResultList }) => {
       const transcript = Array.from(event.results)
-        .map((result: any) => result[0].transcript)
+        .map((result: SpeechRecognitionResult) => result[0].transcript)
         .join('')
         .toLowerCase();
 
@@ -74,7 +74,7 @@ export const useTextZoomVoice = (
       }
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: Event & { error: string }) => {
       setError(`Erro de voz: ${event.error}`);
     };
 

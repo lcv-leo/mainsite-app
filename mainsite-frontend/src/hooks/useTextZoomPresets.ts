@@ -70,7 +70,7 @@ export const useTextZoomPresets = (onZoomChange: (level: number) => void) => {
     try {
       const saved = localStorage.getItem('mainsite:text-zoom-preset');
       return saved || 'normal';
-    } catch (e) {
+    } catch {
       return 'normal';
     }
   }, []);
