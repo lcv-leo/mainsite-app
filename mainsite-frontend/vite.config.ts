@@ -4,11 +4,11 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // esbuild nativo do Vite 8 — remove console/debugger sem necessidade do Terser
+  esbuild: {
+    drop: ['console', 'debugger'] as ('console' | 'debugger')[],
+  },
   build: {
-    // esbuild nativo do Vite 8 — remove console/debugger sem necessidade do Terser
-    esbuild: {
-      drop: ['console', 'debugger'],
-    },
     target: 'esnext',
     // Desabilita lightningcss (problema de compatibilidade no Windows)
     cssCodeSplit: false,
