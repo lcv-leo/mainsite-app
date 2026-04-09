@@ -20,7 +20,7 @@ export default defineConfig({
             // Separa a biblioteca Lucide e React em arquivos de cache independentes
             if (id.includes('lucide-react')) return 'vendor-icons';
             if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
-            return 'vendor'; 
+            return 'vendor';
           }
         }
       }
