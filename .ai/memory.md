@@ -1,5 +1,16 @@
 # AI Memory Log - MainSite
 
+## 2026-04-08 — Tech Upgrade: ESLint 10 + marked@18 + Hook Fixes
+### Escopo
+Migração ESLint 9→10, upgrade marked 15→18, e correção de tipos em hooks de acessibilidade.
+### Feito
+- **ESLint 10.2.0**: Upgrade sem breaking changes (flat config compatível).
+- **marked@18**: Atualização da biblioteca de parsing Markdown.
+- **`useTextZoomVoice.ts`**: Interface local `SpeechRecognitionLike` criada para substituir globais DOM ausentes no TS target atual.
+- **`TextZoomControl.tsx`**: Prop `onVoiceToggle` não-utilizada removida.
+### Versão
+- mainsite-frontend: APP v03.06.06 → APP v03.06.07
+
 ## 2026-04-08 — GitHub Actions Purge & Dependabot Standardization
 ### Escopo
 Auditoria completa de CI/CD para eliminação de "ghost runs" em toda a rede de repositórios do workspace, juntamente com a universalização da configuração do Dependabot ajustada às necessidades de empacotamento locais para mitigar tráfego e limites no API.

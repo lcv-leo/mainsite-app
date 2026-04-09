@@ -1,5 +1,17 @@
 # Changelog — Mainsite Frontend
 
+## [v03.06.07] - 2026-04-08
+### Atualização Tecnológica
+- **ESLint 9 → 10**: Migração para `eslint@10.2.0` e `@eslint/js@10.0.1`.
+- **marked 15 → 18**: Atualização da biblioteca de parsing Markdown.
+
+### Corrigido
+- **`useTextZoomVoice.ts`**: Criada interface local `SpeechRecognitionLike` para substituir tipos globais DOM inexistentes no target TS atual. Resolve erros de compilação em `SpeechRecognition`/`webkitSpeechRecognition`.
+- **`TextZoomControl.tsx`**: Removida prop não-utilizada `onVoiceToggle`.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.06 → APP v03.06.07
+
 ## [v03.06.06] - 2026-04-07
 ### Corrigido
 - **Ícones de Pagamento (DonationModal)**: Corrigida regressão crítica onde ícones de bandeiras (Mastercard, Visa, Elo, Amex) não apareciam no formulário SumUp. Causa raiz: `VITE_BRAND_ICONS_BASE_URL` no `deploy.yml` apontava para domínio externo defunto (`mainsite-app.lcv.rio.br`), violando diretiva de integração interna Cloudflare. Corrigido para path relativo `/api/uploads/brands`.
