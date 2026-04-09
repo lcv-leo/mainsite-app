@@ -17,6 +17,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
+import { NewCommentSchema } from '../lib/schemas.ts';
 import {
   moderateText,
   evaluateModeration,
@@ -84,15 +85,12 @@ comments.post('/api/comments', async (c) => {
       return c.json({ error: 'Comentários estão desabilitados no momento.' }, 403);
     }
 
-    const body = (await c.req.json()) as {
-      post_id?: number;
-      parent_id?: number | null;
-      author_name?: string;
-      author_email?: string;
-      content?: string;
-      turnstile_token?: string;
-      _hp?: string; // Honeypot field
-    };
+    const rawBody = await c.req.json();
+    const bodyResult = NewCommentSchema.safeParse(rawBody);
+    if (!bodyResult.success) {
+      return c.json({ error: 'Post ID e conteúdo são obrigatórios.' }, 400);
+    }
+    const body = bodyResult.data;
 
     // Honeypot check: campo oculto preenchido = bot → resposta falsa silenciosa
     if (body._hp) {

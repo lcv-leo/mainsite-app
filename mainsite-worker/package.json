@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint src",
+    "format": "biome format --write src"
   },
   "keywords": [],
   "author": "",
@@ -12,12 +14,18 @@
   "type": "module",
   "dependencies": {
     "@google/genai": "^1.48.0",
+    "zod": "^3.23.0",
     "@sumup/sdk": "^0.1.4",
     "hono": "^4.12.9",
     "mercadopago": "^2.12.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
     "@cloudflare/workers-types": "^4.20260331.1",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.2.0",
+    "globals": "^17.4.0",
+    "typescript-eslint": "^8.58.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2",
     "wrangler": "^4.79.0"

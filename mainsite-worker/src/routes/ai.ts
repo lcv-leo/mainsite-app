@@ -23,6 +23,7 @@ import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { createClient, countTokens, generate, extractText, extractUsage, getConfiguredModel } from '../lib/genai.ts';
+import { ChatInputSchema } from '../lib/schemas.ts';
 
 const ai = new Hono<{ Bindings: Env }>();
 
@@ -136,12 +137,9 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
 // POST /api/ai/public/chat (public, rate-limited upstream)
 ai.post('/api/ai/public/chat', async (c) => {
   try {
-    const { message, currentContext, askForDonation } = (await c.req.json()) as {
-      message?: string;
-      currentContext?: { title?: string; content?: string };
-      askForDonation?: boolean;
-    };
-    if (!message) return c.json({ error: 'Mensagem ausente.' }, 400);
+    const parsed = ChatInputSchema.safeParse(await c.req.json());
+    if (!parsed.success) return c.json({ error: 'Mensagem ausente.' }, 400);
+    const { message, currentContext, askForDonation } = parsed.data;
 
     const { results } = await c.env.DB.prepare(
       'SELECT id, title, content, created_at FROM mainsite_posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC'

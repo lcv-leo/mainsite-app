@@ -9,6 +9,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
+import { ContactSchema, CommentEmailSchema, ShareEmailSchema } from '../lib/schemas.ts';
 
 const contact = new Hono<{ Bindings: Env }>();
 
@@ -32,10 +33,9 @@ async function getSentimentPrefix(env: Env, text: string): Promise<string> {
 // POST /api/contact (público, rate-limited upstream)
 contact.post('/api/contact', async (c) => {
   try {
-    const { name, phone, email, message } = (await c.req.json()) as {
-      name?: string; phone?: string; email?: string; message?: string;
-    };
-    if (!name || !email || !message) return c.json({ error: 'Dados incompletos' }, 400);
+    const parsed = ContactSchema.safeParse(await c.req.json());
+    if (!parsed.success) return c.json({ error: 'Dados incompletos' }, 400);
+    const { name, phone, email, message } = parsed.data;
 
     const sentiment = await getSentimentPrefix(c.env, message);
     const resendToken = c.env.RESEND_API_KEY;
@@ -88,10 +88,9 @@ contact.post('/api/contact', async (c) => {
 // POST /api/comment (público, rate-limited upstream)
 contact.post('/api/comment', async (c) => {
   try {
-    const { name, phone, email, message, post_title } = (await c.req.json()) as {
-      name?: string; phone?: string; email?: string; message?: string; post_title?: string;
-    };
-    if (!message) return c.json({ error: 'Comentário obrigatório' }, 400);
+    const parsed = CommentEmailSchema.safeParse(await c.req.json());
+    if (!parsed.success) return c.json({ error: 'Comentário obrigatório' }, 400);
+    const { name, phone, email, message, post_title } = parsed.data;
 
     const sentiment = await getSentimentPrefix(c.env, message);
     const adminHtml = `
@@ -173,9 +172,9 @@ contact.post('/api/shares', async (c) => {
 
 contact.post('/api/share/email', async (c) => {
   try {
-    const { post_id, post_title, link, target_email } = (await c.req.json()) as {
-      post_id?: string; post_title?: string; link?: string; target_email?: string;
-    };
+    const parsed = ShareEmailSchema.safeParse(await c.req.json());
+    if (!parsed.success) return c.json({ error: 'Dados incompletos' }, 400);
+    const { post_id, post_title, link, target_email } = parsed.data;
     if (!c.env.RESEND_API_KEY) throw new Error('Chave do Resend não configurada.');
 
     const emailRes = await fetch('https://api.resend.com/emails', {
