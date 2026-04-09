@@ -28,8 +28,6 @@ const TextZoomControl = ({
   onDecrease,
   onReset,
   onSliderChange,
-  textColor: _textColor = '#333333',
-  bgColor: _bgColor = '#ffffff',
   isDarkMode = false,
 }: TextZoomControlProps) => {
   const sliderRef = useRef<HTMLInputElement>(null);

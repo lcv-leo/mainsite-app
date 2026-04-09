@@ -24,18 +24,33 @@ export const useTextZoomVoice = (
   const [lastCommand, setLastCommand] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const SpeechRecognition =
+  // Web Speech API — tipagem local (tipos globais não disponíveis neste target TS)
+  interface SpeechRecognitionLike {
+    lang: string;
+    continuous: boolean;
+    interimResults: boolean;
+    maxAlternatives: number;
+    onstart: (() => void) | null;
+    onresult: ((event: Event & { results: { length: number; [index: number]: { [index: number]: { transcript: string } } } }) => void) | null;
+    onerror: ((event: Event & { error: string }) => void) | null;
+    onend: (() => void) | null;
+    start(): void;
+    abort(): void;
+  }
+  type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+  const SpeechRecognitionImpl: SpeechRecognitionCtor | undefined =
     typeof window !== 'undefined'
-      ? (window as Window & { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition
-      : null;
+      ? (window as unknown as Record<string, SpeechRecognitionCtor | undefined>).SpeechRecognition ??
+        (window as unknown as Record<string, SpeechRecognitionCtor | undefined>).webkitSpeechRecognition
+      : undefined;
 
   const startVoiceControl = useCallback(() => {
-    if (!SpeechRecognition) {
+    if (!SpeechRecognitionImpl) {
       setError('Web Speech API não suportado neste navegador');
       return;
     }
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognitionImpl();
     recognition.lang = 'pt-BR';
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -46,9 +61,9 @@ export const useTextZoomVoice = (
       setError(null);
     };
 
-    recognition.onresult = (event: Event & { results: SpeechRecognitionResultList }) => {
-      const transcript = Array.from(event.results)
-        .map((result: SpeechRecognitionResult) => result[0].transcript)
+    recognition.onresult = (event) => {
+      const results = event.results;
+      const transcript = Array.from({ length: results.length }, (_, i) => results[i][0].transcript)
         .join('')
         .toLowerCase();
 
@@ -74,7 +89,7 @@ export const useTextZoomVoice = (
       }
     };
 
-    recognition.onerror = (event: Event & { error: string }) => {
+    recognition.onerror = (event) => {
       setError(`Erro de voz: ${event.error}`);
     };
 
@@ -83,17 +98,17 @@ export const useTextZoomVoice = (
     };
 
     recognition.start();
-  }, [SpeechRecognition, onIncrease, onDecrease, onReset, onPreset]);
+  }, [SpeechRecognitionImpl, onIncrease, onDecrease, onReset, onPreset]);
 
   const stopVoiceControl = useCallback(() => {
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognitionImpl) return;
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognitionImpl();
     recognition.abort();
     setIsListening(false);
-  }, [SpeechRecognition]);
+  }, [SpeechRecognitionImpl]);
 
-  const isSupported = !!SpeechRecognition;
+  const isSupported = !!SpeechRecognitionImpl;
 
   return {
     isListening,
