@@ -187,6 +187,10 @@ app.route('/', postSummariesRoutes);
 app.route('/', commentsRoutes);
 app.route('/', ratingsRoutes);
 
+// ========== APP TYPE (for Hono RPC consumers) ==========
+
+export type AppType = typeof app;
+
 // ========== CRON JOBS (ROTAÇÃO DE TEXTOS) ==========
 
 export default {

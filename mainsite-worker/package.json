@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "vitest run",
+    "types": "wrangler types",
     "lint": "eslint src",
     "format": "biome format --write src"
   },

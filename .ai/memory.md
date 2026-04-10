@@ -1,5 +1,15 @@
 # AI Memory Log - MainSite
 
+## 2026-04-09 — Tier 1-3 Tech Upgrades (frontend v03.07.00, worker v02.05.00)
+### Escopo
+Biome linter, Husky, AppType export no worker, testes de rota Hono, wrangler types script.
+### Adicionado
+- **mainsite-frontend**: Biome linter habilitado (`recommended` + overrides). Husky + lint-staged pre-commit.
+- **mainsite-worker**: `export type AppType = typeof app` em `src/index.ts`. Script `"types": "wrangler types"`. Testes de rota: `ratings.test.ts` (GET 400 para postId inválido), `comments.test.ts` (GET config fallback defaults). `vitest.config.ts` criado. `tsconfig.json` exclui `**/*.test.ts`.
+### Versão
+- mainsite-frontend: APP v03.06.06 → APP v03.07.00
+- mainsite-worker: v02.04.02 → v02.05.00
+
 ## 2026-04-08 — Tech Upgrade: ESLint 10 + marked@18 + Hook Fixes
 ### Escopo
 Migração ESLint 9→10, upgrade marked 15→18, e correção de tipos em hooks de acessibilidade.

@@ -1,5 +1,15 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.05.00] — 2026-04-09
+### Adicionado
+- **AppType export**: `export type AppType = typeof app` adicionado a `src/index.ts` para habilitar consumidores Hono RPC.
+- **Script `npm run types`**: `wrangler types` adicionado ao `package.json` para gerar `worker-configuration.d.ts` a partir de `wrangler.json`.
+- **Testes de rota Hono** (`vitest`):
+  - `src/routes/ratings.test.ts`: GET `/api/ratings/abc` → 400 `Post ID inválido.`
+  - `src/routes/comments.test.ts`: GET `/api/comments/config` com DB indisponível → 200 com defaults seguros
+  - `vitest.config.ts`: ambiente `node`, include `src/**/*.test.ts`
+  - `tsconfig.json`: `exclude` adicionado para `**/*.test.ts`
+
 ## [v02.04.02] — 2026-04-08
 ### Corrigido
 - **NPM Audit Fix**: Atualizadas as versões de subdependências vulneráveis (hono, @hono/node-server) em virtude de alertas Moderate reportados pelo Dependabot para fechar riscos de directory traversal e proxy bypass.

@@ -1,5 +1,13 @@
 # Changelog — Mainsite Frontend
 
+## [v03.07.00] - 2026-04-09
+### Adicionado
+- **Biome Linter**: Habilitado em `biome.json` com `recommended: true`; regras noisy (`noConsole`, `noExplicitAny`) desligadas; `useExhaustiveDependencies` em warn.
+- **Husky + lint-staged**: Pre-commit hook que executa `biome format --write` + `eslint --fix` nos arquivos staged de `src/**`.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.06 → APP v03.07.00
+
 ## [v03.06.07] - 2026-04-08
 ### Atualização Tecnológica
 - **ESLint 9 → 10**: Migração para `eslint@10.2.0` e `@eslint/js@10.0.1`.
