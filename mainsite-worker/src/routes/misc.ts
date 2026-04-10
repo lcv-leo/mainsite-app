@@ -56,7 +56,7 @@ misc.post('/api/pix/generate', async (c) => {
     return c.json({ success: true, payload: payload + crcHex });
   } catch (err) {
     structuredLog('error', 'PIX generate error', { error: (err as Error).message });
-    return c.json({ error: (err as Error).message }, 500);
+    return c.json({ error: 'Falha ao gerar código PIX.' }, 500);
   }
 });
 

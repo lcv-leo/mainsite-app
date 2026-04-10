@@ -20,10 +20,11 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
-import { requireAuth } from '../lib/auth.ts';
+import { requireAuth, getAdminEmail } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { createClient, countTokens, generate, extractText, extractUsage, getConfiguredModel } from '../lib/genai.ts';
 import { ChatInputSchema } from '../lib/schemas.ts';
+import { escapeHtml } from '../lib/html.ts';
 
 const ai = new Hono<{ Bindings: Env }>();
 
@@ -202,7 +203,10 @@ ai.post('/api/ai/public/chat', async (c) => {
     const contextTitleLog = currentContext?.title || 'Contexto Geral / Busca Global';
 
     if (currentContext?.title) {
-      activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${currentContext.title}\n[CONTEÚDO DO TEXTO NA TELA]: ${currentContext.content}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
+      // Sanitize user-controlled content before injecting into system prompt
+      const safeCtxTitle = String(currentContext.title).substring(0, 500).replace(/[\[\]{}]/g, '');
+      const safeCtxContent = String(currentContext.content || '').substring(0, 8000).replace(/[\[\]{}]/g, '');
+      activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${safeCtxTitle}\n[CONTEÚDO DO TEXTO NA TELA]: ${safeCtxContent}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
     }
 
     let donationPrompt = '';
@@ -223,7 +227,7 @@ Se o leitor confirmar a intenção de envio e ditar a mensagem, você OBRIGATORI
 [TRANSCREVA AQUI A MENSAGEM EXATA E REAL DO LEITOR]
 [[/ENVIAR_EMAIL]]
 
-ATENÇÃO CRÍTICA: Substitua o texto entre colchetes pela mensagem VERDADEIRA do usuário. NÃO invente textos e NÃO use exemplos genéricos. O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor (cal@reflexosdaalma.blog).${donationPrompt}
+ATENÇÃO CRÍTICA: Substitua o texto entre colchetes pela mensagem VERDADEIRA do usuário. NÃO invente textos e NÃO use exemplos genéricos. O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor.${donationPrompt}
 
 REGRAS GERAIS DE RESPOSTA:
 O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
@@ -280,12 +284,13 @@ PERGUNTA DO USUÁRIO: ${message}`;
       const resendToken = c.env.RESEND_API_KEY;
 
       if (resendToken) {
+        const aiAdminEmail = await getAdminEmail(c.env.DB);
         const aiHtml = `
           <div style="font-family: sans-serif; color: #333;">
             <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Interação do Leitor via Consciência Auxiliar</h2>
-            <p><strong>Contexto Ativo na Tela:</strong> ${contextTitleLog}</p>
+            <p><strong>Contexto Ativo na Tela:</strong> ${escapeHtml(contextTitleLog)}</p>
             <div style="background: #f0f9ff; padding: 15px; border-left: 4px solid #0ea5e9; margin-top: 20px;">
-              <p style="margin: 0; white-space: pre-wrap;">${messageToSend}</p>
+              <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(messageToSend)}</p>
             </div>
             <p style="font-size: 11px; color: #666; margin-top: 20px;">Este e-mail foi disparado autonomamente pelo modelo Gemini 2.5 Pro a pedido do leitor.</p>
           </div>
@@ -297,7 +302,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
             headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               from: 'Consciência Auxiliar <mainsite@lcv.app.br>',
-              to: 'cal@reflexosdaalma.blog',
+              to: aiAdminEmail,
               subject: `Interação do Leitor no Chatbot: ${contextTitleLog}`,
               html: aiHtml,
             }),
@@ -327,7 +332,7 @@ PERGUNTA DO USUÁRIO: ${message}`;
     return c.json({ success: true, reply: replyText });
   } catch (err) {
     structuredLog('error', 'Chat endpoint error', { endpoint: 'chat', error: (err as Error).message });
-    return c.json({ error: (err as Error).message }, 500);
+    return c.json({ error: 'Falha ao processar mensagem. Tente novamente.' }, 500);
   }
 });
 

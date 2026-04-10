@@ -28,6 +28,10 @@ import { SumupCheckoutSchema, SumupPaySchema } from '../lib/schemas.ts';
 
 const sumup = new Hono<{ Bindings: Env }>();
 
+// Payment amount bounds (BRL)
+const MIN_PAYMENT_AMOUNT = 1.00;
+const MAX_PAYMENT_AMOUNT = 10_000.00;
+
 // Helper: parse SumUp SDK error into user-friendly message
 function parseSumupError(err: Error): { message: string; httpStatus: number } {
   const rawMsg = err.message || '';
@@ -68,6 +72,9 @@ sumup.post('/api/sumup/checkout', async (c) => {
 
     if (!baseAmount || Number(baseAmount) <= 0) {
       return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
+    }
+    if (Number(baseAmount) < MIN_PAYMENT_AMOUNT || Number(baseAmount) > MAX_PAYMENT_AMOUNT) {
+      return c.json({ error: `Valor deve ser entre R$${MIN_PAYMENT_AMOUNT} e R$${MAX_PAYMENT_AMOUNT}.` }, 400);
     }
 
     const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
@@ -113,6 +120,9 @@ sumup.post('/api/sumup/checkout/:id/pay', async (c) => {
 
     if (!checkoutId) return c.json({ error: 'Checkout inválido.' }, 400);
     if (!baseAmount || Number(baseAmount) <= 0) return c.json({ error: 'Valor inválido para pagamento SumUp.' }, 400);
+    if (Number(baseAmount) < MIN_PAYMENT_AMOUNT || Number(baseAmount) > MAX_PAYMENT_AMOUNT) {
+      return c.json({ error: `Valor deve ser entre R$${MIN_PAYMENT_AMOUNT} e R$${MAX_PAYMENT_AMOUNT}.` }, 400);
+    }
     if (!card?.name || !card?.number || !card?.expiryMonth || !card?.expiryYear || !card?.cvv) {
       return c.json({ error: 'Dados de cartão incompletos.' }, 400);
     }
@@ -168,7 +178,10 @@ sumup.post('/api/sumup/checkout/:id/pay', async (c) => {
 
 // 3DS Return Page
 sumup.get('/api/sumup/checkout/:ref/return', async (c) => {
-  const ref = c.req.param('ref');
+  // Sanitize ref to prevent XSS injection in the page
+  const rawRef = c.req.param('ref');
+  const ref = rawRef.replace(/[^a-zA-Z0-9\-_]/g, '');
+  const origin = new URL(c.req.url).origin;
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -186,7 +199,7 @@ sumup.get('/api/sumup/checkout/:ref/return', async (c) => {
     <span style="font-size: 13px; font-weight: bold;">Redirecionando...</span>
   </div>
   <script>
-    window.parent.postMessage({ type: "sumup-3ds-success", ref: "${ref}" }, "*");
+    window.parent.postMessage({ type: "sumup-3ds-success", ref: "${ref}" }, "${origin}");
   </script>
 </body>
 </html>`;

@@ -79,7 +79,7 @@ export const checkRateLimit = async (
 
     return (result?.cnt ?? 0) >= routeConfig.maxRequests;
   } catch {
-    return false; // Em caso de erro D1, não bloqueia (fail-open)
+    return true; // Fail-closed: block on D1 error to prevent abuse during outages
   }
 };
 

@@ -16,7 +16,7 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
-import { requireAuth } from '../lib/auth.ts';
+import { requireAuth, DEFAULT_ADMIN_EMAIL } from '../lib/auth.ts';
 import { NewCommentSchema } from '../lib/schemas.ts';
 import {
   moderateText,
@@ -52,7 +52,7 @@ const DEFAULT_MOD_SETTINGS: ModerationSettings = {
   duplicateWindowHours: 24,
   autoCloseAfterDays: 0,
   notifyOnNewComment: true,
-  notifyEmail: 'cal@reflexosdaalma.blog',
+  notifyEmail: DEFAULT_ADMIN_EMAIL,
 };
 
 async function getModerationSettings(db: D1Database): Promise<ModerationSettings> {
@@ -177,15 +177,18 @@ comments.post('/api/comments', async (c) => {
     // Gera hash do IP para tracking anti-spam (privacy-first)
     const clientIp = c.req.header('cf-connecting-ip') || 'unknown';
     const userAgent = c.req.header('user-agent') || 'unknown';
-    const ipHash = await hashIdentity(clientIp, userAgent, `comment:${body.post_id}`);
+    // Use date-based rotation salt to prevent long-term tracking while keeping
+    // within-day dedup effective. The salt changes daily.
+    const dailySalt = `comment:${body.post_id}:${new Date().toISOString().slice(0, 10)}`;
+    const ipHash = await hashIdentity(clientIp, userAgent, dailySalt);
 
     // ── Rate limiting por IP (configurável) ──────────────────────────────
     if (settings.rateLimitPerIpPerHour > 0) {
       const windowHours = 1;
       const recentCount = await c.env.DB.prepare(
         `SELECT COUNT(*) as cnt FROM mainsite_comments
-         WHERE author_ip_hash = ? AND created_at > datetime('now', '-${windowHours} hours')`
-      ).bind(ipHash).first<{ cnt: number }>();
+         WHERE author_ip_hash = ? AND created_at > datetime('now', ? || ' hours')`
+      ).bind(ipHash, `-${windowHours}`).first<{ cnt: number }>();
 
       if (recentCount && recentCount.cnt >= settings.rateLimitPerIpPerHour) {
         return c.json({ error: 'Limite de comentários por hora atingido. Tente novamente mais tarde.' }, 429);
@@ -197,9 +200,9 @@ comments.post('/api/comments', async (c) => {
     const duplicateCheck = await c.env.DB.prepare(
       `SELECT id FROM mainsite_comments
        WHERE post_id = ? AND author_ip_hash = ? AND content = ?
-       AND created_at > datetime('now', '-${dupWindow} hours')
+       AND created_at > datetime('now', ? || ' hours')
        LIMIT 1`
-    ).bind(body.post_id, ipHash, body.content).first();
+    ).bind(body.post_id, ipHash, body.content, `-${dupWindow}`).first();
 
     if (duplicateCheck) {
       return c.json({ error: 'Comentário duplicado detectado.' }, 409);

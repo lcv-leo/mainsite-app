@@ -352,13 +352,16 @@ export async function verifyTurnstile(token: string, secretKey: string, ip: stri
 
 // ── Email Notification ──────────────────────────────────────────────────────
 
+import { escapeHtml } from './html.ts';
+import { DEFAULT_ADMIN_EMAIL } from './auth.ts';
+
 /**
  * Envia notificação por email ao admin via Resend quando um comentário chega.
  */
 export async function notifyAdminNewComment(
   resendApiKey: string,
   comment: { authorName: string; content: string; postTitle: string; status: string },
-  toEmail = 'cal@reflexosdaalma.blog',
+  toEmail = DEFAULT_ADMIN_EMAIL,
 ): Promise<void> {
   const statusLabel = comment.status === 'approved' ? '✅ Aprovado automaticamente'
     : comment.status === 'rejected_auto' ? '🚫 Rejeitado automaticamente'
@@ -368,19 +371,23 @@ export async function notifyAdminNewComment(
     : comment.status === 'rejected_auto' ? '#ef4444'
     : '#f59e0b';
 
+  const safeTitle = escapeHtml(comment.postTitle);
+  const safeAuthor = escapeHtml(comment.authorName);
+  const safeContent = escapeHtml(comment.content);
+
   const html = `
     <div style="font-family: 'Inter', system-ui, sans-serif; color: #333; max-width: 600px;">
       <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">
         Novo Comentário Público no MainSite
       </h2>
-      <p><strong>Matéria:</strong> ${comment.postTitle}</p>
-      <p><strong>Autor:</strong> ${comment.authorName}</p>
+      <p><strong>Matéria:</strong> ${safeTitle}</p>
+      <p><strong>Autor:</strong> ${safeAuthor}</p>
       <p>
         <strong>Status:</strong>
         <span style="color: ${statusColor}; font-weight: 700;">${statusLabel}</span>
       </p>
       <div style="background: #f5f5f5; padding: 15px; border-left: 4px solid ${statusColor}; margin-top: 20px; border-radius: 0 8px 8px 0;">
-        <p style="margin: 0; white-space: pre-wrap;">${comment.content}</p>
+        <p style="margin: 0; white-space: pre-wrap;">${safeContent}</p>
       </div>
       <p style="margin-top: 20px; font-size: 12px; color: #999;">
         Gerencie comentários no painel admin → MainSite → Moderação
@@ -398,7 +405,7 @@ export async function notifyAdminNewComment(
       body: JSON.stringify({
         from: 'Reflexos da Alma <mainsite@lcv.app.br>',
         to: toEmail,
-        subject: `${statusLabel} — Comentário de ${comment.authorName}: ${comment.postTitle}`,
+        subject: `${statusLabel} — Comentário de ${comment.authorName.replace(/[<>"]/g, '')}: ${comment.postTitle.replace(/[<>"]/g, '')}`,
         html,
       }),
     });

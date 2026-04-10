@@ -26,6 +26,10 @@ import {
 
 const mp = new Hono<{ Bindings: Env }>();
 
+// Payment amount bounds (BRL)
+const MIN_PAYMENT_AMOUNT = 1.00;
+const MAX_PAYMENT_AMOUNT = 10_000.00;
+
 // ========== PUBLIC PAYMENT ==========
 
 mp.post('/api/mp-payment', async (c) => {
@@ -45,6 +49,11 @@ mp.post('/api/mp-payment', async (c) => {
       }
       transactionAmount = finalAmount;
       (mpPayload as Record<string, unknown>).transaction_amount = transactionAmount;
+    }
+
+    // Validate payment amount bounds
+    if (!Number.isFinite(transactionAmount) || transactionAmount < MIN_PAYMENT_AMOUNT || transactionAmount > MAX_PAYMENT_AMOUNT) {
+      return c.json({ error: `Valor deve ser entre R$${MIN_PAYMENT_AMOUNT} e R$${MAX_PAYMENT_AMOUNT}.` }, 400);
     }
 
     const client = new MercadoPagoConfig({ accessToken: token });
@@ -109,10 +118,9 @@ mp.post('/api/mp-payment', async (c) => {
     return c.json(safeData, 201);
   } catch (err) {
     console.error('MercadoPago Payment Creation Error:', err);
-    structuredLog('error', 'MP Payment Error', { err: String(err), stack: (err as Error).stack, details: JSON.stringify(err) });
+    structuredLog('error', 'MP Payment Error', { err: String(err), stack: (err as Error).stack });
     return c.json({
-      error: (err as Error).message,
-      details: String(err)
+      error: 'Falha ao processar pagamento. Tente novamente.',
     }, 500);
   }
 });
@@ -157,7 +165,7 @@ mp.post('/api/webhooks/mercadopago', async (c) => {
   }
 
   // Validate timestamp (max 5 minutes)
-  const webhookAge = Date.now() - parseInt(timestamp);
+  const webhookAge = Date.now() - parseInt(timestamp, 10);
   if (webhookAge > 300_000) {
     structuredLog('warn', 'Webhook too old (>5 minutes)', {
       endpoint: '/api/webhooks/mercadopago',

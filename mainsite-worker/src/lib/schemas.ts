@@ -10,30 +10,30 @@ import { z } from 'zod';
 
 /** POST /api/contact */
 export const ContactSchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-  message: z.string().min(1),
-  phone: z.string().optional(),
+  name: z.string().min(1).max(200),
+  email: z.string().email().max(320),
+  message: z.string().min(1).max(5000),
+  phone: z.string().max(30).optional(),
 });
 export type ContactInput = z.infer<typeof ContactSchema>;
 
 /** POST /api/comment (email ao admin) */
 export const CommentEmailSchema = z.object({
-  name: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().optional(),
-  message: z.string().min(1),
-  post_title: z.string().optional(),
+  name: z.string().max(200).optional(),
+  phone: z.string().max(30).optional(),
+  email: z.string().max(320).optional(),
+  message: z.string().min(1).max(5000),
+  post_title: z.string().max(300).optional(),
 });
 export type CommentEmailInput = z.infer<typeof CommentEmailSchema>;
 
 /** POST /api/ai/public/chat */
 export const ChatInputSchema = z.object({
-  message: z.string().min(1),
+  message: z.string().min(1).max(4000),
   currentContext: z
     .object({
-      title: z.string().optional(),
-      content: z.string().optional(),
+      title: z.string().max(500).optional(),
+      content: z.string().max(10000).optional(),
     })
     .optional(),
   askForDonation: z.boolean().optional(),
@@ -54,7 +54,7 @@ export const NewCommentSchema = z.object({
   post_id: z.number().int().positive(),
   parent_id: z.number().int().positive().nullable().optional(),
   author_name: z.string().max(100).optional(),
-  author_email: z.string().max(255).optional(),
+  author_email: z.string().email().max(255).optional(),
   content: z.string().min(1),
   turnstile_token: z.string().optional(),
   _hp: z.string().optional(),
@@ -115,19 +115,28 @@ export const PostReorderSchema = z.array(
 );
 export type PostReorderInput = z.infer<typeof PostReorderSchema>;
 
+/** POST /api/shares (público) */
+export const ShareLogSchema = z.object({
+  post_id: z.union([z.string(), z.number()]).optional(),
+  post_title: z.string().max(300).optional(),
+  platform: z.string().max(50).optional(),
+  target: z.string().max(320).optional(),
+});
+export type ShareLogInput = z.infer<typeof ShareLogSchema>;
+
 /**
  * Secrets do Worker após resolução pelo middleware SecretStore.
- * Todos opcionais para não bloquear deploy em caso de secret temporariamente
- * indisponível — ausências são logadas como warn para visibilidade.
+ * Secrets críticos para segurança (auth, webhook HMAC) são required.
+ * Demais são opcionais — ausências logadas como warn para visibilidade.
  */
 export const EnvSecretsSchema = z.object({
-  CLOUDFLARE_PW:              z.string().min(1).optional(),
+  CLOUDFLARE_PW:              z.string().min(1, 'CLOUDFLARE_PW is required'),
   GEMINI_API_KEY:             z.string().min(1).optional(),
   RESEND_API_KEY:             z.string().min(1).optional(),
   SUMUP_API_KEY_PRIVATE:      z.string().min(1).optional(),
   SUMUP_MERCHANT_CODE:        z.string().min(1).optional(),
   MP_ACCESS_TOKEN:            z.string().min(1).optional(),
-  MERCADO_PAGO_WEBHOOK_SECRET:z.string().min(1).optional(),
+  MERCADO_PAGO_WEBHOOK_SECRET:z.string().min(1, 'MERCADO_PAGO_WEBHOOK_SECRET is required'),
   PIX_KEY:                    z.string().min(1).optional(),
   PIX_NAME:                   z.string().min(1).optional(),
   PIX_CITY:                   z.string().min(1).optional(),

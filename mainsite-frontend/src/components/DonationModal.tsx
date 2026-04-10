@@ -30,6 +30,7 @@ const maskBrazilianDocument = (type: string, raw: string): string => {
 import { type FormEvent, useState, useEffect, useRef } from 'react';
 import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone, AlertTriangle, Loader2 } from 'lucide-react';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
+import QRCode from 'qrcode';
 import type { ActivePalette } from '../types';
 
 // ✅ Carrega chave pública do Mercado Pago via variável de ambiente
@@ -146,6 +147,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
   const [amountDisplay, setAmountDisplay] = useState('');
 
   const [pixPayload, setPixPayload] = useState('');
+  const [pixQrDataUri, setPixQrDataUri] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const [toast, setToast] = useState<ToastLocal>({ show: false, message: '', type: 'info' });
   const [toastTop, setToastTop] = useState(20);
@@ -169,6 +171,13 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
     window.addEventListener('pointerdown', trackPointer, { passive: true });
     return () => window.removeEventListener('pointerdown', trackPointer);
   }, []);
+
+  useEffect(() => {
+    if (!pixPayload) { setPixQrDataUri(''); return; }
+    QRCode.toDataURL(pixPayload, { width: 200, margin: 1 })
+      .then((url: string) => setPixQrDataUri(url))
+      .catch(() => setPixQrDataUri(''));
+  }, [pixPayload]);
 
   useEffect(() => {
     if (visibilityTimeoutRef.current) {
@@ -606,7 +615,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
             <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '20px' }}>Escaneie o QR Code ou use o Copia e Cola.</p>
 
             <div style={{ background: '#fff', padding: '15px', borderRadius: '12px', display: 'inline-block', marginBottom: '20px', border: '1px solid #ccc' }}>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixPayload)}`} alt="QR Code PIX" style={{ width: '180px', height: '180px', display: 'block' }} />
+              {pixQrDataUri ? (
+                <img src={pixQrDataUri} alt="QR Code PIX" style={{ width: '180px', height: '180px', display: 'block' }} />
+              ) : (
+                <div style={{ width: '180px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', opacity: 0.5 }}>Gerando QR...</div>
+              )}
             </div>
 
             <button type="button" onClick={handleCopy} style={{ width: '100%', padding: '12px', background: isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', color: activePalette.fontColor, border: '1px solid rgba(128,128,128,0.2)', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', fontWeight: 'bold', transition: 'background 0.2s' }}>

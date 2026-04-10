@@ -198,7 +198,10 @@ export const validateMercadoPagoSignatureAsync = async (
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
 
-    return computed === v1;
+    // Constant-time comparison para prevenir timing attacks na validação HMAC
+    if (computed.length !== v1.length) return false;
+    const encoder = new TextEncoder();
+    return crypto.subtle.timingSafeEqual(encoder.encode(computed), encoder.encode(v1));
   } catch {
     return false;
   }

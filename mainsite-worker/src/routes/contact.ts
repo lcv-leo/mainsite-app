@@ -8,8 +8,9 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
-import { requireAuth } from '../lib/auth.ts';
-import { ContactSchema, CommentEmailSchema, ShareEmailSchema } from '../lib/schemas.ts';
+import { requireAuth, getAdminEmail } from '../lib/auth.ts';
+import { ContactSchema, CommentEmailSchema, ShareEmailSchema, ShareLogSchema } from '../lib/schemas.ts';
+import { escapeHtml } from '../lib/html.ts';
 
 const contact = new Hono<{ Bindings: Env }>();
 
@@ -41,31 +42,33 @@ contact.post('/api/contact', async (c) => {
     const resendToken = c.env.RESEND_API_KEY;
     const adminHtml = `
       <div style="font-family: sans-serif; color: #333;">
-        <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Contato pelo Site ${sentiment}</h2>
-        <p><strong>Nome:</strong> ${name}</p>
-        <p><strong>Telefone:</strong> ${phone || 'Não informado'}</p>
-        <p><strong>E-mail:</strong> ${email}</p>
+        <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Contato pelo Site ${escapeHtml(sentiment)}</h2>
+        <p><strong>Nome:</strong> ${escapeHtml(name)}</p>
+        <p><strong>Telefone:</strong> ${escapeHtml(phone || 'Não informado')}</p>
+        <p><strong>E-mail:</strong> ${escapeHtml(email)}</p>
         <div style="background: #f5f5f5; padding: 15px; border-left: 4px solid #000; margin-top: 20px;">
-          <p style="margin: 0; white-space: pre-wrap;">${message}</p>
+          <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(message)}</p>
         </div>
       </div>
     `;
     const userHtml = `
       <div style="font-family: sans-serif; color: #333; line-height: 1.6;">
-        <h2 style="color: #0ea5e9;">Olá, ${name}</h2>
+        <h2 style="color: #0ea5e9;">Olá, ${escapeHtml(name)}</h2>
         <p>Recebemos sua mensagem com sucesso através do nosso site. Abaixo está uma cópia do que você nos enviou:</p>
         <div style="background: #f0f9ff; padding: 15px; border-left: 4px solid #0ea5e9; margin: 20px 0;">
-          <p style="margin: 0; white-space: pre-wrap; font-style: italic;">"${message}"</p>
+          <p style="margin: 0; white-space: pre-wrap; font-style: italic;">"${escapeHtml(message)}"</p>
         </div>
         <p>Em breve entraremos em contato.</p>
         <p>Atenciosamente,<br/><strong>Reflexos da Alma</strong></p>
       </div>
     `;
 
+    const adminEmail = await getAdminEmail(c.env.DB);
+
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: 'cal@reflexosdaalma.blog', subject: `Novo Contato de ${name}`, html: adminHtml }),
+      body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: adminEmail, subject: `Novo Contato de ${name}`, html: adminHtml }),
     });
 
     await fetch('https://api.resend.com/emails', {
@@ -95,21 +98,23 @@ contact.post('/api/comment', async (c) => {
     const sentiment = await getSentimentPrefix(c.env, message);
     const adminHtml = `
       <div style="font-family: sans-serif; color: #333;">
-        <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Comentário no Site ${sentiment}</h2>
-        <p><strong>Texto/Contexto:</strong> ${post_title || 'N/A'}</p>
-        <p><strong>Nome:</strong> ${name || 'Não informado'}</p>
-        <p><strong>Telefone:</strong> ${phone || 'Não informado'}</p>
-        <p><strong>E-mail:</strong> ${email || 'Não informado'}</p>
+        <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Comentário no Site ${escapeHtml(sentiment)}</h2>
+        <p><strong>Texto/Contexto:</strong> ${escapeHtml(post_title || 'N/A')}</p>
+        <p><strong>Nome:</strong> ${escapeHtml(name || 'Não informado')}</p>
+        <p><strong>Telefone:</strong> ${escapeHtml(phone || 'Não informado')}</p>
+        <p><strong>E-mail:</strong> ${escapeHtml(email || 'Não informado')}</p>
         <div style="background: #fffbeb; padding: 15px; border-left: 4px solid #f59e0b; margin-top: 20px;">
-          <p style="margin: 0; white-space: pre-wrap;">${message}</p>
+          <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(message)}</p>
         </div>
       </div>
     `;
 
+    const commentAdminEmail = await getAdminEmail(c.env.DB);
+
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: 'cal@reflexosdaalma.blog', subject: `Novo Comentário: ${post_title || 'Geral'}`, html: adminHtml }),
+      body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: commentAdminEmail, subject: `Novo Comentário: ${post_title || 'Geral'}`, html: adminHtml }),
     });
 
     return c.json({ success: true });
@@ -158,9 +163,9 @@ contact.delete('/api/shares/:id', requireAuth, async (c) => {
 
 contact.post('/api/shares', async (c) => {
   try {
-    const { post_id, post_title, platform, target } = (await c.req.json()) as {
-      post_id?: string; post_title?: string; platform?: string; target?: string;
-    };
+    const parsed = ShareLogSchema.safeParse(await c.req.json());
+    if (!parsed.success) return c.json({ error: 'Dados inválidos.' }, 400);
+    const { post_id, post_title, platform, target } = parsed.data;
     await c.env.DB.prepare('INSERT INTO mainsite_shares (post_id, post_title, platform, target) VALUES (?, ?, ?, ?)')
       .bind(post_id, post_title, platform, target || null)
       .run();
@@ -177,17 +182,20 @@ contact.post('/api/share/email', async (c) => {
     const { post_id, post_title, link, target_email } = parsed.data;
     if (!c.env.RESEND_API_KEY) throw new Error('Chave do Resend não configurada.');
 
+    // Block javascript: and data: URIs in share link (XSS prevention)
+    const safeLink = link && /^https?:\/\//i.test(link) ? link : undefined;
+
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: 'Reflexos da Alma <mainsite@lcv.app.br>',
         to: [target_email],
-        subject: `Compartilhamento: ${post_title}`,
+        subject: `Compartilhamento: ${(post_title || '').replace(/[<>"]/g, '')}`,
         html: `<div style="font-family: sans-serif; padding: 20px;">
                 <h2>Alguém compartilhou uma leitura com você</h2>
-                <p><strong>${post_title}</strong></p>
-                <a href="${link}" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 10px;">Ler Texto Completo</a>
+                <p><strong>${escapeHtml(post_title)}</strong></p>
+                ${safeLink ? `<a href="${escapeHtml(safeLink)}" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 10px;">Ler Texto Completo</a>` : ''}
                </div>`,
       }),
     });

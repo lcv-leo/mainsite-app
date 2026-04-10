@@ -84,10 +84,21 @@ app.use('*', async (c, next) => {
 app.use('*', async (c, next) => {
   const result = EnvSecretsSchema.safeParse(c.env);
   if (!result.success) {
-    const missing = result.error.issues
-      .map(i => i.path.join('.'))
-      .join(', ');
-    console.warn(`[Env] Secrets ausentes ou inválidos: ${missing}`);
+    const issues = result.error.issues;
+    const criticalMissing = issues
+      .filter(i => !i.message.includes('optional'))
+      .map(i => i.path.join('.'));
+    const optionalMissing = issues
+      .filter(i => i.message.includes('optional'))
+      .map(i => i.path.join('.'));
+
+    if (optionalMissing.length > 0) {
+      console.warn(`[Env] Optional secrets missing: ${optionalMissing.join(', ')}`);
+    }
+    if (criticalMissing.length > 0) {
+      console.error(`[Env] CRITICAL secrets missing: ${criticalMissing.join(', ')}`);
+      return c.json({ error: 'Service configuration error.' }, 503);
+    }
   }
   return next();
 });
