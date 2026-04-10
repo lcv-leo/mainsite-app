@@ -12,6 +12,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { hashIdentity } from '../lib/moderation.ts';
+import { RatingsSchema } from '../lib/schemas.ts';
 
 const ratings = new Hono<{ Bindings: Env }>();
 
@@ -23,11 +24,9 @@ type ReactionType = typeof VALID_REACTIONS[number];
 
 ratings.post('/api/ratings', async (c) => {
   try {
-    const body = (await c.req.json()) as {
-      post_id?: number;
-      rating?: number;
-      reaction_type?: string;
-    };
+    const parseResult = RatingsSchema.safeParse(await c.req.json());
+    if (!parseResult.success) return c.json({ error: 'Dados inválidos.' }, 400);
+    const body = parseResult.data;
 
     if (!body.post_id) {
       return c.json({ error: 'Post ID é obrigatório.' }, 400);

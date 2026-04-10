@@ -24,6 +24,7 @@ import {
   FINANCIAL_CUTOFF_DATE,
   loadFeeConfig,
 } from '../lib/financial.ts';
+import { SumupCheckoutSchema, SumupPaySchema } from '../lib/schemas.ts';
 
 const sumup = new Hono<{ Bindings: Env }>();
 
@@ -61,8 +62,9 @@ function parseSumupError(err: Error): { message: string; httpStatus: number } {
 sumup.post('/api/sumup/checkout', async (c) => {
   try {
     structuredLog('info', '[SumUp Checkout] Iniciando criação de checkout');
-    const payload = (await c.req.json()) as Record<string, unknown>;
-    const { baseAmount, coverFees, firstName, lastName } = payload;
+    const checkoutParse = SumupCheckoutSchema.safeParse(await c.req.json());
+    if (!checkoutParse.success) return c.json({ error: 'Dados inválidos para checkout.' }, 400);
+    const { baseAmount, coverFees, firstName, lastName } = checkoutParse.data;
 
     if (!baseAmount || Number(baseAmount) <= 0) {
       return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
@@ -104,11 +106,9 @@ sumup.post('/api/sumup/checkout', async (c) => {
 sumup.post('/api/sumup/checkout/:id/pay', async (c) => {
   try {
     const checkoutId = c.req.param('id');
-    const payloadReq = (await c.req.json()) as Record<string, unknown>;
-    const { baseAmount, coverFees, card, firstName, lastName, email, document: taxId } = payloadReq as {
-      baseAmount?: number; coverFees?: boolean; card?: Record<string, string>;
-      firstName?: string; lastName?: string; email?: string; document?: string;
-    };
+    const payParse = SumupPaySchema.safeParse(await c.req.json());
+    if (!payParse.success) return c.json({ error: 'Dados inválidos para pagamento.' }, 400);
+    const { baseAmount, coverFees, card, firstName, lastName, email, document: taxId } = payParse.data;
     const taxIdDigits = String(taxId || '').replace(/\D/g, '').trim();
 
     if (!checkoutId) return c.json({ error: 'Checkout inválido.' }, 400);

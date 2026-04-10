@@ -16,6 +16,7 @@ import { requireAuth } from '../lib/auth.ts';
 import { generateShareSummary, hashContent, stripHtml } from '../lib/gemini.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { bumpContentVersion } from '../lib/content-version.ts';
+import { PostBodySchema, PostReorderSchema } from '../lib/schemas.ts';
 
 const posts = new Hono<{ Bindings: Env }>();
 
@@ -132,7 +133,9 @@ posts.get('/api/posts/:id', async (c) => {
 // POST /api/posts (admin)
 posts.post('/api/posts', requireAuth, async (c) => {
   try {
-    const { title, content, author } = (await c.req.json()) as { title?: string; content?: string; author?: string };
+    const postParse = PostBodySchema.safeParse(await c.req.json());
+    if (!postParse.success) return c.json({ error: 'Dados inválidos.' }, 400);
+    const { title, content, author } = postParse.data;
     const authorVal = (author || '').trim() || 'Leonardo Cardozo Vargas';
     const result = await c.env.DB.prepare(
       'INSERT INTO mainsite_posts (title, content, author, is_pinned, display_order) VALUES (?, ?, ?, 0, 0)'
@@ -161,7 +164,9 @@ posts.post('/api/posts', requireAuth, async (c) => {
 posts.put('/api/posts/:id', requireAuth, async (c) => {
   const id = c.req.param('id');
   try {
-    const { title, content, author } = (await c.req.json()) as { title?: string; content?: string; author?: string };
+    const postParse = PostBodySchema.safeParse(await c.req.json());
+    if (!postParse.success) return c.json({ error: 'Dados inválidos.' }, 400);
+    const { title, content, author } = postParse.data;
     const authorVal = (author || '').trim() || 'Leonardo Cardozo Vargas';
     await c.env.DB.prepare(
       'UPDATE mainsite_posts SET title = ?, content = ?, author = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
@@ -216,7 +221,9 @@ posts.put('/api/posts/:id/pin', requireAuth, async (c) => {
 // PUT /api/posts/reorder (admin)
 posts.put('/api/posts/reorder', requireAuth, async (c) => {
   try {
-    const items = (await c.req.json()) as Array<{ id: string | number; display_order: number }>;
+    const reorderParse = PostReorderSchema.safeParse(await c.req.json());
+    if (!reorderParse.success) return c.json({ error: 'Dados inválidos.' }, 400);
+    const items = reorderParse.data;
     const statements = items.map((item) =>
       c.env.DB.prepare('UPDATE mainsite_posts SET display_order = ? WHERE id = ?').bind(item.display_order, item.id)
     );

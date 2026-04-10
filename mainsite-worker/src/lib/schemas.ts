@@ -60,3 +60,57 @@ export const NewCommentSchema = z.object({
   _hp: z.string().optional(),
 });
 export type NewCommentInput = z.infer<typeof NewCommentSchema>;
+
+/** POST /api/ratings */
+export const RatingsSchema = z.object({
+  post_id: z.number().int().positive().optional(),
+  rating: z.number().int().min(1).max(5).optional(),
+  reaction_type: z.string().optional(),
+});
+export type RatingsInput = z.infer<typeof RatingsSchema>;
+
+/** POST /api/sumup/checkout */
+export const SumupCheckoutSchema = z.object({
+  baseAmount: z.union([z.number(), z.string()]).optional(),
+  coverFees: z.boolean().optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+});
+export type SumupCheckoutInput = z.infer<typeof SumupCheckoutSchema>;
+
+/** POST /api/sumup/checkout/:id/pay */
+export const SumupPaySchema = z.object({
+  baseAmount: z.union([z.number(), z.string()]).optional(),
+  coverFees: z.boolean().optional(),
+  card: z
+    .object({
+      name: z.string(),
+      number: z.string(),
+      expiryMonth: z.string(),
+      expiryYear: z.string(),
+      cvv: z.string(),
+    })
+    .optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  email: z.string().optional(),
+  document: z.string().optional(),
+});
+export type SumupPayInput = z.infer<typeof SumupPaySchema>;
+
+/** POST /api/posts, PUT /api/posts/:id (admin) */
+export const PostBodySchema = z.object({
+  title: z.string().optional(),
+  content: z.string().optional(),
+  author: z.string().optional(),
+});
+export type PostBodyInput = z.infer<typeof PostBodySchema>;
+
+/** PUT /api/posts/reorder (admin) */
+export const PostReorderSchema = z.array(
+  z.object({
+    id: z.union([z.string(), z.number()]),
+    display_order: z.number().int(),
+  }),
+);
+export type PostReorderInput = z.infer<typeof PostReorderSchema>;

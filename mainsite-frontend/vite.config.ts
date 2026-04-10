@@ -1,7 +1,9 @@
 /// <reference types="vitest/config" />
+import { fileURLToPath } from 'url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 /**
  * Remove console.* e debugger do bundle de produção.
@@ -25,7 +27,10 @@ function dropDevArtifacts(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), dropDevArtifacts()],
+  plugins: [react(), dropDevArtifacts(), ...(process.env.ANALYZE ? [visualizer({ filename: 'dist/stats.html', open: true, gzipSize: true })] : [])],
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+  },
   build: {
     target: 'esnext',
     cssCodeSplit: false,
@@ -48,5 +53,11 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./src/test-setup.ts'],
     exclude: ['node_modules', 'dist'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      exclude: ['node_modules', 'dist', 'src/test-setup.ts', '**/*.test.{ts,tsx}'],
+      thresholds: { lines: 60, functions: 60, branches: 50, statements: 60 },
+    },
   },
 });
