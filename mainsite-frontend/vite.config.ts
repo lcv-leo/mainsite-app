@@ -9,13 +9,16 @@ import type { Plugin } from 'vite';
  * Atua no código já transformado, antes do write final.
  */
 function dropDevArtifacts(): Plugin {
-  const consoleRe = /\bconsole\.\w+\s*\((?:[^)(]*|\((?:[^)(]*|\([^)(]*\))*\))*\)\s*;?/g;
-  const debuggerRe = /\bdebugger\s*;?/g;
+  const debuggerRe = /\bdebugger\s*;/g;
   return {
     name: 'drop-dev-artifacts',
     apply: 'build',
-    renderChunk(code) {
-      const next = code.replace(consoleRe, '').replace(debuggerRe, '');
+    // transform: atua no código-fonte antes do bundle, arquivo por arquivo.
+    // Mais seguro que renderChunk (que opera no código já concatenado/minificado).
+    transform(code, id) {
+      if (id.includes('node_modules')) return null;
+      if (!/\.[jt]sx?$/.test(id)) return null;
+      const next = code.replace(debuggerRe, '');
       return next !== code ? { code: next, map: null } : null;
     },
   };
