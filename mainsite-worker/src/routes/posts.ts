@@ -17,6 +17,7 @@ import { generateShareSummary, hashContent, stripHtml } from '../lib/gemini.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { bumpContentVersion } from '../lib/content-version.ts';
 import { PostBodySchema, PostReorderSchema } from '../lib/schemas.ts';
+import { sanitizePostHtml } from '../lib/sanitize.ts';
 
 const posts = new Hono<{ Bindings: Env }>();
 
@@ -137,7 +138,8 @@ posts.post('/api/posts', requireAuth, async (c) => {
   try {
     const postParse = PostBodySchema.safeParse(await c.req.json());
     if (!postParse.success) return c.json({ error: 'Dados inválidos.' }, 400);
-    const { title, content, author } = postParse.data;
+    const { title, author } = postParse.data;
+    const content = sanitizePostHtml(postParse.data.content || '');
     const authorVal = (author || '').trim() || 'Leonardo Cardozo Vargas';
     const result = await c.env.DB.prepare(
       'INSERT INTO mainsite_posts (title, content, author, is_pinned, display_order) VALUES (?, ?, ?, 0, 0)'
@@ -169,7 +171,8 @@ posts.put('/api/posts/:id', requireAuth, async (c) => {
   try {
     const postParse = PostBodySchema.safeParse(await c.req.json());
     if (!postParse.success) return c.json({ error: 'Dados inválidos.' }, 400);
-    const { title, content, author } = postParse.data;
+    const { title, author } = postParse.data;
+    const content = sanitizePostHtml(postParse.data.content || '');
     const authorVal = (author || '').trim() || 'Leonardo Cardozo Vargas';
     await c.env.DB.prepare(
       'UPDATE mainsite_posts SET title = ?, content = ?, author = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
