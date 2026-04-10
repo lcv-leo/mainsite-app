@@ -114,3 +114,23 @@ export const PostReorderSchema = z.array(
   }),
 );
 export type PostReorderInput = z.infer<typeof PostReorderSchema>;
+
+/**
+ * Secrets do Worker após resolução pelo middleware SecretStore.
+ * Todos opcionais para não bloquear deploy em caso de secret temporariamente
+ * indisponível — ausências são logadas como warn para visibilidade.
+ */
+export const EnvSecretsSchema = z.object({
+  CLOUDFLARE_PW:              z.string().min(1).optional(),
+  GEMINI_API_KEY:             z.string().min(1).optional(),
+  RESEND_API_KEY:             z.string().min(1).optional(),
+  SUMUP_API_KEY_PRIVATE:      z.string().min(1).optional(),
+  SUMUP_MERCHANT_CODE:        z.string().min(1).optional(),
+  MP_ACCESS_TOKEN:            z.string().min(1).optional(),
+  MERCADO_PAGO_WEBHOOK_SECRET:z.string().min(1).optional(),
+  PIX_KEY:                    z.string().min(1).optional(),
+  PIX_NAME:                   z.string().min(1).optional(),
+  PIX_CITY:                   z.string().min(1).optional(),
+  GCP_NL_API_KEY:             z.string().min(1).optional(),
+  TURNSTILE_SECRET_KEY:       z.string().min(1).optional(),
+});

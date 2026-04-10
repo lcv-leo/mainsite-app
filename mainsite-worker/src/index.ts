@@ -9,7 +9,10 @@
  */
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
+import { timing } from 'hono/timing';
 import type { Env } from './env.ts';
+import { EnvSecretsSchema } from './lib/schemas.ts';
 
 // ========== MERCADO PAGO SDK POLYFILL ==========
 // O SDK do Mercado Pago usa node-fetch internamente, o que exige
@@ -44,6 +47,10 @@ import { bumpContentVersion } from './lib/content-version.ts';
 
 const app = new Hono<{ Bindings: Env }>();
 
+// ========== OBSERVABILITY ==========
+app.use('*', timing());
+app.use('*', logger());
+
 // ========== SECRET STORE RESOLVER MIDDLEWARE ==========
 // Cloudflare Secret Store bindings are Fetcher objects with `.get()`.
 // This middleware eagerly resolves all secret values so downstream
@@ -73,6 +80,17 @@ app.use('*', async (c, next) => {
   return next();
 });
 
+// ========== ENV VALIDATION (post-secret-resolution) ==========
+app.use('*', async (c, next) => {
+  const result = EnvSecretsSchema.safeParse(c.env);
+  if (!result.success) {
+    const missing = result.error.issues
+      .map(i => i.path.join('.'))
+      .join(', ');
+    console.warn(`[Env] Secrets ausentes ou inválidos: ${missing}`);
+  }
+  return next();
+});
 
 // ========== CORS (paridade total com monolito) ==========
 app.use('/api/*', cors({

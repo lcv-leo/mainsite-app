@@ -1,5 +1,15 @@
 # Changelog — Mainsite Frontend
 
+## [v03.08.00] - 2026-04-09
+### Adicionado
+- **TanStack Query v5**: `@tanstack/react-query ^5.0.0` adicionado às deps; `@tanstack/react-query-devtools ^5.0.0` às devDeps. `main.tsx` agora envolve o app em `QueryClientProvider` (staleTime 30 s, retry 1) com `ReactQueryDevtools`.
+- **Vitest UI**: `@vitest/ui ^4.1.2`; script `"test:ui": "vitest --ui"`.
+- **Biome organizeImports**: Habilitado em `biome.json`.
+- **tsconfig strictness**: Adicionados `types: ["vite/client"]`, `erasableSyntaxOnly: true`, `noUncheckedSideEffectImports: true` ao `tsconfig.json`.
+
+### Controle de versão
+- `mainsite-frontend`: APP v03.07.00 → APP v03.08.00
+
 ## [v03.07.00] - 2026-04-09
 ### Adicionado
 - **Biome Linter**: Habilitado em `biome.json` com `recommended: true`; regras noisy (`noConsole`, `noExplicitAny`) desligadas; `useExhaustiveDependencies` em warn.

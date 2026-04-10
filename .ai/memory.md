@@ -1,5 +1,15 @@
 # AI Memory Log - MainSite
 
+## 2026-04-09 — Tier 4 Tech Upgrades (frontend v03.08.00, worker v02.06.00)
+### Escopo
+TanStack Query no frontend público, Biome linter+organizeImports no worker, Hono logger+timing, Zod env validation, Vitest UI, tsconfig strictness.
+### Adicionado
+- **mainsite-frontend**: TanStack Query v5 (`QueryClientProvider` + `ReactQueryDevtools` em `main.tsx`). `@vitest/ui` + `test:ui`. Biome `organizeImports`. tsconfig: `types: ["vite/client"]`, `erasableSyntaxOnly`, `noUncheckedSideEffectImports`.
+- **mainsite-worker**: `EnvSecretsSchema` em `schemas.ts`; middleware de validação pós-secrets em `index.ts`. `hono/logger` + `hono/timing`. Biome linter enabled + `organizeImports`. `@vitest/ui` + `test:ui`.
+### Versão
+- mainsite-frontend: APP v03.07.00 → APP v03.08.00
+- mainsite-worker: v02.05.00 → v02.06.00
+
 ## 2026-04-09 — Tier 1-3 Tech Upgrades (frontend v03.07.00, worker v02.05.00)
 ### Escopo
 Biome linter, Husky, AppType export no worker, testes de rota Hono, wrangler types script.

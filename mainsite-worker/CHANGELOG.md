@@ -1,5 +1,14 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.06.00] — 2026-04-09
+### Adicionado
+- **Zod env validation**: `EnvSecretsSchema` adicionado a `src/lib/schemas.ts`. Middleware pós-resolução de secrets em `index.ts` valida todas as 12 variáveis e loga warn para as ausentes (não bloqueia deploy).
+- **Hono logger**: `import { logger } from 'hono/logger'` + `app.use('*', logger())` — logs de request/response no stdout do Worker.
+- **Hono timing**: `import { timing } from 'hono/timing'` + `app.use('*', timing())` — header `Server-Timing` em todas as respostas.
+- **Biome linter**: Habilitado em `biome.json` com `recommended: true` (sem regras React; `noConsole` e `noExplicitAny` desligados).
+- **Biome organizeImports**: Habilitado em `biome.json`.
+- **Vitest UI**: `@vitest/ui ^4.1.2`; script `"test:ui": "vitest --ui"`.
+
 ## [v02.05.00] — 2026-04-09
 ### Adicionado
 - **AppType export**: `export type AppType = typeof app` adicionado a `src/index.ts` para habilitar consumidores Hono RPC.
