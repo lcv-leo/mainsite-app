@@ -9,8 +9,10 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth, getAdminEmail } from '../lib/auth.ts';
+import { structuredLog } from '../lib/logger.ts';
 import { ContactSchema, CommentEmailSchema, ShareEmailSchema, ShareLogSchema } from '../lib/schemas.ts';
 import { escapeHtml } from '../lib/html.ts';
+import { verifyTurnstile } from '../lib/moderation.ts';
 
 const contact = new Hono<{ Bindings: Env }>();
 
@@ -36,7 +38,16 @@ contact.post('/api/contact', async (c) => {
   try {
     const parsed = ContactSchema.safeParse(await c.req.json());
     if (!parsed.success) return c.json({ error: 'Dados incompletos' }, 400);
-    const { name, phone, email, message } = parsed.data;
+    const { name, phone, email, message, turnstile_token } = parsed.data;
+
+    const turnstileSecret = c.env.TURNSTILE_SECRET_KEY;
+    if (turnstileSecret && turnstile_token) {
+      const ip = c.req.header('CF-Connecting-IP') || '';
+      const isValid = await verifyTurnstile(turnstile_token, turnstileSecret, ip);
+      if (!isValid) return c.json({ error: 'Verificação de segurança falhou.' }, 403);
+    } else if (turnstileSecret && !turnstile_token) {
+      return c.json({ error: 'Token de verificação ausente.' }, 400);
+    }
 
     const sentiment = await getSentimentPrefix(c.env, message);
     const resendToken = c.env.RESEND_API_KEY;
@@ -93,7 +104,16 @@ contact.post('/api/comment', async (c) => {
   try {
     const parsed = CommentEmailSchema.safeParse(await c.req.json());
     if (!parsed.success) return c.json({ error: 'Comentário obrigatório' }, 400);
-    const { name, phone, email, message, post_title } = parsed.data;
+    const { name, phone, email, message, post_title, turnstile_token } = parsed.data;
+
+    const turnstileSecret = c.env.TURNSTILE_SECRET_KEY;
+    if (turnstileSecret && turnstile_token) {
+      const ip = c.req.header('CF-Connecting-IP') || '';
+      const isValid = await verifyTurnstile(turnstile_token, turnstileSecret, ip);
+      if (!isValid) return c.json({ error: 'Verificação de segurança falhou.' }, 403);
+    } else if (turnstileSecret && !turnstile_token) {
+      return c.json({ error: 'Token de verificação ausente.' }, 400);
+    }
 
     const sentiment = await getSentimentPrefix(c.env, message);
     const adminHtml = `
@@ -129,7 +149,8 @@ contact.get('/api/contact-logs', requireAuth, async (c) => {
     const { results } = await c.env.DB.prepare('SELECT * FROM mainsite_contact_logs ORDER BY created_at DESC LIMIT 200').all();
     return c.json(results || []);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Contact] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -138,7 +159,8 @@ contact.delete('/api/contact-logs/:id', requireAuth, async (c) => {
     await c.env.DB.prepare('DELETE FROM mainsite_contact_logs WHERE id = ?').bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Contact] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -148,7 +170,8 @@ contact.get('/api/shares', requireAuth, async (c) => {
     const { results } = await c.env.DB.prepare('SELECT * FROM mainsite_shares ORDER BY created_at DESC LIMIT 200').all();
     return c.json(results || []);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Contact] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -157,7 +180,8 @@ contact.delete('/api/shares/:id', requireAuth, async (c) => {
     await c.env.DB.prepare('DELETE FROM mainsite_shares WHERE id = ?').bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Contact] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -171,7 +195,8 @@ contact.post('/api/shares', async (c) => {
       .run();
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Contact] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -208,7 +233,8 @@ contact.post('/api/share/email', async (c) => {
     );
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Contact] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 

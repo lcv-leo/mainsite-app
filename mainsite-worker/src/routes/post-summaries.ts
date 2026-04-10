@@ -16,6 +16,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
+import { structuredLog } from '../lib/logger.ts';
 import { generateShareSummary, hashContent, stripHtml } from '../lib/gemini.ts';
 import { structuredLog } from '../lib/logger.ts';
 
@@ -50,7 +51,8 @@ postSummaries.get('/api/post-summaries', requireAuth, async (c) => {
     `).all();
     return c.json(results || []);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[PostSummaries] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -65,7 +67,8 @@ postSummaries.get('/api/post-summaries/:postId', requireAuth, async (c) => {
     if (!summary) return c.json({ error: 'Resumo não encontrado para este post' }, 404);
     return c.json(summary);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[PostSummaries] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -111,7 +114,8 @@ postSummaries.put('/api/post-summaries/:postId', requireAuth, async (c) => {
     structuredLog('info', 'Share summary manually updated', { postId });
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[PostSummaries] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -152,7 +156,8 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async 
     structuredLog('info', 'Share summary regenerated via AI', { postId });
     return c.json({ success: true, ...result });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[PostSummaries] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -266,7 +271,8 @@ postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) =>
       details,
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[PostSummaries] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 

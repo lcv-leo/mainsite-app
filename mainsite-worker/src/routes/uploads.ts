@@ -8,6 +8,7 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
+import { structuredLog } from '../lib/logger.ts';
 import { requireAuth } from '../lib/auth.ts';
 
 const uploads = new Hono<{ Bindings: Env }>();
@@ -65,7 +66,8 @@ uploads.post('/api/upload', requireAuth, async (c) => {
     const url = new URL(c.req.url);
     return c.json({ success: true, url: `${url.origin}/api/uploads/${safeName}` }, 201);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -96,7 +98,8 @@ uploads.get('/api/uploads/:filename', async (c) => {
     headers.set('Access-Control-Allow-Origin', '*');
     return new Response(object.body, { headers });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -114,7 +117,8 @@ uploads.get('/api/uploads/brands/:filename', async (c) => {
     headers.set('Access-Control-Allow-Origin', '*');
     return new Response(object.body, { headers });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -132,7 +136,8 @@ uploads.get('/api/media/:filename', async (c) => {
     headers.set('Access-Control-Allow-Origin', '*');
     return new Response(object.body, { headers });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -150,7 +155,8 @@ uploads.get('/api/mainsite/media/:filename', async (c) => {
     headers.set('Access-Control-Allow-Origin', '*');
     return new Response(object.body, { headers });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 

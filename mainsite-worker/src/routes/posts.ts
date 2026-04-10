@@ -114,7 +114,8 @@ posts.get('/api/posts', async (c) => {
     ).all();
     return c.json(results || []);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Posts] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -126,7 +127,8 @@ posts.get('/api/posts/:id', async (c) => {
     if (!post) return c.json({ error: 'Post não encontrado' }, 404);
     return c.json(post);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Posts] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -156,7 +158,8 @@ posts.post('/api/posts', requireAuth, async (c) => {
 
     return c.json({ success: true }, 201);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Posts] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -185,7 +188,8 @@ posts.put('/api/posts/:id', requireAuth, async (c) => {
 
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Posts] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -197,7 +201,8 @@ posts.delete('/api/posts/:id', requireAuth, async (c) => {
     c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Posts] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -214,7 +219,8 @@ posts.put('/api/posts/:id/pin', requireAuth, async (c) => {
     c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
     return c.json({ success: true, is_pinned: newStatus });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Posts] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -231,7 +237,8 @@ posts.put('/api/posts/reorder', requireAuth, async (c) => {
     c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Posts] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 

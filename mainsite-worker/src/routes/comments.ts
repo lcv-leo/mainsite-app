@@ -17,6 +17,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth, DEFAULT_ADMIN_EMAIL } from '../lib/auth.ts';
+import { structuredLog } from '../lib/logger.ts';
 import { NewCommentSchema } from '../lib/schemas.ts';
 import {
   moderateText,
@@ -423,7 +424,8 @@ comments.get('/api/comments/admin/all', requireAuth, async (c) => {
       pagination: { limit, offset },
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Comments] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -450,7 +452,8 @@ comments.patch('/api/comments/admin/:id', requireAuth, async (c) => {
 
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Comments] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -466,7 +469,8 @@ comments.delete('/api/comments/admin/:id', requireAuth, async (c) => {
     ]);
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Comments] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -497,7 +501,8 @@ comments.post('/api/comments/admin/:id/reply', requireAuth, async (c) => {
 
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Comments] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -535,7 +540,8 @@ comments.post('/api/comments/admin/bulk', requireAuth, async (c) => {
 
     return c.json({ success: true, affected: ids.length });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Comments] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -546,7 +552,8 @@ comments.get('/api/comments/admin/settings', requireAuth, async (c) => {
     const settings = await getModerationSettings(c.env.DB);
     return c.json({ settings });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Comments] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -590,7 +597,8 @@ comments.put('/api/comments/admin/settings', requireAuth, async (c) => {
 
     return c.json({ success: true, settings: merged });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Comments] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 

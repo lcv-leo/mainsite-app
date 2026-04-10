@@ -9,6 +9,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
+import { structuredLog } from '../lib/logger.ts';
 import { normalizeRateLimitConfig, DEFAULT_RATE_LIMIT } from '../lib/rate-limit.ts';
 import { getContentFingerprint } from '../lib/content-version.ts';
 
@@ -26,7 +27,8 @@ settings.get('/api/settings', async (c) => {
       shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' },
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -38,7 +40,8 @@ settings.put('/api/settings', requireAuth, async (c) => {
       .run();
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -49,7 +52,8 @@ settings.get('/api/settings/rotation', async (c) => {
     if (record) return c.json(JSON.parse(record.payload));
     return c.json({ enabled: false, interval: 60, last_rotated_at: 0 });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -61,7 +65,8 @@ settings.put('/api/settings/rotation', requireAuth, async (c) => {
       .run();
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -72,7 +77,8 @@ settings.get('/api/settings/ratelimit', requireAuth, async (c) => {
     if (record) return c.json(normalizeRateLimitConfig(JSON.parse(record.payload)));
     return c.json(DEFAULT_RATE_LIMIT);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -84,7 +90,8 @@ settings.put('/api/settings/ratelimit', requireAuth, async (c) => {
       .run();
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -98,7 +105,8 @@ settings.get('/api/settings/disclaimers', async (c) => {
       items: [{ id: crypto.randomUUID(), title: 'Aviso', text: 'Texto de exemplo.', buttonText: 'Concordo' }],
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -110,7 +118,8 @@ settings.put('/api/settings/disclaimers', requireAuth, async (c) => {
       .run();
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -123,7 +132,8 @@ settings.get('/api/content-fingerprint', async (c) => {
       'Cache-Control': 'public, max-age=5',
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 

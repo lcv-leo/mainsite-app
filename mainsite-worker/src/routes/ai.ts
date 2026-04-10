@@ -52,6 +52,10 @@ async function ensureAuditTable(db: D1Database) {
 
 const MAX_INPUT_TOKENS = 120_000;
 
+/** Strip system directive tags from user-controlled input to prevent prompt injection. */
+const stripSystemTags = (s: string) =>
+  s.replace(/\[\[\/?(?:ENVIAR_EMAIL|PEDIR_DOACAO)\]\]/gi, '');
+
 function validateInputTokens(tokenCount: number): { shouldReject: boolean; status?: number; error?: string } {
   if (tokenCount > MAX_INPUT_TOKENS) {
     return {
@@ -131,7 +135,7 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
     return c.json({ success: true, text: extractText(response) });
   } catch (err) {
     structuredLog('error', 'Transform endpoint error', { endpoint: 'transform', error: (err as Error).message });
-    return c.json({ error: (err as Error).message }, 500);
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -159,7 +163,7 @@ ai.post('/api/ai/public/chat', async (c) => {
         .replace(/[\u0300-\u036f]/g, '')
         .trim();
 
-    const safeMessage = String(message || '').trim();
+    const safeMessage = stripSystemTags(String(message || '').trim());
     const normalizedMessage = normalizeForSearch(safeMessage);
     const terms = [
       ...new Set(
@@ -246,7 +250,7 @@ ${dbCoverageMeta}
 TEXTOS GERAIS DO SITE:
 ${dbContext}
 
-PERGUNTA DO USUÁRIO: ${message}`;
+PERGUNTA DO USUÁRIO: ${safeMessage}`;
 
     const client = createClient(c.env);
     const modelStr = await getConfiguredModel(c.env.DB, 'chat');
@@ -356,7 +360,8 @@ ai.get('/api/chat-context-audit', requireAuth, async (c) => {
       .all();
     return c.json(results || []);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[AI] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -368,7 +373,8 @@ ai.get('/api/chat-logs', requireAuth, async (c) => {
     const { results } = await c.env.DB.prepare('SELECT * FROM mainsite_chat_logs ORDER BY created_at DESC LIMIT 200').all();
     return c.json(results || []);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[AI] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -377,7 +383,8 @@ ai.delete('/api/chat-logs/:id', requireAuth, async (c) => {
     await c.env.DB.prepare('DELETE FROM mainsite_chat_logs WHERE id = ?').bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[AI] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 

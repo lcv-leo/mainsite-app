@@ -78,6 +78,7 @@ export interface ContactFormData {
   phone: string
   email: string
   message: string
+  turnstile_token?: string
 }
 
 /** Toast de notificação. */

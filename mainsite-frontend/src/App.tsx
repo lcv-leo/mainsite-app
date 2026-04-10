@@ -661,8 +661,8 @@ const App = () => {
       <Suspense fallback={null}>
         <DisclaimerModal show={showDisclaimerFlow} onClose={() => setShowDisclaimerFlow(false)} activePalette={activePalette} config={disclaimers} onDonationTrigger={() => setShowDonationModal(true)} />
         <ShareOverlay modalState={showShareModal} setModalState={setShowShareModal} onSubmit={submitEmailShare} activePalette={activePalette} />
-        <ContactModal show={showContactModal} onClose={() => setShowContactModal(false)} onSubmit={submitContact} activePalette={activePalette} isSubmitting={isSubmittingContact} />
-        <CommentModal show={showCommentModal} onClose={() => setShowCommentModal(false)} onSubmit={submitComment} activePalette={activePalette} isSubmitting={isSubmittingComment} currentPost={currentPost} />
+        <ContactModal show={showContactModal} onClose={() => setShowContactModal(false)} onSubmit={submitContact} activePalette={activePalette} isSubmitting={isSubmittingContact} turnstileSiteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY} />
+        <CommentModal show={showCommentModal} onClose={() => setShowCommentModal(false)} onSubmit={submitComment} activePalette={activePalette} isSubmitting={isSubmittingComment} currentPost={currentPost} turnstileSiteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY} />
         <DonationModal show={showDonationModal} onClose={() => setShowDonationModal(false)} activePalette={activePalette} API_URL={API_URL} />
         <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} activePalette={activePalette} API_URL={API_URL} triggerDonation={() => setShowDonationModal(true)} />
       </Suspense>

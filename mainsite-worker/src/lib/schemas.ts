@@ -14,6 +14,7 @@ export const ContactSchema = z.object({
   email: z.string().email().max(320),
   message: z.string().min(1).max(5000),
   phone: z.string().max(30).optional(),
+  turnstile_token: z.string().optional(),
 });
 export type ContactInput = z.infer<typeof ContactSchema>;
 
@@ -24,6 +25,7 @@ export const CommentEmailSchema = z.object({
   email: z.string().max(320).optional(),
   message: z.string().min(1).max(5000),
   post_title: z.string().max(300).optional(),
+  turnstile_token: z.string().optional(),
 });
 export type CommentEmailInput = z.infer<typeof CommentEmailSchema>;
 

@@ -106,7 +106,7 @@ sumup.post('/api/sumup/checkout', async (c) => {
     return c.json({ checkoutId: (checkout as { id: string }).id, checkoutReference }, 201);
   } catch (err) {
     structuredLog('error', '[SumUp Checkout] Erro ao criar checkout', { error: (err as Error).message });
-    return c.json({ error: (err as Error).message || 'Falha ao iniciar checkout SumUp.' }, 500);
+    return c.json({ error: 'Falha ao iniciar checkout SumUp.' }, 500);
   }
 });
 
@@ -172,7 +172,8 @@ sumup.post('/api/sumup/checkout/:id/pay', async (c) => {
 
     return c.json({ success: true, id: storedId, status: storedStatus, next_step: result.next_step });
   } catch (err) {
-    return c.json({ error: (err as Error).message || 'Falha no pagamento SumUp.' }, 500);
+    structuredLog('error', '[SumUp Pay] Erro no pagamento', { error: (err as Error).message });
+    return c.json({ error: 'Falha no pagamento SumUp.' }, 500);
   }
 });
 
@@ -248,7 +249,8 @@ sumup.get('/api/sumup/payment-methods', requireAuth, async (c) => {
 
     return c.json({ success: true, amount, currency, methods });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[SumUp] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -280,7 +282,8 @@ sumup.get('/api/sumup/transactions-summary', requireAuth, async (c) => {
 
     return c.json({ success: true, scanned: items.length, limit, totalAmount, byStatus, byType, hasMore: Array.isArray(txData?.links) && txData.links.length > 0 });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[SumUp] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -378,7 +381,8 @@ sumup.get('/api/sumup/transactions-advanced', requireAuth, async (c) => {
       items: filteredByDate,
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[SumUp] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -409,7 +413,8 @@ sumup.get('/api/sumup/payouts-summary', requireAuth, async (c) => {
 
     return c.json({ success: true, startDate, endDate, count: list.length, totalAmount, totalFee, byStatus });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[SumUp] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 

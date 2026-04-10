@@ -6,7 +6,7 @@
 // Versão: v1.2.0
 // Descrição: MD3 + Glassmorphism
 
-import { type ChangeEvent, type FormEvent, useState, useEffect } from 'react';
+import { type ChangeEvent, type FormEvent, useState, useEffect, useRef } from 'react';
 import { X, Send, Loader2, User, Phone, Mail } from 'lucide-react';
 import type { ActivePalette, ContactFormData, Post } from '../types';
 import { isDarkPalette } from '../types';
@@ -14,15 +14,19 @@ import { isDarkPalette } from '../types';
 interface CommentModalProps {
   show: boolean
   onClose: () => void
-  onSubmit: (data: ContactFormData & { post_title?: string }, resetForm: () => void) => void
+  onSubmit: (data: ContactFormData & { post_title?: string; turnstile_token?: string }, resetForm: () => void) => void
   activePalette: ActivePalette
   isSubmitting: boolean
   currentPost: Post | null
+  turnstileSiteKey?: string
 }
 
-const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, currentPost }: CommentModalProps) => {
+const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, currentPost, turnstileSiteKey }: CommentModalProps) => {
   const [formData, setFormData] = useState<ContactFormData>({ name: '', phone: '', email: '', message: '' });
   const [isVisible, setIsVisible] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetId = useRef<string | null>(null);
 
   useEffect(() => {
     if (show) {
@@ -31,6 +35,37 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
       setTimeout(() => setIsVisible(false), 400);
     }
   }, [show]);
+
+  // Turnstile initialization
+  useEffect(() => {
+    if (!turnstileSiteKey || !show || !turnstileRef.current) return;
+    if (turnstileWidgetId.current) return;
+
+    function renderTurnstile() {
+      if (!window.turnstile || !turnstileRef.current) return;
+      turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
+        sitekey: turnstileSiteKey!,
+        callback: (token: string) => setTurnstileToken(token),
+      });
+    }
+
+    if (!document.querySelector('script[src*="turnstile"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async = true;
+      script.onload = () => renderTurnstile();
+      document.head.appendChild(script);
+    } else {
+      renderTurnstile();
+    }
+
+    return () => {
+      if (turnstileWidgetId.current && window.turnstile) {
+        window.turnstile.remove(turnstileWidgetId.current);
+        turnstileWidgetId.current = null;
+      }
+    };
+  }, [turnstileSiteKey, show]);
 
   if (!isVisible && !show) return null;
 
@@ -54,7 +89,17 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    onSubmit({ ...formData, post_title: currentPost?.title }, () => setFormData({ name: '', phone: '', email: '', message: '' }));
+    if (turnstileSiteKey && !turnstileToken) return;
+    const payload = turnstileToken
+      ? { ...formData, turnstile_token: turnstileToken, post_title: currentPost?.title }
+      : { ...formData, post_title: currentPost?.title };
+    onSubmit(payload, () => {
+      setFormData({ name: '', phone: '', email: '', message: '' });
+      setTurnstileToken('');
+      if (turnstileWidgetId.current && window.turnstile) {
+        window.turnstile.reset(turnstileWidgetId.current);
+      }
+    });
   };
 
   const overlayStyle: React.CSSProperties = {
@@ -82,12 +127,14 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
 
   const iconStyle: React.CSSProperties = { position: 'absolute', top: '15px', left: '16px', opacity: 0.5, color: activePalette.fontColor };
 
+  const submitDisabled = isSubmitting || (!!turnstileSiteKey && !turnstileToken);
+
   const buttonStyle: React.CSSProperties = {
     backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none',
-    padding: '16px', fontSize: '15px', fontWeight: '800', borderRadius: '100px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
+    padding: '16px', fontSize: '15px', fontWeight: '800', borderRadius: '100px', cursor: submitDisabled ? 'not-allowed' : 'pointer',
     width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px',
     transition: 'all 0.2s ease', boxShadow: `0 8px 24px ${activePalette.titleColor}40`,
-    opacity: isSubmitting ? 0.7 : 1, marginTop: '10px', letterSpacing: '1px'
+    opacity: submitDisabled ? 0.7 : 1, marginTop: '10px', letterSpacing: '1px'
   };
 
   return (
@@ -132,7 +179,9 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
             </div>
           </div>
 
-          <button type="submit" disabled={isSubmitting} style={buttonStyle} onMouseOver={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(0)')}>
+          {turnstileSiteKey && <div ref={turnstileRef} />}
+
+          <button type="submit" disabled={submitDisabled} style={buttonStyle} onMouseOver={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(0)')}>
             {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
             {isSubmitting ? 'ENVIANDO...' : 'ENVIAR COMENTÁRIO'}
           </button>

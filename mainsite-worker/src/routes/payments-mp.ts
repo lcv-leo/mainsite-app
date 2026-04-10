@@ -242,7 +242,8 @@ mp.get('/api/mp/payment-methods', requireAuth, async (c) => {
 
     return c.json({ success: true, scanned: methodsList.length, methods, types, methodAssets });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[MP] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -291,7 +292,8 @@ mp.get('/api/mp/transactions-summary', requireAuth, async (c) => {
       paging: (payload as unknown as Record<string, unknown>)?.paging || { total: 0, limit, offset: 0 },
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[MP] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
@@ -356,7 +358,8 @@ mp.get('/api/mp/transactions-advanced', requireAuth, async (c) => {
       items: filtered,
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 500);
+    structuredLog('error', '[MP] Erro interno', { error: (err as Error).message });
+    return c.json({ error: 'Erro interno.' }, 500);
   }
 });
 
