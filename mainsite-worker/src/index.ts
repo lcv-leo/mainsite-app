@@ -94,30 +94,31 @@ app.use('*', async (c, next) => {
   return next();
 });
 
-// ========== CORS (paridade total com monolito) ==========
+// ========== CORS + CSRF ==========
+// Lista de domínios autorizados — usada tanto pelo CORS quanto pelo CSRF check.
+const ALLOWED_FRONTEND_DOMAINS = [
+  'reflexosdaalma.blog',
+  'lcv.rio.br',
+  'lcv.eng.br',
+  'lcv.psc.br',
+  'cardozovargas.com',
+  'cardozovargas.com.br',
+  'lcvleo.com',
+  'lcvmail.com',
+  'lcvmasker.com',
+];
+
+// Pré-compila o Set para lookup O(1) (incluindo variantes www.)
+const ALLOWED_ORIGIN_HOSTNAMES = new Set<string>(
+  ALLOWED_FRONTEND_DOMAINS.flatMap(d => [d, `www.${d}`]),
+);
+
 app.use('/api/*', cors({
   origin: (origin) => {
     if (!origin) return null;
     try {
       const hostname = new URL(origin).hostname.toLowerCase();
-      // Lista de todos os domínios personalizados vinculados ao mainsite-frontend
-      const allowedDomains = [
-        'reflexosdaalma.blog',
-        'lcv.rio.br',
-        'lcv.eng.br',
-        'lcv.psc.br',
-        'cardozovargas.com',
-        'cardozovargas.com.br',
-        'lcvleo.com',
-        'lcvmail.com',
-        'lcvmasker.com',
-      ];
-      for (const domain of allowedDomains) {
-        if (hostname === domain || hostname === `www.${domain}`) {
-          return origin;
-        }
-      }
-      return null;
+      return ALLOWED_ORIGIN_HOSTNAMES.has(hostname) ? origin : null;
     } catch {
       return null;
     }
@@ -127,6 +128,28 @@ app.use('/api/*', cors({
   credentials: true,
   maxAge: 86400,
 }));
+
+// CSRF — server-side Origin check para mutations.
+// CORS só seta headers; o browser é quem bloqueia. Este middleware bloqueia
+// no servidor, impedindo side-effects mesmo que o browser não bloqueie.
+// Requests sem Origin (curl, server-to-server, same-origin) são permitidos.
+app.use('/api/*', async (c, next) => {
+  const method = c.req.method.toUpperCase();
+  if (method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH') {
+    const origin = c.req.header('origin');
+    if (origin) {
+      try {
+        const hostname = new URL(origin).hostname.toLowerCase();
+        if (!ALLOWED_ORIGIN_HOSTNAMES.has(hostname)) {
+          return c.json({ error: 'Origem não autorizada.' }, 403);
+        }
+      } catch {
+        return c.json({ error: 'Header Origin inválido.' }, 403);
+      }
+    }
+  }
+  return next();
+});
 
 // ========== RATE LIMITING (Cloudflare native binding) ==========
 // Limites definidos via infrastructure-as-code em wrangler.json
