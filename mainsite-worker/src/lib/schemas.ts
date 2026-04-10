@@ -33,7 +33,7 @@ export const ChatInputSchema = z.object({
   currentContext: z
     .object({
       title: z.string().max(500).optional(),
-      content: z.string().max(10000).optional(),
+      content: z.string().optional(),
     })
     .nullish(),
   askForDonation: z.boolean().optional(),
