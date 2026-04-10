@@ -158,7 +158,7 @@ const App = () => {
       // PrintScreen — clear clipboard as OS captures before JS fires
       if (e.key === 'PrintScreen') {
         e.preventDefault();
-        try { navigator.clipboard.writeText(''); } catch { /* noop */ }
+        navigator.clipboard.writeText('').catch(() => {});
         showNotification('Capturas de tela não são permitidas neste conteúdo.', 'error');
         return;
       }
@@ -246,7 +246,7 @@ const App = () => {
     // --- Visibility change: wipe clipboard when user leaves tab ---
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        try { navigator.clipboard.writeText(''); } catch { /* noop */ }
+        navigator.clipboard.writeText('').catch(() => {});
       }
     };
 
