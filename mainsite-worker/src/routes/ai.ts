@@ -138,8 +138,14 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
 // POST /api/ai/public/chat (public, rate-limited upstream)
 ai.post('/api/ai/public/chat', async (c) => {
   try {
-    const parsed = ChatInputSchema.safeParse(await c.req.json());
-    if (!parsed.success) return c.json({ error: 'Mensagem ausente.' }, 400);
+    let rawBody: unknown;
+    try {
+      rawBody = await c.req.json();
+    } catch {
+      return c.json({ error: 'Mensagem ausente.', _debug: 'json_parse_failed' }, 400);
+    }
+    const parsed = ChatInputSchema.safeParse(rawBody);
+    if (!parsed.success) return c.json({ error: 'Mensagem ausente.', _debug: parsed.error.issues }, 400);
     const { message, currentContext, askForDonation } = parsed.data;
 
     const { results } = await c.env.DB.prepare(
