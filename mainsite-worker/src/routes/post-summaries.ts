@@ -18,7 +18,6 @@ import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { generateShareSummary, hashContent, stripHtml } from '../lib/gemini.ts';
-import { structuredLog } from '../lib/logger.ts';
 
 const postSummaries = new Hono<{ Bindings: Env }>();
 

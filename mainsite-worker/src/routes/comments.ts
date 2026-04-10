@@ -16,7 +16,7 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
-import { requireAuth, DEFAULT_ADMIN_EMAIL } from '../lib/auth.ts';
+import { requireAuth } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { NewCommentSchema } from '../lib/schemas.ts';
 import {
@@ -53,7 +53,7 @@ const DEFAULT_MOD_SETTINGS: ModerationSettings = {
   duplicateWindowHours: 24,
   autoCloseAfterDays: 0,
   notifyOnNewComment: true,
-  notifyEmail: DEFAULT_ADMIN_EMAIL,
+  notifyEmail: '',
 };
 
 async function getModerationSettings(db: D1Database): Promise<ModerationSettings> {

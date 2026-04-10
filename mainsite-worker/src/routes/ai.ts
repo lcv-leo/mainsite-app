@@ -295,7 +295,8 @@ PERGUNTA DO USUÁRIO: ${safeMessage}`;
 
       if (resendToken) {
         const aiAdminEmail = await getAdminEmail(c.env.DB);
-        const aiHtml = `
+        if (aiAdminEmail) {
+          const aiHtml = `
           <div style="font-family: sans-serif; color: #333;">
             <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Interação do Leitor via Consciência Auxiliar</h2>
             <p><strong>Contexto Ativo na Tela:</strong> ${escapeHtml(contextTitleLog)}</p>
@@ -306,18 +307,19 @@ PERGUNTA DO USUÁRIO: ${safeMessage}`;
           </div>
         `;
 
-        c.executionCtx.waitUntil(
-          fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              from: 'Consciência Auxiliar <mainsite@lcv.app.br>',
-              to: aiAdminEmail,
-              subject: `Interação do Leitor no Chatbot: ${contextTitleLog}`,
-              html: aiHtml,
-            }),
-          }).catch((e) => console.error('Falha no disparo do e-mail da IA:', e))
-        );
+          c.executionCtx.waitUntil(
+            fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                from: 'Consciência Auxiliar <mainsite@lcv.app.br>',
+                to: aiAdminEmail,
+                subject: `Interação do Leitor no Chatbot: ${contextTitleLog}`,
+                html: aiHtml,
+              }),
+            }).catch((e) => console.error('Falha no disparo do e-mail da IA:', e))
+          );
+        }
       }
       replyText = replyText.replace(emailRegex, '').trim();
     }

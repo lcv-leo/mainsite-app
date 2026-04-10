@@ -76,11 +76,13 @@ contact.post('/api/contact', async (c) => {
 
     const adminEmail = await getAdminEmail(c.env.DB);
 
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: adminEmail, subject: `Novo Contato de ${name}`, html: adminHtml }),
-    });
+    if (adminEmail) {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: adminEmail, subject: `Novo Contato de ${name}`, html: adminHtml }),
+      });
+    }
 
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -131,11 +133,13 @@ contact.post('/api/comment', async (c) => {
 
     const commentAdminEmail = await getAdminEmail(c.env.DB);
 
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: commentAdminEmail, subject: `Novo Comentário: ${post_title || 'Geral'}`, html: adminHtml }),
-    });
+    if (commentAdminEmail) {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: commentAdminEmail, subject: `Novo Comentário: ${post_title || 'Geral'}`, html: adminHtml }),
+      });
+    }
 
     return c.json({ success: true });
   } catch {

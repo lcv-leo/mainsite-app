@@ -34,14 +34,14 @@ export const requireAuth = async (c: Context<{ Bindings: Env }>, next: Next) => 
   await next();
 };
 
-export const DEFAULT_ADMIN_EMAIL = 'cal@reflexosdaalma.blog';
 let cachedAdminEmail: string | null = null;
 
 /**
  * Reads admin notification email from D1 settings.
- * Falls back to default if not configured. Caches per-isolate.
+ * Returns null if not configured — callers must guard against null.
+ * Caches per-isolate.
  */
-export async function getAdminEmail(db: D1Database): Promise<string> {
+export async function getAdminEmail(db: D1Database): Promise<string | null> {
   if (cachedAdminEmail) return cachedAdminEmail;
   try {
     const row = await db.prepare(
@@ -54,7 +54,7 @@ export async function getAdminEmail(db: D1Database): Promise<string> {
         return parsed.email;
       }
     }
-  } catch { /* fallback */ }
-  cachedAdminEmail = DEFAULT_ADMIN_EMAIL;
-  return cachedAdminEmail;
+  } catch { /* continue */ }
+  console.warn('[Auth] Admin email not configured in D1 (mainsite/admin_email). Email notifications disabled.');
+  return null;
 }

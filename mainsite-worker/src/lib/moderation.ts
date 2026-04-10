@@ -353,7 +353,6 @@ export async function verifyTurnstile(token: string, secretKey: string, ip: stri
 // ── Email Notification ──────────────────────────────────────────────────────
 
 import { escapeHtml } from './html.ts';
-import { DEFAULT_ADMIN_EMAIL } from './auth.ts';
 
 /**
  * Envia notificação por email ao admin via Resend quando um comentário chega.
@@ -361,8 +360,9 @@ import { DEFAULT_ADMIN_EMAIL } from './auth.ts';
 export async function notifyAdminNewComment(
   resendApiKey: string,
   comment: { authorName: string; content: string; postTitle: string; status: string },
-  toEmail = DEFAULT_ADMIN_EMAIL,
+  toEmail?: string,
 ): Promise<void> {
+  if (!toEmail) return;
   const statusLabel = comment.status === 'approved' ? '✅ Aprovado automaticamente'
     : comment.status === 'rejected_auto' ? '🚫 Rejeitado automaticamente'
     : '⏳ Aguardando revisão';
