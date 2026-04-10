@@ -7,8 +7,205 @@
 
 
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
-# AI Memory Log - mainsite
- 
+# AI Memory Log - MainSite
+
+## 2026-04-09 — Tier 4 Tech Upgrades (frontend v03.08.00, worker v02.06.00)
+### Escopo
+TanStack Query no frontend público, Biome linter+organizeImports no worker, Hono logger+timing, Zod env validation, Vitest UI, tsconfig strictness.
+### Adicionado
+- **mainsite-frontend**: TanStack Query v5 (`QueryClientProvider` + `ReactQueryDevtools` em `main.tsx`). `@vitest/ui` + `test:ui`. Biome `organizeImports`. tsconfig: `types: ["vite/client"]`, `erasableSyntaxOnly`, `noUncheckedSideEffectImports`.
+- **mainsite-worker**: `EnvSecretsSchema` em `schemas.ts`; middleware de validação pós-secrets em `index.ts`. `hono/logger` + `hono/timing`. Biome linter enabled + `organizeImports`. `@vitest/ui` + `test:ui`.
+### Versão
+- mainsite-frontend: APP v03.07.00 → APP v03.08.00
+- mainsite-worker: v02.05.00 → v02.06.00
+
+## 2026-04-09 — Tier 1-3 Tech Upgrades (frontend v03.07.00, worker v02.05.00)
+### Escopo
+Biome linter, Husky, AppType export no worker, testes de rota Hono, wrangler types script.
+### Adicionado
+- **mainsite-frontend**: Biome linter habilitado (`recommended` + overrides). Husky + lint-staged pre-commit.
+- **mainsite-worker**: `export type AppType = typeof app` em `src/index.ts`. Script `"types": "wrangler types"`. Testes de rota: `ratings.test.ts` (GET 400 para postId inválido), `comments.test.ts` (GET config fallback defaults). `vitest.config.ts` criado. `tsconfig.json` exclui `**/*.test.ts`.
+### Versão
+- mainsite-frontend: APP v03.06.06 → APP v03.07.00
+- mainsite-worker: v02.04.02 → v02.05.00
+
+## 2026-04-08 — Tech Upgrade: ESLint 10 + marked@18 + Hook Fixes
+### Escopo
+Migração ESLint 9→10, upgrade marked 15→18, e correção de tipos em hooks de acessibilidade.
+### Feito
+- **ESLint 10.2.0**: Upgrade sem breaking changes (flat config compatível).
+- **marked@18**: Atualização da biblioteca de parsing Markdown.
+- **`useTextZoomVoice.ts`**: Interface local `SpeechRecognitionLike` criada para substituir globais DOM ausentes no TS target atual.
+- **`TextZoomControl.tsx`**: Prop `onVoiceToggle` não-utilizada removida.
+### Versão
+- mainsite-frontend: APP v03.06.06 → APP v03.06.07
+
+## 2026-04-08 — GitHub Actions Purge & Dependabot Standardization
+### Escopo
+Auditoria completa de CI/CD para eliminação de "ghost runs" em toda a rede de repositórios do workspace, juntamente com a universalização da configuração do Dependabot ajustada às necessidades de empacotamento locais para mitigar tráfego e limites no API.
+
+## 2026-04-08 — Security Hotfix: Hono Path Traversal & Proxy Bypass (Dependabot)
+### Escopo
+Auditoria e resolução guiada de pacotes vulneráveis acionados a partir de alertas de segurança do Dependabot da nuvem (GitHub).
+### Resolvido
+- **NPM Audit Fix**: Atualizadas e forçadas as versões estáveis para `hono` (v4.12.12) e `@hono/node-server` (v1.19.13). Mitigadas as 2 vulnerabilidades 'Moderate' catalogadas sob bypass de cookies, directory traversal e proxy request bypass referenciados no app `mainsite-app`.
+
+## 2026-04-07 — Mainsite v03.06.06 — Brand Icons Fix + Route Order Hardening
+### Scope
+Correção de regressão crítica dos ícones de bandeiras de pagamento no formulário de doação SumUp.
+### Causa Raiz
+`VITE_BRAND_ICONS_BASE_URL` no `deploy.yml` do GitHub Actions apontava para o domínio externo defunto `https://mainsite-app.lcv.rio.br/api/uploads/brands`, causando `ERR_NAME_NOT_RESOLVED` em todas as `<img>` de brand icons. Violava a diretiva Cloudflare Internal Integration.
+### Corrigido
+- **deploy.yml**: URL absoluta substituída por path relativo `/api/uploads/brands` — resolvido via Service Binding interno.
+- **[[path]].ts (Pages Functions)**: Bypass de `/api/*` movido para ANTES da checagem de extensão estática, prevenindo interceptação incorreta de URLs como `/api/uploads/brands/*.svg`.
+### Adicionado
+- **brands/sumup.svg (R2)**: Logo oficial da SumUp convertido de PNG para SVG com dados raster embarcados via base64, uploadado ao bucket `mainsite-media`.
+### Lição Operacional
+- **Never use external URLs for intra-Cloudflare communication**: URLs absolutas para domínios que podem ser renomeados ou removidos sempre quebrarão. Preferir paths relativos com Service Binding.
+- **Route order matters in catch-all middleware**: Checagens de API devem preceder checagens de extensão de arquivo para evitar colisões com assets servidos por workers.
+
+## 2026-04-07 — Mainsite v03.06.05 + Worker v02.04.01 — Dynamic Config & Cache Removal
+### Scope
+Ajustes de UX no formulário de comentários com placeholders dinâmicos baseados em configuração do admin, remoção do cache de 60s do motor de moderação e correção de roteamento.
+### Corrigido
+- **Rota `/api/comments/config`**: Movida antes de `/:postId` no Hono para evitar captura parametrizada incorreta que retornava "Post ID inválido".
+- **Cache 60s Removido**: Settings de moderação agora são lidos diretamente do D1 a cada request — propagação instantânea de alterações do admin.
+### Adicionado
+- **Placeholders Dinâmicos (CommentsSection)**: Fetch de `/api/comments/config` no mount → campos Nome e E-mail exibem "(obrigatório)" ou "(opcional)" conforme `allowAnonymous` / `requireEmail`.
+- **Autocomplete Browser**: Atributos `id="name"`, `name="name"`, `autoComplete="name"` no campo Nome e equivalentes no E-mail.
+### Alterado
+- **Turnstile Widget**: `compact` (150×140) → `normal` (300×65) para formato retangular largo e fino.
+- **ModerationPanel (admin-app v01.81.01)**: Toggle "Permitir anônimos" renomeado para "Exigir nome" com lógica invertida (`!allowAnonymous`), paritário com "Exigir email". Mensagem de cache removida.
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.04 → APP v03.06.05
+- `mainsite-worker`: v02.04.00 → v02.04.01
+- `admin-app`: APP v01.81.00 → APP v01.81.01
+### Diretiva
+- **Deploy somente via GitHub Actions** (git push → CI/CD). Nunca via `wrangler deploy` direto.
+
+## 2026-04-07 — Mainsite Worker v02.04.00 — Moderation Engine Full Configurability
+### Scope
+Expansão do motor de moderação de comentários com 18 parâmetros configuráveis, rotas admin GET/PUT settings, e enforcement backend completo.
+### Adicionado
+- **ModerationSettings Interface**: Expandida com `rateLimitPerIpPerHour`, `blocklistWords`, `linkPolicy`, `duplicateWindowHours`, `autoCloseAfterDays`, `notifyOnNewComment`, `notifyEmail`, `requireEmail`, `minCommentLength`, `maxCommentLength`, `requireApproval`.
+- **Settings Routes**: `GET/PUT /api/comments/admin/settings` com merge forward-compatible e cache 60s com invalidação no PUT.
+- **Enforcement**: POST handler agora verifica rate limiting (contagem D1 por IP/hora), blocklist (match case-insensitive), link policy (regex URL detect → pending/block), auto-close (delta dias), comprimento min/max, email obrigatório, detecção de duplicatas.
+- **notifyAdminNewComment**: 3º parâmetro `toEmail` dinâmico extraído das settings.
+### Controle de versão
+- `mainsite-worker`: v02.03.00 → v02.04.00
+
+## 2026-04-07 — Autoupdate: Fix Navegação Presa em Link Curto
+### Scope
+Correção do `refreshPosts` que fazia `pushState('/p/{id}')` após aceitar autoupdate, prendendo o leitor em link curto com `isDeepLinkedPost = true`.
+### Corrigido
+- **pushState → '/'**: Alterado de `/p/${target.id}` para `/` (raiz). Agora o leitor vai para a home (headline atualizado como primeiro post), idêntico ao botão Home Page. `isDeepLinkedPost` permanece `false`.
+- **newHeadlineId não mais consumido**: O `refreshPosts` não depende mais de `contentSync.newHeadlineId` — sempre carrega o primeiro post (headline) da lista atualizada. O campo permanece no hook para uso futuro.
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.02 → APP v03.06.03
+
+## 2026-04-07 — Anti-Screenshot: Window Blur Defense
+### Scope
+Mitigação contra Ferramenta de Captura do Windows (Win+Shift+S), Game Bar e aplicativos de screenshot via `window.blur`/`focus` defense.
+### Adicionado
+- **Window Blur → CSS Blur**: Quando o browser perde foco (`window.blur`), `filter: blur(32px)` é aplicado instantaneamente ao `body`. Capturas de tela registram conteúdo borrado. Blur removido com transição suave (300ms) no `window.focus`.
+- **Win+Shift+S interception**: Combinação de teclas (`e.metaKey && e.shiftKey && key === 's'`) interceptada com `preventDefault()` e notificação.
+- **Limitação documentada**: Nenhuma solução web é 100% eficaz contra capturas no nível do SO — o framebuffer é capturado antes do JS reagir. O blur no `blur` event é a mitigação mais eficaz dentro das capacidades do browser.
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.01 → APP v03.06.02
+
+## 2026-04-07 — PostReader Heading Scaling Fix + Global Content Protection Overhaul
+### Scope
+Correção de escala de títulos no PostReader (H2-H6 maiores que H1) e refatoração total das proteções anti-cópia de escopo local (PostReader) para escopo global (App.tsx/document-level).
+### Corrigido
+- **Heading Scaling**: Removidos `font-size` hardcoded de H2-H6 no PostReader CSS. Agora usam `font-size: revert` — reseta para defaults do User-Agent (hierarquia nativa H1 > H2 > H3...). Inline styles do PostEditor/TipTap `FontSize` extension têm prioridade. `.h1-title` (banner) continua vinculado ao `titleFontSize` do admin Configurações.
+### Alterado
+- **Content Protection — Escopo Global**: Handlers locais do PostReader (`onCopy`, `onContextMenu`, `onDragStart`, `onCut` e CSS `.protected-content`) substituídos por 7 document-level event listeners em `App.tsx` com `{ capture: true }`:
+  - **Keyboard**: Ctrl+C/X/A/S/U/P, F12, Ctrl+Shift+I/C/J, PrintScreen (+ clipboard wipe)
+  - **DOM Events**: `contextmenu`, `copy`, `cut`, `dragstart`, `selectionchange` (auto-clear), `visibilitychange` (clipboard wipe on tab switch)
+  - **CSS Injetado Global**: `user-select: none !important` em `body *`, `-webkit-touch-callout: none` (iOS), `user-drag: none` em img/a/svg/video/canvas. Form fields isentos.
+  - **@media print**: Oculta tudo, exibe mensagem de aviso
+- **Form Fields UX**: `input`, `textarea`, `select`, `[contenteditable]` mantêm `user-select: text` para preservar digitação
+### Controle de versão
+- `mainsite-frontend`: APP v03.06.00 → APP v03.06.01
+
+## 2026-04-07 — Content Fingerprint System + Title Font Size Fix
+### Scope
+Implementação do sistema de sincronização em tempo real entre `admin-app` e `mainsite-frontend` via Content Fingerprint, e correção do controle de tamanho de fonte do título principal.
+### Adicionado
+- **Content Fingerprint Backend**: `lib/content-version.ts` com `bumpContentVersion()` (incremento atômico no D1) e `getContentFingerprint()` (retorna versão + headline post ID). Endpoint `GET /api/content-fingerprint` (1 query D1, Cache-Control: 5s). Hooks em todas as mutações de posts (create, update, delete, pin, reorder, cron rotation) via `waitUntil`.
+- **Frontend Sync**: `useContentSync.ts` — smart polling 30s com pausa em background tab. `ContentUpdateToast.tsx` — glassmorphism centrado no viewport (diretiva: toasts interativos = viewport center), sparkle animation, progress bar 15s, light/dark mode.
+- **App.tsx**: Toast renderizado em qualquer rota (homepage + deep-link). Botão "Atualizar" executa re-fetch + navega para novo headline post.
+### Corrigido
+- **`.h1-title` ignoring `titleFontSize`**: PostReader usava `clamp(32px, 5vw, 52px)` hardcoded. Agora usa `calc(titleFontSize * 1.6 * --text-zoom-scale)`.
+### Diretiva de UX Registrada
+- Toasts/notificações **com input do usuário** → centrados no viewport.
+- Toasts **informativos** → canto superior direito do viewport.
+### Controle de versão
+- `mainsite-frontend`: APP v03.05.01 → APP v03.06.00
+- `mainsite-worker`: v02.02.03 → v02.03.00
+
+## 2026-04-06 — Pages Functions Migration + CF_AI_GATEWAY Expurgo Final
+### Scope
+Migração das 2 Pages Functions R2 restantes para o worker, remoção do sitemap duplicado, e limpeza final de toda referência residual ao Cloudflare AI Gateway.
+### Resolvido
+- **Pages Functions R2 migradas**: `functions/api/media/[filename].js` e `functions/api/mainsite/media/[filename].js` removidas — rotas agora servidas nativamente pelo worker (`uploads.ts`) usando o binding `BUCKET` que acessa o mesmo bucket R2 `mainsite-media`.
+- **Binding R2 `MEDIA_BUCKET` removido**: `wrangler.json` do frontend não precisa mais do binding R2.
+- **Sitemap duplicado removido**: rota `GET /api/sitemap.xml` removida de `misc.ts` — sitemap canônico é servido pela Pages Function `sitemap.xml.ts`.
+- **CF_AI_GATEWAY expurgado**: substituídas 6 referências residuais em `posts.ts`, `post-summaries.ts` e `index.ts` por `GEMINI_API_KEY`. Removida da lista `SECRET_KEYS`.
+- **Arquivos obsoletos deletados**: `test-genai.ts` e `log.txt`.
+### Controle de versão
+- `mainsite-frontend`: APP v03.05.00 → APP v03.05.01
+- `mainsite-worker`: v02.02.00 → v02.02.01
+
+## 2026-04-06 — Migração de Domínio Principal (lcv.rio.br → reflexosdaalma.blog)
+### Scope
+Migração do domínio principal do mainsite de `lcv.rio.br` para `reflexosdaalma.blog`. Substituição global de e-mail `lcv@lcv.rio.br` → `cal@reflexosdaalma.blog`.
+### Resolvido
+- **Frontend**: `index.html` (OG/Twitter/Schema.org), `App.tsx` (SITE_URL), `PostReader.tsx` (Schema.org Article), `[[path]].ts` (redirect + Schema.org), `sitemap.xml.ts` (siteUrl).
+- **Worker**: `index.ts` (CORS expandido para 9 domínios), `uploads.ts` (CORS `*`), `ai.ts` (e-mail), `contact.ts` (e-mail), `wrangler.json` (custom domain route removida).
+- **Webhook MP**: bloco de e-mail removido de `payments-mp.ts` (webhook "fantasma" mantido funcional por compliance).
+- **Lint fixes**: `HTMLRewriter` declarado como global, `sitemap.xml.ts` tipagem D1 corrigida.
+### Controle de versão
+- `mainsite-frontend`: APP v03.04.04 → APP v03.05.00
+- `mainsite-worker`: v02.01.08 → v02.02.00
+
+### Scope
+Extensão preventiva na biblioteca genai.ts do mainsite-worker frente às novas regras de Thinking Models.
+### Resolved
+- **Tokens Maximizados**: Os endopints shareSummary, 	ranslate, summarize e 	ransform não encaram mais tetos rígidos abaixo da linha base suportada. Elevados para 8192 na matriz de configuração.
+
+### Controle de versão
+- mainsite-frontend: APP v03.04.03 -> APP v03.04.04
+
+
+## 2026-04-04 — Gemini Direct API Migration & Gateway Elimination
+### Scope
+Remoção integral do Cloudflare AI Gateway e do fallback estrito para Cloudflare Workers AI nas operações de geração e processamento de textos do MainSite e backends de edição, prevenindo erros `524 Timeout` em operações pesadas no proxy do Cloudflare.
+### Resolved
+- **Expurgo Ambiental**: Excluídos do worker (genai.ts e ai.ts), e do secret store os tokens `CF_AI_GATEWAY` e `CF_AI_TOKEN`.
+- **Intercepções Rompidas**: Bypasses como `httpOptions` (no genai.ts) ou chamadas de workers isoladas foram extintas. Todo processamento de interface, IA, tradução e sumarização obedece o único source-of-truth oficial do gateway: o `@google/genai` (SDK Oficial da Gemini).
+- **Avanço SDK GenAI (mainsite-worker)**: Adaptamos as assinaturas da biblioteca para lidar de frente e contarmos unicamente com o `generativelanguage.googleapis.com`.
+
+## 2026-04-04 — MP BigInt Serialization & SDK Rejection Status Fallback
+### Corrigido e Adicionado
+- **BigInt Serialization & SDK Error Destructuring (`mainsite-worker`)**: Corrigida a propensão de quebras de serialização (`TypeError: Do not know how to serialize a BigInt`) no processo `JSON.stringify` do endpoint `/api/mp-payment` que higieniza referências. Além disso, reestruturado o manipulador `catch` para destruturar apropriadamente exceções geradas pelo reject da API SDK Oficial V2 do Mercado Pago (que performa `throw await response.json()` quando `!ok`). Falsos positivos 500 na UI (durante rejeições legítimas 400 por regras antifraude) agora retornam corretamente o erro descritivo e o status original (`finalStatus = mpErr.status`).
+### Controle de versão
+- `mainsite-worker`: patch
+
+## 2026-04-04 — Translation Truncation Fix & Workers AI Integration
+### Corrigido e Alterado
+- **Migração Efetivada no Frontend**: Corrigida a regressão no `PostReader.tsx` que continuava apontando para a rota pública do Gemini (`/api/ai/public/...`). As chamadas de tradução e resumo agora apontam de fato para as rotas nativas da infraestrutura da Cloudflare (`/api/ai/workers/translate` e `summarize`).
+- **Resolução de Truncamento Llama-3**: A engine `env.AI.run` nas rotas do `mainsite-worker` foi parametrizada com limites robustos de resposta (`max_tokens: 4000` para tradução e `500` para resumo). Isso impede o truncamento agressivo provocado pelo limite default extremamente restritivo da plataforma Cloudflare (256 tokens) em geração de textos mais compridos.
+### Controle de versão
+- `mainsite-worker`: v02.01.06 → v02.01.07
+- `mainsite-frontend`: APP v03.04.01 → APP v03.04.02
+
+## 2026-04-04 — Mercado Pago SDK 500 Error Fix & TS Audit
+### Corrigido
+- **Mercado Pago API Circular JSON**: O endpoint da API `/api/mp-payment` e funções correlatas sofriam falhas e estouros 500 nas respostas devido à dependência do SDK node-fetch/undici contido no `@mercadopago/sdk` (v2), o qual injeta a propriedade cíclica `api_response` gerando exceções catastróficas durante o `c.json(data)` do Hono. Adicionada extração higienizada segura que descarta ponteiros circulares (`request`, `response`, `api_response`), garantindo o envio correto do JSON (HTTP 201) para a camada frontend sem quebrar logo após a transação aprovada na operadora.
+- **TypeScript Summary Fallback Model**: O key `"summaryModeloIA"` continha um *drift* para apenas `"summary"` em conformidade com a interface `MainsiteConfig`. A correção assegurou 100% de compliance `npx tsc --noEmit` em `genai.ts`.
+### Controle de versão
+- `mainsite-worker`: v02.01.04 → v02.01.05
 
 ## 2026-04-03 — Cloudflare Paid Scale Integration
 ### Escopo
@@ -471,13 +668,5 @@ Migração arquitetural unificada para aproveitamento da infraestrutura Cloudfla
 
 
 
-## 🤖 Claude Code — Memória Sincronizada (2026-04-09)
-
-A memória persistente do **Claude Code** está em:
-`C:\Users\leona\.claude\projects\c--Users-leona-lcv-workspace\memory\`
-
-Arquivos: `MEMORY.md` (índice) · `project_workspace.md` · `version_control.md` · `infra_directives.md` · `app_memories_ref.md` · `ai_agents_files.md`
-
-**Diretiva:** Ao atualizar esta memória, atualizar também os arquivos correspondentes da memória do Claude Code para manter paridade entre Gemini, Copilot e Claude Code.
 
 > **DIRETIVA DE SEGURANÇA:** Ao sugerir código ou responder perguntas, leia rigorosamente o contexto e as memórias históricas acima para não divergir das decisões já tomadas pelo outro agente.
