@@ -35,7 +35,7 @@ export const ChatInputSchema = z.object({
       title: z.string().max(500).optional(),
       content: z.string().max(10000).optional(),
     })
-    .optional(),
+    .nullish(),
   askForDonation: z.boolean().optional(),
 });
 export type ChatInput = z.infer<typeof ChatInputSchema>;
