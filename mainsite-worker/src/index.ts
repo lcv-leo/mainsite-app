@@ -43,7 +43,7 @@ app.use('*', logger((msg) => console.log(`[mainsite-motor] ${msg}`)));
 // handlers can use c.env.GEMINI_API_KEY as a plain string.
 const SECRET_KEYS = [
   'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY',
-  'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE', 'MP_ACCESS_TOKEN',
+  'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE',
   'PIX_KEY', 'PIX_NAME', 'PIX_CITY',
   'GCP_NL_API_KEY', 'TURNSTILE_SECRET_KEY'
 ] as const;

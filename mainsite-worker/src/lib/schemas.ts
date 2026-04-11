@@ -137,8 +137,6 @@ export const EnvSecretsSchema = z.object({
   RESEND_API_KEY:             z.string().min(1),
   SUMUP_API_KEY_PRIVATE:      z.string().min(1),
   SUMUP_MERCHANT_CODE:        z.string().min(1),
-  MP_ACCESS_TOKEN:            z.string().min(1),
-  MERCADO_PAGO_WEBHOOK_SECRET:z.string().min(1).optional(),
   PIX_KEY:                    z.string().min(1).optional(),
   PIX_NAME:                   z.string().min(1).optional(),
   PIX_CITY:                   z.string().min(1).optional(),

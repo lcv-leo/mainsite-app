@@ -44,10 +44,6 @@ export interface RawEnv {
   SUMUP_API_KEY_PRIVATE: SecretStoreBinding;
   SUMUP_MERCHANT_CODE: SecretStoreBinding;
 
-  // --- Mercado Pago ---
-  MP_ACCESS_TOKEN: SecretStoreBinding;
-  MERCADO_PAGO_WEBHOOK_SECRET: SecretStoreBinding;
-
   // --- PIX ---
   PIX_KEY: SecretStoreBinding;
   PIX_NAME: SecretStoreBinding;
@@ -85,10 +81,6 @@ export interface Env {
   // --- SumUp ---
   SUMUP_API_KEY_PRIVATE: string;
   SUMUP_MERCHANT_CODE: string;
-
-  // --- Mercado Pago ---
-  MP_ACCESS_TOKEN: string;
-  MERCADO_PAGO_WEBHOOK_SECRET: string;
 
   // --- PIX ---
   PIX_KEY: string;

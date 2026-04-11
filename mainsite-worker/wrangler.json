@@ -88,11 +88,6 @@
       "secret_name": "resend-appkey"
     },
     {
-      "binding": "MP_ACCESS_TOKEN",
-      "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "mp-access-token"
-    },
-    {
       "binding": "SUMUP_API_KEY_PRIVATE",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
       "secret_name": "sumup-api-key-private"
@@ -116,11 +111,6 @@
       "binding": "PIX_CITY",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
       "secret_name": "PIX_CITY"
-    },
-    {
-      "binding": "MERCADO_PAGO_WEBHOOK_SECRET",
-      "store_id": "df90c0935ba1460899c3c2c457548a90",
-      "secret_name": "mercadopago-webhook-secret"
     }
   ]
 }

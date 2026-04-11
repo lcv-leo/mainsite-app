@@ -4,7 +4,6 @@
 |------------|--------|------------------|-------------|----------------|
 | @cloudflare/workers-types | ^4.20260331.1 | MIT OR Apache-2.0 | Não | https://registry.npmjs.org/@cloudflare/workers-types/-/workers-types-4.20260331.1.tgz |
 | @eslint/js | ^10.0.1 | MIT | Não | https://registry.npmjs.org/@eslint/js/-/js-10.0.1.tgz |
-| @mercadopago/sdk-react | ^1.0.7 | Apache-2.0 | Não | https://registry.npmjs.org/@mercadopago/sdk-react/-/sdk-react-1.0.7.tgz |
 | @sumup/sdk | ^0.1.4 | Apache-2.0 | Não | https://registry.npmjs.org/@sumup/sdk/-/sdk-0.1.4.tgz |
 | @types/dompurify | ^3.2.0 | MIT | Não | https://registry.npmjs.org/@types/dompurify/-/dompurify-3.2.0.tgz |
 | @types/react | ^19.2.14 | MIT | Não | https://registry.npmjs.org/@types/react/-/react-19.2.14.tgz |
@@ -17,7 +16,6 @@
 | globals | ^17.4.0 | MIT | Não | https://registry.npmjs.org/globals/-/globals-17.4.0.tgz |
 | hono | ^4.12.9 | MIT | Não | https://registry.npmjs.org/hono/-/hono-4.12.9.tgz |
 | lucide-react | ^1.7.0 | ISC | Não | https://registry.npmjs.org/lucide-react/-/lucide-react-1.7.0.tgz |
-| mercadopago | ^2.12.0 | Não identificado | Não | https://registry.npmjs.org/mercadopago/-/mercadopago-2.12.0.tgz |
 | react | ^19.2.4 | MIT | Não | https://registry.npmjs.org/react/-/react-19.2.4.tgz |
 | react-dom | ^19.2.4 | MIT | Não | https://registry.npmjs.org/react-dom/-/react-dom-19.2.4.tgz |
 | typescript | ^6.0.2 | Apache-2.0 | Não | https://registry.npmjs.org/typescript/-/typescript-6.0.2.tgz |
