@@ -1,5 +1,9 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.07.01] — 2026-04-11
+### Alterado
+- **Log prefix**: Todos os logs (structuredLog, Hono logger, console direto) agora prefixados com `[mainsite-motor]` para observabilidade unificada.
+
 ## [v02.07.00] — 2026-04-10
 ### Adicionado
 - **Server-side HTML sanitization**: `sanitizePostHtml()` em `lib/sanitize.ts` — strip de tags perigosas (script, iframe, style), event handlers e javascript: URLs antes de armazenar no D1.
