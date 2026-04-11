@@ -250,18 +250,6 @@ const App = () => {
       }
     };
 
-    // --- Anti-screenshot: blur content when window loses focus ---
-    // Snipping Tool, Game Bar, and other capture tools cause the browser
-    // to lose focus. By applying an instant blur, any capture gets blurred content.
-    const handleWindowBlur = () => {
-      document.body.style.filter = 'blur(32px)';
-      document.body.style.transition = 'filter 0ms';
-    };
-    const handleWindowFocus = () => {
-      document.body.style.transition = 'filter 300ms ease';
-      document.body.style.filter = 'none';
-    };
-
     // --- Global protection CSS ---
     const style = document.createElement('style');
     style.setAttribute('data-content-protection', 'true');
@@ -321,8 +309,6 @@ const App = () => {
     document.addEventListener('dragstart', handleContextMenu, { capture: true });
     document.addEventListener('selectionchange', handleSelectionChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       document.removeEventListener('keydown', handleKeydown, { capture: true });
@@ -332,10 +318,6 @@ const App = () => {
       document.removeEventListener('dragstart', handleContextMenu, { capture: true });
       document.removeEventListener('selectionchange', handleSelectionChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleWindowBlur);
-      window.removeEventListener('focus', handleWindowFocus);
-      document.body.style.filter = '';
-      document.body.style.transition = '';
       document.head.removeChild(style);
     };
   }, []);
