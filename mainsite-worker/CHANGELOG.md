@@ -1,5 +1,21 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.08.00] - 2026-04-11
+### Removido
+- **payments-mp.ts**: Deletado. Todas as rotas MP removidas.
+- **mercadopago**: Dependência removida do package.json
+- **PIX nativo**: Rota /api/pix/generate removida (substituída por PIX via processador)
+- **Headers.prototype.raw polyfill**: Removido (era exclusivo do SDK MP)
+- **MERCADO_PAGO_WEBHOOK_SECRET**: Removido dos secrets
+- **MP fee constants**: Removidos do financial.ts
+- **validateMercadoPagoSignatureAsync**: Removida
+
+### Alterado
+- **payments-sumup.ts → payments.ts**: Renomeado sem referência a provedor
+
+### Adicionado
+- **PIX via processador**: POST /api/sumup/checkout/:id/pix com payment_type pix
+
 ## [v02.07.01] — 2026-04-11
 ### Alterado
 - **Log prefix**: Todos os logs (structuredLog, Hono logger, console direto) agora prefixados com `[mainsite-motor]` para observabilidade unificada.

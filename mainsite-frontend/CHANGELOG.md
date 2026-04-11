@@ -1,5 +1,16 @@
 # Changelog — Mainsite Frontend
 
+## [v03.09.00] - 2026-04-11
+### Removido
+- **Mercado Pago**: CardPayment Brick, @mercadopago/sdk-react, seleção de provedor
+- **PIX nativo**: Substituído por PIX via processador de pagamentos
+
+### Alterado
+- **DonationModal**: Formulário único (nome, valor, cartão, email, documento, PIX). Sem seleção de provedor.
+
+### Adicionado
+- **PIX via processador**: Endpoint /sumup/checkout/{id}/pix com artefatos QR
+
 ## [v03.08.01] - 2026-04-10
 ### Corrigido
 - **Anti-screenshot blur removido**: `filter: blur(32px)` no `window blur/focus` eliminado. Não impedia print screen e atrapalhava uso normal (alt-tab, DevTools).
