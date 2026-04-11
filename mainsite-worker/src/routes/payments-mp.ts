@@ -3,18 +3,15 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 /**
- * Rotas de Pagamento Mercado Pago (payment, webhook, insights).
+ * Rotas de Pagamento Mercado Pago — Orders API (nova geração).
  * Zero Trust: HMAC-SHA256 webhook validation, Bearer auth em rotas admin.
  * Domínio: /api/mp*, /api/webhooks/mercadopago
  *
- * Arquitetura Live API-first:
- * - Dados transacionais: Mercado Pago REST API (fonte de verdade)
- * - D1 financeiro: removido (sem consumidor)
- * - Webhook MP: mantido para compliance (ACK + email notification)
- * - Fee Config: D1 `mainsite_settings` (configuração, não transação)
+ * Migração da Payments API → Orders API conforme aviso de descontinuação.
+ * A Orders API usa `Order.create()` com processing_mode: "automatic".
  */
 import { Hono } from 'hono';
-import { MercadoPagoConfig, Payment, PaymentMethod } from 'mercadopago';
+import { MercadoPagoConfig, Order, Payment, PaymentMethod } from 'mercadopago';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
@@ -30,7 +27,7 @@ const mp = new Hono<{ Bindings: Env }>();
 const MIN_PAYMENT_AMOUNT = 1.00;
 const MAX_PAYMENT_AMOUNT = 10_000.00;
 
-// ========== PUBLIC PAYMENT ==========
+// ========== PUBLIC PAYMENT (Orders API) ==========
 
 mp.post('/api/mp-payment', async (c) => {
   try {
@@ -48,7 +45,6 @@ mp.post('/api/mp-payment', async (c) => {
         finalAmount = parseFloat(((finalAmount + fees.mpFixed) / (1 - fees.mpRate)).toFixed(2));
       }
       transactionAmount = finalAmount;
-      (mpPayload as Record<string, unknown>).transaction_amount = transactionAmount;
     }
 
     // Validate payment amount bounds
@@ -56,10 +52,6 @@ mp.post('/api/mp-payment', async (c) => {
       return c.json({ error: `Valor deve ser entre R$${MIN_PAYMENT_AMOUNT} e R$${MAX_PAYMENT_AMOUNT}.` }, 400);
     }
 
-    const client = new MercadoPagoConfig({ accessToken: token });
-    const paymentApi = new Payment(client);
-
-    const extRef = `DON-${crypto.randomUUID()}`;
     const payer = (mpPayload as Record<string, Record<string, string>>).payer;
     const realFirstName = payer?.first_name;
     const realLastName = payer?.last_name;
@@ -70,41 +62,73 @@ mp.post('/api/mp-payment', async (c) => {
 
     const donorFullName = `${realFirstName} ${realLastName}`.trim();
     const donationDescriptor = `Doação de ${donorFullName} - Reflexos da Alma`;
+    const extRef = `DON-${crypto.randomUUID()}`;
 
-    const enhancedPayload = {
-      ...(mpPayload as Record<string, unknown>),
-      description: donationDescriptor,
+    // Extract payment method info from legacy payload
+    const paymentMethodId = (mpPayload as Record<string, unknown>).payment_method_id as string | undefined;
+    const cardToken = (mpPayload as Record<string, unknown>).token as string | undefined;
+    const installments = Number((mpPayload as Record<string, unknown>).installments) || 1;
+    const payerEmail = payer?.email;
+    const payerIdentification = (mpPayload as { payer?: { identification?: { type?: string; number?: string } } }).payer?.identification;
+
+    // Build Orders API request
+    const client = new MercadoPagoConfig({ accessToken: token });
+    const orderApi = new Order(client);
+
+    const paymentMethod: Record<string, unknown> = {};
+    if (paymentMethodId) paymentMethod.id = paymentMethodId;
+    if (cardToken) paymentMethod.token = cardToken;
+    if (installments > 1) paymentMethod.installments = installments;
+    paymentMethod.statement_descriptor = 'REFLEXOS ALMA';
+
+    // Determine payment method type from ID
+    const pixMethods = ['pix'];
+    const boletoMethods = ['bolbradesco', 'boleto'];
+    const debitMethods = ['debcabal', 'debvisa', 'debmaster', 'debelo'];
+    if (pixMethods.includes(paymentMethodId || '')) {
+      paymentMethod.type = 'bank_transfer';
+    } else if (boletoMethods.includes(paymentMethodId || '')) {
+      paymentMethod.type = 'ticket';
+    } else if (debitMethods.includes(paymentMethodId || '')) {
+      paymentMethod.type = 'debit_card';
+    } else if (paymentMethodId) {
+      paymentMethod.type = 'credit_card';
+    }
+
+    const orderBody = {
+      type: 'online',
+      processing_mode: 'automatic',
       external_reference: extRef,
-      statement_descriptor: 'REFLEXOS ALMA',
-      notification_url: `${new URL(c.req.url).origin}/api/webhooks/mercadopago`,
+      total_amount: transactionAmount.toFixed(2),
+      description: donationDescriptor,
       payer: {
-        ...((mpPayload as Record<string, Record<string, string>>).payer || {}),
+        email: payerEmail,
         first_name: realFirstName,
         last_name: realLastName,
+        ...(payerIdentification ? { identification: payerIdentification } : {}),
       },
-      additional_info: {
-        items: [{
-          id: 'DONATION-01',
-          title: donationDescriptor,
-          description: donationDescriptor,
-          category_id: 'donations',
-          quantity: 1,
-          unit_price: transactionAmount,
+      transactions: {
+        payments: [{
+          amount: transactionAmount.toFixed(2),
+          payment_method: paymentMethod,
         }],
-        payer: {
-          first_name: realFirstName,
-          last_name: realLastName,
-          phone: { area_code: '21', number: '999999999' },
-          address: { street_name: 'Av. Principal', street_number: '1', zip_code: '00000000' },
-        },
       },
+      items: [{
+        id: 'DONATION-01',
+        title: donationDescriptor,
+        description: donationDescriptor,
+        category_id: 'donations',
+        quantity: 1,
+        unit_price: transactionAmount.toFixed(2),
+      }],
     };
 
-    const data = await paymentApi.create({
-      body: enhancedPayload as unknown as Parameters<Payment['create']>[0]['body'],
+    const data = await orderApi.create({
+      body: orderBody as Parameters<Order['create']>[0]['body'],
       requestOptions: { idempotencyKey: crypto.randomUUID() },
     });
 
+    // Safe serialize (strip circular refs and internal SDK fields)
     const cache = new Set();
     const safeData = JSON.parse(JSON.stringify(data, (key, value) => {
       if (typeof value === 'object' && value !== null) {
@@ -115,20 +139,35 @@ mp.post('/api/mp-payment', async (c) => {
       return value;
     }));
 
-    return c.json(safeData, 201);
+    // Map Orders API response to a shape the frontend expects
+    const orderData = data as unknown as Record<string, unknown>;
+    const txPayments = (orderData.transactions as { payments?: Array<Record<string, unknown>> })?.payments;
+    const payment = txPayments?.[0] || {};
+
+    const response = {
+      ...safeData,
+      // Compatibility fields for existing frontend
+      id: orderData.id,
+      status: orderData.status,
+      status_detail: orderData.status_detail,
+      transaction_amount: transactionAmount,
+      external_reference: extRef,
+      payment_id: payment.id,
+      payment_status: payment.status,
+      payment_status_detail: payment.status_detail,
+    };
+
+    return c.json(response, 201);
   } catch (err) {
-    console.error('MercadoPago Payment Creation Error:', err);
-    structuredLog('error', 'MP Payment Error', { err: String(err), stack: (err as Error).stack });
+    console.error('MercadoPago Order Creation Error:', err);
+    structuredLog('error', 'MP Order Error', { err: String(err), stack: (err as Error).stack });
     return c.json({
       error: 'Falha ao processar pagamento. Tente novamente.',
     }, 500);
   }
 });
 
-// ========== WEBHOOK (HMAC-SHA256 VALIDATED — Compliance ACK + Email) ==========
-// O webhook é obrigatório pelo Mercado Pago para passar com 100% no teste de qualidade.
-// Mantém: validação HMAC, consulta ao provedor para dados do pagamento, notificação por e-mail.
-// Removido: todas as escritas/leituras D1 (sem consumidor).
+// ========== WEBHOOK (HMAC-SHA256 VALIDATED — Compliance ACK) ==========
 
 mp.post('/api/webhooks/mercadopago', async (c) => {
   const signature = c.req.header('x-signature');
@@ -185,37 +224,17 @@ mp.post('/api/webhooks/mercadopago', async (c) => {
       return c.text('OK', 200);
     }
 
-    // Buscar dados do pagamento no provedor para notificação por e-mail
-    const mpToken = c.env.MP_ACCESS_TOKEN;
-    let status = 'Desconhecido';
-    let amount = 0;
-    let email = 'N/A';
-    let method = 'N/A';
-    let extRef = 'N/A';
-
-    if (mpToken) {
-      try {
-        const client = new MercadoPagoConfig({ accessToken: mpToken });
-        const paymentApi = new Payment(client);
-        const paymentData = (await paymentApi.get({ id: id as string })) as unknown as Record<string, unknown>;
-        status = (paymentData.status as string) || 'Desconhecido';
-        amount = Number(paymentData.transaction_amount || 0);
-        email = (paymentData.payer as Record<string, string>)?.email || 'N/A';
-        method = (paymentData.payment_method_id as string) || 'N/A';
-        extRef = (paymentData.external_reference as string) || 'N/A';
-      } catch {
-        structuredLog('warn', `[MP Webhook] Falha ao buscar dados do pagamento ${id} no provedor`);
-      }
-    }
-
-    // Webhook apenas faz ACK — sem ação de e-mail
+    structuredLog('info', '[MP Webhook] Payment notification received', { topic, id });
     return c.text('OK', 200);
   } catch {
     return c.text('Erro interno no Webhook', 500);
   }
 });
 
-// ========== ADMIN: MP PAYMENT METHODS / SUMMARY / ADVANCED (SDK-only) ==========
+// ========== ADMIN: MP PAYMENT METHODS / SUMMARY / ADVANCED ==========
+// Admin endpoints still use Payment.search() as the Orders search API
+// uses a different endpoint. These will be migrated when MP provides
+// the Orders search documentation.
 
 mp.get('/api/mp/payment-methods', requireAuth, async (c) => {
   try {
