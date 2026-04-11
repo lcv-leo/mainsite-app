@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 /**
- * Utilitários financeiros compartilhados (SumUp + Mercado Pago).
- * Extraídos do monolito com paridade total de comportamento.
+ * Utilitários financeiros compartilhados.
+ * Cálculo de taxas, cutoff dates, normalização de status.
  */
 
 /**
- * Normaliza status de pagamento SumUp para formato canônico.
+ * Normaliza status de pagamento para formato canônico.
  */
 export const normalizeSumupStatus = (status: string | undefined | null): string => {
   const s = String(status || '').trim().toUpperCase();
@@ -37,7 +37,7 @@ export const normalizeSumupStatus = (status: string | undefined | null): string 
 };
 
 /**
- * Resolve o status efetivo de uma transação SumUp a partir de múltiplas fontes.
+ * Resolve o status efetivo de uma transação a partir de múltiplas fontes.
  * Estados terminais prevalecem sobre snapshots antigos do payload.
  */
 export const resolveSumupStatusFromSources = ({
@@ -98,27 +98,21 @@ export const isOnOrAfterCutoff = (value?: string | null): boolean => {
 };
 
 /**
- * Constantes de taxa dos gateways de pagamento (fallback).
+ * Constantes de taxa de processamento (fallback).
  * Valores usados quando a configuração dinâmica do D1 não está disponível.
  */
-export const SUMUP_FEE_RATE = 0.0267;
-export const SUMUP_FEE_FIXED = 0;
-export const MP_FEE_RATE = 0.0499;
-export const MP_FEE_FIXED = 0.40;
+export const FEE_RATE = 0.0267;
+export const FEE_FIXED = 0;
 
 /** Estrutura da configuração de taxas armazenada no D1. */
 export interface FeeConfig {
   sumupRate: number;
   sumupFixed: number;
-  mpRate: number;
-  mpFixed: number;
 }
 
 const DEFAULT_FEE_CONFIG: FeeConfig = {
-  sumupRate: SUMUP_FEE_RATE,
-  sumupFixed: SUMUP_FEE_FIXED,
-  mpRate: MP_FEE_RATE,
-  mpFixed: MP_FEE_FIXED,
+  sumupRate: FEE_RATE,
+  sumupFixed: FEE_FIXED,
 };
 
 /**
@@ -135,13 +129,10 @@ export const loadFeeConfig = async (db: D1Database): Promise<FeeConfig> => {
 
     const parsed = JSON.parse(row.payload) as Partial<FeeConfig>;
     return {
-      sumupRate: typeof parsed.sumupRate === 'number' ? parsed.sumupRate : SUMUP_FEE_RATE,
-      sumupFixed: typeof parsed.sumupFixed === 'number' ? parsed.sumupFixed : SUMUP_FEE_FIXED,
-      mpRate: typeof parsed.mpRate === 'number' ? parsed.mpRate : MP_FEE_RATE,
-      mpFixed: typeof parsed.mpFixed === 'number' ? parsed.mpFixed : MP_FEE_FIXED,
+      sumupRate: typeof parsed.sumupRate === 'number' ? parsed.sumupRate : FEE_RATE,
+      sumupFixed: typeof parsed.sumupFixed === 'number' ? parsed.sumupFixed : FEE_FIXED,
     };
   } catch {
-    // D1 indisponível — usa fallback hardcoded sem interromper o checkout
     return DEFAULT_FEE_CONFIG;
   }
 };
@@ -157,57 +148,4 @@ export const calculateWithFeeCoverage = (
 ): number => {
   if (!coverFees) return baseAmount;
   return parseFloat(((baseAmount + feeFixed) / (1 - feeRate)).toFixed(2));
-};
-
-/**
- * Validação assíncrona de assinatura HMAC-SHA256 do Mercado Pago.
- * Suporta Payments API (request-id vazio) e Orders API (request-id preenchido, data.id lowercase).
- */
-export const validateMercadoPagoSignatureAsync = async (
-  body: Record<string, unknown>,
-  signature: string,
-  timestamp: string,
-  secret: string,
-  requestId?: string,
-): Promise<boolean> => {
-  try {
-    const signatureParts: Record<string, string> = {};
-    signature.split(',').forEach((part) => {
-      const [key, value] = part.split('=');
-      if (key && value) signatureParts[key.trim()] = value.trim();
-    });
-
-    const ts = signatureParts['ts'];
-    const v1 = signatureParts['v1'];
-    if (!ts || !v1) return false;
-
-    // Orders API: data.id must be lowercase in the manifest
-    const rawDataId = String((body as Record<string, { id?: string }>)?.data?.id || '');
-    const dataId = rawDataId.toLowerCase();
-    const xRequestId = requestId || '';
-    const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
-
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    const signatureBuffer = await crypto.subtle.sign(
-      'HMAC',
-      key,
-      new TextEncoder().encode(manifest)
-    );
-    const computed = Array.from(new Uint8Array(signatureBuffer))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
-
-    // Constant-time comparison para prevenir timing attacks na validação HMAC
-    if (computed.length !== v1.length) return false;
-    const encoder = new TextEncoder();
-    return crypto.subtle.timingSafeEqual(encoder.encode(computed), encoder.encode(v1));
-  } catch {
-    return false;
-  }
 };
