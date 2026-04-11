@@ -197,15 +197,6 @@ mp.post('/api/webhooks/mercadopago', async (c) => {
     return c.json({ error: 'Invalid signature' }, 401);
   }
 
-  // Validate timestamp (max 5 minutes)
-  if (ts) {
-    const age = Date.now() - parseInt(ts, 10);
-    if (age > 300_000) {
-      structuredLog('warn', 'Webhook too old', { age });
-      return c.json({ error: 'Webhook too old' }, 400);
-    }
-  }
-
   try {
     const action = (body as { action?: string }).action || '';
     const type = (body as { type?: string }).type || '';
