@@ -95,17 +95,15 @@ mp.post('/api/mp-payment', async (c) => {
       paymentMethod.type = 'credit_card';
     }
 
+    // Orders API — minimal body per official docs:
+    // https://mercadopago.com.br/developers/en/docs/checkout-api-orders/payment-integration/pix
     const orderBody = {
       type: 'online',
       processing_mode: 'automatic',
       external_reference: extRef,
       total_amount: transactionAmount.toFixed(2),
-      description: donationDescriptor,
       payer: {
         email: payerEmail,
-        first_name: realFirstName,
-        last_name: realLastName,
-        ...(payerIdentification ? { identification: payerIdentification } : {}),
       },
       transactions: {
         payments: [{
@@ -113,14 +111,6 @@ mp.post('/api/mp-payment', async (c) => {
           payment_method: paymentMethod,
         }],
       },
-      items: [{
-        id: 'DONATION-01',
-        title: donationDescriptor,
-        description: donationDescriptor,
-        category_id: 'donations',
-        quantity: 1,
-        unit_price: transactionAmount.toFixed(2),
-      }],
     };
 
     const data = await orderApi.create({
@@ -159,8 +149,28 @@ mp.post('/api/mp-payment', async (c) => {
 
     return c.json(response, 201);
   } catch (err) {
-    console.error('MercadoPago Order Creation Error:', err);
-    structuredLog('error', 'MP Order Error', { err: String(err), stack: (err as Error).stack });
+    // The SDK throws on failed orders (high_risk, etc.) but includes
+    // the full order data in the error. Return it to the frontend.
+    const errObj = err as Record<string, unknown>;
+    if (errObj?.data && typeof errObj.data === 'object') {
+      const orderData = errObj.data as Record<string, unknown>;
+      structuredLog('warn', 'MP Order failed', {
+        orderId: orderData.id,
+        status: orderData.status,
+        statusDetail: orderData.status_detail,
+      });
+      return c.json({
+        ...orderData,
+        id: orderData.id,
+        status: orderData.status,
+        status_detail: orderData.status_detail,
+        transaction_amount: transactionAmount,
+        external_reference: extRef,
+      }, 201);
+    }
+
+    console.error('MercadoPago Order Creation Error:', JSON.stringify(err, null, 2));
+    structuredLog('error', 'MP Order Error', { err: JSON.stringify(err) });
     return c.json({
       error: 'Falha ao processar pagamento. Tente novamente.',
     }, 500);
