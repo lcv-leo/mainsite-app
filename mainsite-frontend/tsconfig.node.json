@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "composite": true,
+    "noEmit": false,
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
