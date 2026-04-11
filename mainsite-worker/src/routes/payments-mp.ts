@@ -100,6 +100,7 @@ mp.post('/api/mp-payment', async (c) => {
         }],
       },
       items: [{
+        external_code: 'DONATION-01',
         title: donationDescriptor,
         description: donationDescriptor,
         category_id: 'donations',
