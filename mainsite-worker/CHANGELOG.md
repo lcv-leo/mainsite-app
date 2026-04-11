@@ -1,5 +1,18 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.07.00] — 2026-04-10
+### Adicionado
+- **Server-side HTML sanitization**: `sanitizePostHtml()` em `lib/sanitize.ts` — strip de tags perigosas (script, iframe, style), event handlers e javascript: URLs antes de armazenar no D1.
+- **Orders API**: Migração de `Payment.create()` → `Order.create()` com `processing_mode: "automatic"`. Somente cartão de crédito, sem parcelamento.
+- **Webhook Orders API**: HMAC validation atualizada com `x-request-id` e `data.id` lowercase conforme docs oficiais.
+- **MERCADO_PAGO_WEBHOOK_SECRET**: Binding adicionado via Secrets Store.
+- **items no order**: `title`, `description`, `category_id`, `quantity`, `unit_price`, `external_code` para compliance de qualidade MP.
+
+### Alterado
+- **Zod 3 → 4**: Upgrade de `zod ^3.23.0` para `^4.3.6`. Schemas compatíveis sem breaking changes.
+- **Descrição de pagamento**: `Doação de {nome} - Reflexos da Alma` (consistente com SumUp).
+- **Webhook age check removido**: Check de 5 minutos rejeitava retries legítimos do MP (a cada 15 min). HMAC validation é suficiente.
+
 ## [v02.06.00] — 2026-04-09
 ### Adicionado
 - **Zod env validation**: `EnvSecretsSchema` adicionado a `src/lib/schemas.ts`. Middleware pós-resolução de secrets em `index.ts` valida todas as 12 variáveis e loga warn para as ausentes (não bloqueia deploy).

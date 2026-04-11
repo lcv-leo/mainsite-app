@@ -1,5 +1,13 @@
 # Changelog — Mainsite Frontend
 
+## [v03.08.01] - 2026-04-10
+### Corrigido
+- **Anti-screenshot blur removido**: `filter: blur(32px)` no `window blur/focus` eliminado. Não impedia print screen e atrapalhava uso normal (alt-tab, DevTools).
+
+### Adicionado
+- **E2E Playwright**: `e2e/homepage.spec.ts` + `e2e/interactions.spec.ts` cobrindo renderização, share bar, contact modal, API health, security headers.
+- **Dependabot groups**: `@tanstack/*`, `@vitest/*`, `@biomejs/*` agrupados.
+
 ## [v03.08.00] - 2026-04-09
 ### Adicionado
 - **TanStack Query v5**: `@tanstack/react-query ^5.0.0` adicionado às deps; `@tanstack/react-query-devtools ^5.0.0` às devDeps. `main.tsx` agora envolve o app em `QueryClientProvider` (staleTime 30 s, retry 1) com `ReactQueryDevtools`.
