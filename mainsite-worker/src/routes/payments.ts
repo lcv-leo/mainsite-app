@@ -177,6 +177,53 @@ sumup.post('/api/sumup/checkout/:id/pay', async (c) => {
   }
 });
 
+// ========== PUBLIC PIX VIA SUMUP ==========
+
+sumup.post('/api/sumup/checkout/:id/pix', async (c) => {
+  try {
+    const checkoutId = c.req.param('id');
+    if (!checkoutId) return c.json({ error: 'Checkout inválido.' }, 400);
+
+    const body = (await c.req.json()) as { email?: string; firstName?: string; lastName?: string };
+    const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
+    if (!sumupToken) return c.json({ error: 'Configuração de pagamento indisponível.' }, 503);
+
+    const client = new SumUp({ apiKey: sumupToken });
+
+    const processPayload = {
+      payment_type: 'pix',
+      personal_details: {
+        email: (body.email || '').trim() || undefined,
+        first_name: (body.firstName || '').trim() || undefined,
+        last_name: (body.lastName || '').trim() || undefined,
+      },
+    };
+
+    const result = (await client.checkouts.process(
+      checkoutId,
+      processPayload as Parameters<typeof client.checkouts.process>[1],
+    )) as Record<string, unknown>;
+
+    // Extract PIX artifacts (QR code image URL + payment code string)
+    const pixData = result.pix as { artefacts?: Array<{ name?: string; content_type?: string; content?: string; location?: string }> } | undefined;
+    const artefacts = pixData?.artefacts || [];
+    const qrCodeUrl = artefacts.find((a) => a.name === 'barcode')?.location || null;
+    const pixCode = artefacts.find((a) => a.name === 'code')?.content || null;
+
+    return c.json({
+      success: true,
+      checkoutId,
+      status: String(result.status || 'PENDING'),
+      qr_code_url: qrCodeUrl,
+      pix_code: pixCode,
+    });
+  } catch (err) {
+    structuredLog('error', '[PIX] Erro ao processar PIX', { error: (err as Error).message });
+    const { message, httpStatus } = parseSumupError(err as Error);
+    return c.json({ error: message }, httpStatus as 422);
+  }
+});
+
 // 3DS Return Page
 sumup.get('/api/sumup/checkout/:ref/return', async (c) => {
   // Sanitize ref to prevent XSS injection in the page

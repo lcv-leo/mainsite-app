@@ -39,7 +39,7 @@ import contactRoutes from './routes/contact.ts';
 import settingsRoutes from './routes/settings.ts';
 import uploadsRoutes from './routes/uploads.ts';
 import miscRoutes from './routes/misc.ts';
-import paymentsSumupRoutes from './routes/payments-sumup.ts';
+import paymentsRoutes from './routes/payments.ts';
 import postSummariesRoutes from './routes/post-summaries.ts';
 import commentsRoutes from './routes/comments.ts';
 import ratingsRoutes from './routes/ratings.ts';
@@ -59,7 +59,7 @@ app.use('*', logger((msg) => console.log(`[mainsite-motor] ${msg}`)));
 const SECRET_KEYS = [
   'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY',
   'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE', 'MP_ACCESS_TOKEN',
-  'MERCADO_PAGO_WEBHOOK_SECRET', 'PIX_KEY', 'PIX_NAME', 'PIX_CITY',
+  'PIX_KEY', 'PIX_NAME', 'PIX_CITY',
   'GCP_NL_API_KEY', 'TURNSTILE_SECRET_KEY'
 ] as const;
 
@@ -225,7 +225,7 @@ app.route('/', contactRoutes);
 app.route('/', settingsRoutes);
 app.route('/', uploadsRoutes);
 app.route('/', miscRoutes);
-app.route('/', paymentsSumupRoutes);
+app.route('/', paymentsRoutes);
 app.route('/', postSummariesRoutes);
 app.route('/', commentsRoutes);
 app.route('/', ratingsRoutes);
