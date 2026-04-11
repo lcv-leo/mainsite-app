@@ -55,6 +55,6 @@ export async function getAdminEmail(db: D1Database): Promise<string | null> {
       }
     }
   } catch { /* continue */ }
-  console.warn('[Auth] Admin email not configured in D1 (mainsite/admin_email). Email notifications disabled.');
+  console.warn('[mainsite-motor] [Auth] Admin email not configured in D1 (mainsite/admin_email). Email notifications disabled.');
   return null;
 }

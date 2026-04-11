@@ -317,7 +317,7 @@ PERGUNTA DO USUÁRIO: ${safeMessage}`;
                 subject: `Interação do Leitor no Chatbot: ${contextTitleLog}`,
                 html: aiHtml,
               }),
-            }).catch((e) => console.error('Falha no disparo do e-mail da IA:', e))
+            }).catch((e) => console.error('[mainsite-motor] Falha no disparo do e-mail da IA:', e))
           );
         }
       }

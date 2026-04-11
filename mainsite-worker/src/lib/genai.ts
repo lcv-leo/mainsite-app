@@ -135,7 +135,7 @@ function logAiUsage(
         entry.error_detail || null,
       ).run();
     } catch (err) {
-      console.warn('[telemetry] ai_usage_logs INSERT failed:', err instanceof Error ? err.message : err);
+      console.warn('[mainsite-motor] [telemetry] ai_usage_logs INSERT failed:', err instanceof Error ? err.message : err);
     }
   })();
 }

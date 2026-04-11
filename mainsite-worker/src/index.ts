@@ -51,7 +51,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 // ========== OBSERVABILITY ==========
 app.use('*', timing());
-app.use('*', logger());
+app.use('*', logger((msg) => console.log(`[mainsite-motor] ${msg}`)));
 
 // ========== SECRET STORE RESOLVER MIDDLEWARE ==========
 // Cloudflare Secret Store bindings are Fetcher objects with `.get()`.
@@ -73,7 +73,7 @@ app.use('*', async (c, next) => {
         try {
           env[key] = await (binding as { get(): Promise<string> }).get();
         } catch (error) {
-          console.warn(`[Secrets Store] Falha ao resolver secret ${key}:`, error);
+          console.warn(`[mainsite-motor] [Secrets Store] Falha ao resolver secret ${key}:`, error);
           env[key] = undefined;
         }
       }
@@ -91,7 +91,7 @@ app.use('*', async (c, next) => {
     const missing = result.error.issues
       .map(i => i.path.join('.'))
       .join(', ');
-    console.warn(`[Env] Secrets ausentes ou inválidos: ${missing}`);
+    console.warn(`[mainsite-motor] [Env] Secrets ausentes ou inválidos: ${missing}`);
   }
   return next();
 });
@@ -272,7 +272,7 @@ export default {
       // Sinaliza mudança para o polling de content-fingerprint
       ctx.waitUntil(bumpContentVersion(env.DB));
     } catch (err) {
-      console.error('Falha no Job:', err);
+      console.error('[mainsite-motor] Falha no Job:', err);
     }
   },
 };

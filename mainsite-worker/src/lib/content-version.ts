@@ -50,7 +50,7 @@ export async function bumpContentVersion(db: D1Database): Promise<void> {
       .bind(CONTENT_VERSION_KEY, JSON.stringify(next))
       .run();
   } catch (err) {
-    console.error('[content-version] bumpContentVersion failed:', err);
+    console.error('[mainsite-motor] [content-version] bumpContentVersion failed:', err);
   }
 }
 

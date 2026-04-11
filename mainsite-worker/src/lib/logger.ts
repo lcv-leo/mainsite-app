@@ -8,6 +8,8 @@
  */
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
+const TAG = '[mainsite-motor]';
+
 export const structuredLog = (
   level: LogLevel,
   message: string,
@@ -15,7 +17,7 @@ export const structuredLog = (
 ): void => {
   const entry = {
     level,
-    message,
+    message: `${TAG} ${message}`,
     timestamp: new Date().toISOString(),
     ...data,
   };

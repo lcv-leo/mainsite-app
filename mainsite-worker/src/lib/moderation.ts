@@ -143,14 +143,14 @@ async function getAccessTokenFromServiceAccount(jsonKey: string): Promise<string
 
     if (!tokenResponse.ok) {
       const errBody = await tokenResponse.text().catch(() => '');
-      console.error(`[Moderation] Token exchange failed: ${tokenResponse.status} — ${errBody}`);
+      console.error(`[mainsite-motor] [Moderation] Token exchange failed: ${tokenResponse.status} — ${errBody}`);
       return null;
     }
 
     const tokenData = (await tokenResponse.json()) as { access_token?: string };
     return tokenData.access_token || null;
   } catch (err) {
-    console.error('[Moderation] Falha ao gerar access token:', err);
+    console.error('[mainsite-motor] [Moderation] Falha ao gerar access token:', err);
     return null;
   }
 }
@@ -171,7 +171,7 @@ export async function moderateText(content: string, apiKey: string): Promise<Mod
       // Service Account JSON → precisa gerar access token via JWT
       const accessToken = await getAccessTokenFromServiceAccount(trimmedKey);
       if (!accessToken) {
-        console.error('[Moderation] Falha ao gerar access token do Service Account JSON');
+        console.error('[mainsite-motor] [Moderation] Falha ao gerar access token do Service Account JSON');
         return { categories: [], languageCode: 'pt', languageSupported: true };
       }
       authUrl = GCP_NL_API_URL;
@@ -196,7 +196,7 @@ export async function moderateText(content: string, apiKey: string): Promise<Mod
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unable to read body');
-      console.error(`[Moderation] GCP NL API error: ${response.status} ${response.statusText} — ${errorBody}`);
+      console.error(`[mainsite-motor] [Moderation] GCP NL API error: ${response.status} ${response.statusText} — ${errorBody}`);
       return { categories: [], languageCode: 'pt', languageSupported: true };
     }
 
@@ -212,7 +212,7 @@ export async function moderateText(content: string, apiKey: string): Promise<Mod
       languageSupported: data.languageSupported ?? true,
     };
   } catch (err) {
-    console.error('[Moderation] Falha na chamada GCP NL API:', err);
+    console.error('[mainsite-motor] [Moderation] Falha na chamada GCP NL API:', err);
     // Graceful degradation: sem scores → status 'pending' para revisão manual
     return { categories: [], languageCode: 'pt', languageSupported: true };
   }
@@ -345,7 +345,7 @@ export async function verifyTurnstile(token: string, secretKey: string, ip: stri
     const data = (await response.json()) as { success: boolean };
     return data.success === true;
   } catch {
-    console.error('[Turnstile] Falha na verificação');
+    console.error('[mainsite-motor] [Turnstile] Falha na verificação');
     return false;
   }
 }
@@ -410,6 +410,6 @@ export async function notifyAdminNewComment(
       }),
     });
   } catch (err) {
-    console.error('[Moderation] Falha ao enviar notificação:', err);
+    console.error('[mainsite-motor] [Moderation] Falha ao enviar notificação:', err);
   }
 }
