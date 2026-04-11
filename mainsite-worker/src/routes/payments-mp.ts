@@ -59,7 +59,8 @@ mp.post('/api/mp-payment', async (c) => {
       return c.json({ error: 'Nome e sobrenome reais são obrigatórios para validação antifraude.' }, 400);
     }
 
-    const donationDescriptor = 'Apoio ao Projeto Reflexos da Alma';
+    const donorFullName = `${realFirstName} ${realLastName}`.trim();
+    const donationDescriptor = `Doação de ${donorFullName} - Reflexos da Alma`;
     const extRef = `DON-${crypto.randomUUID()}`;
 
     const paymentMethodId = (mpPayload as Record<string, unknown>).payment_method_id as string | undefined;
