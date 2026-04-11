@@ -16,21 +16,6 @@ import { timing } from 'hono/timing';
 import type { Env } from './env.ts';
 import { EnvSecretsSchema } from './lib/schemas.ts';
 
-// ========== MERCADO PAGO SDK POLYFILL ==========
-// O SDK do Mercado Pago usa node-fetch internamente, o que exige
-// que objetos Headers tenham a função .raw()
-if (typeof Headers !== 'undefined' && !('raw' in Headers.prototype)) {
-  Object.defineProperty(Headers.prototype, 'raw', {
-    value: function (this: Headers) {
-      const raw: Record<string, string[]> = {};
-      this.forEach((value, key) => {
-        raw[key] = [value];
-      });
-      return raw;
-    },
-    configurable: true,
-  });
-}
 
 // --- Route Modules ---
 import aiRoutes from './routes/ai.ts';
