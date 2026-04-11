@@ -161,12 +161,14 @@ export const calculateWithFeeCoverage = (
 
 /**
  * Validação assíncrona de assinatura HMAC-SHA256 do Mercado Pago.
+ * Suporta Payments API (request-id vazio) e Orders API (request-id preenchido, data.id lowercase).
  */
 export const validateMercadoPagoSignatureAsync = async (
   body: Record<string, unknown>,
   signature: string,
   timestamp: string,
-  secret: string
+  secret: string,
+  requestId?: string,
 ): Promise<boolean> => {
   try {
     const signatureParts: Record<string, string> = {};
@@ -179,8 +181,11 @@ export const validateMercadoPagoSignatureAsync = async (
     const v1 = signatureParts['v1'];
     if (!ts || !v1) return false;
 
-    const dataId = String((body as Record<string, { id?: string }>)?.data?.id || '');
-    const manifest = `id:${dataId};request-id:;ts:${ts};`;
+    // Orders API: data.id must be lowercase in the manifest
+    const rawDataId = String((body as Record<string, { id?: string }>)?.data?.id || '');
+    const dataId = rawDataId.toLowerCase();
+    const xRequestId = requestId || '';
+    const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
 
     const key = await crypto.subtle.importKey(
       'raw',
