@@ -1,5 +1,9 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.09.01] - 2026-04-12
+### Adicionado
+- **`routes/payments.ts`**: Rota pública `GET /api/sumup/fees` que retorna `{ sumupRate, sumupFixed }` lendo **direto do D1** (`mainsite_settings`/`mainsite/fees`) — sem o fallback defensivo de `loadFeeConfig()`. Se a configuração não existir ou o D1 estiver indisponível, retorna 503 para que o `DonationModal` desabilite a opção "Cobrir as taxas" em vez de exibir um preview baseado em valores incorretos. Sem auth (read-only de configuração já considerada pública pelo admin).
+
 ## [v02.09.00] - 2026-04-12
 ### Adicionado
 - **`lib/indexnow.ts`**: Cliente IndexNow para notificar buscadores (Bing, Yandex, Seznam, Naver, Yep) quando um post é criado ou editado. Função `pingIndexNow(urlList)` faz POST para `https://api.indexnow.org/IndexNow`. Helper `postUrl(id)` constrói a URL canônica do post.

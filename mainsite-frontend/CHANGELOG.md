@@ -1,5 +1,9 @@
 # Changelog — Mainsite Frontend
 
+## [v03.10.01] - 2026-04-12
+### Corrigido
+- **`DonationModal`**: O preview de "Cobrir as taxas de processamento do cartão" usava `FEE_RATE = 0.0267` hardcoded, ignorando a configuração do admin (admin-app → MainSite → Taxas de Processamento). O backend (`mainsite-worker /api/sumup/checkout`) já lia as taxas dinâmicas do D1 (`mainsite_settings`/`mainsite/fees`), então qualquer alteração no painel produzia divergência silenciosa entre o valor exibido ao doador e o efetivamente cobrado. Agora o modal busca `GET /api/sumup/fees` no `useEffect` de abertura e usa `sumupRate`/`sumupFixed` retornados — sem fallback hardcoded. Enquanto a configuração não chega (ou se a chamada falhar/retornar 503), a opção "Cobrir as taxas" fica desabilitada com tooltip explicativo, garantindo que o doador nunca veja preview divergente do valor efetivamente cobrado.
+
 ## [v03.10.00] - 2026-04-12
 ### Adicionado — pacote SEO/GEO
 - **`public/llms.txt`**: Manifesto para LLMs (formato llmstxt.org) descrevendo autor, recursos, política de uso por IA generativa, formato de citação. Carrega como recurso público para consumo por ChatGPT/Claude/Perplexity.

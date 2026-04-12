@@ -49,9 +49,10 @@ const getSafeHttpsOrigin = (rawUrl: string): string | null => {
   }
 };
 
-// Taxa de processamento (cartão de crédito online)
-const FEE_RATE = 0.0267; // 2.67%
-const FEE_FIXED = 0;
+// Taxas de processamento são SEMPRE buscadas em GET /api/sumup/fees
+// (fonte: D1 mainsite_settings — configurada no admin-app). Sem fallback
+// hardcoded: enquanto a configuração não chega, a opção "Cobrir as taxas"
+// fica desabilitada para evitar divergência entre preview e cobrança real.
 
 interface SumupCardState {
   holder: string
@@ -101,6 +102,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
   const [sumupDocument, setSumupDocument] = useState('');
   const [sumupDocumentType, setSumupDocumentType] = useState('CPF');
   const [coverFees, setCoverFees] = useState(false);
+  const [feeRate, setFeeRate] = useState<number | null>(null);
+  const [feeFixed, setFeeFixed] = useState<number | null>(null);
+  const [feesError, setFeesError] = useState(false);
   const [sumupNextStep, setSumupNextStep] = useState<SumupNextStep | null>(null);
   const [checkoutId, setCheckoutId] = useState<string | null>(null);
 
@@ -163,6 +167,32 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
       .then((url: string) => setPixQrDataUri(url))
       .catch(() => setPixQrDataUri(''));
   }, [pixPayload]);
+
+  useEffect(() => {
+    if (!show) return;
+    let cancelled = false;
+    setFeesError(false);
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/sumup/fees`, { credentials: 'omit' });
+        if (!res.ok) throw new Error(`fees ${res.status}`);
+        const data = await res.json() as { sumupRate?: number; sumupFixed?: number };
+        if (cancelled) return;
+        const okRate = typeof data.sumupRate === 'number' && data.sumupRate >= 0 && data.sumupRate < 1;
+        const okFixed = typeof data.sumupFixed === 'number' && data.sumupFixed >= 0;
+        if (!okRate || !okFixed) throw new Error('fees payload inválido');
+        setFeeRate(data.sumupRate as number);
+        setFeeFixed(data.sumupFixed as number);
+      } catch {
+        if (cancelled) return;
+        setFeeRate(null);
+        setFeeFixed(null);
+        setFeesError(true);
+        setCoverFees(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [show, API_URL]);
 
   useEffect(() => {
     if (visibilityTimeoutRef.current) {
@@ -237,10 +267,12 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
     return parseFloat(amountDisplay.replace(/\./g, '').replace(',', '.'));
   };
 
+  const feesLoaded = feeRate !== null && feeFixed !== null;
+
   const getGrossAmount = (): number => {
     const base = getNumericAmount();
-    if (!coverFees || base <= 0) return base;
-    return parseFloat(((base + FEE_FIXED) / (1 - FEE_RATE)).toFixed(2));
+    if (!coverFees || base <= 0 || !feesLoaded) return base;
+    return parseFloat((((base + (feeFixed as number)) / (1 - (feeRate as number)))).toFixed(2));
   };
 
   const handleSumupCardChange = (field: SumupCardField, value: string) => {
@@ -711,18 +743,31 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
                 </div>
               </div>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', opacity: 0.85, textAlign: 'left', userSelect: 'none' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: feesLoaded ? 'pointer' : 'not-allowed',
+                  fontSize: '13px',
+                  opacity: feesLoaded ? 0.85 : 0.5,
+                  textAlign: 'left',
+                  userSelect: 'none',
+                }}
+                title={feesError ? 'Configuração de taxas indisponível no momento.' : (feesLoaded ? '' : 'Carregando configuração de taxas...')}
+              >
                 <input
                   id="donation-cover-fees" name="donationCoverFees"
                   type="checkbox"
                   checked={coverFees}
+                  disabled={!feesLoaded}
                   onChange={(e) => setCoverFees(e.target.checked)}
-                  style={{ width: '16px', height: '16px', accentColor: activePalette.titleColor, cursor: 'pointer', flexShrink: 0 }}
+                  style={{ width: '16px', height: '16px', accentColor: activePalette.titleColor, cursor: feesLoaded ? 'pointer' : 'not-allowed', flexShrink: 0 }}
                 />
                 Cobrir as taxas de processamento do cartão
               </label>
 
-              {coverFees && donationBase > 0 && (
+              {coverFees && feesLoaded && donationBase > 0 && (
                 <div style={{ fontSize: '12px', opacity: 0.65, textAlign: 'left', lineHeight: '1.7', padding: '8px 12px', borderRadius: '6px', background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}>
                   <strong>Valor com taxa incluída:</strong><br />
                   R$ {formatBRL(donationGross)} (+R$ {formatBRL(donationGross - donationBase)})

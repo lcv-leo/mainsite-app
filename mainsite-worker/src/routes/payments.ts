@@ -276,6 +276,35 @@ sumup.get('/api/sumup/checkout/:id/status', async (c) => {
   }
 });
 
+// Public read of dynamic fee config — usado pelo DonationModal para
+// exibir preview de "Cobrir as taxas" coerente com o cálculo do backend.
+// Lê DIRETO do D1 (sem fallback): se a configuração não existir ou o D1
+// estiver indisponível, retorna 503 para que o frontend desabilite a opção.
+sumup.get('/api/sumup/fees', async (c) => {
+  try {
+    const row = await c.env.DB
+      .prepare('SELECT payload FROM mainsite_settings WHERE id = ? LIMIT 1')
+      .bind('mainsite/fees')
+      .first<{ payload?: string }>();
+    if (!row?.payload) {
+      return c.json({ error: 'Configuração de taxas não encontrada.' }, 503);
+    }
+    const parsed = JSON.parse(row.payload) as { sumupRate?: unknown; sumupFixed?: unknown };
+    if (
+      typeof parsed.sumupRate !== 'number' ||
+      typeof parsed.sumupFixed !== 'number' ||
+      parsed.sumupRate < 0 || parsed.sumupRate >= 1 ||
+      parsed.sumupFixed < 0
+    ) {
+      return c.json({ error: 'Configuração de taxas inválida.' }, 503);
+    }
+    return c.json({ sumupRate: parsed.sumupRate, sumupFixed: parsed.sumupFixed });
+  } catch (err) {
+    structuredLog('error', '[SumUp] Falha ao ler taxas do D1', { error: (err as Error).message });
+    return c.json({ error: 'Configuração de taxas indisponível.' }, 503);
+  }
+});
+
 // ========== ADMIN ROUTES (SDK-only, sem D1) ==========
 
 sumup.get('/api/sumup/payment-methods', requireAuth, async (c) => {
