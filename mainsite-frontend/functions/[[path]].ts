@@ -32,6 +32,11 @@ export async function onRequest(context: EventContext<Env, string, Record<string
     return context.next();
   }
 
+  // Bypass para feed RSS — /functions/feed.xml.ts
+  if (url.pathname === '/feed.xml') {
+    return context.next();
+  }
+
   // Bypass para rotas de API — deve ficar ANTES da checagem de extensão estática
   // para que URLs como /api/uploads/brands/mastercard.svg não sejam interceptadas
   // pelo handler de arquivos estáticos.
@@ -95,6 +100,20 @@ export async function onRequest(context: EventContext<Env, string, Record<string
     const pageTitle = `${post.title} | Reflexos da Alma`;
     const canonicalUrl = `https://www.reflexosdaalma.blog/p/${post.id}`;
 
+    // 4b. Extrai a primeira imagem do conteúdo do post para og:image dinâmico.
+    // Fallback para a imagem estática quando o post não tem imagens inline.
+    const DEFAULT_OG_IMAGE = 'https://www.reflexosdaalma.blog/og-image.png';
+    const firstImgMatch = (post.content || '').match(/<img[^>]+src=["']([^"']+)["']/i);
+    let ogImage = DEFAULT_OG_IMAGE;
+    if (firstImgMatch && firstImgMatch[1]) {
+      const candidate = firstImgMatch[1].trim();
+      if (/^https?:\/\//i.test(candidate)) {
+        ogImage = candidate;
+      } else if (candidate.startsWith('/')) {
+        ogImage = `https://www.reflexosdaalma.blog${candidate}`;
+      }
+    }
+
     // 5. Calcula datas ISO 8601
     const toISO = (raw: string) => {
       if (!raw) return new Date().toISOString();
@@ -109,6 +128,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       "@context": "https://schema.org",
       "@type": "Article",
       "headline": post.title,
+      "image": [ogImage],
       "description": longDesc,
       "author": {
         "@type": "Person",
@@ -168,6 +188,8 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       .on('meta[name="twitter:description"]', { element(e: Element) { e.setAttribute('content', shortDesc); } })
       .on('meta[name="twitter:card"]', { element(e: Element) { e.setAttribute('content', 'summary_large_image'); } })
       .on('meta[property="og:url"]', { element(e: Element) { e.setAttribute('content', canonicalUrl); } })
+      .on('meta[property="og:image"]', { element(e: Element) { e.setAttribute('content', ogImage); } })
+      .on('meta[name="twitter:image"]', { element(e: Element) { e.setAttribute('content', ogImage); } })
       // Corrige canonical existente em vez de duplicar (fix SEO)
       .on('link[rel="canonical"]', { element(e: Element) { e.setAttribute('href', canonicalUrl); } })
       .on('head', {

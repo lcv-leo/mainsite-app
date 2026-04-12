@@ -1,5 +1,24 @@
 # Changelog — Mainsite Frontend
 
+## [v03.10.00] - 2026-04-12
+### Adicionado — pacote SEO/GEO
+- **`public/llms.txt`**: Manifesto para LLMs (formato llmstxt.org) descrevendo autor, recursos, política de uso por IA generativa, formato de citação. Carrega como recurso público para consumo por ChatGPT/Claude/Perplexity.
+- **`public/manifest.webmanifest`**: PWA manifest com nome, ícone SVG, theme color e background dark. Habilita "Add to Home Screen" em mobile.
+- **`public/c8f3a7d6b2e9415d8f3c7a6b9e2d4f8c.txt`**: Arquivo de validação IndexNow (chave hardcoded `c8f3a7d6b2e9415d8f3c7a6b9e2d4f8c`).
+- **`functions/feed.xml.ts`**: Feed RSS 2.0 dinâmico dos 30 ensaios mais recentes. Servido em `/feed.xml`. Cache 1h. Inclui `dc:creator` e `atom:link self`.
+- **`functions/autor/[slug].ts`**: Página de autor server-rendered no edge. Lista posts do autor + JSON-LD CollectionPage + BreadcrumbList. Standalone HTML (independente da SPA), responsivo, dark-mode aware. Slug é gerado por normalização do nome (`Leonardo Cardozo Vargas` → `leonardo-cardozo-vargas`).
+- **`index.html`**: `theme-color` (light/dark), `apple-touch-icon`, `manifest`, `application-name`, `apple-mobile-web-app-capable`, `format-detection`, `<link rel="alternate" type="application/rss+xml">`, `<link rel="alternate" hreflang="pt-BR">` e `hreflang="x-default"`.
+- **`functions/[[path]].ts`**: og:image **dinâmico** — extrai a primeira `<img src>` do conteúdo do post via regex; fallback para `/og-image.png`. Aplicado a `og:image`, `twitter:image` e ao campo `image` do JSON-LD Article. Adicionado bypass explícito para `/feed.xml`.
+- **`functions/sitemap.xml.ts`**: Inclui `/feed.xml`, páginas de autor (uma por autor único, derivado do banco), `xhtml:link rel="alternate" hreflang="pt-BR"` em URLs principais.
+
+### Alterado
+- **`public/robots.txt`**: Sitemap directive corrigida para o domínio canônico `www.reflexosdaalma.blog` (antes apontava para `www.lcv.rio.br`).
+
+### Notas de impacto
+- Nenhuma mudança em `_headers` (preservado por restrição SumUp).
+- Pre-rendering edge HTMLRewriter (pré-existente em `[[path]].ts`) já garante meta tags + JSON-LD para bots sem JS — esta release agora também injeta `og:image` por post.
+- Para PWA install completo em Android antigo, gerar `apple-touch-icon-180.png`, `icon-192.png`, `icon-512.png` em PNG e adicioná-los ao `manifest.webmanifest`. Atualmente o manifest aceita apenas SVG (suportado em iOS 16+ e Android moderno).
+
 ## [v03.09.00] - 2026-04-11
 ### Removido
 - **Mercado Pago**: CardPayment Brick, @mercadopago/sdk-react, seleção de provedor

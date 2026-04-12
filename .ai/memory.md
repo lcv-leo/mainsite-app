@@ -1,5 +1,41 @@
 # AI Memory Log - MainSite
 
+## 2026-04-12 — Pacote SEO/GEO completo (frontend v03.10.00, worker v02.09.00)
+### Escopo
+Implementação completa dos itens 1-9 do plano SEO/GEO + bônus de baixo custo. Reforço da indexabilidade por bots de IA (ChatGPT, Claude, Perplexity) e buscadores tradicionais sem migrar a stack para SSR.
+
+### Descobertas durante a auditoria
+- **`functions/[[path]].ts` já implementa pre-rendering edge via HTMLRewriter** (item #7 já estava feito) — injeta og:*, twitter:*, JSON-LD Article + BreadcrumbList no edge para todos os bots, mesmo sem JS. O audit estático inicial não viu isso porque é runtime-only.
+- **Schema dos posts**: `id, title, content, author, is_pinned, display_order, created_at, updated_at`. **Sem campo de category/tag** — item #9 ficou restrito a páginas de autor (não tags/categorias).
+
+### Adicionado — mainsite-frontend (v03.10.00)
+- **`public/llms.txt`** (formato llmstxt.org): manifesto para LLMs com bio do autor, recursos, política de uso por IA generativa.
+- **`public/manifest.webmanifest`**: PWA manifest dark-mode aware, ícone SVG.
+- **`public/c8f3a7d6b2e9415d8f3c7a6b9e2d4f8c.txt`**: arquivo de validação IndexNow.
+- **`functions/feed.xml.ts`**: Feed RSS 2.0 dinâmico (30 posts mais recentes, dc:creator, atom:link self).
+- **`functions/autor/[slug].ts`**: Página de autor server-rendered no edge — JSON-LD CollectionPage + BreadcrumbList, dark-mode aware, standalone (sem dependência da SPA). Slug derivado por normalização do nome (`Leonardo Cardozo Vargas` → `leonardo-cardozo-vargas`).
+- **`index.html`**: theme-color (light/dark), apple-touch-icon, manifest, application-name, alternate RSS link, hreflang pt-BR + x-default.
+- **`functions/[[path]].ts`**: og:image **dinâmico** extraído da primeira `<img src>` do conteúdo do post (regex), aplicado a og:image, twitter:image e ao campo `image` do JSON-LD Article. Bypass explícito para `/feed.xml`.
+- **`functions/sitemap.xml.ts`**: inclui /feed.xml, páginas de autor (uma por autor único do banco), `xhtml:link rel="alternate" hreflang`.
+
+### Alterado — mainsite-frontend
+- **`public/robots.txt`**: Sitemap directive corrigida para `www.reflexosdaalma.blog` (antes apontava para `www.lcv.rio.br`).
+
+### Adicionado — mainsite-worker (v02.09.00)
+- **`lib/indexnow.ts`**: Cliente IndexNow. Notifica Bing/Yandex/Seznam/Naver/Yep quando posts são criados/editados.
+- **`routes/posts.ts`**: Hooks fire-and-forget (`waitUntil(pingIndexNow(...))`) no POST e PUT.
+
+### Decisões e restrições
+- **`_headers` NÃO foi tocado** (restrição SumUp/MP — feedback memorizado).
+- **Item #7 não foi reimplementado** — já existia em `functions/[[path]].ts` desde antes desta sessão.
+- **Item #9 limitado a páginas de autor** — schema não tem tags/categorias; adicionar exigiria migração D1.
+- **Para PWA install em Android antigo**, gerar PNGs físicos (apple-touch-icon-180.png, icon-192.png, icon-512.png) e adicionar ao manifest. Atualmente o manifest aceita SVG (suportado em iOS 16+ e Android moderno).
+- **Migração para Next.js / SSR completo** documentada em plano separado, NÃO executada — opção #7 (pre-rendering edge) já entrega 80% do benefício.
+
+### Versão
+- mainsite-frontend: APP v03.09.00 → APP v03.10.00
+- mainsite-worker: APP v02.08.00 → APP v02.09.00
+
 ## 2026-04-09 — Tier 4 Tech Upgrades (frontend v03.08.00, worker v02.06.00)
 ### Escopo
 TanStack Query no frontend público, Biome linter+organizeImports no worker, Hono logger+timing, Zod env validation, Vitest UI, tsconfig strictness.

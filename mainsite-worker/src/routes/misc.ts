@@ -8,7 +8,6 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
-import { structuredLog } from '../lib/logger.ts';
 
 const misc = new Hono<{ Bindings: Env }>();
 

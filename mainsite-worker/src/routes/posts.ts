@@ -18,6 +18,7 @@ import { structuredLog } from '../lib/logger.ts';
 import { bumpContentVersion } from '../lib/content-version.ts';
 import { PostBodySchema, PostReorderSchema } from '../lib/schemas.ts';
 import { sanitizePostHtml } from '../lib/sanitize.ts';
+import { pingIndexNow, postUrl as buildPostUrl } from '../lib/indexnow.ts';
 
 const posts = new Hono<{ Bindings: Env }>();
 
@@ -158,6 +159,11 @@ posts.post('/api/posts', requireAuth, async (c) => {
     // Sinaliza mudança para o polling de content-fingerprint
     c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
 
+    // Notifica IndexNow (Bing/Yandex/Seznam/Naver/Yep) — fire-and-forget
+    if (result.meta?.last_row_id) {
+      c.executionCtx.waitUntil(pingIndexNow([buildPostUrl(result.meta.last_row_id)]));
+    }
+
     return c.json({ success: true }, 201);
   } catch (err) {
     structuredLog('error', '[Posts] Erro interno', { error: (err as Error).message });
@@ -188,6 +194,9 @@ posts.put('/api/posts/:id', requireAuth, async (c) => {
     }
 
     c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
+
+    // Notifica IndexNow para re-indexação após edição
+    if (id) c.executionCtx.waitUntil(pingIndexNow([buildPostUrl(id)]));
 
     return c.json({ success: true });
   } catch (err) {

@@ -214,8 +214,8 @@ ai.post('/api/ai/public/chat', async (c) => {
 
     if (currentContext?.title) {
       // Sanitize user-controlled content before injecting into system prompt
-      const safeCtxTitle = String(currentContext.title).substring(0, 500).replace(/[\[\]{}]/g, '');
-      const safeCtxContent = String(currentContext.content || '').substring(0, 70000).replace(/[\[\]{}]/g, '');
+      const safeCtxTitle = String(currentContext.title).substring(0, 500).replace(/[[\]{}]/g, '');
+      const safeCtxContent = String(currentContext.content || '').substring(0, 70000).replace(/[[\]{}]/g, '');
       activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${safeCtxTitle}\n[CONTEÚDO DO TEXTO NA TELA]: ${safeCtxContent}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
     }
 

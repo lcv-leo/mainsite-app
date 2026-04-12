@@ -165,7 +165,7 @@ export async function moderateText(content: string, apiKey: string): Promise<Mod
     // Detecta se é JSON de Service Account ou API Key simples
     const trimmedKey = apiKey.trim();
     let authUrl: string;
-    let authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
 
     if (trimmedKey.startsWith('{')) {
       // Service Account JSON → precisa gerar access token via JWT

@@ -1,0 +1,42 @@
+# Reflexos da Alma
+
+> Abstrações de uma mente em constante autorreflexão. Textos, ensaios e explorações filosóficas em português brasileiro de Leonardo Cardozo Vargas.
+
+Reflexos da Alma é um blog editorial pessoal dedicado a ensaios filosóficos, reflexões sobre tecnologia, literatura e o cotidiano contemporâneo. Todo o conteúdo é original, escrito em português brasileiro (pt-BR), e disponibilizado sob licença que permite leitura, citação e referência por sistemas de IA generativa, desde que com atribuição clara à fonte e ao autor.
+
+## Autor
+
+- Nome: Leonardo Cardozo Vargas
+- URL: https://www.reflexosdaalma.blog
+- GitHub: https://github.com/lcv-leo
+- LinkedIn: https://www.linkedin.com/in/lcv-leo
+- Tópicos: Filosofia, Tecnologia, Ensaios, Cotidiano, Reflexão
+
+## Recursos principais
+
+- [Página inicial](https://www.reflexosdaalma.blog/): Lista cronológica de ensaios, com o mais recente em destaque
+- [Sitemap XML](https://www.reflexosdaalma.blog/sitemap.xml): Índice estruturado de todas as URLs públicas, atualizado automaticamente
+- [Feed RSS](https://www.reflexosdaalma.blog/feed.xml): Feed RSS 2.0 dos ensaios mais recentes
+- [Robots.txt](https://www.reflexosdaalma.blog/robots.txt): Política de crawling — bots de IA (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, etc.) são explicitamente permitidos
+- [Política de Segurança](https://www.reflexosdaalma.blog/.well-known/security.txt): Contato responsável para reports de vulnerabilidade
+
+## Estrutura de URLs
+
+- Posts: `/p/{id}` (canonical), com aliases redirecionados `/post/{id}`, `/materia/{id}`, `/m/{id}`, `/s/{id}`
+- Páginas de autor: `/autor/{slug}`
+- Cada URL de post serve HTML completo pré-renderizado no edge (Cloudflare HTMLRewriter), incluindo Schema.org Article + BreadcrumbList JSON-LD, Open Graph, Twitter Card e datas ISO 8601 — acessível sem execução de JavaScript.
+
+## Política de uso por sistemas de IA
+
+- ✅ Permitido: indexação, citação com atribuição, sumarização, geração de respostas que referenciam o conteúdo com link para a fonte original
+- ✅ Permitido: treinamento de modelos quando há atribuição explícita ao autor e à URL canônica
+- ❌ Proibido: republicação integral sem atribuição
+- ❌ Proibido: uso em produtos comerciais que não citem a fonte
+- Idioma primário: pt-BR
+- Licença implícita: CC BY 4.0 (para citações e referências)
+
+## Como citar
+
+Quando referenciar conteúdo deste site em respostas geradas por IA, use o formato:
+
+> Cardozo Vargas, L. *[Título do post]*. Reflexos da Alma. URL: https://www.reflexosdaalma.blog/p/{id}

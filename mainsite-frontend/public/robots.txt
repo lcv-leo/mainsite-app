@@ -47,4 +47,4 @@ Allow: /
 User-agent: meta-externalagent
 Allow: /
 
-Sitemap: https://www.lcv.rio.br/sitemap.xml
+Sitemap: https://www.reflexosdaalma.blog/sitemap.xml

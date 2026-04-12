@@ -115,7 +115,7 @@ sumup.post('/api/sumup/checkout/:id/pay', async (c) => {
     const checkoutId = c.req.param('id');
     const payParse = SumupPaySchema.safeParse(await c.req.json());
     if (!payParse.success) return c.json({ error: 'Dados inválidos para pagamento.' }, 400);
-    const { baseAmount, coverFees, card, firstName, lastName, email, document: taxId } = payParse.data;
+    const { baseAmount, card, firstName, lastName, email, document: taxId } = payParse.data;
     const taxIdDigits = String(taxId || '').replace(/\D/g, '').trim();
 
     if (!checkoutId) return c.json({ error: 'Checkout inválido.' }, 400);
@@ -127,11 +127,9 @@ sumup.post('/api/sumup/checkout/:id/pay', async (c) => {
       return c.json({ error: 'Dados de cartão incompletos.' }, 400);
     }
 
-    let amount = Number(baseAmount);
-    if (coverFees) {
-      const fees = await loadFeeConfig(c.env.DB);
-      amount = parseFloat(((amount + fees.sumupFixed) / (1 - fees.sumupRate)).toFixed(2));
-    }
+    // Cover-fees é aplicado no endpoint de criação do checkout, não aqui (process apenas finaliza
+    // um checkout previamente criado com o valor já ajustado). Recomputar amount neste ponto é
+    // dead code — a SumUp process API não aceita override de valor. Removido para limpar lint.
 
     const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
     if (!sumupToken) return c.json({ error: 'SUMUP_API_KEY_PRIVATE não configurada.' }, 503);

@@ -6,8 +6,6 @@
  * Rate limiter baseado em D1 para o mainsite-motor.
  * Ported 1:1 do monolito, com tipagem estrita.
  */
-import type { Env } from '../env.ts';
-
 export interface RateLimitConfig {
   routes: Record<string, { maxRequests: number; windowMinutes: number }>;
 }

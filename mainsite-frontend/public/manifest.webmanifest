@@ -1,0 +1,20 @@
+{
+  "name": "Reflexos da Alma",
+  "short_name": "Reflexos",
+  "description": "Abstrações de uma mente em constante autorreflexão. Textos, ensaios e explorações filosóficas.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "pt-BR",
+  "theme_color": "#16171d",
+  "background_color": "#16171d",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

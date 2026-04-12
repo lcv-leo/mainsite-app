@@ -28,7 +28,7 @@ async function getSentimentPrefix(env: Env, text: string): Promise<string> {
       return '[🟢 Feedback Positivo] ';
     }
     return '';
-  } catch (err) {
+  } catch {
     return ''; // Silent fallback
   }
 }

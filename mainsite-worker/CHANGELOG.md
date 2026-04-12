@@ -1,5 +1,15 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.09.00] - 2026-04-12
+### Adicionado
+- **`lib/indexnow.ts`**: Cliente IndexNow para notificar buscadores (Bing, Yandex, Seznam, Naver, Yep) quando um post é criado ou editado. Função `pingIndexNow(urlList)` faz POST para `https://api.indexnow.org/IndexNow`. Helper `postUrl(id)` constrói a URL canônica do post.
+- **`routes/posts.ts`**: Hook fire-and-forget via `executionCtx.waitUntil(pingIndexNow(...))` no POST e PUT de posts. Zero impacto no response time. Falhas silenciosas.
+
+### Notas de impacto
+- Chave de validação IndexNow (`c8f3a7d6b2e9415d8f3c7a6b9e2d4f8c`) precisa estar acessível em `https://www.reflexosdaalma.blog/c8f3a7d6b2e9415d8f3c7a6b9e2d4f8c.txt` — arquivo provisionado em `mainsite-frontend/public/` na release v03.10.00.
+- Re-indexação típica: 1-30 minutos no Bing, horas no Yandex.
+- Sem ping no DELETE de post — buscadores tratam 404 organicamente no próximo crawl.
+
 ## [v02.08.00] - 2026-04-11
 ### Removido
 - **payments-mp.ts**: Deletado. Todas as rotas MP removidas.
