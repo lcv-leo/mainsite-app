@@ -1,5 +1,12 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.10.01] - 2026-04-16
+### Corrigido
+- **Deploy GitHub Actions**: removidos `GCP_NL_API_KEY` e `TURNSTILE_SECRET_KEY` de `secrets_store_secrets` em `wrangler.json`. Os dois permanecem como Worker secrets nativos já existentes no runtime publicado, eliminando a falha `code: 10182` ao tentar resolver `turnstile-secret-key` em um Secrets Store inexistente para esse fluxo.
+
+### Alterado
+- **Bindings operacionais**: `AI` segue declarado explicitamente no `wrangler.json`, enquanto `GCP_NL_API_KEY` e `TURNSTILE_SECRET_KEY` voltam ao modelo operacional já validado em produção para o `mainsite-motor`.
+
 ## [v02.10.00] - 2026-04-16
 ### Adicionado
 - **Sanitização parser-based**: `sanitize-html ^2.17.0` substitui o sanitizer regex anterior. `src/lib/sanitize.test.ts` cobre remoção de payloads executáveis e preservação de estruturas editoriais confiáveis.

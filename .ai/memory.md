@@ -1,5 +1,17 @@
 # AI Memory Log - MainSite
 
+## 2026-04-16 — Deploy hotfix do mainsite-worker (worker v02.10.01)
+### Escopo
+Correção da falha do GitHub Actions `Deploy` do `mainsite-app`, diagnosticada via log do workflow e erro retornado pela API da Cloudflare durante o `wrangler deploy`.
+### Causa raiz
+- **`wrangler.json` desalinhado do runtime**: `GCP_NL_API_KEY` e `TURNSTILE_SECRET_KEY` tinham voltado ao bloco `secrets_store_secrets`, mas o worker publicado mantinha esses dois valores como secrets nativos do próprio Worker.
+- **Erro observado**: o run `24535611860` falhou no step `Install e Deploy Worker` com `code: 10182`, informando que `turnstile-secret-key` não existia no Secrets Store referenciado.
+### Corrigido
+- **`mainsite-worker/wrangler.json`**: removidos os bindings `GCP_NL_API_KEY` e `TURNSTILE_SECRET_KEY` do `secrets_store_secrets`.
+- **Binding `AI`**: mantido explicitamente no `wrangler.json`.
+### Versão
+- mainsite-worker: APP v02.10.00 → APP v02.10.01
+
 ## 2026-04-16 — Security hardening pack (frontend v03.13.00, worker v02.10.00)
 ### Escopo
 Fechamento do pacote de segurança derivado da auditoria profunda em `mainsite-frontend` e `mainsite-worker`, incluindo XSS em JSON-LD, antiabuso fail-closed, relay de e-mail, moderação e carga excessiva do corpus público.
@@ -715,4 +727,3 @@ Migração arquitetural unificada para aproveitamento da infraestrutura Cloudfla
 
 ### Label Accessibility
 - Labels sem campo associado convertidas para `<p className="field-label">` em ConfigModule.
-
