@@ -1,5 +1,13 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.09.02] - 2026-04-16
+### Alterado
+- **hono**: `^4.12.9` → `^4.12.14`. A versão 4.12.14 corrige vulnerabilidade GHSA em `hono/jsx` (HTML injection em SSR; medium severity). O worker usa apenas REST routes, impacto real zero, mas fecha o alerta Dependabot #23.
+- **Lockfile**: `package-lock.json` regenerado (rm -rf + npm install).
+### Motivação
+- Resolver alerta Dependabot + adotar patches recentes.
+- Parte do plano de upgrade v2 (fase M2 worker).
+
 ## [v02.09.01] - 2026-04-12
 ### Adicionado
 - **`routes/payments.ts`**: Rota pública `GET /api/sumup/fees` que retorna `{ sumupRate, sumupFixed }` lendo **direto do D1** (`mainsite_settings`/`mainsite/fees`) — sem o fallback defensivo de `loadFeeConfig()`. Se a configuração não existir ou o D1 estiver indisponível, retorna 503 para que o `DonationModal` desabilite a opção "Cobrir as taxas" em vez de exibir um preview baseado em valores incorretos. Sem auth (read-only de configuração já considerada pública pelo admin).
