@@ -25,6 +25,7 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
   const [formData, setFormData] = useState<ContactFormData>({ name: '', phone: '', email: '', message: '' });
   const [isVisible, setIsVisible] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileMessage, setTurnstileMessage] = useState<string | null>(null);
   const turnstileRef = useRef<HTMLDivElement>(null);
   const turnstileWidgetId = useRef<string | null>(null);
 
@@ -45,7 +46,18 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
       if (!window.turnstile || !turnstileRef.current) return;
       turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
         sitekey: turnstileSiteKey!,
-        callback: (token: string) => setTurnstileToken(token),
+        callback: (token: string) => {
+          setTurnstileToken(token);
+          setTurnstileMessage(null);
+        },
+        'error-callback': () => {
+          setTurnstileToken('');
+          setTurnstileMessage('Falha na verificacao de seguranca. Tente novamente.');
+        },
+        'expired-callback': () => {
+          setTurnstileToken('');
+          setTurnstileMessage('A verificacao expirou. Conclua o desafio novamente.');
+        },
       });
     }
 
@@ -96,6 +108,7 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
     onSubmit(payload, () => {
       setFormData({ name: '', phone: '', email: '', message: '' });
       setTurnstileToken('');
+      setTurnstileMessage(null);
       if (turnstileWidgetId.current && window.turnstile) {
         window.turnstile.reset(turnstileWidgetId.current);
       }
@@ -182,6 +195,11 @@ const CommentModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, cu
           {turnstileSiteKey ? <div ref={turnstileRef} /> : (
             <div style={{ fontSize: '12px', opacity: 0.72 }}>
               Comentários por e-mail ficam indisponíveis até a verificação de segurança ser configurada.
+            </div>
+          )}
+          {turnstileMessage && (
+            <div style={{ fontSize: '12px', color: 'var(--semantic-error)', opacity: 0.9 }}>
+              {turnstileMessage}
             </div>
           )}
 

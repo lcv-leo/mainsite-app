@@ -6,14 +6,14 @@
 // Versão: v1.5.0
 // Descrição: MD3 + Glassmorphism.
 
-import { type FormEvent, useState, useEffect, useRef } from 'react';
+import { type Dispatch, type FormEvent, type SetStateAction, useState, useEffect, useRef } from 'react';
 import { Mail, Send, X } from 'lucide-react';
 import type { ActivePalette, ShareModalState } from '../types';
 import { isDarkPalette } from '../types';
 
 interface ShareOverlayProps {
   modalState: ShareModalState
-  setModalState: (state: ShareModalState) => void
+  setModalState: Dispatch<SetStateAction<ShareModalState>>
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
   activePalette: ActivePalette
   turnstileSiteKey?: string
@@ -21,8 +21,10 @@ interface ShareOverlayProps {
 
 const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette, turnstileSiteKey }: ShareOverlayProps) => {
     const [isVisible, setIsVisible] = useState(false);
+    const [turnstileMessage, setTurnstileMessage] = useState<string | null>(null);
     const turnstileRef = useRef<HTMLDivElement>(null);
     const turnstileWidgetId = useRef<string | null>(null);
+    const isDark = isDarkPalette(activePalette);
 
     useEffect(() => {
         if (modalState.show) {
@@ -42,8 +44,19 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette, turn
             if (!window.turnstile || !turnstileRef.current) return;
             turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
                 sitekey: resolvedSiteKey,
-                theme: isDarkPalette(activePalette) ? 'dark' : 'light',
-                callback: (token: string) => setModalState({ ...modalState, turnstileToken: token }),
+                theme: isDark ? 'dark' : 'light',
+                callback: (token: string) => {
+                    setTurnstileMessage(null);
+                    setModalState((prev) => ({ ...prev, turnstileToken: token }));
+                },
+                'error-callback': () => {
+                    setTurnstileMessage('Falha na verificacao de seguranca. Tente novamente.');
+                    setModalState((prev) => ({ ...prev, turnstileToken: '' }));
+                },
+                'expired-callback': () => {
+                    setTurnstileMessage('A verificacao expirou. Conclua o desafio novamente.');
+                    setModalState((prev) => ({ ...prev, turnstileToken: '' }));
+                },
             });
         }
 
@@ -63,11 +76,11 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette, turn
                 turnstileWidgetId.current = null;
             }
         };
-    }, [activePalette, modalState, setModalState, turnstileSiteKey]);
+    }, [isDark, modalState.show, setModalState, turnstileSiteKey]);
 
     if (!isVisible && !modalState.show) return null;
 
-    const isDarkBase = isDarkPalette(activePalette);
+    const isDarkBase = isDark;
     const submitDisabled = !turnstileSiteKey || !modalState.turnstileToken;
 
     const overlayStyle: React.CSSProperties = {
@@ -120,6 +133,11 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette, turn
                     {turnstileSiteKey ? <div ref={turnstileRef} style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }} /> : (
                         <p style={{ margin: '0 0 20px 0', fontSize: '12px', opacity: 0.7 }}>
                             Compartilhamento por e-mail indisponível enquanto a verificação de segurança não estiver configurada.
+                        </p>
+                    )}
+                    {turnstileMessage && (
+                        <p style={{ margin: '0 0 20px 0', fontSize: '12px', color: 'var(--semantic-error)', opacity: 0.9 }}>
+                            {turnstileMessage}
                         </p>
                     )}
                     <button type="submit" disabled={submitDisabled} style={{ ...buttonStyle, cursor: submitDisabled ? 'not-allowed' : 'pointer', opacity: submitDisabled ? 0.7 : 1 }} onMouseOver={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(0)')}>

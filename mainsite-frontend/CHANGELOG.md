@@ -1,5 +1,15 @@
 # Changelog — Mainsite Frontend
 
+## [v03.13.01] - 2026-04-16
+### Alterado
+- **Turnstile widget runtime**: `ShareOverlay` deixou de recriar/destruir o widget ao receber token; o callback passou a usar atualização funcional de estado, preservando a instância renderizada e evitando falhas intermitentes no compartilhamento por e-mail.
+- **UX de segurança**: `ContactModal`, `CommentModal`, `CommentsSection` e `ShareOverlay` agora exibem erro/expiração do Turnstile e limpam tokens vencidos, em vez de falhar silenciosamente.
+- **Meta PWA**: `index.html` passou a incluir `mobile-web-app-capable`, preservando a compatibilidade antiga com `apple-mobile-web-app-capable` e removendo o warning de deprecação no browser.
+### Corrigido
+- **Allowlist do widget Turnstile**: o widget publicado `mainsite-comments` teve a lista de hostnames alinhada via API da Cloudflare para cobrir `mainsite-frontend.pages.dev`, `reflexosdaalma.blog` e os domínios-base customizados ativos do projeto.
+### Notas
+- **`_headers` preservado**: nenhuma alteração em `mainsite-frontend/public/_headers`.
+
 ## [v03.13.00] - 2026-04-16
 ### Adicionado
 - **Structured data hardening helpers**: `functions/_lib/structured-data.ts` e `src/lib/structuredData.ts` centralizam a serialização segura de JSON-LD, escapando `<`, `>`, `&` e separadores Unicode antes de injetar schema no HTML.
@@ -666,4 +676,3 @@
 ## [v02.09.00] — Anterior
 ### Histórico
 - Versão anterior à padronização do controle de versão
-

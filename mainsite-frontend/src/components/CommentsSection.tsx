@@ -41,6 +41,7 @@ declare global {
         sitekey: string;
         callback: (token: string) => void;
         'error-callback'?: () => void;
+        'expired-callback'?: () => void;
         theme?: 'light' | 'dark' | 'auto';
         size?: 'normal' | 'compact';
       }) => string;
@@ -150,7 +151,18 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
       if (!window.turnstile || !turnstileRef.current) return;
       turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
         sitekey: turnstileSiteKey!,
-        callback: (token: string) => setTurnstileToken(token),
+        callback: (token: string) => {
+          setTurnstileToken(token);
+          setSubmitMessage(null);
+        },
+        'error-callback': () => {
+          setTurnstileToken('');
+          setSubmitMessage({ text: 'Falha na verificacao de seguranca. Tente novamente.', type: 'error' });
+        },
+        'expired-callback': () => {
+          setTurnstileToken('');
+          setSubmitMessage({ text: 'A verificacao expirou. Conclua o desafio novamente.', type: 'error' });
+        },
         theme: isDark ? 'dark' : 'light',
         size: 'normal',
       });

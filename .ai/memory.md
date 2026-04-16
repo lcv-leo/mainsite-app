@@ -1,5 +1,20 @@
 # AI Memory Log - MainSite
 
+## 2026-04-16 — Turnstile runtime stabilization + allowlist sync (frontend v03.13.01)
+### Escopo
+Fechamento do hotfix do `mainsite-frontend` após a regressão operacional do Turnstile no runtime publicado, combinando correções de lifecycle na UI com validação/configuração do widget real via Cloudflare API.
+### Alterado — mainsite-frontend (v03.13.01)
+- **`ShareOverlay.tsx`**: o widget Turnstile deixou de ser recriado quando o token entra no estado do modal; `setModalState` passou a usar atualização funcional, preservando a instância renderizada.
+- **`ContactModal.tsx`, `CommentModal.tsx` e `CommentsSection.tsx`**: callbacks de erro/expiração agora limpam tokens vencidos e exibem mensagem explícita ao usuário.
+- **`index.html`**: adicionado `mobile-web-app-capable` para remover o warning de deprecação sem perder o meta legado da Apple.
+### Configuração de produção validada via API
+- **Widget `mainsite-comments`** (`mode: managed`): allowlist alinhada para `mainsite-frontend.pages.dev`, `reflexosdaalma.blog`, `cardozovargas.com`, `cardozovargas.com.br`, `lcv.eng.br`, `lcv.psc.br`, `lcv.rio.br`, `lcvleo.com`, `lcvmail.com` e `lcvmasker.com`.
+- **Operação Cloudflare**: o MCP da Cloudflare já consegue ler/atualizar widgets Turnstile; o `wrangler` local segue sem escopo de Turnstile e precisa de `Turnstile Sites Read` e `Turnstile Sites Write` para ter a mesma capacidade.
+### Restrições preservadas
+- **`_headers`**: permanece intocado por diretiva explícita.
+### Versão
+- mainsite-frontend: APP v03.13.00 → APP v03.13.01
+
 ## 2026-04-16 — Turnstile migrado para Secrets Store (worker v02.10.02)
 ### Escopo
 Migração do `TURNSTILE_SECRET_KEY` do `mainsite-worker` para o `default_secrets_store`, após confirmação explícita de que esse segredo curto pode usar o produto sem violar o limite de tamanho.
