@@ -1,5 +1,12 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.10.02] - 2026-04-16
+### Alterado
+- **`TURNSTILE_SECRET_KEY`**: migrado para `Secrets Store` no `default_secrets_store` e reintroduzido em `secrets_store_secrets` no `wrangler.json`.
+
+### Corrigido
+- **Estratégia de secrets**: o `mainsite-worker` volta a usar `Secrets Store` apenas para o segredo curto do Turnstile, enquanto `GCP_NL_API_KEY` permanece fora do store por ser um JSON de Service Account grande demais para o limite de `1024` caracteres.
+
 ## [v02.10.01] - 2026-04-16
 ### Corrigido
 - **Deploy GitHub Actions**: removidos `GCP_NL_API_KEY` e `TURNSTILE_SECRET_KEY` de `secrets_store_secrets` em `wrangler.json`. Os dois permanecem como Worker secrets nativos já existentes no runtime publicado, eliminando a falha `code: 10182` ao tentar resolver `turnstile-secret-key` em um Secrets Store inexistente para esse fluxo.

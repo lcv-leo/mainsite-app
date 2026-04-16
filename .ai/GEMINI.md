@@ -9,9 +9,23 @@
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
 # AI Memory Log - MainSite
 
+## 2026-04-16 — Turnstile migrado para Secrets Store (worker v02.10.02)
+### Escopo
+Migração do `TURNSTILE_SECRET_KEY` do `mainsite-worker` para o `default_secrets_store`, após confirmação explícita de que esse segredo curto pode usar o produto sem violar o limite de tamanho.
+### Feito
+- **Secrets Store**: criado o secret remoto `turnstile-secret-key` no store `df90c0935ba1460899c3c2c457548a90`.
+- **`mainsite-worker/wrangler.json`**: `TURNSTILE_SECRET_KEY` voltou para `secrets_store_secrets`.
+### Diretiva operacional consolidada
+- **`TURNSTILE_SECRET_KEY` pode e deve usar Secrets Store** quando o secret remoto estiver criado.
+- **`GCP_NL_API_KEY` continua proibido em Secrets Store**: é um JSON de Service Account do Google Cloud e excede o limite de `1024` caracteres.
+### Versão
+- mainsite-worker: APP v02.10.01 → APP v02.10.02
+
 ## 2026-04-16 — Deploy hotfix do mainsite-worker (worker v02.10.01)
 ### Escopo
 Correção da falha do GitHub Actions `Deploy` do `mainsite-app`, diagnosticada via log do workflow e erro retornado pela API da Cloudflare durante o `wrangler deploy`.
+### Diretiva operacional consolidada
+- **`GCP_NL_API_KEY` nunca em Secrets Store**: essa credencial é um JSON de Service Account do Google Cloud, grande demais para o limite de `1024` caracteres do Secrets Store. No `mainsite-worker`, ela deve permanecer como variável de ambiente/secret nativo do Worker.
 ### Causa raiz
 - **`wrangler.json` desalinhado do runtime**: `GCP_NL_API_KEY` e `TURNSTILE_SECRET_KEY` tinham voltado ao bloco `secrets_store_secrets`, mas o worker publicado mantinha esses dois valores como secrets nativos do próprio Worker.
 - **Erro observado**: o run `24535611860` falhou no step `Install e Deploy Worker` com `code: 10182`, informando que `turnstile-secret-key` não existia no Secrets Store referenciado.

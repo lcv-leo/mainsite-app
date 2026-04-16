@@ -114,6 +114,11 @@
       "binding": "PIX_CITY",
       "store_id": "df90c0935ba1460899c3c2c457548a90",
       "secret_name": "PIX_CITY"
+    },
+    {
+      "binding": "TURNSTILE_SECRET_KEY",
+      "store_id": "df90c0935ba1460899c3c2c457548a90",
+      "secret_name": "turnstile-secret-key"
     }
   ]
 }
