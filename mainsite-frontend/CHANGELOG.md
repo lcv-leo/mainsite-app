@@ -1,5 +1,14 @@
 # Changelog — Mainsite Frontend
 
+## [v03.11.00] - 2026-04-16
+### Alterado
+- **biome.json**: removida a regra `correctness.useExhaustiveDependencies: "warn"` — era config morta (Biome não roda no CI nem em `npm run lint`; apenas `biome format` é ativo). ESLint via `eslint-plugin-react-hooks` permanece como único enforcer de hook deps.
+### Motivação
+- Plano v2 fase M1 previa consolidar em Biome removendo eslint-plugin-react-hooks. Análise empírica: Biome detecta 7 warnings (vs 0 enforced do ESLint efetivamente — mainsite tem poucos `// eslint-disable`). Custo de migração não se paga vs ganho (~70KB devDep + eliminar `.npmrc`). Consolidação direcional: ESLint stays, Biome fica só como formatter.
+### Não alterado
+- `eslint-plugin-react-hooks@^7.0.1` permanece em devDependencies
+- `.npmrc` com `legacy-peer-deps=true` permanece (ainda necessário para o conflito ESLint 10 ↔ react-hooks@7)
+
 ## [v03.10.01] - 2026-04-12
 ### Corrigido
 - **`DonationModal`**: O preview de "Cobrir as taxas de processamento do cartão" usava `FEE_RATE = 0.0267` hardcoded, ignorando a configuração do admin (admin-app → MainSite → Taxas de Processamento). O backend (`mainsite-worker /api/sumup/checkout`) já lia as taxas dinâmicas do D1 (`mainsite_settings`/`mainsite/fees`), então qualquer alteração no painel produzia divergência silenciosa entre o valor exibido ao doador e o efetivamente cobrado. Agora o modal busca `GET /api/sumup/fees` no `useEffect` de abertura e usa `sumupRate`/`sumupFixed` retornados — sem fallback hardcoded. Enquanto a configuração não chega (ou se a chamada falhar/retornar 503), a opção "Cobrir as taxas" fica desabilitada com tooltip explicativo, garantindo que o doador nunca veja preview divergente do valor efetivamente cobrado.
