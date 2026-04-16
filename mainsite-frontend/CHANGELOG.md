@@ -1,5 +1,16 @@
 # Changelog — Mainsite Frontend
 
+## [v03.11.01] - 2026-04-16
+### Alterado
+- **dompurify**: lockfile refreshed; caret `^3.3.3` agora resolve para 3.4.0, que fixa o bypass de `FORBID_TAGS` quando `ADD_TAGS` é função (alerta Dependabot #24; medium). Impacto real zero no mainsite (não usa `ADD_TAGS` como função), mas fecha o alerta.
+- **Lockfile**: `package-lock.json` regenerado (rm -rf + npm install).
+### Gates
+- `npm install`: 326 packages, 0 vulnerabilidades
+- `npm run build`: ✓ (12.5s)
+### Motivação
+- Resolver alerta Dependabot + adotar patches recentes.
+- Parte do plano de upgrade v2 (fase M2 frontend).
+
 ## [v03.11.00] - 2026-04-16
 ### Alterado
 - **biome.json**: removida a regra `correctness.useExhaustiveDependencies: "warn"` — era config morta (Biome não roda no CI nem em `npm run lint`; apenas `biome format` é ativo). ESLint via `eslint-plugin-react-hooks` permanece como único enforcer de hook deps.
