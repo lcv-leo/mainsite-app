@@ -52,7 +52,7 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     setupFiles: ['./src/test-setup.ts'],
-    exclude: ['node_modules', 'dist'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
