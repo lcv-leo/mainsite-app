@@ -1,5 +1,27 @@
 # Changelog — Mainsite Frontend
 
+## [v03.12.00] - 2026-04-16
+### Adicionado — PWA Service Worker
+- **`vite-plugin-pwa ^1.2.0`** em devDependencies. Gera `dist/sw.js` + `dist/workbox-*.js` no build de produção. 18 entradas precacheadas (~409 KB).
+- **Estratégia de cache** alinhada com HTMLRewriter em `functions/[[path]].ts`:
+  * `/` e `/p/:id` (HTML com injeção edge) — **NetworkFirst** com `networkTimeoutSeconds: 3` + `maxAgeSeconds: 300` (5 min). Limita janela de staleness de meta tags/JSON-LD quando admin edita um post.
+  * `/assets/*` (hash no filename) — **CacheFirst** `maxAgeSeconds: 86400` (24h).
+  * `GET /api/posts`, `GET /api/posts/:id`, `GET /api/settings`, `/api/settings/disclaimers`, `/api/content-fingerprint` — **StaleWhileRevalidate** `maxAgeSeconds: 300`.
+  * `/api/sumup/*`, `/api/ai/*`, `/api/comment`, `/api/rating`, `/api/contact`, `/api/zoom`, `/api/shares` — **NetworkOnly** (mutations + pagamentos + taxa dinâmica + chat AI nunca cacheados).
+  * `/sitemap.xml`, `/feed.xml`, `/autor/*` — `navigateFallbackDenylist` (edge functions dinâmicas, não cachear).
+- **skipWaiting + clientsClaim**: nova versão ativa no próximo reload após `useContentSync` detectar atualização.
+- **`registerType: 'autoUpdate'`**: atualização silenciosa em background.
+- **`cleanupOutdatedCaches: true`**: caches de versões antigas removidos.
+### Não alterado
+- `public/manifest.webmanifest` preservado (não regenerado pelo plugin).
+- `public/_headers` intocado — CSP `script-src 'self' 'unsafe-inline' https:` já permite `/sw.js` registrado pelo SW.
+- Terceiros (SumUp SDK, Turnstile) não entram no cache — SW só cobre `self.origin`.
+### Overrides
+- Adicionado `"serialize-javascript": "^7.0.5"` em `overrides` do `package.json` para forçar a versão corrigida (4 high severity vulns GHSA-5c6j-r48x-rmvq + GHSA-qj8w-gfj5-8c6v vinham transitivamente de `vite-plugin-pwa → workbox-build → @rollup/plugin-terser → serialize-javascript`). Resultado: 0 vulnerabilidades após refresh.
+### Motivação
+- Offline reading + instalabilidade Android antigo (manifest SVG-only era limitado).
+- Parte do plano de upgrade v2 (fase M4).
+
 ## [v03.11.01] - 2026-04-16
 ### Alterado
 - **dompurify**: lockfile refreshed; caret `^3.3.3` agora resolve para 3.4.0, que fixa o bypass de `FORBID_TAGS` quando `ADD_TAGS` é função (alerta Dependabot #24; medium). Impacto real zero no mainsite (não usa `ADD_TAGS` como função), mas fecha o alerta.
