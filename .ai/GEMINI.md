@@ -9,6 +9,29 @@
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
 # AI Memory Log - MainSite
 
+## 2026-04-16 — Security hardening pack (frontend v03.13.00, worker v02.10.00)
+### Escopo
+Fechamento do pacote de segurança derivado da auditoria profunda em `mainsite-frontend` e `mainsite-worker`, incluindo XSS em JSON-LD, antiabuso fail-closed, relay de e-mail, moderação e carga excessiva do corpus público.
+### Alterado — mainsite-frontend (v03.13.00)
+- **`functions/_lib/structured-data.ts`** e **`src/lib/structuredData.ts`**: helpers novos para serializar JSON-LD com escaping de `<`, `>`, `&`, `U+2028` e `U+2029`.
+- **`functions/[[path]].ts`** e **`PostReader.tsx`**: schema Article/BreadcrumbList agora usa `serializeJsonLd(...)`; meta attributes sensíveis também passaram a escapar conteúdo.
+- **`App.tsx`**: removido o bloqueio global de cópia/print/devtools. Entrou um handler de `copy` que adiciona atribuição automática com título e URL canônica do texto. Abertura de posts agora busca o detalhe sob demanda (`/api/posts/:id`) em vez de depender do corpus completo carregado na home.
+- **`ShareOverlay.tsx`, `ContactModal.tsx`, `CommentModal.tsx`, `CommentsSection.tsx`**: toda a camada pública sensível passou a falhar fechada sem `VITE_TURNSTILE_SITE_KEY`. Comentários agora respeitam `maxNestingDepth` retornado pelo backend.
+- **`_headers`**: permanece intocado por diretiva explícita.
+### Alterado — mainsite-worker (v02.10.00)
+- **`lib/sanitize.ts`**: regex sanitizer removido; `sanitize-html` com allowlist e restrições de estilos/iframes passou a ser a fronteira server-side para HTML persistido.
+- **`routes/posts.ts`**: `/api/posts` entrega excerpt público e preserva o endpoint detalhado para leitura completa.
+- **`routes/contact.ts`**: `contact`, `comment` e `share/email` exigem Turnstile obrigatoriamente; `share/email` valida link canônico, existência do post e limite diário por destinatário.
+- **`routes/comments.ts`**: nova resolução recursiva de profundidade, falha fechada sem GCP moderation key e serialização correta da árvore de comentários.
+- **`routes/ai.ts`**: removido o mecanismo de e-mail disparado por tag oculta da LLM; chat público reduz o corpus e orienta contato humano via formulário.
+- **`wrangler.json`**: bindings `AI`, `GCP_NL_API_KEY` e `TURNSTILE_SECRET_KEY` declarados explicitamente.
+### Configuração de produção validada via API
+- `mainsite-motor`: `TURNSTILE_SECRET_KEY`, `GCP_NL_API_KEY` e binding `AI` presentes.
+- `mainsite-frontend` produção: `VITE_TURNSTILE_SITE_KEY` presente (`secret_text`).
+### Versão
+- mainsite-frontend: APP v03.12.00 → APP v03.13.00
+- mainsite-worker: APP v02.09.02 → APP v02.10.00
+
 ## 2026-04-12 — Pacote SEO/GEO completo (frontend v03.10.00, worker v02.09.00)
 ### Escopo
 Implementação completa dos itens 1-9 do plano SEO/GEO + bônus de baixo custo. Reforço da indexabilidade por bots de IA (ChatGPT, Claude, Perplexity) e buscadores tradicionais sem migrar a stack para SSR.

@@ -124,7 +124,7 @@ const ContactModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, tu
 
   const iconStyle: React.CSSProperties = { position: 'absolute', top: '15px', left: '16px', opacity: 0.5, color: activePalette.fontColor };
 
-  const submitDisabled = isSubmitting || (!!turnstileSiteKey && !turnstileToken);
+  const submitDisabled = isSubmitting || !turnstileSiteKey || !turnstileToken;
 
   const buttonStyle: React.CSSProperties = {
     backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none',
@@ -173,7 +173,11 @@ const ContactModal = ({ show, onClose, onSubmit, activePalette, isSubmitting, tu
             </div>
           </div>
 
-          {turnstileSiteKey && <div ref={turnstileRef} />}
+          {turnstileSiteKey ? <div ref={turnstileRef} /> : (
+            <div style={{ fontSize: '12px', opacity: 0.72 }}>
+              Formulário temporariamente indisponível até a verificação de segurança ser configurada.
+            </div>
+          )}
 
           <button type="submit" disabled={submitDisabled} style={buttonStyle} onMouseOver={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(0)')}>
             {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}

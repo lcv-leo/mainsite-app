@@ -7,6 +7,7 @@
 // Lê dados diretamente do D1 via binding DB, sem chamada a URL externa.
 
 import type { D1Database, EventContext, Element } from '@cloudflare/workers-types';
+import { escapeHtmlAttribute, serializeJsonLd } from './_lib/structured-data';
 
 interface Env {
   DB: D1Database;
@@ -124,7 +125,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
     const dateModified = toISO(post.updated_at || post.created_at);
 
     // 6. Schema.org JSON-LD — Article completo para AI crawlers (GEO/AEO)
-    const articleSchema = JSON.stringify({
+    const articleSchema = serializeJsonLd({
       "@context": "https://schema.org",
       "@type": "Article",
       "headline": post.title,
@@ -158,7 +159,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
     });
 
     // BreadcrumbList para navegação estruturada
-    const breadcrumbSchema = JSON.stringify({
+    const breadcrumbSchema = serializeJsonLd({
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       "itemListElement": [
@@ -195,9 +196,9 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       .on('head', {
         element(e: Element) {
           e.append(`<meta property="og:site_name" content="Reflexos da Alma">`, { html: true });
-          e.append(`<meta property="article:published_time" content="${datePublished}">`, { html: true });
-          e.append(`<meta property="article:modified_time" content="${dateModified}">`, { html: true });
-          e.append(`<meta property="article:author" content="${postAuthor}">`, { html: true });
+          e.append(`<meta property="article:published_time" content="${escapeHtmlAttribute(datePublished)}">`, { html: true });
+          e.append(`<meta property="article:modified_time" content="${escapeHtmlAttribute(dateModified)}">`, { html: true });
+          e.append(`<meta property="article:author" content="${escapeHtmlAttribute(postAuthor)}">`, { html: true });
           e.append(`<meta property="article:section" content="Filosofia">`, { html: true });
           // Schema.org JSON-LD — visível para crawlers que NÃO executam JS
           e.append(`<script type="application/ld+json">${articleSchema}</script>`, { html: true });

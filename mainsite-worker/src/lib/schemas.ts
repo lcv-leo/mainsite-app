@@ -44,10 +44,11 @@ export type ChatInput = z.infer<typeof ChatInputSchema>;
 
 /** POST /api/share/email */
 export const ShareEmailSchema = z.object({
-  post_id: z.union([z.string(), z.number()]).optional(),
-  post_title: z.string().optional(),
-  link: z.string().url().optional(),
+  post_id: z.union([z.string(), z.number()]),
+  post_title: z.string().max(300),
+  link: z.string().url(),
   target_email: z.string().email(),
+  turnstile_token: z.string().min(1),
 });
 export type ShareEmailInput = z.infer<typeof ShareEmailSchema>;
 

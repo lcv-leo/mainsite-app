@@ -2,40 +2,71 @@
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import sanitizeHtml from 'sanitize-html';
+
 /**
  * Server-side HTML sanitizer for post content stored in D1.
  *
- * Cloudflare Workers have no DOM, so DOMPurify is unavailable.
- * This regex-based sanitizer strips the highest-risk XSS vectors:
- *   • Executable tags: <script>, <style>, <iframe>, <object>, <embed>,
- *     <applet>, <form>, <input>, <base>, <meta>, <link rel=stylesheet>
- *   • Inline event handlers: onclick, onerror, onload, …
- *   • javascript: and data: URLs in href/src/action attributes
- *
- * Intentionally permissive for trusted admin content: safe structural
- * tags (p, h1-h6, ul, ol, a, img, table, …) are preserved intact.
- * Defense-in-depth — admin is already behind CF Access JWT validation.
+ * This uses a parser-backed allowlist instead of regex stripping so the
+ * Worker treats persisted editorial HTML as untrusted input.
  */
+const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'code', 'col', 'colgroup',
+    'del', 'div', 'em', 'figcaption', 'figure', 'h1', 'h2', 'h3', 'h4', 'h5',
+    'h6', 'hr', 'i', 'iframe', 'img', 'input', 'label', 'li', 'mark', 'ol',
+    'p', 'pre', 's', 'span', 'strong', 'sub', 'sup', 'table', 'tbody', 'td',
+    'tfoot', 'th', 'thead', 'tr', 'u', 'ul',
+  ],
+  allowedAttributes: {
+    a: ['href', 'name', 'target', 'rel', 'title'],
+    blockquote: ['cite'],
+    col: ['span', 'width'],
+    colgroup: ['span', 'width'],
+    div: ['class', 'style'],
+    figure: ['class'],
+    iframe: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'src', 'title'],
+    img: ['alt', 'height', 'loading', 'src', 'title', 'width'],
+    input: ['checked', 'disabled', 'type'],
+    label: ['for'],
+    li: ['data-checked', 'data-type'],
+    ol: ['start', 'type'],
+    p: ['style'],
+    span: ['class', 'style'],
+    table: ['width'],
+    td: ['colspan', 'rowspan'],
+    th: ['colspan', 'rowspan', 'scope'],
+    ul: ['data-type'],
+  },
+  allowedSchemes: ['http', 'https', 'mailto'],
+  allowedSchemesAppliedToAttributes: ['href', 'src'],
+  allowedIframeHostnames: ['www.youtube.com', 'www.youtube-nocookie.com', 'youtube.com', 'youtube-nocookie.com'],
+  allowProtocolRelative: false,
+  nonBooleanAttributes: [
+    'allow', 'allowfullscreen', 'alt', 'cite', 'class', 'colspan', 'frameborder',
+    'height', 'href', 'loading', 'name', 'rel', 'rowspan', 'scope', 'scrolling',
+    'src', 'style', 'target', 'title', 'type', 'width',
+  ],
+  enforceHtmlBoundary: true,
+  parseStyleAttributes: true,
+  allowedStyles: {
+    '*': {
+      'text-align': [/^(?:left|right|center|justify)$/i],
+    },
+  },
+  transformTags: {
+    a: sanitizeHtml.simpleTransform('a', { rel: 'noopener noreferrer' }, true),
+    img: (tagName, attribs) => ({
+      tagName,
+      attribs: {
+        ...attribs,
+        loading: attribs.loading === 'eager' ? 'eager' : 'lazy',
+      },
+    }),
+  },
+};
 
-// Tags whose presence is always dangerous
-const DANGEROUS_TAG_RE =
-  /<\/?\s*(?:script|style|iframe|frame|frameset|object|embed|applet|form|input|button|select|textarea|base|meta|link)\b[^>]*>/gi;
-
-// Inline event handlers: on[a-z]+ = "..." or '...' or bare value
-const EVENT_HANDLER_RE = /\s+on[a-z][a-z0-9]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi;
-
-// javascript: / data: / vbscript: in href, src, action, formaction
-const JS_URL_ATTR_RE =
-  /\s+(?:href|src|action|formaction|xlink:href|data)\s*=\s*(?:"(?:javascript|data|vbscript):[^"]*"|'(?:javascript|data|vbscript):[^']*')/gi;
-
-/**
- * Strips dangerous HTML constructs from admin-created post content.
- * Safe for storage in D1 and subsequent rendering on the mainsite.
- */
 export function sanitizePostHtml(html: string): string {
   if (!html || typeof html !== 'string') return '';
-  return html
-    .replace(DANGEROUS_TAG_RE, '')
-    .replace(EVENT_HANDLER_RE, '')
-    .replace(JS_URL_ATTR_RE, '');
+  return sanitizeHtml(html, SANITIZE_OPTIONS).trim();
 }

@@ -7,6 +7,7 @@
  * Domínio: /api/contact, /api/comment, /api/shares/*, /api/share/email
  */
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth, getAdminEmail } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
@@ -15,6 +16,23 @@ import { escapeHtml } from '../lib/html.ts';
 import { verifyTurnstile } from '../lib/moderation.ts';
 
 const contact = new Hono<{ Bindings: Env }>();
+type RouteContext = Context<{ Bindings: Env }>;
+
+async function requireTurnstileValidation(c: RouteContext, token: string | undefined): Promise<Response | null> {
+  const turnstileSecret = c.env.TURNSTILE_SECRET_KEY?.trim();
+  if (!turnstileSecret) {
+    return c.json({ error: 'Proteção antiabuso temporariamente indisponível.' }, 503);
+  }
+  if (!token) {
+    return c.json({ error: 'Token de verificação ausente.' }, 400);
+  }
+  const ip = c.req.header('CF-Connecting-IP') || '';
+  const isValid = await verifyTurnstile(token, turnstileSecret, ip);
+  if (!isValid) {
+    return c.json({ error: 'Verificação de segurança falhou.' }, 403);
+  }
+  return null;
+}
 
 async function getSentimentPrefix(env: Env, text: string): Promise<string> {
   try {
@@ -40,14 +58,8 @@ contact.post('/api/contact', async (c) => {
     if (!parsed.success) return c.json({ error: 'Dados incompletos' }, 400);
     const { name, phone, email, message, turnstile_token } = parsed.data;
 
-    const turnstileSecret = c.env.TURNSTILE_SECRET_KEY;
-    if (turnstileSecret && turnstile_token) {
-      const ip = c.req.header('CF-Connecting-IP') || '';
-      const isValid = await verifyTurnstile(turnstile_token, turnstileSecret, ip);
-      if (!isValid) return c.json({ error: 'Verificação de segurança falhou.' }, 403);
-    } else if (turnstileSecret && !turnstile_token) {
-      return c.json({ error: 'Token de verificação ausente.' }, 400);
-    }
+    const turnstileFailure = await requireTurnstileValidation(c, turnstile_token);
+    if (turnstileFailure) return turnstileFailure;
 
     const sentiment = await getSentimentPrefix(c.env, message);
     const resendToken = c.env.RESEND_API_KEY;
@@ -108,14 +120,8 @@ contact.post('/api/comment', async (c) => {
     if (!parsed.success) return c.json({ error: 'Comentário obrigatório' }, 400);
     const { name, phone, email, message, post_title, turnstile_token } = parsed.data;
 
-    const turnstileSecret = c.env.TURNSTILE_SECRET_KEY;
-    if (turnstileSecret && turnstile_token) {
-      const ip = c.req.header('CF-Connecting-IP') || '';
-      const isValid = await verifyTurnstile(turnstile_token, turnstileSecret, ip);
-      if (!isValid) return c.json({ error: 'Verificação de segurança falhou.' }, 403);
-    } else if (turnstileSecret && !turnstile_token) {
-      return c.json({ error: 'Token de verificação ausente.' }, 400);
-    }
+    const turnstileFailure = await requireTurnstileValidation(c, turnstile_token);
+    if (turnstileFailure) return turnstileFailure;
 
     const sentiment = await getSentimentPrefix(c.env, message);
     const adminHtml = `
@@ -208,11 +214,35 @@ contact.post('/api/share/email', async (c) => {
   try {
     const parsed = ShareEmailSchema.safeParse(await c.req.json());
     if (!parsed.success) return c.json({ error: 'Dados incompletos' }, 400);
-    const { post_id, post_title, link, target_email } = parsed.data;
+    const { post_id, post_title, link, target_email, turnstile_token } = parsed.data;
     if (!c.env.RESEND_API_KEY) throw new Error('Chave do Resend não configurada.');
 
-    // Block javascript: and data: URIs in share link (XSS prevention)
-    const safeLink = link && /^https?:\/\//i.test(link) ? link : undefined;
+    const turnstileFailure = await requireTurnstileValidation(c, turnstile_token);
+    if (turnstileFailure) return turnstileFailure;
+
+    const canonicalLink = `https://www.reflexosdaalma.blog/p/${post_id}`;
+    const canonicalLinkAlt = `https://reflexosdaalma.blog/p/${post_id}`;
+    if (link !== canonicalLink && link !== canonicalLinkAlt) {
+      return c.json({ error: 'Link de compartilhamento inválido.' }, 400);
+    }
+
+    const post = await c.env.DB.prepare(
+      'SELECT id, title FROM mainsite_posts WHERE id = ?'
+    ).bind(post_id).first<{ id: number; title: string }>();
+
+    if (!post) {
+      return c.json({ error: 'Post não encontrado.' }, 404);
+    }
+
+    const recipientWindow = await c.env.DB.prepare(
+      `SELECT COUNT(*) AS cnt
+       FROM mainsite_shares
+       WHERE platform = 'email' AND target = ? AND created_at > datetime('now', '-1 day')`
+    ).bind(target_email).first<{ cnt: number }>();
+
+    if ((recipientWindow?.cnt || 0) >= 5) {
+      return c.json({ error: 'Limite diário para este destinatário excedido.' }, 429);
+    }
 
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -220,11 +250,11 @@ contact.post('/api/share/email', async (c) => {
       body: JSON.stringify({
         from: 'Reflexos da Alma <mainsite@lcv.app.br>',
         to: [target_email],
-        subject: `Compartilhamento: ${(post_title || '').replace(/[<>"]/g, '')}`,
+        subject: `Compartilhamento: ${(post.title || post_title || '').replace(/[<>"]/g, '')}`,
         html: `<div style="font-family: sans-serif; padding: 20px;">
                 <h2>Alguém compartilhou uma leitura com você</h2>
-                <p><strong>${escapeHtml(post_title)}</strong></p>
-                ${safeLink ? `<a href="${escapeHtml(safeLink)}" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 10px;">Ler Texto Completo</a>` : ''}
+                <p><strong>${escapeHtml(post.title || post_title)}</strong></p>
+                <a href="${escapeHtml(canonicalLink)}" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 10px;">Ler Texto Completo</a>
                </div>`,
       }),
     });
@@ -232,7 +262,7 @@ contact.post('/api/share/email', async (c) => {
     if (!emailRes.ok) throw new Error('Erro no envio pelo Resend.');
     c.executionCtx.waitUntil(
       c.env.DB.prepare("INSERT INTO mainsite_shares (post_id, post_title, platform, target) VALUES (?, ?, 'email', ?)")
-        .bind(post_id, post_title, target_email)
+        .bind(post_id, post.title || post_title, target_email)
         .run()
     );
     return c.json({ success: true });

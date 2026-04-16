@@ -21,6 +21,26 @@ import { sanitizePostHtml } from '../lib/sanitize.ts';
 import { pingIndexNow, postUrl as buildPostUrl } from '../lib/indexnow.ts';
 
 const posts = new Hono<{ Bindings: Env }>();
+const PUBLIC_POST_EXCERPT_LENGTH = 360;
+
+type PublicPostRow = {
+  id: number;
+  title: string;
+  content: string;
+  author?: string;
+  created_at: string;
+  updated_at?: string;
+  is_pinned: number;
+  display_order?: number;
+};
+
+function toPublicExcerpt(content: string): string {
+  const clean = stripHtml(String(content || '')).replace(/\s+/g, ' ').trim();
+  if (!clean) return '';
+  return clean.length > PUBLIC_POST_EXCERPT_LENGTH
+    ? `${clean.slice(0, PUBLIC_POST_EXCERPT_LENGTH).trimEnd()}...`
+    : clean;
+}
 
 // ========== SUMMARY GENERATION HELPER ==========
 
@@ -112,9 +132,19 @@ async function triggerSummaryGeneration(
 posts.get('/api/posts', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(
-      'SELECT * FROM mainsite_posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC'
-    ).all();
-    return c.json(results || []);
+      `SELECT id, title, substr(content, 1, 8000) AS content, author, created_at, updated_at, is_pinned, display_order
+       FROM mainsite_posts
+       ORDER BY is_pinned DESC, display_order ASC, created_at DESC`
+    ).all<PublicPostRow>();
+    const publicPosts = (results || []).map((post) => {
+      const excerpt = toPublicExcerpt(post.content);
+      return {
+        ...post,
+        content: excerpt,
+        excerpt,
+      };
+    });
+    return c.json(publicPosts);
   } catch (err) {
     structuredLog('error', '[Posts] Erro interno', { error: (err as Error).message });
     return c.json({ error: 'Erro interno.' }, 500);

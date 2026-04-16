@@ -1,5 +1,18 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.10.00] - 2026-04-16
+### Adicionado
+- **Sanitização parser-based**: `sanitize-html ^2.17.0` substitui o sanitizer regex anterior. `src/lib/sanitize.test.ts` cobre remoção de payloads executáveis e preservação de estruturas editoriais confiáveis.
+- **Bindings operacionais explícitos**: `wrangler.json` agora declara `AI`, `GCP_NL_API_KEY` e `TURNSTILE_SECRET_KEY` de forma alinhada ao runtime publicado.
+### Alterado
+- **`/api/posts`**: a listagem pública passou a retornar apenas excertos, preservando o endpoint detalhado `/api/posts/:id` para leitura completa sob demanda.
+- **`/api/contact`, `/api/comment` e `/api/share/email`**: rotas públicas agora exigem Turnstile de forma obrigatória e respondem 503/400/403 quando a proteção antiabuso não está íntegra.
+- **`/api/comments`**: a profundidade real do thread agora é calculada no backend, `maxNestingDepth` é respeitado de ponta a ponta e a moderação falha fechada quando `GCP_NL_API_KEY` não está disponível.
+- **`/api/ai/public/chat`**: removido o disparo de e-mails acionado por tags ocultas na saída do modelo; o chat agora orienta contato humano pelo formulário público e usa contexto reduzido/tratado ao montar o prompt.
+### Corrigido
+- **Sanitização de HTML**: substituído o filtro regex por allowlist com parser, reduzindo a superfície de bypass em conteúdo persistido no D1.
+- **Relay de e-mail**: `/api/share/email` passou a validar Turnstile, URL canônica do post, existência do post no D1 e limite diário por destinatário.
+
 ## [v02.09.02] - 2026-04-16
 ### Alterado
 - **hono**: `^4.12.9` → `^4.12.14`. A versão 4.12.14 corrige vulnerabilidade GHSA em `hono/jsx` (HTML injection em SSR; medium severity). O worker usa apenas REST routes, impacto real zero, mas fecha o alerta Dependabot #23.

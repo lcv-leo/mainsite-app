@@ -12,6 +12,7 @@ import { Loader2, MessageCircle, Link2, Mail, MessageSquare, Home, Edit3, Heart 
 import type { ActivePalette, SiteSettings, Post } from '../types';
 import RatingWidget from './RatingWidget';
 import CommentsSection from './CommentsSection';
+import { serializeJsonLd } from '../lib/structuredData';
 
 interface PostReaderProps {
   post: Post
@@ -29,6 +30,7 @@ interface PostReaderProps {
 }
 
 const PostReader = ({ post, activePalette, settings, onShare, onContact, onComment, onDonation, isSendingEmail, isNotHomePage, zoomLevel, apiUrl, turnstileSiteKey }: PostReaderProps) => {
+  const canonicalUrl = `https://www.reflexosdaalma.blog/p/${post.id}`;
 
 
   const renderContent = (content: string) => {
@@ -124,11 +126,12 @@ const PostReader = ({ post, activePalette, settings, onShare, onContact, onComme
       "cssSelector": [".h1-title", ".p-content"]
     }
   };
+  const schemaOrgJSONLDText = serializeJsonLd(schemaOrgJSONLD);
 
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
 
   return (
-    <article aria-label={post.title}>
+    <article aria-label={post.title} data-readable-content="true" data-canonical-url={canonicalUrl}>
       <style>{`
         :root { --text-zoom-scale: ${zoomLevel}; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -238,7 +241,7 @@ const PostReader = ({ post, activePalette, settings, onShare, onContact, onComme
 
       <div className="post-content-area">
         <div>
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrgJSONLD) }} />
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schemaOrgJSONLDText }} />
           {renderContent(post.content)}
         </div>
       </div>
@@ -259,6 +262,14 @@ const PostReader = ({ post, activePalette, settings, onShare, onContact, onComme
           </div>
         );
       })()}
+
+      <div style={{ marginTop: '20px', padding: '14px 18px', borderRadius: '14px', background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid rgba(${isDarkBase ? '255,255,255' : '0,0,0'}, 0.08)`, fontSize: '12px', lineHeight: '1.65', opacity: 0.72 }}>
+        Citação recomendada: mantenha o título original e a URL canônica deste texto.
+        {' '}
+        <a href={canonicalUrl} style={{ color: settings.shared.linkColor || '#4da6ff', fontWeight: 700 }}>
+          {canonicalUrl}
+        </a>
+      </div>
 
       {/* Rating Widget — avaliação por estrelas + reações */}
       <RatingWidget postId={post.id} activePalette={activePalette} apiUrl={apiUrl} />

@@ -59,6 +59,7 @@ interface CommentFormConfig {
   requireEmail: boolean;
   minCommentLength: number;
   maxCommentLength: number;
+  maxNestingDepth: number;
 }
 
 const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: CommentsSectionProps) => {
@@ -76,6 +77,7 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
     requireEmail: false,
     minCommentLength: 3,
     maxCommentLength: 2000,
+    maxNestingDepth: 2,
   });
 
   // Form state
@@ -168,7 +170,12 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
     e.preventDefault();
     if (isSubmitting || !content.trim()) return;
 
-    if (turnstileSiteKey && !turnstileToken) {
+    if (!turnstileSiteKey) {
+      setSubmitMessage({ text: 'Comentários temporariamente indisponíveis sem verificação de segurança.', type: 'error' });
+      return;
+    }
+
+    if (!turnstileToken) {
       setSubmitMessage({ text: 'Aguarde a verificação de segurança.', type: 'error' });
       return;
     }
@@ -229,11 +236,11 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
 
   // ── Render a single comment ───────────────────────────────────────────
 
-  const renderComment = (comment: Comment, isReply = false) => (
+  const renderComment = (comment: Comment, depth = 1) => (
     <div
       key={comment.id}
       style={{
-        marginLeft: isReply ? '24px' : 0,
+        marginLeft: depth > 1 ? `${Math.min((depth - 1) * 20, 60)}px` : 0,
         padding: '16px',
         marginBottom: '12px',
         borderRadius: '12px',
@@ -243,7 +250,7 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
         border: `1px solid ${comment.is_author_reply
           ? (isDark ? 'rgba(138,180,248,0.2)' : 'rgba(66,133,244,0.15)')
           : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)')}`,
-        borderLeft: isReply
+        borderLeft: depth > 1
           ? `3px solid ${isDark ? 'rgba(138,180,248,0.3)' : 'rgba(66,133,244,0.25)'}`
           : undefined,
       }}
@@ -280,7 +287,7 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
       </div>
 
       {/* Reply button (only for top-level comments) */}
-      {!isReply && (
+      {depth < formConfig.maxNestingDepth && (
         <button
           type="button"
           onClick={() => {
@@ -305,7 +312,7 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
       {/* Nested replies */}
       {comment.replies && comment.replies.length > 0 && (
         <div style={{ marginTop: '12px' }}>
-          {comment.replies.map(reply => renderComment(reply, true))}
+          {comment.replies.map(reply => renderComment(reply, depth + 1))}
         </div>
       )}
     </div>
@@ -360,7 +367,7 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
               Seja o primeiro a comentar esta leitura.
             </div>
           ) : (
-            <div>{comments.map(c => renderComment(c))}</div>
+            <div>{comments.map(c => renderComment(c, 1))}</div>
           )}
 
           {/* Moderation notice */}
@@ -488,11 +495,15 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
                 marginTop: '10px', flexWrap: 'wrap', gap: '8px',
               }}>
                 <span style={{ fontSize: '11px', opacity: 0.4, fontWeight: 500 }}>
-                  {content.length}/2000
+                  {content.length}/{formConfig.maxCommentLength}
                 </span>
 
                 {/* Turnstile widget container */}
-                {turnstileSiteKey && <div ref={turnstileRef} />}
+                {turnstileSiteKey ? <div ref={turnstileRef} /> : (
+                  <span style={{ fontSize: '11px', opacity: 0.55 }}>
+                    A proteção antiabuso precisa estar configurada para publicar comentários.
+                  </span>
+                )}
 
                 {/* Honeypot — hidden field bots will fill */}
                 <input
@@ -520,15 +531,15 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting || !content.trim()}
+                    disabled={isSubmitting || !content.trim() || !turnstileSiteKey || !turnstileToken}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '6px',
                       padding: '8px 20px', borderRadius: '8px', fontSize: '12px', fontWeight: 700,
-                      background: isSubmitting || !content.trim()
+                      background: isSubmitting || !content.trim() || !turnstileSiteKey || !turnstileToken
                         ? (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)')
                         : 'linear-gradient(135deg, #4285f4, #7c3aed)',
-                      border: 'none', color: isSubmitting || !content.trim() ? 'rgba(128,128,128,0.5)' : '#fff',
-                      cursor: isSubmitting ? 'wait' : (content.trim() ? 'pointer' : 'not-allowed'),
+                      border: 'none', color: isSubmitting || !content.trim() || !turnstileSiteKey || !turnstileToken ? 'rgba(128,128,128,0.5)' : '#fff',
+                      cursor: isSubmitting ? 'wait' : (content.trim() && turnstileSiteKey && turnstileToken ? 'pointer' : 'not-allowed'),
                       fontFamily: 'inherit', transition: 'all 0.2s ease',
                     }}
                   >

@@ -15,6 +15,7 @@
  * 6. Notificação por email ao admin via Resend
  */
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
@@ -29,6 +30,7 @@ import {
 } from '../lib/moderation.ts';
 
 const comments = new Hono<{ Bindings: Env }>();
+type RouteContext = Context<{ Bindings: Env }>;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -74,6 +76,84 @@ async function getPostTitle(db: D1Database, postId: number): Promise<string> {
     'SELECT title FROM mainsite_posts WHERE id = ?'
   ).bind(postId).first<{ title: string }>();
   return post?.title || `Post #${postId}`;
+}
+
+async function getCommentDepth(
+  db: D1Database,
+  postId: number,
+  parentId: number,
+): Promise<{ depth: number; error?: string }> {
+  let currentId: number | null = parentId;
+  let depth = 1;
+  const visited = new Set<number>();
+
+  while (currentId !== null) {
+    if (visited.has(currentId)) {
+      return { depth, error: 'Estrutura de comentários inválida.' };
+    }
+    visited.add(currentId);
+
+    const current: { id: number; parent_id: number | null; post_id: number; status: string } | null = await db.prepare(
+      'SELECT id, parent_id, post_id, status FROM mainsite_comments WHERE id = ?'
+    ).bind(currentId).first<{ id: number; parent_id: number | null; post_id: number; status: string }>();
+
+    if (!current || current.status !== 'approved') {
+      return { depth, error: 'Comentário pai não encontrado ou não aprovado.' };
+    }
+
+    if (current.post_id !== postId) {
+      return { depth, error: 'Comentário pai pertence a outro post.' };
+    }
+
+    if (current.parent_id === null) {
+      return { depth, error: undefined };
+    }
+
+    depth += 1;
+    currentId = current.parent_id;
+  }
+
+  return { depth, error: undefined };
+}
+
+async function requireTurnstileValidation(c: RouteContext, token: string | undefined): Promise<Response | null> {
+  const turnstileSecret = c.env.TURNSTILE_SECRET_KEY?.trim();
+  if (!turnstileSecret) {
+    return c.json({ error: 'Proteção antiabuso temporariamente indisponível.' }, 503);
+  }
+  if (!token) {
+    return c.json({ error: 'Token de verificação ausente.' }, 400);
+  }
+  const ip = c.req.header('cf-connecting-ip') || 'unknown';
+  const isValid = await verifyTurnstile(token, turnstileSecret, ip);
+  if (!isValid) {
+    return c.json({ error: 'Verificação de segurança falhou. Tente novamente.' }, 403);
+  }
+  return null;
+}
+
+function buildThreadedComments(results: Array<Record<string, unknown>>) {
+  const byId = new Map<number, Record<string, unknown> & { replies: Array<Record<string, unknown>> }>();
+  const roots: Array<Record<string, unknown> & { replies: Array<Record<string, unknown>> }> = [];
+
+  for (const raw of results) {
+    const id = Number(raw.id);
+    byId.set(id, { ...raw, replies: [] });
+  }
+
+  for (const comment of byId.values()) {
+    const parentId = comment.parent_id === null ? null : Number(comment.parent_id);
+    if (parentId !== null) {
+      const parent = byId.get(parentId);
+      if (parent) {
+        parent.replies.push(comment);
+        continue;
+      }
+    }
+    roots.push(comment);
+  }
+
+  return roots;
 }
 
 // ── POST /api/comments — Submissão pública ──────────────────────────────────
@@ -144,36 +224,21 @@ comments.post('/api/comments', async (c) => {
 
     // Validação de threading (profundidade máxima configurável)
     if (body.parent_id) {
-      if (settings.maxNestingDepth === 0) {
+      if (settings.maxNestingDepth <= 1) {
         return c.json({ error: 'Respostas a comentários estão desabilitadas.' }, 400);
       }
 
-      const parent = await c.env.DB.prepare(
-        'SELECT parent_id FROM mainsite_comments WHERE id = ? AND status = ?'
-      ).bind(body.parent_id, 'approved').first<{ parent_id: number | null }>();
-
-      if (!parent) {
-        return c.json({ error: 'Comentário pai não encontrado ou não aprovado.' }, 404);
+      const parentDepth = await getCommentDepth(c.env.DB, body.post_id, body.parent_id);
+      if (parentDepth.error) {
+        return c.json({ error: parentDepth.error }, 404);
       }
-
-      // Se o pai já é uma resposta (tem parent_id), não permite mais aninhamento
-      if (parent.parent_id !== null) {
+      if (parentDepth.depth + 1 > settings.maxNestingDepth) {
         return c.json({ error: 'Profundidade máxima de respostas atingida.' }, 400);
       }
     }
 
-    // Verificação do Cloudflare Turnstile
-    const turnstileSecret = c.env.TURNSTILE_SECRET_KEY;
-    if (turnstileSecret && body.turnstile_token) {
-      const ip = c.req.header('cf-connecting-ip') || 'unknown';
-      const isValid = await verifyTurnstile(body.turnstile_token, turnstileSecret, ip);
-      if (!isValid) {
-        return c.json({ error: 'Verificação de segurança falhou. Tente novamente.' }, 403);
-      }
-    } else if (turnstileSecret && !body.turnstile_token) {
-      // Turnstile configurado mas token não enviado → suspeito
-      return c.json({ error: 'Token de verificação ausente.' }, 400);
-    }
+    const turnstileFailure = await requireTurnstileValidation(c, body.turnstile_token);
+    if (turnstileFailure) return turnstileFailure;
 
     // Gera hash do IP para tracking anti-spam (privacy-first)
     const clientIp = c.req.header('cf-connecting-ip') || 'unknown';
@@ -247,17 +312,16 @@ comments.post('/api/comments', async (c) => {
     let moderationDecisionJson: string | null = null;
     let commentStatus: string;
 
-    if (gcpApiKey) {
-      const modResult = await moderateText(sanitizedContent, gcpApiKey);
-      const decision = evaluateModeration(modResult, settings);
-
-      moderationScores = JSON.stringify(modResult.categories);
-      moderationDecisionJson = JSON.stringify(decision);
-      commentStatus = decision.action;
-    } else {
-      // Sem chave GCP → comportamento configurável
-      commentStatus = settings.apiUnavailableBehavior === 'approve' ? 'approved' : 'pending';
+    if (!gcpApiKey) {
+      return c.json({ error: 'Moderação indisponível no momento. Tente novamente mais tarde.' }, 503);
     }
+
+    const modResult = await moderateText(sanitizedContent, gcpApiKey);
+    const decision = evaluateModeration(modResult, settings);
+
+    moderationScores = JSON.stringify(modResult.categories);
+    moderationDecisionJson = JSON.stringify(decision);
+    commentStatus = decision.action;
 
     // Link policy override (se linkPolicy = 'pending', força pending independente da IA)
     if (linkOverrideStatus === 'pending' && commentStatus === 'approved') {
@@ -321,6 +385,7 @@ comments.get('/api/comments/config', async (c) => {
       requireEmail: settings.requireEmail,
       minCommentLength: settings.minCommentLength,
       maxCommentLength: settings.maxCommentLength,
+      maxNestingDepth: settings.maxNestingDepth,
     });
   } catch {
     // Fallback seguro: formulário funcional com defaults
@@ -330,6 +395,7 @@ comments.get('/api/comments/config', async (c) => {
       requireEmail: false,
       minCommentLength: 3,
       maxCommentLength: 2000,
+      maxNestingDepth: 2,
     });
   }
 });
@@ -349,18 +415,7 @@ comments.get('/api/comments/:postId', async (c) => {
        ORDER BY created_at ASC`
     ).bind(postId).all();
 
-    // Organiza em estrutura de árvore (2 níveis)
-    const topLevel = (results || []).filter(
-      (c: Record<string, unknown>) => c.parent_id === null
-    );
-    const replies = (results || []).filter(
-      (c: Record<string, unknown>) => c.parent_id !== null
-    );
-
-    const threaded = topLevel.map((comment: Record<string, unknown>) => ({
-      ...comment,
-      replies: replies.filter((r: Record<string, unknown>) => r.parent_id === comment.id),
-    }));
+    const threaded = buildThreadedComments((results || []) as Array<Record<string, unknown>>);
 
     return c.json({
       comments: threaded,
@@ -603,4 +658,3 @@ comments.put('/api/comments/admin/settings', requireAuth, async (c) => {
 });
 
 export default comments;
-

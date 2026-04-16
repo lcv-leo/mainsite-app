@@ -29,9 +29,10 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.12.00';
+const APP_VERSION = 'APP v03.13.00';
 const SITE_NAME = 'Reflexos da Alma';
 const SITE_URL = 'https://www.reflexosdaalma.blog';
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
 const DEFAULT_SETTINGS: SiteSettings = {
   allowAutoMode: true,
@@ -64,7 +65,7 @@ const App = () => {
   const [toastTop, setToastTop] = useState(20);
   const lastPointerYRef = useRef<number | null>(null);
 
-  const [showShareModal, setShowShareModal] = useState<ShareModalState>({ show: false, email: '' });
+  const [showShareModal, setShowShareModal] = useState<ShareModalState>({ show: false, email: '', turnstileToken: '' });
   const [showContactModal, setShowContactModal] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showDonationModal, setShowDonationModal] = useState(false);
@@ -90,6 +91,33 @@ const App = () => {
   // --- Content Sync: polling leve para detectar mudanças na homepage ---
   const contentSync = useContentSync(API_URL, !loading);
 
+  const fetchPostDetail = useCallback(async (postId: number | string): Promise<Post | null> => {
+    try {
+      const res = await fetch(`${API_URL}/posts/${postId}`);
+      if (!res.ok) return null;
+      return await res.json() as Post;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const openPostById = useCallback(async (postId: number | string, options?: { pushUrl?: string }) => {
+    const detailed = await fetchPostDetail(postId);
+    if (detailed) {
+      setCurrentPost(detailed);
+      if (options?.pushUrl) window.history.pushState({}, '', options.pushUrl);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    const fallback = posts.find((post) => String(post.id) === String(postId)) || null;
+    if (fallback) {
+      setCurrentPost(fallback);
+      if (options?.pushUrl) window.history.pushState({}, '', options.pushUrl);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [fetchPostDetail, posts]);
+
   const refreshPosts = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/posts`);
@@ -102,16 +130,16 @@ const App = () => {
       const target = freshPosts.length > 0 ? freshPosts[0] : null;
 
       if (target) {
-        setCurrentPost(target);
         window.history.pushState({}, '', '/');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const detailed = await fetchPostDetail(target.id);
+        setCurrentPost(detailed || target);
       }
     } catch {
       // Falha silenciosa
     } finally {
       contentSync.refresh();
     }
-  }, [contentSync]);
+  }, [contentSync, fetchPostDetail]);
 
   const getUrlPostId = (): string | null => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -147,180 +175,36 @@ const App = () => {
     return () => window.removeEventListener('pointerdown', trackPointer);
   }, []);
 
-  // ── Global Content Protection Layer ───────────────────────────
   useEffect(() => {
-    // --- Keyboard shortcut interception ---
-    const handleKeydown = (e: KeyboardEvent) => {
-      const isMeta = e.ctrlKey || e.metaKey;
-      const isShift = e.shiftKey;
-      const key = (e.key || '').toLowerCase();
+    const handleCopy = (event: ClipboardEvent) => {
+      if (isEditableTarget(event.target)) return;
+      const selection = document.getSelection();
+      const selectedText = selection?.toString().trim();
+      if (!selectedText || !event.clipboardData) return;
 
-      // PrintScreen — clear clipboard as OS captures before JS fires
-      if (e.key === 'PrintScreen') {
-        e.preventDefault();
-        navigator.clipboard.writeText('').catch(() => {});
-        showNotification('Capturas de tela não são permitidas neste conteúdo.', 'error');
+      const readableRoot = document.querySelector<HTMLElement>('[data-readable-content="true"]');
+      const anchorNode = selection?.anchorNode;
+      const focusNode = selection?.focusNode;
+      const anchorEl = anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement;
+      const focusEl = focusNode instanceof Element ? focusNode : focusNode?.parentElement;
+
+      if (!readableRoot || !anchorEl || !focusEl || !readableRoot.contains(anchorEl) || !readableRoot.contains(focusEl)) {
         return;
       }
 
-      // Ctrl+P — print
-      if (isMeta && key === 'p') {
-        e.preventDefault();
-        showNotification('Impressão desabilitada para proteção do conteúdo.', 'error');
-        return;
-      }
+      const canonicalUrl = currentPost ? `${SITE_URL}/p/${currentPost.id}` : `${SITE_URL}/`;
+      const attribution = currentPost
+        ? `\n\nFonte: "${currentPost.title}" — ${canonicalUrl} — ${SITE_NAME}`
+        : `\n\nFonte: ${SITE_NAME} — ${canonicalUrl}`;
 
-      // Ctrl+C — copy
-      if (isMeta && key === 'c' && !isEditableTarget(e.target)) {
-        e.preventDefault();
-        showNotification('Cópia de conteúdo desabilitada.', 'error');
-        return;
-      }
-
-      // Ctrl+X — cut
-      if (isMeta && key === 'x' && !isEditableTarget(e.target)) {
-        e.preventDefault();
-        return;
-      }
-
-      // Ctrl+A — select all
-      if (isMeta && key === 'a' && !isEditableTarget(e.target)) {
-        e.preventDefault();
-        showNotification('Seleção de conteúdo desabilitada.', 'error');
-        return;
-      }
-
-      // Ctrl+S — save page
-      if (isMeta && key === 's') {
-        e.preventDefault();
-        showNotification('Salvamento de página desabilitado.', 'error');
-        return;
-      }
-
-      // Ctrl+U — view source
-      if (isMeta && key === 'u') {
-        e.preventDefault();
-        return;
-      }
-
-      // F12 / Ctrl+Shift+I / Ctrl+Shift+C / Ctrl+Shift+J — DevTools
-      if (e.key === 'F12') { e.preventDefault(); return; }
-      if (isMeta && isShift && (key === 'i' || key === 'c' || key === 'j')) {
-        e.preventDefault();
-        return;
-      }
-
-      // Win+Shift+S — Snipping Tool (Windows)
-      if (e.metaKey && isShift && key === 's') {
-        e.preventDefault();
-        showNotification('Capturas de tela não são permitidas neste conteúdo.', 'error');
-        return;
-      }
+      event.preventDefault();
+      event.clipboardData.setData('text/plain', `${selectedText}${attribution}`);
+      showNotification('Trecho copiado com referência automática da fonte.', 'success');
     };
 
-    // --- Context menu (right-click) blocked globally ---
-    const handleContextMenu = (e: Event) => {
-      e.preventDefault();
-      return false;
-    };
-
-    // --- Copy/Cut/Drag events blocked globally ---
-    const handleCopy = (e: Event) => {
-      if (!isEditableTarget(e.target as EventTarget)) {
-        e.preventDefault();
-      }
-    };
-
-    // --- Selection clearing: prevent text from staying selected ---
-    const handleSelectionChange = () => {
-      const sel = document.getSelection();
-      if (sel && sel.toString().length > 0) {
-        // Allow selection inside editable fields (forms)
-        const anchor = sel.anchorNode;
-        const parentEl = anchor instanceof HTMLElement ? anchor : anchor?.parentElement;
-        if (parentEl && isEditableTarget(parentEl)) return;
-        sel.removeAllRanges();
-      }
-    };
-
-    // --- Visibility change: wipe clipboard when user leaves tab ---
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        navigator.clipboard.writeText('').catch(() => {});
-      }
-    };
-
-    // --- Global protection CSS ---
-    const style = document.createElement('style');
-    style.setAttribute('data-content-protection', 'true');
-    style.textContent = `
-      /* Global selection/copy/drag prevention */
-      body, body * {
-        user-select: none !important;
-        -webkit-user-select: none !important;
-        -ms-user-select: none !important;
-        -moz-user-select: none !important;
-        -webkit-touch-callout: none !important;
-      }
-      /* Allow selection in form fields */
-      input, textarea, select, [contenteditable="true"] {
-        user-select: text !important;
-        -webkit-user-select: text !important;
-        -ms-user-select: text !important;
-        -moz-user-select: text !important;
-        -webkit-touch-callout: default !important;
-      }
-      /* Prevent drag on images and links */
-      img, a, svg, video, canvas {
-        -webkit-user-drag: none !important;
-        user-drag: none !important;
-        pointer-events: auto;
-      }
-      /* Print: hide everything, show warning */
-      @media print {
-        body * {
-          visibility: hidden !important;
-        }
-        body::before {
-          content: "Impressão desabilitada para proteção de conteúdo.";
-          visibility: visible !important;
-          position: fixed;
-          top: 45%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          font-family: system-ui, -apple-system, sans-serif;
-          font-size: 18px;
-          font-weight: 700;
-          color: #111;
-          background: #fff;
-          padding: 16px 24px;
-          border: 1px solid #ddd;
-          border-radius: 12px;
-          z-index: 999999;
-        }
-      }
-    `;
-
-    document.head.appendChild(style);
-    document.addEventListener('keydown', handleKeydown, { capture: true });
-    document.addEventListener('contextmenu', handleContextMenu, { capture: true });
-    document.addEventListener('copy', handleCopy, { capture: true });
-    document.addEventListener('cut', handleCopy, { capture: true });
-    document.addEventListener('dragstart', handleContextMenu, { capture: true });
-    document.addEventListener('selectionchange', handleSelectionChange);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('keydown', handleKeydown, { capture: true });
-      document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
-      document.removeEventListener('copy', handleCopy, { capture: true });
-      document.removeEventListener('cut', handleCopy, { capture: true });
-      document.removeEventListener('dragstart', handleContextMenu, { capture: true });
-      document.removeEventListener('selectionchange', handleSelectionChange);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.head.removeChild(style);
-    };
-  }, []);
+    document.addEventListener('copy', handleCopy);
+    return () => document.removeEventListener('copy', handleCopy);
+  }, [currentPost]);
 
   // Sync theme with OS
   useEffect(() => {
@@ -342,10 +226,11 @@ const App = () => {
         const postId = getUrlPostId();
 
         if (postId) {
-          const found = dataPosts.find(p => p.id === parseInt(postId));
-          setCurrentPost(found || (dataPosts.length > 0 ? dataPosts[0] : null));
+          const detailed = await fetchPostDetail(postId);
+          const found = detailed || dataPosts.find(p => p.id === parseInt(postId)) || null;
+          setCurrentPost(found || (dataPosts.length > 0 ? await fetchPostDetail(dataPosts[0].id) || dataPosts[0] : null));
         } else {
-          setCurrentPost(dataPosts.length > 0 ? dataPosts[0] : null);
+          setCurrentPost(dataPosts.length > 0 ? await fetchPostDetail(dataPosts[0].id) || dataPosts[0] : null);
         }
 
         const resSettings = await fetch(`${API_URL}/settings`);
@@ -369,7 +254,7 @@ const App = () => {
       finally { setLoading(false); }
     };
     fetchData();
-  }, []);
+  }, [fetchPostDetail]);
 
   // Largura de leitura configurável via painel admin
   useEffect(() => {
@@ -520,21 +405,25 @@ const App = () => {
         fetch(`${API_URL}/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, platform: 'link' }) }).catch(() => {});
       });
     } else if (method === 'email') {
-      setShowShareModal({ show: true, email: '' });
+      if (!TURNSTILE_SITE_KEY) {
+        showNotification("Compartilhamento por e-mail indisponível no momento.", "error");
+        return;
+      }
+      setShowShareModal({ show: true, email: '', turnstileToken: '' });
     }
   };
 
   const submitEmailShare = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currentPost || !showShareModal.email) return;
+    if (!currentPost || !showShareModal.email || !showShareModal.turnstileToken) return;
     setIsSendingEmail(true);
     const url = `${SITE_URL}/p/${currentPost.id}`;
     try {
       const res = await fetch(`${API_URL}/share/email`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, link: url, target_email: showShareModal.email })
+        body: JSON.stringify({ post_id: currentPost.id, post_title: currentPost.title, link: url, target_email: showShareModal.email, turnstile_token: showShareModal.turnstileToken })
       });
-      if (res.ok) { showNotification("E-mail enviado com sucesso.", "success"); setShowShareModal({ show: false, email: '' }); }
+      if (res.ok) { showNotification("E-mail enviado com sucesso.", "success"); setShowShareModal({ show: false, email: '', turnstileToken: '' }); }
       else throw new Error("Failed to send.");
     } catch { showNotification("Erro ao enviar o e-mail.", "error"); } finally { setIsSendingEmail(false); }
   };
@@ -603,7 +492,7 @@ const App = () => {
                   isNotHomePage={isDeepLinkedPost}
                   zoomLevel={zoomLevel}
                   apiUrl={API_URL}
-                  turnstileSiteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                  turnstileSiteKey={TURNSTILE_SITE_KEY}
                 />
               ) : (<div style={{ textAlign: 'center', padding: '60px', opacity: 0.5, fontWeight: '700', letterSpacing: '2px' }}>A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>)}
           </>
@@ -622,7 +511,7 @@ const App = () => {
         )}
       </main>
 
-      {!showLicenses && <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={(p: Post) => { window.history.pushState({}, '', `/p/${p.id}`); setCurrentPost(p); }} activePalette={activePalette} APP_VERSION={APP_VERSION} />}
+      {!showLicenses && <ArchiveMenu posts={posts} currentPost={currentPost} setCurrentPost={(p: Post) => { void openPostById(p.id, { pushUrl: `/p/${p.id}` }); }} activePalette={activePalette} APP_VERSION={APP_VERSION} />}
 
       <FloatingControls
         showBackToTop={showBackToTop}
@@ -642,9 +531,9 @@ const App = () => {
 
       <Suspense fallback={null}>
         <DisclaimerModal show={showDisclaimerFlow} onClose={() => setShowDisclaimerFlow(false)} activePalette={activePalette} config={disclaimers} onDonationTrigger={() => setShowDonationModal(true)} />
-        <ShareOverlay modalState={showShareModal} setModalState={setShowShareModal} onSubmit={submitEmailShare} activePalette={activePalette} />
-        <ContactModal show={showContactModal} onClose={() => setShowContactModal(false)} onSubmit={submitContact} activePalette={activePalette} isSubmitting={isSubmittingContact} turnstileSiteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY} />
-        <CommentModal show={showCommentModal} onClose={() => setShowCommentModal(false)} onSubmit={submitComment} activePalette={activePalette} isSubmitting={isSubmittingComment} currentPost={currentPost} turnstileSiteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY} />
+        <ShareOverlay modalState={showShareModal} setModalState={setShowShareModal} onSubmit={submitEmailShare} activePalette={activePalette} turnstileSiteKey={TURNSTILE_SITE_KEY} />
+        <ContactModal show={showContactModal} onClose={() => setShowContactModal(false)} onSubmit={submitContact} activePalette={activePalette} isSubmitting={isSubmittingContact} turnstileSiteKey={TURNSTILE_SITE_KEY} />
+        <CommentModal show={showCommentModal} onClose={() => setShowCommentModal(false)} onSubmit={submitComment} activePalette={activePalette} isSubmitting={isSubmittingComment} currentPost={currentPost} turnstileSiteKey={TURNSTILE_SITE_KEY} />
         <DonationModal show={showDonationModal} onClose={() => setShowDonationModal(false)} activePalette={activePalette} API_URL={API_URL} />
         <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} activePalette={activePalette} API_URL={API_URL} triggerDonation={() => setShowDonationModal(true)} />
       </Suspense>
@@ -660,4 +549,3 @@ const App = () => {
 };
 
 export default App;
-

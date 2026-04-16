@@ -6,7 +6,7 @@
 // Versão: v1.5.0
 // Descrição: MD3 + Glassmorphism.
 
-import { type FormEvent, useState, useEffect } from 'react';
+import { type FormEvent, useState, useEffect, useRef } from 'react';
 import { Mail, Send, X } from 'lucide-react';
 import type { ActivePalette, ShareModalState } from '../types';
 import { isDarkPalette } from '../types';
@@ -16,10 +16,13 @@ interface ShareOverlayProps {
   setModalState: (state: ShareModalState) => void
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
   activePalette: ActivePalette
+  turnstileSiteKey?: string
 }
 
-const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }: ShareOverlayProps) => {
+const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette, turnstileSiteKey }: ShareOverlayProps) => {
     const [isVisible, setIsVisible] = useState(false);
+    const turnstileRef = useRef<HTMLDivElement>(null);
+    const turnstileWidgetId = useRef<string | null>(null);
 
     useEffect(() => {
         if (modalState.show) {
@@ -29,9 +32,43 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }: Sh
         }
     }, [modalState.show]);
 
+    useEffect(() => {
+        const siteKey = turnstileSiteKey;
+        if (!siteKey || !modalState.show || !turnstileRef.current) return;
+        const resolvedSiteKey: string = siteKey;
+        if (turnstileWidgetId.current) return;
+
+        function renderTurnstile() {
+            if (!window.turnstile || !turnstileRef.current) return;
+            turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
+                sitekey: resolvedSiteKey,
+                theme: isDarkPalette(activePalette) ? 'dark' : 'light',
+                callback: (token: string) => setModalState({ ...modalState, turnstileToken: token }),
+            });
+        }
+
+        if (!document.querySelector('script[src*="turnstile"]')) {
+            const script = document.createElement('script');
+            script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+            script.async = true;
+            script.onload = () => renderTurnstile();
+            document.head.appendChild(script);
+        } else {
+            renderTurnstile();
+        }
+
+        return () => {
+            if (turnstileWidgetId.current && window.turnstile) {
+                window.turnstile.remove(turnstileWidgetId.current);
+                turnstileWidgetId.current = null;
+            }
+        };
+    }, [activePalette, modalState, setModalState, turnstileSiteKey]);
+
     if (!isVisible && !modalState.show) return null;
 
     const isDarkBase = isDarkPalette(activePalette);
+    const submitDisabled = !turnstileSiteKey || !modalState.turnstileToken;
 
     const overlayStyle: React.CSSProperties = {
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -67,7 +104,7 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }: Sh
     return (
         <div style={overlayStyle} role="dialog" aria-modal="true" aria-labelledby="share-title">
             <div style={modalStyle}>
-                <button type="button" onClick={() => setModalState({ show: false, email: '' })} aria-label="Fechar" style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(128,128,128,0.1)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '100px', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+                <button type="button" onClick={() => setModalState({ show: false, email: '', turnstileToken: '' })} aria-label="Fechar" style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(128,128,128,0.1)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '100px', border: '1px solid rgba(128,128,128,0.16)', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.transform = 'translateY(0)'; }}>
                     <X size={20} />
                 </button>
 
@@ -80,7 +117,12 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette }: Sh
 
                 <form onSubmit={onSubmit} autoComplete="on" style={{ width: '100%' }}>
                     <input id="share-recipient-email" name="recipientEmail" type="email" required autoFocus autoComplete="email" placeholder="destinatario@exemplo.com" value={modalState.email} onChange={(e) => setModalState({ ...modalState, email: e.target.value })} style={inputStyle} />
-                    <button type="submit" style={buttonStyle} onMouseOver={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={(e) => (e.currentTarget.style.transform = 'translateY(0)')}>
+                    {turnstileSiteKey ? <div ref={turnstileRef} style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }} /> : (
+                        <p style={{ margin: '0 0 20px 0', fontSize: '12px', opacity: 0.7 }}>
+                            Compartilhamento por e-mail indisponível enquanto a verificação de segurança não estiver configurada.
+                        </p>
+                    )}
+                    <button type="submit" disabled={submitDisabled} style={{ ...buttonStyle, cursor: submitDisabled ? 'not-allowed' : 'pointer', opacity: submitDisabled ? 0.7 : 1 }} onMouseOver={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(-2px)')} onMouseOut={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(0)')}>
                         <Send size={20} /> ENVIAR E-MAIL
                     </button>
                 </form>

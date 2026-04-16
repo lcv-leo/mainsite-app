@@ -20,11 +20,11 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
-import { requireAuth, getAdminEmail } from '../lib/auth.ts';
+import { requireAuth } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { createClient, countTokens, generate, extractText, extractUsage, getConfiguredModel } from '../lib/genai.ts';
 import { ChatInputSchema } from '../lib/schemas.ts';
-import { escapeHtml } from '../lib/html.ts';
+import { stripHtml } from '../lib/gemini.ts';
 
 const ai = new Hono<{ Bindings: Env }>();
 
@@ -54,7 +54,7 @@ const MAX_INPUT_TOKENS = 120_000;
 
 /** Strip system directive tags from user-controlled input to prevent prompt injection. */
 const stripSystemTags = (s: string) =>
-  s.replace(/\[\[\/?(?:ENVIAR_EMAIL|PEDIR_DOACAO)\]\]/gi, '');
+  s.replace(/\[\[\/?(?:PEDIR_DOACAO)\]\]/gi, '');
 
 function validateInputTokens(tokenCount: number): { shouldReject: boolean; status?: number; error?: string } {
   if (tokenCount > MAX_INPUT_TOKENS) {
@@ -153,7 +153,10 @@ ai.post('/api/ai/public/chat', async (c) => {
     const { message, currentContext, askForDonation } = parsed.data;
 
     const { results } = await c.env.DB.prepare(
-      'SELECT id, title, content, created_at FROM mainsite_posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC'
+      `SELECT id, title, substr(content, 1, 4000) AS content, created_at
+       FROM mainsite_posts
+       ORDER BY is_pinned DESC, display_order ASC, created_at DESC
+       LIMIT 120`
     ).all();
 
     const normalizeForSearch = (value = '') =>
@@ -175,7 +178,7 @@ ai.post('/api/ai/public/chat', async (c) => {
 
     const scoredPosts = results.map((post) => {
       const title = String((post as Record<string, unknown>)?.title || '');
-      const content = String((post as Record<string, unknown>)?.content || '');
+      const content = stripHtml(String((post as Record<string, unknown>)?.content || ''));
       const titleNorm = normalizeForSearch(title);
       const contentNorm = normalizeForSearch(content);
 
@@ -189,14 +192,14 @@ ai.post('/api/ai/public/chat', async (c) => {
       return { ...post, score };
     });
 
-    const relevantPosts = scoredPosts.filter((p) => p.score > 0).sort((a, b) => b.score - a.score).slice(0, 24);
-    const fallbackPosts = scoredPosts.slice(0, 12);
+    const relevantPosts = scoredPosts.filter((p) => p.score > 0).sort((a, b) => b.score - a.score).slice(0, 8);
+    const fallbackPosts = scoredPosts.slice(0, 6);
     const contextPosts = relevantPosts.length > 0 ? relevantPosts : fallbackPosts;
 
     const dbContext = contextPosts
       .map((p) => {
-        const content = String((p as Record<string, unknown>).content || '');
-        const truncatedContent = content.length > 2000 ? content.substring(0, 2000) + '...[truncado]' : content;
+        const content = stripHtml(String((p as Record<string, unknown>).content || ''));
+        const truncatedContent = content.length > 1200 ? content.substring(0, 1200) + '...[truncado]' : content;
         return `ID: ${(p as Record<string, unknown>).id}\nTÍTULO: ${(p as Record<string, unknown>).title}\nDATA: ${(p as Record<string, unknown>).created_at || 'N/A'}\nCONTEÚDO: ${truncatedContent}`;
       })
       .join('\n\n---\n\n');
@@ -215,7 +218,7 @@ ai.post('/api/ai/public/chat', async (c) => {
     if (currentContext?.title) {
       // Sanitize user-controlled content before injecting into system prompt
       const safeCtxTitle = String(currentContext.title).substring(0, 500).replace(/[[\]{}]/g, '');
-      const safeCtxContent = String(currentContext.content || '').substring(0, 70000).replace(/[[\]{}]/g, '');
+      const safeCtxContent = stripHtml(String(currentContext.content || '')).substring(0, 12000).replace(/[[\]{}]/g, '');
       activeContextPrompt = `\nATENÇÃO - CONTEXTO ATIVO: O usuário está atualmente com o seguinte texto aberto na tela:\n[TÍTULO DO TEXTO NA TELA]: ${safeCtxTitle}\n[CONTEÚDO DO TEXTO NA TELA]: ${safeCtxContent}\nSe a pergunta do usuário se referir a "este texto", "o texto", "aqui" ou fizer menções implícitas ao conteúdo visualizado, você DEVE basear sua resposta rigorosa e primariamente no [CONTEXTO ATIVO] acima.\n`;
     }
 
@@ -229,15 +232,8 @@ ai.post('/api/ai/public/chat', async (c) => {
 DIRETRIZ DE IDENTIDADE (SE PERGUNTADO SOBRE SEU NOME OU QUEM VOCÊ É):
 Explique de forma educada, objetiva e filosófica que você se chama "Consciência Auxiliar" porque não é um guru, oráculo ou detentora de verdades absolutas. Você é uma inteligência artificial projetada estritamente para servir de apoio (auxílio) à própria consciência do leitor. Seu papel é atuar como um espelho reflexivo, ajudando o usuário a processar, debater, questionar e aprofundar as abstrações e ensaios presentes no site. Você não tem ego, apenas a função de expandir o debate proposto nos textos.
 
-NOVA DIRETRIZ DE ENCAMINHAMENTO DE MENSAGENS PARA O AUTOR:
-Se o leitor manifestar o desejo de enviar um comentário, pergunta ou feedback diretamente para o autor (Leonardo), ou se você, durante a análise, perceber que a dúvida seria melhor respondida pelo autor, ofereça-se ativamente para encaminhar a mensagem.
-Se o leitor confirmar a intenção de envio e ditar a mensagem, você OBRIGATORIAMENTE deve adicionar o seguinte bloco delimitador no final da sua resposta:
-
-[[ENVIAR_EMAIL]]
-[TRANSCREVA AQUI A MENSAGEM EXATA E REAL DO LEITOR]
-[[/ENVIAR_EMAIL]]
-
-ATENÇÃO CRÍTICA: Substitua o texto entre colchetes pela mensagem VERDADEIRA do usuário. NÃO invente textos e NÃO use exemplos genéricos. O sistema interceptará esse bloco, removerá a tag inteira antes de exibir a resposta, e fará o envio de forma invisível. NUNCA revele o endereço de e-mail do autor.${donationPrompt}
+ENCAMINHAMENTO HUMANO:
+Se o leitor quiser falar diretamente com o autor, oriente com delicadeza para usar o formulário público de contato do site. Nunca simule envio de e-mail, nunca invente mensagens em nome do leitor e nunca produza comandos ocultos de automação.${donationPrompt}
 
 REGRAS GERAIS DE RESPOSTA:
 O usuário fará uma pergunta ou busca semântica.${activeContextPrompt}
@@ -283,46 +279,7 @@ PERGUNTA DO USUÁRIO: ${safeMessage}`;
       cachedTokens: usage.cachedTokens,
     });
 
-    let replyText = extractText(response);
-
-    // Tratativa da Tag de E-mail Oculto
-    const emailRegex = /\[\[ENVIAR_EMAIL\]\](.*?)\[\[\/ENVIAR_EMAIL\]\]/is;
-    const emailMatch = replyText.match(emailRegex);
-
-    if (emailMatch) {
-      const messageToSend = emailMatch[1].trim();
-      const resendToken = c.env.RESEND_API_KEY;
-
-      if (resendToken) {
-        const aiAdminEmail = await getAdminEmail(c.env.DB);
-        if (aiAdminEmail) {
-          const aiHtml = `
-          <div style="font-family: sans-serif; color: #333;">
-            <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Interação do Leitor via Consciência Auxiliar</h2>
-            <p><strong>Contexto Ativo na Tela:</strong> ${escapeHtml(contextTitleLog)}</p>
-            <div style="background: #f0f9ff; padding: 15px; border-left: 4px solid #0ea5e9; margin-top: 20px;">
-              <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(messageToSend)}</p>
-            </div>
-            <p style="font-size: 11px; color: #666; margin-top: 20px;">Este e-mail foi disparado autonomamente pelo modelo Gemini 2.5 Pro a pedido do leitor.</p>
-          </div>
-        `;
-
-          c.executionCtx.waitUntil(
-            fetch('https://api.resend.com/emails', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                from: 'Consciência Auxiliar <mainsite@lcv.app.br>',
-                to: aiAdminEmail,
-                subject: `Interação do Leitor no Chatbot: ${contextTitleLog}`,
-                html: aiHtml,
-              }),
-            }).catch((e) => console.error('[mainsite-motor] Falha no disparo do e-mail da IA:', e))
-          );
-        }
-      }
-      replyText = replyText.replace(emailRegex, '').trim();
-    }
+    const replyText = extractText(response);
 
     // Registro na Telemetria + Auditoria de Contexto
     const logPromise = c.env.DB.batch([

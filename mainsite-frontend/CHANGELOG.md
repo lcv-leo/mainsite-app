@@ -1,5 +1,18 @@
 # Changelog — Mainsite Frontend
 
+## [v03.13.00] - 2026-04-16
+### Adicionado
+- **Structured data hardening helpers**: `functions/_lib/structured-data.ts` e `src/lib/structuredData.ts` centralizam a serialização segura de JSON-LD, escapando `<`, `>`, `&` e separadores Unicode antes de injetar schema no HTML.
+- **Atribuição automática ao copiar**: cópias do conteúdo principal agora saem com referência de fonte e URL canônica, substituindo o antigo bloqueio hostil de seleção/cópia/devtools por uma proteção de procedência compatível com acessibilidade.
+### Alterado
+- **`PostReader.tsx` e `functions/[[path]].ts`**: JSON-LD passou de `JSON.stringify(...)` cru para serialização segura, fechando o vetor de XSS via `</script>` em schema injetado no cliente e no edge.
+- **Fluxo de leitura**: `App.tsx` agora busca o post completo sob demanda (`/api/posts/:id`) ao abrir um texto, enquanto a listagem pública permanece resumida. Isso reduz carga inicial e diminui scraping/custo do corpus público.
+- **Compartilhamento/contato/comentários**: `ShareOverlay`, `ContactModal`, `CommentModal` e `CommentsSection` agora operam em fail-closed quando o Turnstile não está configurado, com mensagens explícitas em vez de degradação silenciosa.
+- **Comentários aninhados**: a UI passou a respeitar `maxNestingDepth` retornado pelo backend, inclusive na renderização e na exibição do botão de resposta.
+### Corrigido
+- **Proteção substituta para o item 6 da auditoria**: removido o bloqueio global de cópia/print/devtools. No lugar, o leitor oferece atribuição automática no clipboard e um bloco discreto de citação recomendada com URL canônica.
+- **`_headers` preservado**: nenhuma alteração em `mainsite-frontend/public/_headers`.
+
 ## [v03.12.00] - 2026-04-16
 ### Adicionado — PWA Service Worker
 - **`vite-plugin-pwa ^1.2.0`** em devDependencies. Gera `dist/sw.js` + `dist/workbox-*.js` no build de produção. 18 entradas precacheadas (~409 KB).
@@ -653,5 +666,4 @@
 ## [v02.09.00] — Anterior
 ### Histórico
 - Versão anterior à padronização do controle de versão
-
 
