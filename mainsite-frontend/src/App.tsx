@@ -297,7 +297,7 @@ const App = () => {
       upsertCanonical(canonicalUrl);
     } else {
       const defaultTitle = SITE_NAME;
-      const defaultDesc = 'Abstrações de uma mente em constante autorreflexão. Textos, ensaios e explorações.';
+      const defaultDesc = 'Abstrações de uma mente em constante autorreflexão. Textos, ensaios e explorações. By Leonardo Cardozo Vargas';
       document.title = defaultTitle;
       upsertMeta('meta[name="description"]', { name: 'description' }, defaultDesc);
       upsertMeta('meta[property="og:type"]', { property: 'og:type' }, 'website');
