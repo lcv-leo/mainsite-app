@@ -34,7 +34,7 @@ jobs:
       - name: Install e Deploy Worker
         working-directory: ./mainsite-worker
         run: |
-          npm install
+          npm ci
           npm audit --audit-level=high
           npx wrangler@${WRANGLER_VERSION} deploy
         env:
@@ -44,7 +44,7 @@ jobs:
       - name: Install, Build e Deploy Frontend
         working-directory: ./mainsite-frontend
         run: |
-          npm install
+          npm ci
           npm audit --audit-level=high
           npm run build
           npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-frontend --branch=main --commit-dirty=true

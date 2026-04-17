@@ -33,6 +33,20 @@ updates:
       include: "scope"
     versioning-strategy: increase
     groups:
+      pwa-build-chain:
+        patterns:
+          - "vite-plugin-pwa"
+          - "workbox*"
+          - "rollup-plugin-visualizer"
+          - "@rollup/*"
+          - "rollup"
+          - "magic-string"
+          - "source-map"
+          - "glob"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
       dev-dependencies:
         patterns:
           - "eslint*"
@@ -43,6 +57,8 @@ updates:
           - "vite*"
           - "@vitest/*"
           - "@biomejs/*"
+        exclude-patterns:
+          - "vite-plugin-pwa"
         update-types:
           - "major"
           - "minor"
