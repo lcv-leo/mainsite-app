@@ -1,5 +1,11 @@
 # Changelog — Mainsite Frontend
 
+## [v03.15.02] - 2026-04-17
+### Corrigido
+- `wrangler.json` do frontend deixou de declarar `observability` por ser config de Cloudflare Pages; `mainsite-worker/wrangler.json` preserva o baseline de observability por continuar sendo um Worker.
+### Motivação
+- Restaurar o deploy do `mainsite-frontend` após os logs do GitHub Actions confirmarem a incompatibilidade de `observability` com Pages em `wrangler 4.83.0`.
+
 ## [v03.15.01] - 2026-04-17
 ### Alterado
 - `wrangler.json` passou a declarar explicitamente `observability.logs.enabled = true`, `observability.logs.invocation_logs = true` e `observability.traces.enabled = true`.

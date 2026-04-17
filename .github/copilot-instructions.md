@@ -9,6 +9,17 @@
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
 # AI Memory Log - MainSite
 
+## 2026-04-17 — Mainsite Frontend v03.15.02 (Pages observability rollback after GHA failure)
+### Escopo
+Hotfix de deploy no `mainsite-app` após o GitHub Actions confirmar que `observability` não é suportado em config de Cloudflare Pages.
+### Alterado
+- `mainsite-frontend/wrangler.json` deixou de declarar `observability` por ser config de Pages.
+- `mainsite-worker/wrangler.json` manteve `observability` porque segue sendo config de Worker e já estava validado.
+### Motivação
+- Restaurar o deploy do `mainsite-frontend` sem perder a telemetria explícita do worker publicado.
+### Versão
+- mainsite-frontend: APP v03.15.01 → APP v03.15.02
+
 ## 2026-04-17 — Mainsite observability baseline (frontend v03.15.01, worker v02.11.01)
 ### Escopo
 Padronização do baseline de observabilidade Cloudflare no `mainsite-app`, cobrindo `mainsite-frontend` e `mainsite-worker`.
