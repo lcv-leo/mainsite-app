@@ -36,6 +36,8 @@ jobs:
         run: |
           npm ci
           npm audit --audit-level=high
+          npm run lint
+          npm test
           npx wrangler@${WRANGLER_VERSION} deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -46,6 +48,8 @@ jobs:
         run: |
           npm ci
           npm audit --audit-level=high
+          npm run lint
+          npm test
           npm run build
           npx wrangler@${WRANGLER_VERSION} pages deploy ./dist --project-name=mainsite-frontend --branch=main --commit-dirty=true
         env:

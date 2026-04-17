@@ -9,6 +9,19 @@
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
 # AI Memory Log - MainSite
 
+## 2026-04-17 — Mainsite Frontend v03.15.00 (SumUp remount + 3DS redirect/resume + CI)
+### Escopo
+Fechamento corretivo do `mainsite-frontend` após a rodada de auditoria técnica de 2026-04-17, estabilizando o Payment Widget da SumUp, promovendo os testes ao gate de deploy e registrando explicitamente a decisão operacional do 3DS em cartão.
+### Alterado
+- **`SumUpCardWidget.tsx`**: a montagem do widget passou a depender de uma chave estável da allowlist de métodos, evitando remount espúrio em rerenders semanticamente idênticos.
+- **`SumUpCardWidget.test.tsx`**: o teste de regressão passou a afirmar que rerender com a mesma allowlist lógica não provoca `unmount` nem novo `mount`.
+- **Decisão 3DS registrada**: o fluxo de cartão permanece com `redirectUrl` + retomada por `checkout_id`, porque a conta/merchant real não expõe `sca_experience_mode_modal`; o visitante retorna ao mesmo contexto do `mainsite-frontend`, com reabertura do modal, restauração do viewport e avanço para confirmação/agradecimento.
+- **CI**: `mainsite-app/.github/workflows/deploy.yml` agora executa `npm run lint` e `npm test` antes do deploy do frontend e do worker.
+### Motivação
+- Responder ao parecer corretivo do Claude Code sem quebrar o fluxo real de doação, tornando o comportamento do widget verificável, testável e auditável.
+### Versão
+- mainsite-frontend: APP v03.14.00 → APP v03.15.00
+
 ## 2026-04-17 — Payment Widget da SumUp + `theme.css` + hardening de perímetro (frontend v03.14.00, worker v02.11.00)
 ### Escopo
 Fechamento do ciclo atual de endurecimento do `mainsite-app`, concentrando o pagamento no widget oficial da SumUp, reduzindo estilos inline nas superfícies mais sensíveis e endurecendo a borda pública do worker sem quebrar aparência, comportamento ou integrações já operantes.

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 // Módulo: mainsite-frontend/src/App.tsx
-// Versão: v03.14.00
+// Versão: v03.15.00
 // Descrição: TypeScript migration. Frontend Orchestrator — fully typed state, events, refs and component props.
 
 import { useState, useEffect, useMemo, useCallback, Suspense, lazy, useRef, type FormEvent } from 'react';
@@ -29,7 +29,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.14.00';
+const APP_VERSION = 'APP v03.15.00';
 const SITE_NAME = 'Reflexos da Alma';
 const SITE_URL = 'https://www.reflexosdaalma.blog';
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;

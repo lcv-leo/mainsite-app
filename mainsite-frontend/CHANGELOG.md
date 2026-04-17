@@ -1,5 +1,18 @@
 # Changelog — Mainsite Frontend
 
+## [v03.15.00] - 2026-04-17
+### Alterado
+- **`SumUpCardWidget` estável por conteúdo**: o widget passou a depender da chave estável da allowlist de métodos de pagamento, evitando `unmount`/`mount` extras quando o modal rerenderiza sem mudança lógica na seleção.
+- **Teste de regressão endurecido**: `SumUpCardWidget.test.tsx` agora verifica explicitamente que um rerender com o mesmo conjunto lógico de métodos não provoca `unmount` nem novo `mount`.
+- **CI ampliado no frontend**: o workflow de deploy passou a executar `npm run lint` e `npm test` antes do build/publicação do `mainsite-frontend`, deixando a suíte do modal/widget dentro do gate automático.
+### Corrigido
+- **Remount espúrio da SumUp**: o modal de doação deixou de reinicializar o widget quando o componente pai rerenderiza sem mudar de fato a allowlist de métodos.
+### Notas
+- **Decisão operacional do 3DS no cartão**: o checkout de cartão permanece com `redirectUrl` e retomada por `checkout_id`, porque a conta/merchant real não expõe `sca_experience_mode_modal`; a UX final fica concentrada no retorno ao próprio `mainsite-frontend`, com reabertura do modal, restauração de contexto e avanço para a confirmação/agradecimento.
+- **`_headers` preservado nesta rodada específica do parecer**: nenhuma mudança adicional em `mainsite-frontend/public/_headers` neste fechamento do fluxo SumUp/CI.
+### Motivação
+- **Origem da rodada**: fechamento corretivo da auditoria técnica de 2026-04-17, com foco em estabilidade do Payment Widget, registro explícito da decisão 3DS + redirect/resume e promoção dos testes ao gate de deploy.
+
 ## [v03.14.00] - 2026-04-17
 ### Adicionado
 - **`SumUpCardWidget.tsx` + `SumUpCardWidget.css`**: novo wrapper do Payment Widget oficial da SumUp, com carga segura do SDK, integração visual ao tema do site e suporte a cartão + APMs, incluindo `PIX`, quando o merchant estiver habilitado pela SumUp.

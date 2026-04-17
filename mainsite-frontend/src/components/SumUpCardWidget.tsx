@@ -112,15 +112,15 @@ const SumUpCardWidget = ({
   const onErrorRef = useRef(onError);
   const onResponseRef = useRef(onResponse);
   const onPaymentMethodsResolvedRef = useRef(onPaymentMethodsResolved);
+  const preferredPaymentMethodsRef = useRef<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const normalizedPreferredPaymentMethods = useMemo(() => {
-    if (!preferredPaymentMethods?.length) return [];
-
-    return preferredPaymentMethods
-      .map((method) => method.trim().toLowerCase())
-      .filter(Boolean);
-  }, [preferredPaymentMethods]);
-  const preferredPaymentMethodsKey = normalizedPreferredPaymentMethods.join('|');
+  const preferredPaymentMethodsKey = useMemo(() => (
+    preferredPaymentMethods?.map((method) => method.trim().toLowerCase()).filter(Boolean).join('|') ?? ''
+  ), [preferredPaymentMethods]);
+  const normalizedPreferredPaymentMethods = useMemo(
+    () => (preferredPaymentMethodsKey ? preferredPaymentMethodsKey.split('|').filter(Boolean) : []),
+    [preferredPaymentMethodsKey],
+  );
 
   useEffect(() => {
     onErrorRef.current = onError;
@@ -133,6 +133,10 @@ const SumUpCardWidget = ({
   useEffect(() => {
     onPaymentMethodsResolvedRef.current = onPaymentMethodsResolved;
   }, [onPaymentMethodsResolved]);
+
+  useEffect(() => {
+    preferredPaymentMethodsRef.current = normalizedPreferredPaymentMethods;
+  }, [normalizedPreferredPaymentMethods]);
 
   useEffect(() => {
     let cancelled = false;
@@ -170,12 +174,13 @@ const SumUpCardWidget = ({
           onPaymentMethodsLoad: (methods: unknown) => {
             const availableMethods = extractPaymentMethodIds(methods);
             onPaymentMethodsResolvedRef.current?.(availableMethods);
+            const preferredMethods = preferredPaymentMethodsRef.current;
 
-            if (!normalizedPreferredPaymentMethods.length) {
+            if (!preferredMethods.length) {
               return availableMethods;
             }
 
-            const preferredSet = new Set(normalizedPreferredPaymentMethods);
+            const preferredSet = new Set(preferredMethods);
             const filteredMethods = availableMethods.filter((method) => preferredSet.has(method));
             return filteredMethods.length ? filteredMethods : availableMethods;
           },
@@ -205,7 +210,7 @@ const SumUpCardWidget = ({
         widgetRef.current = null;
       }
     };
-  }, [checkoutId, email, mountId, normalizedPreferredPaymentMethods, preferredPaymentMethodsKey]);
+  }, [checkoutId, email, mountId, preferredPaymentMethodsKey]);
 
   return (
     <div className="sumup-card-widget">

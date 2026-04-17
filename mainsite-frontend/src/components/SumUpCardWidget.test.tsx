@@ -8,14 +8,16 @@ import SumUpCardWidget from './SumUpCardWidget';
 
 describe('SumUpCardWidget', () => {
   let mountMock: ReturnType<typeof vi.fn>;
+  let unmountMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    unmountMock = vi.fn();
     mountMock = vi.fn((config: Record<string, unknown>) => {
       const onLoad = config.onLoad as (() => void) | undefined;
       onLoad?.();
       return {
         submit: vi.fn(),
-        unmount: vi.fn(),
+        unmount: unmountMock,
         update: vi.fn(),
       };
     });
@@ -72,6 +74,10 @@ describe('SumUpCardWidget', () => {
       />,
     );
 
-    await waitFor(() => expect(mountMock).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mountMock).toHaveBeenCalledTimes(1);
+    expect(unmountMock).not.toHaveBeenCalled();
   });
 });
