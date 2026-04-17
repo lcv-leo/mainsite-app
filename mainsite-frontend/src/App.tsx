@@ -18,7 +18,6 @@ import { ComplianceBanner } from './components/ComplianceBanner';
 import ContentUpdateToast from './components/ContentUpdateToast';
 import { LicencasModule } from './modules/compliance/LicencasModule';
 import { useTextZoom } from './hooks/useTextZoom';
-import { useTextZoomCloud } from './hooks/useTextZoomCloud';
 import { useContentSync } from './hooks/useContentSync';
 
 const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
@@ -80,13 +79,7 @@ const App = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showDisclaimerFlow, setShowDisclaimerFlow] = useState(false);
   const [showLicenses, setShowLicenses] = useState(false);
-  const { zoomLevel, increase: increaseZoom, decrease: decreaseZoom, reset: resetZoom, setZoomLevel } = useTextZoom();
-
-  useTextZoomCloud(zoomLevel, setZoomLevel, {
-    apiUrl: API_URL,
-    userId: undefined,
-    enabled: true,
-  });
+  const { zoomLevel, increase: increaseZoom, decrease: decreaseZoom, reset: resetZoom } = useTextZoom();
 
   // --- Content Sync: polling leve para detectar mudanças na homepage ---
   const contentSync = useContentSync(API_URL, !loading);

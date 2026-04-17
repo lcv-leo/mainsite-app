@@ -5,6 +5,9 @@ node_modules/
 dist/
 build/
 .output/
+*.tsbuildinfo
+mainsite-frontend/vite.config.js
+mainsite-frontend/vite.config.d.ts
 
 # Segredos e Variáveis Locais (CRÍTICO: NUNCA ENVIAR PARA O GITHUB)
 .dev.vars
