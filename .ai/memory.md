@@ -1,5 +1,17 @@
 # AI Memory Log - MainSite
 
+## 2026-04-16 — Text zoom do frontend consolidado como local-only (frontend v03.13.02)
+### Escopo
+Fechamento de auditoria/versionamento no `mainsite-app` para registrar explicitamente que o text zoom do leitor não possui backend nem sincronização remota.
+### Diretriz operacional consolidada
+- **Persistência exclusivamente local**: `useTextZoom.ts` persiste apenas em `localStorage` usando a chave `mainsite:text-zoom-level`.
+- **Sem contrato remoto**: não existe rota runtime para `/api/user/preferences/text-zoom` nem `/api/analytics/text-zoom` no `mainsite-worker` publicado.
+- **Sem sync cloud implícito**: qualquer futura retomada de “zoom cloud” exige definição prévia de identidade real do leitor, storage, contrato de privacidade e backend dedicado.
+### Restrições preservadas
+- **`_headers`**: permanece intocado por diretiva explícita.
+### Versão
+- mainsite-frontend: APP v03.13.01 → APP v03.13.02
+
 ## 2026-04-16 — Turnstile runtime stabilization + allowlist sync (frontend v03.13.01)
 ### Escopo
 Fechamento do hotfix do `mainsite-frontend` após a regressão operacional do Turnstile no runtime publicado, combinando correções de lifecycle na UI com validação/configuração do widget real via Cloudflare API.

@@ -1,5 +1,13 @@
 # Changelog — Mainsite Frontend
 
+## [v03.13.02] - 2026-04-16
+### Alterado
+- **Diretriz de produto consolidada para text zoom**: o `mainsite-frontend` assume formalmente que os controles de zoom persistem apenas no `localStorage` do navegador do leitor (`mainsite:text-zoom-level`), sem qualquer contrato runtime com backend, D1, sync cloud ou analytics remoto.
+### Auditoria
+- **Trilha fechada no app**: a decisão arquitetural foi registrada nas memórias do `mainsite-app` e alinhada ao versionamento do frontend para evitar ambiguidade futura sobre “zoom cloud” ou preferências remotas.
+### Notas
+- **`_headers` preservado**: nenhuma alteração em `mainsite-frontend/public/_headers`.
+
 ## [v03.13.01] - 2026-04-16
 ### Alterado
 - **Turnstile widget runtime**: `ShareOverlay` deixou de recriar/destruir o widget ao receber token; o callback passou a usar atualização funcional de estado, preservando a instância renderizada e evitando falhas intermitentes no compartilhamento por e-mail.
