@@ -1,5 +1,21 @@
 # AI Memory Log - MainSite
 
+## 2026-04-16 — Plano futuro de migração de e-mail do `mainsite-app`
+### Escopo
+Registro do plano de migração futura dos envios de e-mail do `mainsite-worker`, hoje via Resend, para Cloudflare Email Service nativo em Worker.
+### Estratégia de domínio/remetente
+- **Domínio principal do mainsite**: `reflexosdaalma.blog`.
+- **Domínios secundários/custom domains**: continuam existindo para publicação e acesso, mas **não** mudam a identidade primária de envio.
+- **Diretriz consolidada**: os remetentes `@lcv.app.br` hoje usados pelo mainsite devem ser substituídos por **`cal@reflexosdaalma.blog`** na futura migração.
+### Fluxos classificados
+- **Migração direta**: notificações internas ao admin e notificações de moderação/comentários.
+- **Migração com pré-requisito de plataforma**: e-mail de confirmação ao usuário em `/api/contact`.
+- **Fluxo mais sensível**: `/api/share/email` permanece classificado como o ponto de maior risco operacional, porque envia para destinatário arbitrário e continua exigindo cuidado especial com abuso/compliance mesmo após a troca de provider.
+### Pré-requisitos futuros
+- Onboard de `reflexosdaalma.blog` no Cloudflare Email Service para envio.
+- Plano/capacidade que permita envio para destinatários externos arbitrários, caso o comportamento atual de `contact` e `share/email` seja mantido.
+- Binding `send_email` no `mainsite-worker`, com `allowed_sender_addresses` restrito ao remetente oficial do projeto.
+
 ## 2026-04-16 — Text zoom do frontend consolidado como local-only (frontend v03.13.02)
 ### Escopo
 Fechamento de auditoria/versionamento no `mainsite-app` para registrar explicitamente que o text zoom do leitor não possui backend nem sincronização remota.
