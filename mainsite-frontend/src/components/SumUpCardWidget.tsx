@@ -12,6 +12,8 @@ interface SumUpCardWidgetProps {
   checkoutId: string
   email?: string
   amount?: string
+  preferredPaymentMethods?: string[]
+  onPaymentMethodsResolved?: (methods: string[]) => void
   onError?: (message: string) => void
   onResponse?: SumUpCardResponseHandler
 }
@@ -67,10 +69,43 @@ const loadSumUpCardSdk = (): Promise<void> => {
   return sumUpCardSdkPromise;
 };
 
+const normalizePaymentMethodId = (value: unknown): string | null => {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim().toLowerCase();
+  }
+
+  if (value && typeof value === 'object') {
+    const maybeId = (value as { id?: unknown }).id;
+    if (typeof maybeId === 'string' && maybeId.trim()) {
+      return maybeId.trim().toLowerCase();
+    }
+  }
+
+  return null;
+};
+
+const extractPaymentMethodIds = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+
+  const seen = new Set<string>();
+  const methods: string[] = [];
+
+  for (const item of value) {
+    const normalized = normalizePaymentMethodId(item);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    methods.push(normalized);
+  }
+
+  return methods;
+};
+
 const SumUpCardWidget = ({
   checkoutId,
   email,
   amount,
+  preferredPaymentMethods,
+  onPaymentMethodsResolved,
   onError,
   onResponse,
 }: SumUpCardWidgetProps) => {
@@ -78,6 +113,7 @@ const SumUpCardWidget = ({
   const widgetRef = useRef<SumUpCardMountInstance | null>(null);
   const onErrorRef = useRef(onError);
   const onResponseRef = useRef(onResponse);
+  const onPaymentMethodsResolvedRef = useRef(onPaymentMethodsResolved);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -87,6 +123,10 @@ const SumUpCardWidget = ({
   useEffect(() => {
     onResponseRef.current = onResponse;
   }, [onResponse]);
+
+  useEffect(() => {
+    onPaymentMethodsResolvedRef.current = onPaymentMethodsResolved;
+  }, [onPaymentMethodsResolved]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +161,23 @@ const SumUpCardWidget = ({
           donateSubmitButton: true,
           showFooter: true,
           showSubmitButton: true,
+          onPaymentMethodsLoad: (methods: unknown) => {
+            const availableMethods = extractPaymentMethodIds(methods);
+            onPaymentMethodsResolvedRef.current?.(availableMethods);
+
+            if (!preferredPaymentMethods?.length) {
+              return availableMethods;
+            }
+
+            const preferred = preferredPaymentMethods.map((method) => method.trim().toLowerCase()).filter(Boolean);
+            if (!preferred.length) {
+              return availableMethods;
+            }
+
+            const preferredSet = new Set(preferred);
+            const filteredMethods = availableMethods.filter((method) => preferredSet.has(method));
+            return filteredMethods.length ? filteredMethods : availableMethods;
+          },
           onLoad: () => {
             if (!cancelled) {
               setIsLoading(false);
@@ -147,7 +204,7 @@ const SumUpCardWidget = ({
         widgetRef.current = null;
       }
     };
-  }, [checkoutId, email, amount, mountId]);
+  }, [checkoutId, email, amount, mountId, preferredPaymentMethods]);
 
   return (
     <div className="sumup-card-widget">

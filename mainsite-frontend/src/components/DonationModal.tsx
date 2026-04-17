@@ -34,6 +34,8 @@ interface BrandIcon {
   src: string
 }
 
+type DonationPaymentMethod = 'card' | 'pix';
+
 interface DonationResumePayload {
   checkoutId: string
   firstName: string
@@ -41,6 +43,8 @@ interface DonationResumePayload {
   email: string
   amountDisplay: string
   coverFees: boolean
+  paymentMethod: DonationPaymentMethod
+  scrollY: number | null
 }
 
 interface DonationModalProps {
@@ -55,6 +59,8 @@ const formatBRL = (num: number): string =>
   num.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
 
 const SUMUP_PENDING_DONATION_STORAGE_KEY = 'mainsite:sumup:pending-donation';
+const SUMUP_CARD_METHODS = ['card'] as const;
+const SUMUP_PIX_METHODS = ['pix', 'qr_code_pix'] as const;
 
 const getSumUpWidgetErrorMessage = (body: unknown): string | null => {
   if (!body || typeof body !== 'object') return null;
@@ -78,8 +84,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
   const [feesError, setFeesError] = useState(false);
   const [cardCheckoutId, setCardCheckoutId] = useState<string | null>(null);
   const [cardFlowMessage, setCardFlowMessage] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<DonationPaymentMethod>('card');
+  const [isResumingCheckout, setIsResumingCheckout] = useState(false);
 
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scrollRestoreTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -117,6 +126,33 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
     }
   }, []);
 
+  const restoreViewportContext = useCallback((scrollY: number | null | undefined) => {
+    if (typeof window === 'undefined' || typeof scrollY !== 'number' || Number.isNaN(scrollY)) return;
+
+    if (scrollRestoreTimeoutRef.current) {
+      clearTimeout(scrollRestoreTimeoutRef.current);
+      scrollRestoreTimeoutRef.current = null;
+    }
+
+    let attempts = 0;
+    const maxAttempts = 12;
+    const restore = () => {
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const nextTop = Math.max(0, Math.min(scrollY, maxScroll));
+      window.scrollTo({ top: nextTop, behavior: 'auto' });
+
+      attempts += 1;
+      if (attempts >= maxAttempts || maxScroll >= scrollY - 8) {
+        scrollRestoreTimeoutRef.current = null;
+        return;
+      }
+
+      scrollRestoreTimeoutRef.current = setTimeout(restore, 150);
+    };
+
+    window.requestAnimationFrame(restore);
+  }, []);
+
   const restorePendingCheckout = useCallback((expectedCheckoutId: string): DonationResumePayload | null => {
     if (typeof window === 'undefined') return null;
     try {
@@ -129,7 +165,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
         typeof parsed.lastName !== 'string' ||
         typeof parsed.email !== 'string' ||
         typeof parsed.amountDisplay !== 'string' ||
-        typeof parsed.coverFees !== 'boolean'
+        typeof parsed.coverFees !== 'boolean' ||
+        (parsed.paymentMethod !== 'card' && parsed.paymentMethod !== 'pix') ||
+        (parsed.scrollY !== null && parsed.scrollY !== undefined && typeof parsed.scrollY !== 'number')
       ) {
         return null;
       }
@@ -191,8 +229,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
     }
 
     if (show) {
-      visibilityTimeoutRef.current = setTimeout(() => {
-        setIsVisible(true);
+      setIsVisible(true);
+      if (!resumeCheckoutId) {
         setStep(1);
         setAmountDisplay('');
         setFirstName('');
@@ -204,16 +242,19 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
         setBrandImageFailed({});
         setCardCheckoutId(null);
         setCardFlowMessage('');
+        setSelectedPaymentMethod('card');
+        setIsResumingCheckout(false);
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
         }
-      }, 0);
+      }
     } else {
       setTimeout(() => setStep(1), 0);
       visibilityTimeoutRef.current = setTimeout(() => {
         setIsVisible(false);
       }, 400);
+      setIsResumingCheckout(false);
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
@@ -229,8 +270,12 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
+      if (scrollRestoreTimeoutRef.current) {
+        clearTimeout(scrollRestoreTimeoutRef.current);
+        scrollRestoreTimeoutRef.current = null;
+      }
     };
-  }, [show]);
+  }, [show, resumeCheckoutId]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -295,6 +340,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
           clearPendingCheckout();
           setIsPreparingCard(false);
           setIsSubmittingCard(false);
+          setIsResumingCheckout(false);
           setCardFlowMessage('');
           setStep(3);
           showToast('Pagamento aprovado com sucesso!', 'success');
@@ -306,10 +352,16 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
           clearPendingCheckout();
           setIsPreparingCard(false);
           setIsSubmittingCard(false);
+          setIsResumingCheckout(false);
           setCardCheckoutId(null);
           setCardFlowMessage('');
           setStep(1);
-          showToast('O pagamento com cartão não foi concluído. Tente novamente.', 'error');
+          showToast(
+            selectedPaymentMethod === 'pix'
+              ? 'O pagamento por PIX não foi concluído. Tente novamente.'
+              : 'O pagamento com cartão não foi concluído. Tente novamente.',
+            'error',
+          );
         }
       } catch (err) {
         console.error('SumUp card polling error', err);
@@ -318,7 +370,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
 
     void checkStatus();
     pollingIntervalRef.current = setInterval(checkStatus, 4000);
-  }, [API_URL, clearPendingCheckout, showToast, stopPolling]);
+  }, [API_URL, clearPendingCheckout, selectedPaymentMethod, showToast, stopPolling]);
 
   useEffect(() => {
     if (!show || !resumeCheckoutId) return;
@@ -330,30 +382,39 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
       setSumupEmail(restored.email);
       setAmountDisplay(restored.amountDisplay);
       setCoverFees(restored.coverFees);
+      setSelectedPaymentMethod(restored.paymentMethod);
+      restoreViewportContext(restored.scrollY);
     }
 
     setCardCheckoutId(resumeCheckoutId);
     setIsPreparingCard(false);
     setIsSubmittingCard(true);
+    setIsResumingCheckout(true);
     setCardFlowMessage('Retomando o pagamento seguro na SumUp e confirmando o resultado final...');
     setStep(4);
     pollCheckoutStatus(resumeCheckoutId);
-  }, [show, resumeCheckoutId, restorePendingCheckout, pollCheckoutStatus]);
+  }, [show, resumeCheckoutId, restorePendingCheckout, restoreViewportContext, pollCheckoutStatus]);
 
   if (!isVisible && !show) return null;
 
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
 
-  const handleStartCardCheckout = async () => {
+  const handleStartCheckout = async (paymentMethod: DonationPaymentMethod) => {
     if (!validateBaseForm()) return;
     if (!sumupEmail.trim()) {
-      showToast('Informe seu e-mail para continuar com o cartão.', 'error');
+      showToast('Informe seu e-mail para continuar com a doação.', 'error');
       return;
     }
 
+    setSelectedPaymentMethod(paymentMethod);
+    setIsResumingCheckout(false);
     setIsPreparingCard(true);
     setIsSubmittingCard(false);
-    setCardFlowMessage('Preparando o formulário seguro da SumUp...');
+    setCardFlowMessage(
+      paymentMethod === 'pix'
+        ? 'Preparando o ambiente seguro da SumUp para concluir sua doação por PIX...'
+        : 'Preparando o formulário seguro da SumUp para concluir sua doação com cartão...',
+    );
 
     try {
       const createRes = await fetch(`${API_URL}/sumup/checkout`, {
@@ -365,7 +426,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: sumupEmail.trim(),
-          redirectUrl: getReturnUrl(),
+          redirectUrl: paymentMethod === 'pix' ? getReturnUrl() : undefined,
         })
       });
       const createData = await createRes.json();
@@ -379,9 +440,15 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
         email: sumupEmail.trim(),
         amountDisplay,
         coverFees,
+        paymentMethod,
+        scrollY: typeof window !== 'undefined' ? window.scrollY : null,
       });
       setIsPreparingCard(false);
-      setCardFlowMessage('Escolha a forma de pagamento segura no widget oficial da SumUp.');
+      setCardFlowMessage(
+        paymentMethod === 'pix'
+          ? 'Conclua a sua doação por PIX no ambiente seguro da SumUp.'
+          : 'Conclua a sua doação com cartão no formulário seguro da SumUp.',
+      );
       setStep(4);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -394,13 +461,15 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
   const handleCardWidgetResponse = (type: string, body: unknown) => {
     if (type === 'sent') {
       setIsSubmittingCard(true);
+      setIsResumingCheckout(false);
       setCardFlowMessage('Processando o pagamento com a SumUp...');
       return;
     }
 
     if (type === 'auth-screen') {
       setIsSubmittingCard(true);
-      setCardFlowMessage('A SumUp solicitou uma etapa adicional para concluir o pagamento. Continue no widget seguro abaixo.');
+      setIsResumingCheckout(false);
+      setCardFlowMessage('Siga as instruções exibidas abaixo para concluir o pagamento.');
       if (cardCheckoutId) {
         pollCheckoutStatus(cardCheckoutId);
       }
@@ -409,14 +478,16 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
 
     if (type === 'invalid') {
       setIsSubmittingCard(false);
+      setIsResumingCheckout(false);
       setCardFlowMessage('Revise os campos do cartão no formulário seguro e tente novamente.');
-      showToast('Revise os dados do cartão no formulário seguro da SumUp.', 'error');
+      showToast('Revise os dados informados e tente novamente.', 'error');
       return;
     }
 
     if (type === 'error') {
       setIsPreparingCard(false);
       setIsSubmittingCard(false);
+      setIsResumingCheckout(false);
       const widgetMessage = getSumUpWidgetErrorMessage(body);
       setCardFlowMessage(widgetMessage || 'A SumUp sinalizou um problema ao processar o pagamento.');
       showToast(getStandardPaymentError(widgetMessage || undefined), 'error');
@@ -426,13 +497,18 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
     if (type === 'fail') {
       setIsPreparingCard(false);
       setIsSubmittingCard(false);
+      setIsResumingCheckout(false);
       setCardFlowMessage('O pagamento não foi concluído. Você pode tentar novamente.');
       showToast('Pagamento não concluído. Você pode tentar novamente.', 'error');
       return;
     }
 
     if (type === 'success' && cardCheckoutId) {
-      setCardFlowMessage('Pagamento enviado. Confirmando status final com a SumUp...');
+      setCardFlowMessage(
+        selectedPaymentMethod === 'pix'
+          ? 'Pagamento enviado. Aguarde a confirmação final para concluir a doação.'
+          : 'Pagamento enviado. Confirmando status final com a SumUp...',
+      );
       pollCheckoutStatus(cardCheckoutId);
     }
   };
@@ -489,7 +565,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
       </div>
 
       <div role="dialog" aria-modal="true" aria-labelledby="donation-title" style={modalStyle}>
-        <button type="button" onClick={() => { stopPolling(); clearPendingCheckout(); setStep(1); onClose(); }} aria-label="Fechar" style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '0.8'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <button type="button" onClick={() => { stopPolling(); clearPendingCheckout(); setIsResumingCheckout(false); setSelectedPaymentMethod('card'); setStep(1); onClose(); }} aria-label="Fechar" style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '0.8'; e.currentTarget.style.transform = 'translateY(0)'; }}>
           <X size={24} />
         </button>
 
@@ -505,7 +581,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
               </p>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); void handleStartCardCheckout(); }} autoComplete="on" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form onSubmit={(e) => { e.preventDefault(); void handleStartCheckout('card'); }} autoComplete="on" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <label htmlFor="donation-first-name" className="sr-only">Nome</label>
                 <input
@@ -591,7 +667,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
               </div>
 
               <div style={{ fontSize: '12px', opacity: 0.72, lineHeight: '1.7', textAlign: 'left', padding: '10px 12px', borderRadius: '10px', background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}>
-                O pagamento será concluído em um formulário seguro da <strong>SumUp</strong>, com autenticação 3DS/SCA e métodos alternativos, como <strong>PIX</strong>, tratados no próprio widget oficial quando habilitados na sua conta.
+                O pagamento será concluído em um ambiente seguro da <strong>SumUp</strong>. Você poderá escolher a forma disponível para finalizar a sua doação.
               </div>
 
               <label
@@ -631,8 +707,17 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
                   disabled={isPreparingCard || isSubmittingCard}
                   style={{ ...buttonStyle, background: '#0066ff', color: '#fff', cursor: (isPreparingCard || isSubmittingCard) ? 'not-allowed' : 'pointer', opacity: (isPreparingCard || isSubmittingCard) ? 0.7 : 1 }}
                 >
-                  {isPreparingCard ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-                  {isPreparingCard ? 'PREPARANDO CHECKOUT...' : 'CONTINUAR PARA O PAGAMENTO'}
+                  {isPreparingCard && selectedPaymentMethod === 'card' ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                  {isPreparingCard && selectedPaymentMethod === 'card' ? 'PREPARANDO CARTÃO...' : 'PAGAR COM CARTÃO'}
+                </button>
+                <button
+                  type="button"
+                  disabled={isPreparingCard || isSubmittingCard}
+                  onClick={() => { void handleStartCheckout('pix'); }}
+                  style={{ ...buttonStyle, background: '#10b981', color: '#fff', cursor: (isPreparingCard || isSubmittingCard) ? 'not-allowed' : 'pointer', opacity: (isPreparingCard || isSubmittingCard) ? 0.7 : 1 }}
+                >
+                  {isPreparingCard && selectedPaymentMethod === 'pix' ? <Loader2 size={16} className="animate-spin" /> : <Heart size={16} />}
+                  {isPreparingCard && selectedPaymentMethod === 'pix' ? 'PREPARANDO PIX...' : 'PAGAR COM PIX'}
                 </button>
               </div>
             </form>
@@ -648,7 +733,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
             <p style={{ fontSize: '15px', opacity: 0.8, lineHeight: '1.6', marginBottom: '30px' }}>
               Sua contribuição aquece os servidores e incentiva a continuidade destas Reflexos. Agradeço imensamente pelo apoio ao meu trabalho.
             </p>
-            <button type="button" onClick={() => { stopPolling(); setStep(1); onClose(); }} style={buttonStyle}>Fechar</button>
+            <button type="button" onClick={() => { stopPolling(); clearPendingCheckout(); setIsResumingCheckout(false); setSelectedPaymentMethod('card'); setStep(1); onClose(); }} style={buttonStyle}>Fechar</button>
           </div>
         )}
 
@@ -660,7 +745,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
               </div>
               <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '700', color: activePalette.titleColor }}>Pagamento Seguro com SumUp</h2>
               <p style={{ fontSize: '13px', opacity: 0.78, lineHeight: '1.7', marginBottom: '10px' }}>
-                Escolha no próprio widget oficial a forma de pagamento disponível para esta doação, incluindo cartão e PIX quando habilitados na sua conta SumUp.
+                {isResumingCheckout
+                  ? 'Estamos trazendo você de volta ao mesmo ponto da leitura e confirmando a sua doação.'
+                  : selectedPaymentMethod === 'pix'
+                    ? 'Conclua a sua doação por PIX no ambiente seguro exibido abaixo.'
+                    : 'Conclua a sua doação com cartão no formulário seguro exibido abaixo.'}
               </p>
               {cardFlowMessage && (
                 <div style={{ fontSize: '12px', opacity: 0.72, padding: '8px 12px', borderRadius: '10px', background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}>
@@ -669,23 +758,56 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
               )}
             </div>
 
-            <SumUpCardWidget
-              checkoutId={cardCheckoutId}
-              email={sumupEmail.trim()}
-              amount={donationGross > 0 ? donationGross.toFixed(2) : undefined}
-              onError={(message) => {
-                setIsPreparingCard(false);
-                setIsSubmittingCard(false);
-                setCardFlowMessage(message);
-                showToast(message, 'error');
-              }}
-              onResponse={handleCardWidgetResponse}
-            />
+            {isResumingCheckout ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '18px 12px', borderRadius: '16px', background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)' }}>
+                <Loader2 size={22} className="animate-spin" />
+                <div style={{ fontSize: '13px', lineHeight: '1.7', textAlign: 'center', opacity: 0.78 }}>
+                  Confirmando o pagamento final para levar você diretamente à tela de agradecimento.
+                </div>
+              </div>
+            ) : (
+              <SumUpCardWidget
+                checkoutId={cardCheckoutId}
+                email={sumupEmail.trim()}
+                amount={donationGross > 0 ? donationGross.toFixed(2) : undefined}
+                preferredPaymentMethods={selectedPaymentMethod === 'pix' ? [...SUMUP_PIX_METHODS] : [...SUMUP_CARD_METHODS]}
+                onPaymentMethodsResolved={(methods) => {
+                  const expectedMethods = new Set<string>(
+                    selectedPaymentMethod === 'pix' ? [...SUMUP_PIX_METHODS] : [...SUMUP_CARD_METHODS],
+                  );
+                  const hasExpectedMethod = methods.some((method) => expectedMethods.has(method));
+                  if (methods.length > 0 && !hasExpectedMethod) {
+                    stopPolling();
+                    clearPendingCheckout();
+                    setCardCheckoutId(null);
+                    setIsPreparingCard(false);
+                    setIsSubmittingCard(false);
+                    setIsResumingCheckout(false);
+                    setCardFlowMessage('');
+                    setStep(1);
+                    showToast(
+                      selectedPaymentMethod === 'pix'
+                        ? 'O PIX não está disponível agora para esta doação. Você pode concluir com cartão.'
+                        : 'O cartão não está disponível agora para esta doação. Tente novamente.',
+                      'error',
+                    );
+                  }
+                }}
+                onError={(message) => {
+                  setIsPreparingCard(false);
+                  setIsSubmittingCard(false);
+                  setIsResumingCheckout(false);
+                  setCardFlowMessage(message);
+                  showToast(message, 'error');
+                }}
+                onResponse={handleCardWidgetResponse}
+              />
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '18px' }}>
               {isSubmittingCard && (
                 <div style={{ fontSize: '12px', opacity: 0.72, textAlign: 'center', lineHeight: '1.7' }}>
-                  A SumUp está processando sua escolha no widget seguro. Se houver redirecionamento externo, o retorno para esta página retomará a confirmação automaticamente.
+                  Estamos confirmando o pagamento. Se a SumUp abrir uma nova etapa, você voltará para o mesmo ponto e seguirá direto para a confirmação da doação.
                 </div>
               )}
               <button
@@ -696,7 +818,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
                   setCardCheckoutId(null);
                   setIsPreparingCard(false);
                   setIsSubmittingCard(false);
+                  setIsResumingCheckout(false);
                   setCardFlowMessage('');
+                  setSelectedPaymentMethod('card');
                   setStep(1);
                 }}
                 style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: 0.6, textDecoration: 'underline' }}
