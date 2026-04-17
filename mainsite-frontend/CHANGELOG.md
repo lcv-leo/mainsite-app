@@ -1,5 +1,20 @@
 # Changelog — Mainsite Frontend
 
+## [v03.14.00] - 2026-04-17
+### Adicionado
+- **`SumUpCardWidget.tsx` + `SumUpCardWidget.css`**: novo wrapper do Payment Widget oficial da SumUp, com carga segura do SDK, integração visual ao tema do site e suporte a cartão + APMs, incluindo `PIX`, quando o merchant estiver habilitado pela SumUp.
+- **Arquitetura CSS dedicada para superfícies críticas**: `ArchiveMenu.css`, `ChatWidget.css`, `ContentUpdateToast.css`, `FloatingControls.css`, `PostReader.css` e `styles/site-shell.css` passaram a concentrar a aparência estrutural antes espalhada em grandes blocos inline.
+### Alterado
+- **`DonationModal.tsx`**: o pagamento agora é concluído exclusivamente pelo widget oficial da SumUp, com `redirect_url`, retomada automática por `checkout_id` no retorno à página, persistência mínima em `sessionStorage` para reidratar a UX e manutenção do feedback visual/toasts relativos ao viewport.
+- **`App.tsx`**: passou a detectar retornos da SumUp com `checkout_id`, reabrindo o modal de doação automaticamente para confirmar o status final do checkout sem depender do fluxo manual legado.
+- **Visual dinâmico com menos pressão de CSP**: o frontend passou a consumir `/api/theme.css` same-origin para carregar variáveis de tema geradas pelo worker a partir do D1, preservando a customização vinda do `admin-app` sem perder o visual atual.
+- **`ArchiveMenu`, `ChatWidget`, `ContentUpdateToast`, `FloatingControls` e `PostReader`**: migrados do padrão centrado em estilos inline/blocos `<style>` para classes CSS externas, reduzindo superfície de regressão visual e preparando o terreno para CSP mais estrita.
+### Corrigido
+- **Fluxo legado de cartão/PIX/3DS no browser**: a UI deixou de carregar coleta manual de cartão, iframe emissor e submit paralelo; o widget da SumUp passou a ser a fronteira única de coleta/processamento no cliente.
+- **Retorno de pagamentos com redirecionamento**: o visitante não perde mais o contexto da doação ao voltar de uma etapa externa da SumUp/APM; o checkout é retomado automaticamente e o status final é confirmado no app.
+### Notas
+- **`_headers` preservado**: nenhuma alteração em `mainsite-frontend/public/_headers`.
+
 ## [v03.13.02] - 2026-04-16
 ### Alterado
 - **Diretriz de produto consolidada para text zoom**: o `mainsite-frontend` assume formalmente que os controles de zoom persistem apenas no `localStorage` do navegador do leitor (`mainsite:text-zoom-level`), sem qualquer contrato runtime com backend, D1, sync cloud ou analytics remoto.

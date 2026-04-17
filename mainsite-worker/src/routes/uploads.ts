@@ -10,6 +10,7 @@ import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { requireAuth } from '../lib/auth.ts';
+import { getAllowedOrigin } from '../lib/origins.ts';
 
 const uploads = new Hono<{ Bindings: Env }>();
 
@@ -84,6 +85,15 @@ function validateGetFilename(filename: string): string | null {
   return filename;
 }
 
+function applyPublicAssetHeaders(headers: Headers, origin: string | undefined) {
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  const allowedOrigin = getAllowedOrigin(origin);
+  if (allowedOrigin) {
+    headers.set('Access-Control-Allow-Origin', allowedOrigin);
+    headers.set('Vary', 'Origin');
+  }
+}
+
 // GET /api/uploads/:filename (público)
 uploads.get('/api/uploads/:filename', async (c) => {
   const filename = validateGetFilename(c.req.param('filename'));
@@ -94,8 +104,7 @@ uploads.get('/api/uploads/:filename', async (c) => {
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', '*');
+    applyPublicAssetHeaders(headers, c.req.header('origin'));
     return new Response(object.body, { headers });
   } catch (err) {
     structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
@@ -113,8 +122,7 @@ uploads.get('/api/uploads/brands/:filename', async (c) => {
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', '*');
+    applyPublicAssetHeaders(headers, c.req.header('origin'));
     return new Response(object.body, { headers });
   } catch (err) {
     structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
@@ -132,8 +140,7 @@ uploads.get('/api/media/:filename', async (c) => {
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', '*');
+    applyPublicAssetHeaders(headers, c.req.header('origin'));
     return new Response(object.body, { headers });
   } catch (err) {
     structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
@@ -151,8 +158,7 @@ uploads.get('/api/mainsite/media/:filename', async (c) => {
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', '*');
+    applyPublicAssetHeaders(headers, c.req.header('origin'));
     return new Response(object.body, { headers });
   } catch (err) {
     structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });

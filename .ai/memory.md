@@ -1,5 +1,37 @@
 # AI Memory Log - MainSite
 
+## 2026-04-17 — Payment Widget da SumUp + `theme.css` + hardening de perímetro (frontend v03.14.00, worker v02.11.00)
+### Escopo
+Fechamento do ciclo atual de endurecimento do `mainsite-app`, concentrando o pagamento no widget oficial da SumUp, reduzindo estilos inline nas superfícies mais sensíveis e endurecendo a borda pública do worker sem quebrar aparência, comportamento ou integrações já operantes.
+### Alterado — mainsite-frontend (v03.14.00)
+- **Payment Widget como executor único**: `DonationModal.tsx` e `SumUpCardWidget.tsx` consolidaram o fluxo de doação no widget oficial da SumUp. Cartão e `PIX/APMs` passam a seguir o mesmo caminho quando a conta do merchant estiver habilitada pela SumUp.
+- **Retorno resiliente por `checkout_id`**: `App.tsx` detecta o retorno da SumUp via query string, reabre o modal, restaura contexto mínimo da doação a partir de `sessionStorage` e confirma o estado final no backend.
+- **Theme same-origin**: `index.html` passou a carregar `/api/theme.css`, preservando a personalização de aparência vinda do `admin-app`/D1 sem depender de grandes blocos `<style>` inline.
+- **CSS externo nas superfícies críticas**: `ArchiveMenu`, `ChatWidget`, `ContentUpdateToast`, `FloatingControls` e `PostReader` migraram para folhas de estilo dedicadas, reduzindo pressão sobre CSP sem perda de layout/UX.
+- **Toast/feedback preservados**: o comportamento de feedback visual continuou relativo ao viewport do usuário, incluindo a retomada do fluxo de doação no retorno da SumUp.
+### Alterado — mainsite-worker (v02.11.00)
+- **`/api/theme.css`**: novo endpoint gerando variáveis CSS a partir de `mainsite/appearance` no D1.
+- **Allowed origins centralizados**: `lib/origins.ts` passou a definir as origens operacionais aceitas para CORS/entrega pública.
+- **Auth administrativo endurecido**: `lib/auth.ts` ganhou suporte opcional a Cloudflare Access JWT para rotas administrativas do worker.
+- **Pagamentos legacy bloqueados**: `/api/sumup/checkout/:id/pay`, `/api/sumup/checkout/:id/pix` e a return page manual ficaram explicitamente descontinuados com `410`, forçando o uso do widget oficial.
+- **Uploads menos expostos**: `routes/uploads.ts` deixou de responder com CORS aberto irrestrito.
+### Restrições preservadas
+- **`_headers`**: `mainsite-frontend/public/_headers` permaneceu intocado por diretiva explícita.
+### Versão
+- mainsite-frontend: APP v03.13.02 → APP v03.14.00
+- mainsite-worker: APP v02.10.02 → APP v02.11.00
+
+## 2026-04-17 — Plano do `mainsite-app` revisado contra Email Service atual
+### Escopo
+Atualização do plano de migração futura dos envios de e-mail do `mainsite-worker` após revalidação na documentação oficial da Cloudflare.
+### Refinamentos consolidados
+- **Target técnico mantido**: o `mainsite-worker` segue elegível para migração via binding `send_email` com `env.EMAIL.send(...)`.
+- **Diretriz de remetente mantida**: o mainsite continua com plano de migrar de remetentes `@lcv.app.br` para **`cal@reflexosdaalma.blog`**.
+- **Plano exigido**: a documentação atual informa que Email Sending é recurso de **Workers Paid**, então a migração do mainsite deve assumir esse requisito como hard gate.
+- **Fluxos internos**: notificações administrativas e de moderação continuam classificados como migração direta.
+- **Fluxos públicos**: `/api/contact` (confirmação ao usuário) e principalmente `/api/share/email` seguem dependentes de capacidade de envio para destinatário arbitrário, limites diários e compliance.
+- **Prontidão da zona não confirmada**: a verificação por API do estado de Email Sending em `reflexosdaalma.blog` não pôde ser concluída com o token local atual, que retorna `10000 Authentication error` para o endpoint de subdomains.
+
 ## 2026-04-16 — Plano futuro de migração de e-mail do `mainsite-app`
 ### Escopo
 Registro do plano de migração futura dos envios de e-mail do `mainsite-worker`, hoje via Resend, para Cloudflare Email Service nativo em Worker.

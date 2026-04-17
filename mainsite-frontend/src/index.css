@@ -40,6 +40,25 @@
   --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
+  --site-font-size: 1.15rem;
+  --site-title-font-size: 1.8rem;
+  --site-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --site-body-weight: 500;
+  --site-title-weight: 700;
+  --site-title-weight-soft: 600;
+  --site-title-weight-softest: 500;
+  --site-line-height: 1.9;
+  --site-text-align: justify;
+  --site-text-indent: 3.5rem;
+  --site-paragraph-spacing: 2.2rem;
+  --site-content-max-width: 1126px;
+  --site-link-color: #4da6ff;
+  --site-bg-color: #f8f9fa;
+  --site-bg-image:
+    radial-gradient(circle at 15% 40%, rgba(26, 115, 232, 0.08), transparent 45%),
+    radial-gradient(circle at 85% 60%, rgba(161, 66, 244, 0.08), transparent 45%);
+  --site-font-color: #202124;
+  --site-title-color: #4285f4;
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
@@ -89,6 +108,45 @@ body {
   margin: 0;
 }
 
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    background-color: #16171d;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -123,8 +181,8 @@ textarea:focus-visible,
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
+  width: 100%;
+  max-width: var(--site-content-max-width, 1126px);
   margin: 0 auto;
   text-align: center;
   /* Tiptap-inspired: soft edge glow instead of hard border */

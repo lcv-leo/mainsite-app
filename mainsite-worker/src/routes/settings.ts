@@ -12,23 +12,38 @@ import { requireAuth } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { normalizeRateLimitConfig, DEFAULT_RATE_LIMIT } from '../lib/rate-limit.ts';
 import { getContentFingerprint } from '../lib/content-version.ts';
+import { buildThemeStylesheet, loadThemeSettings, DEFAULT_THEME_SETTINGS } from '../lib/theme.ts';
 
 const settings = new Hono<{ Bindings: Env }>();
 
 // --- Aparência ---
 settings.get('/api/settings', async (c) => {
   try {
-    const record = await c.env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/appearance'").first<{ payload: string }>();
-    if (record) return c.json(JSON.parse(record.payload));
-    return c.json({
-      allowAutoMode: true,
-      light: { bgColor: '#ffffff', bgImage: '', fontColor: '#333333', titleColor: '#111111' },
-      dark: { bgColor: '#131314', bgImage: '', fontColor: '#E3E3E3', titleColor: '#8AB4F8' },
-      shared: { fontSize: '1.15rem', titleFontSize: '1.8rem', fontFamily: 'sans-serif' },
-    });
+    const themeSettings = await loadThemeSettings(c.env.DB);
+    return c.json(themeSettings);
   } catch (err) {
     structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
     return c.json({ error: 'Erro interno.' }, 500);
+  }
+});
+
+settings.get('/api/theme.css', async (c) => {
+  try {
+    const themeSettings = await loadThemeSettings(c.env.DB);
+    return new Response(buildThemeStylesheet(themeSettings), {
+      headers: {
+        'Content-Type': 'text/css; charset=utf-8',
+        'Cache-Control': 'no-store',
+      },
+    });
+  } catch (err) {
+    structuredLog('error', '[Settings] Erro ao gerar stylesheet do tema', { error: (err as Error).message });
+    return new Response(buildThemeStylesheet(DEFAULT_THEME_SETTINGS), {
+      headers: {
+        'Content-Type': 'text/css; charset=utf-8',
+        'Cache-Control': 'no-store',
+      },
+    });
   }
 });
 

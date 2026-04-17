@@ -1,0 +1,52 @@
+.sumup-card-widget {
+  position: relative;
+  min-height: 240px;
+  width: 100%;
+  border-radius: 20px;
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  background: rgba(255, 255, 255, 0.82);
+  overflow: hidden;
+}
+
+.site-shell.theme-dark .sumup-card-widget {
+  background: rgba(14, 14, 18, 0.82);
+}
+
+.sumup-card-widget__mount {
+  min-height: 240px;
+}
+
+.sumup-card-widget__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--site-font-color);
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 2;
+}
+
+.site-shell.theme-dark .sumup-card-widget__loading {
+  background: rgba(14, 14, 18, 0.72);
+}
+
+.sumup-card-widget__loading[hidden] {
+  display: none;
+}
+
+.sumup-card-widget [data-sumup-id="widget__container"] {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.sumup-card-widget [data-sumup-id="widget__container"] * {
+  font-family: var(--site-font-family, "Cormorant Garamond", serif);
+}

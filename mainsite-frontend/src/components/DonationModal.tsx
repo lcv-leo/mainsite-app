@@ -2,72 +2,25 @@
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-const formatCpf = (digits: string): string => {
-  const d = digits.slice(0, 11);
-  if (d.length <= 3) return d;
-  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
-  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
-  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
-};
-
-const formatCnpj = (digits: string): string => {
-  const d = digits.slice(0, 14);
-  if (d.length <= 2) return d;
-  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
-  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
-  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
-  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
-};
-
-const maskBrazilianDocument = (type: string, raw: string): string => {
-  const digits = raw.replace(/\D/g, '');
-  return type === 'CNPJ' ? formatCnpj(digits) : formatCpf(digits);
-};
 // Módulo: mainsite-frontend/src/components/DonationModal.tsx
 // Versão: v3.0.0
-// Descrição: Unified SumUp-only payment flow. 3 steps: form (card + PIX buttons), PIX QR / 3DS, success.
+// Descrição: Fluxo unificado de doação via Payment Widget da SumUp, incluindo cartão e PIX/APMs quando habilitados.
 
-import { type FormEvent, useState, useEffect, useRef } from 'react';
-import { X, Heart, Copy, CheckCircle, Coffee, CreditCard, Smartphone, AlertTriangle, Loader2 } from 'lucide-react';
-import QRCode from 'qrcode';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Heart, CheckCircle, CreditCard, AlertTriangle, Loader2 } from 'lucide-react';
 import type { ActivePalette } from '../types';
+import SumUpCardWidget from './SumUpCardWidget';
 
 const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || '/api/uploads/brands')
   .trim()
   .replace(/^['"]|['"]$/g, '')
   .replace(/\/+$/, '');
 const getBrandIconSrc = (fileName: string, _fallbackUrl = '') => (brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : _fallbackUrl);
-const getSafeHttpsOrigin = (rawUrl: string): string | null => {
-  try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol !== 'https:') {
-      return null;
-    }
-    return parsed.origin;
-  } catch {
-    return null;
-  }
-};
 
 // Taxas de processamento são SEMPRE buscadas em GET /api/sumup/fees
 // (fonte: D1 mainsite_settings — configurada no admin-app). Sem fallback
 // hardcoded: enquanto a configuração não chega, a opção "Cobrir as taxas"
 // fica desabilitada para evitar divergência entre preview e cobrança real.
-
-interface SumupCardState {
-  holder: string
-  number: string
-  expiry: string
-  cvv: string
-}
-
-type SumupCardField = keyof SumupCardState;
-
-interface SumupNextStep {
-  url: string
-  method?: string
-  payload?: Record<string, string>
-}
 
 interface ToastLocal {
   show: boolean
@@ -81,69 +34,62 @@ interface BrandIcon {
   src: string
 }
 
+interface DonationResumePayload {
+  checkoutId: string
+  firstName: string
+  lastName: string
+  email: string
+  amountDisplay: string
+  coverFees: boolean
+}
+
 interface DonationModalProps {
   show: boolean
   onClose: () => void
   activePalette: ActivePalette
   API_URL: string
+  resumeCheckoutId?: string | null
 }
 
 const formatBRL = (num: number): string =>
   num.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
 
-const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalProps) => {
+const SUMUP_PENDING_DONATION_STORAGE_KEY = 'mainsite:sumup:pending-donation';
+
+const getSumUpWidgetErrorMessage = (body: unknown): string | null => {
+  if (!body || typeof body !== 'object') return null;
+  const candidate = body as { message?: unknown; error?: unknown; error_message?: unknown };
+  if (typeof candidate.message === 'string' && candidate.message.trim()) return candidate.message.trim();
+  if (typeof candidate.error_message === 'string' && candidate.error_message.trim()) return candidate.error_message.trim();
+  if (typeof candidate.error === 'string' && candidate.error.trim()) return candidate.error.trim();
+  return null;
+};
+
+const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId = null }: DonationModalProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [step, setStep] = useState(1);
   const visibilityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [isProcessingCard, setIsProcessingCard] = useState(false);
-  const [isProcessingPix, setIsProcessingPix] = useState(false);
-  const [sumupCard, setSumupCard] = useState<SumupCardState>({ holder: '', number: '', expiry: '', cvv: '' });
+  const [isPreparingCard, setIsPreparingCard] = useState(false);
+  const [isSubmittingCard, setIsSubmittingCard] = useState(false);
   const [sumupEmail, setSumupEmail] = useState('');
-  const [sumupDocument, setSumupDocument] = useState('');
-  const [sumupDocumentType, setSumupDocumentType] = useState('CPF');
   const [coverFees, setCoverFees] = useState(false);
   const [feeRate, setFeeRate] = useState<number | null>(null);
   const [feeFixed, setFeeFixed] = useState<number | null>(null);
   const [feesError, setFeesError] = useState(false);
-  const [sumupNextStep, setSumupNextStep] = useState<SumupNextStep | null>(null);
-  const [checkoutId, setCheckoutId] = useState<string | null>(null);
-
-  const trusted3dsOrigin = getSafeHttpsOrigin(API_URL);
-
-  // Listen for redirect_url postMessage from 3DS iframe
-  useEffect(() => {
-    const handleFrameMessage = (e: MessageEvent) => {
-      if (!e.data || e.data.type !== 'sumup-3ds-success') {
-        return;
-      }
-
-      if (!trusted3dsOrigin || e.origin !== trusted3dsOrigin) {
-        return;
-      }
-
-      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-      setStep(3);
-      showToast('Pagamento aprovado com sucesso!', 'success');
-    };
-    window.addEventListener('message', handleFrameMessage);
-    return () => window.removeEventListener('message', handleFrameMessage);
-  }, [trusted3dsOrigin]);
+  const [cardCheckoutId, setCardCheckoutId] = useState<string | null>(null);
+  const [cardFlowMessage, setCardFlowMessage] = useState('');
 
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [amountDisplay, setAmountDisplay] = useState('');
-
-  const [pixPayload, setPixPayload] = useState('');
-  const [pixQrDataUri, setPixQrDataUri] = useState('');
-  const [isCopied, setIsCopied] = useState(false);
   const [toast, setToast] = useState<ToastLocal>({ show: false, message: '', type: 'info' });
   const [toastTop, setToastTop] = useState(20);
   const [brandImageFailed, setBrandImageFailed] = useState<Record<string, boolean>>({});
   const lastPointerYRef = useRef<number | null>(null);
 
-  const showToast = (message: string, type: ToastLocal['type'] = 'error') => {
+  const showToast = useCallback((message: string, type: ToastLocal['type'] = 'error') => {
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
     const pointerY = lastPointerYRef.current;
     const baseY = pointerY != null ? pointerY : (viewportH * 0.5);
@@ -151,7 +97,58 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
     setToastTop(nextTop);
     setToast({ show: true, message, type });
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
-  };
+  }, []);
+
+  const persistPendingCheckout = useCallback((payload: DonationResumePayload) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.sessionStorage.setItem(SUMUP_PENDING_DONATION_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // Ignore session storage failures; the checkout can still complete normally.
+    }
+  }, []);
+
+  const clearPendingCheckout = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.sessionStorage.removeItem(SUMUP_PENDING_DONATION_STORAGE_KEY);
+    } catch {
+      // Ignore session storage failures.
+    }
+  }, []);
+
+  const restorePendingCheckout = useCallback((expectedCheckoutId: string): DonationResumePayload | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = window.sessionStorage.getItem(SUMUP_PENDING_DONATION_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as Partial<DonationResumePayload>;
+      if (!parsed || parsed.checkoutId !== expectedCheckoutId) return null;
+      if (
+        typeof parsed.firstName !== 'string' ||
+        typeof parsed.lastName !== 'string' ||
+        typeof parsed.email !== 'string' ||
+        typeof parsed.amountDisplay !== 'string' ||
+        typeof parsed.coverFees !== 'boolean'
+      ) {
+        return null;
+      }
+      return parsed as DonationResumePayload;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const getReturnUrl = useCallback((): string | undefined => {
+    if (typeof window === 'undefined') return undefined;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('checkout_id');
+      return url.toString();
+    } catch {
+      return window.location.href;
+    }
+  }, []);
 
   useEffect(() => {
     const trackPointer = (e: PointerEvent) => {
@@ -160,13 +157,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
     window.addEventListener('pointerdown', trackPointer, { passive: true });
     return () => window.removeEventListener('pointerdown', trackPointer);
   }, []);
-
-  useEffect(() => {
-    if (!pixPayload) { setPixQrDataUri(''); return; }
-    QRCode.toDataURL(pixPayload, { width: 200, margin: 1 })
-      .then((url: string) => setPixQrDataUri(url))
-      .catch(() => setPixQrDataUri(''));
-  }, [pixPayload]);
 
   useEffect(() => {
     if (!show) return;
@@ -207,20 +197,13 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
         setAmountDisplay('');
         setFirstName('');
         setLastName('');
-        setIsCopied(false);
-        setSumupCard({ holder: '', number: '', expiry: '', cvv: '' });
         setSumupEmail('');
-        setSumupDocument('');
-        setSumupDocumentType('CPF');
         setCoverFees(false);
-        setIsProcessingCard(false);
-        setIsProcessingPix(false);
+        setIsPreparingCard(false);
+        setIsSubmittingCard(false);
         setBrandImageFailed({});
-
-        setSumupNextStep(null);
-        setCheckoutId(null);
-        setPixPayload('');
-        setPixQrDataUri('');
+        setCardCheckoutId(null);
+        setCardFlowMessage('');
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
@@ -249,10 +232,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
     };
   }, [show]);
 
-  if (!isVisible && !show) return null;
-
-  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
-
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value === '') { setAmountDisplay(''); return; }
@@ -275,14 +254,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
     return parseFloat((((base + (feeFixed as number)) / (1 - (feeRate as number)))).toFixed(2));
   };
 
-  const handleSumupCardChange = (field: SumupCardField, value: string) => {
-    let normalized = value;
-    if (field === 'number') normalized = value.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 ').trim();
-    if (field === 'expiry') normalized = value.replace(/\D/g, '').slice(0, 4).replace(/(\d{2})(\d)/, '$1/$2');
-    if (field === 'cvv') normalized = value.replace(/\D/g, '').slice(0, 4);
-    setSumupCard(prev => ({ ...prev, [field]: normalized }));
-  };
-
   const validateBaseForm = (): boolean => {
     if (!firstName.trim() || !lastName.trim()) {
       showToast("Preencha seu Nome e Sobrenome reais.", "error");
@@ -301,29 +272,89 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
     return `Pagamento não aprovado: ${msg}`;
   };
 
-  const handleSubmitCard = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, []);
+
+  const pollCheckoutStatus = useCallback((targetCheckoutId: string) => {
+    stopPolling();
+
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`${API_URL}/sumup/checkout/${targetCheckoutId}/status`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const status = String(data.status || '').toUpperCase();
+
+        if (status === 'SUCCESSFUL' || status === 'PAID') {
+          stopPolling();
+          clearPendingCheckout();
+          setIsPreparingCard(false);
+          setIsSubmittingCard(false);
+          setCardFlowMessage('');
+          setStep(3);
+          showToast('Pagamento aprovado com sucesso!', 'success');
+          return;
+        }
+
+        if (status === 'FAILED' || status === 'EXPIRED' || status === 'CANCELLED') {
+          stopPolling();
+          clearPendingCheckout();
+          setIsPreparingCard(false);
+          setIsSubmittingCard(false);
+          setCardCheckoutId(null);
+          setCardFlowMessage('');
+          setStep(1);
+          showToast('O pagamento com cartão não foi concluído. Tente novamente.', 'error');
+        }
+      } catch (err) {
+        console.error('SumUp card polling error', err);
+      }
+    };
+
+    void checkStatus();
+    pollingIntervalRef.current = setInterval(checkStatus, 4000);
+  }, [API_URL, clearPendingCheckout, showToast, stopPolling]);
+
+  useEffect(() => {
+    if (!show || !resumeCheckoutId) return;
+
+    const restored = restorePendingCheckout(resumeCheckoutId);
+    if (restored) {
+      setFirstName(restored.firstName);
+      setLastName(restored.lastName);
+      setSumupEmail(restored.email);
+      setAmountDisplay(restored.amountDisplay);
+      setCoverFees(restored.coverFees);
+    }
+
+    setCardCheckoutId(resumeCheckoutId);
+    setIsPreparingCard(false);
+    setIsSubmittingCard(true);
+    setCardFlowMessage('Retomando o pagamento seguro na SumUp e confirmando o resultado final...');
+    setStep(4);
+    pollCheckoutStatus(resumeCheckoutId);
+  }, [show, resumeCheckoutId, restorePendingCheckout, pollCheckoutStatus]);
+
+  if (!isVisible && !show) return null;
+
+  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
+
+  const handleStartCardCheckout = async () => {
     if (!validateBaseForm()) return;
-
-    const cardNumber = sumupCard.number.replace(/\s/g, '');
-    const [expiryMonth, expiryYearShort] = sumupCard.expiry.split('/');
-    const expiryYear = expiryYearShort ? `20${expiryYearShort}` : '';
-
-    const expMonthNum = Number(expiryMonth);
-    const expYearNum = Number(expiryYear);
-    const currentYear = new Date().getFullYear();
-    const validMonth = Number.isInteger(expMonthNum) && expMonthNum >= 1 && expMonthNum <= 12;
-    const validYear = Number.isInteger(expYearNum) && expYearNum >= currentYear;
-    const sumupDocumentDigits = sumupDocument.replace(/\D/g, '');
-    const expectedLength = sumupDocumentType === 'CNPJ' ? 14 : 11;
-    const hasValidDocument = sumupDocumentDigits.length === expectedLength;
-
-    if (!sumupCard.holder.trim() || cardNumber.length < 13 || !validMonth || !validYear || sumupCard.cvv.length < 3 || !sumupEmail.trim() || !hasValidDocument) {
-      showToast('Preencha corretamente todos os dados do cartão.', 'error');
+    if (!sumupEmail.trim()) {
+      showToast('Informe seu e-mail para continuar com o cartão.', 'error');
       return;
     }
 
-    setIsProcessingCard(true);
+    setIsPreparingCard(true);
+    setIsSubmittingCard(false);
+    setCardFlowMessage('Preparando o formulário seguro da SumUp...');
+
     try {
       const createRes = await fetch(`${API_URL}/sumup/checkout`, {
         method: 'POST',
@@ -334,146 +365,75 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: sumupEmail.trim(),
+          redirectUrl: getReturnUrl(),
         })
       });
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.error || 'Falha ao iniciar checkout.');
 
-      const payRes = await fetch(`${API_URL}/sumup/checkout/${createData.checkoutId}/pay`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          baseAmount: getNumericAmount(),
-          coverFees,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: sumupEmail.trim(),
-          documentType: sumupDocumentType,
-          document: sumupDocumentDigits,
-          card: {
-            name: sumupCard.holder.trim(),
-            number: cardNumber,
-            expiryMonth,
-            expiryYear,
-            cvv: sumupCard.cvv,
-          }
-        })
+      setCardCheckoutId(createData.checkoutId);
+      persistPendingCheckout({
+        checkoutId: createData.checkoutId,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: sumupEmail.trim(),
+        amountDisplay,
+        coverFees,
       });
-      const payData = await payRes.json();
-      if (!payRes.ok) throw new Error(payData.error || 'Pagamento não aprovado.');
-
-      if (payData.next_step) {
-        setSumupNextStep(payData.next_step);
-        setCheckoutId(payData.id || createData.checkoutId);
-        setStep(23); // 3DS step
-      } else {
-        setStep(3);
-        showToast('Pagamento aprovado com sucesso!', 'success');
-      }
+      setIsPreparingCard(false);
+      setCardFlowMessage('Escolha a forma de pagamento segura no widget oficial da SumUp.');
+      setStep(4);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
+      setIsPreparingCard(false);
+      setCardFlowMessage('');
       showToast(getStandardPaymentError(msg), 'error');
-    } finally {
-      setIsProcessingCard(false);
     }
   };
 
-  const handleSubmitPix = async () => {
-    if (!validateBaseForm()) return;
-
-    setIsProcessingPix(true);
-    try {
-      // Step 1: Create checkout
-      const createRes = await fetch(`${API_URL}/sumup/checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          baseAmount: getNumericAmount(),
-          coverFees,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: sumupEmail.trim() || undefined,
-        })
-      });
-      const createData = await createRes.json();
-      if (!createRes.ok) throw new Error(createData.error || 'Falha ao iniciar checkout.');
-
-      const pixCheckoutId = createData.checkoutId;
-
-      // Step 2: Process with PIX
-      const pixRes = await fetch(`${API_URL}/sumup/checkout/${pixCheckoutId}/pix`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          baseAmount: getNumericAmount(),
-          coverFees,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-        })
-      });
-      const pixData = await pixRes.json();
-      if (!pixRes.ok) throw new Error(pixData.error || 'Falha ao gerar PIX.');
-
-      // Extract QR code data: try barcode URL first, then code string
-      const barcodeUrl = pixData.barcode_url || pixData.barcode;
-      const pixCode = pixData.pix_code || pixData.qr_code || pixData.code || '';
-
-      if (barcodeUrl) {
-        // Use the barcode image URL directly
-        setPixQrDataUri(barcodeUrl);
-        setPixPayload(pixCode || barcodeUrl);
-      } else if (pixCode) {
-        // Generate QR from code string (QRCode library will handle via useEffect)
-        setPixPayload(pixCode);
-      } else {
-        throw new Error('Nenhum código PIX retornado.');
-      }
-
-      setCheckoutId(pixCheckoutId);
-      setStep(2);
-
-      // Start polling for payment status
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-      pollingIntervalRef.current = setInterval(async () => {
-        try {
-          const res = await fetch(`${API_URL}/sumup/checkout/${pixCheckoutId}/status`);
-          if (res.ok) {
-            const data = await res.json();
-            const st = (data.status || '').toUpperCase();
-            if (st === 'SUCCESSFUL' || st === 'PAID') {
-              clearInterval(pollingIntervalRef.current!);
-              pollingIntervalRef.current = null;
-              setStep(3);
-              showToast('Pagamento aprovado com sucesso!', 'success');
-            } else if (st === 'FAILED' || st === 'EXPIRED') {
-              clearInterval(pollingIntervalRef.current!);
-              pollingIntervalRef.current = null;
-              setStep(1);
-              showToast('O PIX expirou ou falhou. Tente novamente.', 'error');
-            }
-          }
-        } catch (err) {
-          console.error('PIX polling error', err);
-        }
-      }, 5000);
-
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      showToast(msg, 'error');
-    } finally {
-      setIsProcessingPix(false);
+  const handleCardWidgetResponse = (type: string, body: unknown) => {
+    if (type === 'sent') {
+      setIsSubmittingCard(true);
+      setCardFlowMessage('Processando o pagamento com a SumUp...');
+      return;
     }
-  };
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(pixPayload);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 3000);
-    } catch (err) {
-      console.error("Falha ao copiar PIX", err);
+    if (type === 'auth-screen') {
+      setIsSubmittingCard(true);
+      setCardFlowMessage('A SumUp solicitou uma etapa adicional para concluir o pagamento. Continue no widget seguro abaixo.');
+      if (cardCheckoutId) {
+        pollCheckoutStatus(cardCheckoutId);
+      }
+      return;
+    }
+
+    if (type === 'invalid') {
+      setIsSubmittingCard(false);
+      setCardFlowMessage('Revise os campos do cartão no formulário seguro e tente novamente.');
+      showToast('Revise os dados do cartão no formulário seguro da SumUp.', 'error');
+      return;
+    }
+
+    if (type === 'error') {
+      setIsPreparingCard(false);
+      setIsSubmittingCard(false);
+      const widgetMessage = getSumUpWidgetErrorMessage(body);
+      setCardFlowMessage(widgetMessage || 'A SumUp sinalizou um problema ao processar o pagamento.');
+      showToast(getStandardPaymentError(widgetMessage || undefined), 'error');
+      return;
+    }
+
+    if (type === 'fail') {
+      setIsPreparingCard(false);
+      setIsSubmittingCard(false);
+      setCardFlowMessage('O pagamento não foi concluído. Você pode tentar novamente.');
+      showToast('Pagamento não concluído. Você pode tentar novamente.', 'error');
+      return;
+    }
+
+    if (type === 'success' && cardCheckoutId) {
+      setCardFlowMessage('Pagamento enviado. Confirmando status final com a SumUp...');
+      pollCheckoutStatus(cardCheckoutId);
     }
   };
 
@@ -529,7 +489,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
       </div>
 
       <div role="dialog" aria-modal="true" aria-labelledby="donation-title" style={modalStyle}>
-        <button type="button" onClick={() => { setStep(1); onClose(); }} aria-label="Fechar" style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '0.8'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <button type="button" onClick={() => { stopPolling(); clearPendingCheckout(); setStep(1); onClose(); }} aria-label="Fechar" style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '0.8'; e.currentTarget.style.transform = 'translateY(0)'; }}>
           <X size={24} />
         </button>
 
@@ -545,7 +505,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
               </p>
             </div>
 
-            <form onSubmit={handleSubmitCard} autoComplete="on" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form onSubmit={(e) => { e.preventDefault(); void handleStartCardCheckout(); }} autoComplete="on" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <label htmlFor="donation-first-name" className="sr-only">Nome</label>
                 <input
@@ -614,80 +574,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
               </div>
 
               <div>
-                <label htmlFor="sumup-card-number" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
-                  Número do cartão
-                </label>
-                <input
-                  id="sumup-card-number"
-                  name="cardNumber"
-                  type="text"
-                  placeholder="1234 1234 1234 1234"
-                  autoComplete="cc-number"
-                  inputMode="numeric"
-                  value={sumupCard.number}
-                  onChange={(e) => handleSumupCardChange('number', e.target.value)}
-                  style={inputStyle}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <label htmlFor="sumup-card-expiry" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
-                    Data de vencimento
-                  </label>
-                  <input
-                    id="sumup-card-expiry"
-                    name="cardExpiry"
-                    type="text"
-                    placeholder="mm/aa"
-                    autoComplete="cc-exp"
-                    inputMode="numeric"
-                    value={sumupCard.expiry}
-                    onChange={(e) => handleSumupCardChange('expiry', e.target.value)}
-                    style={inputStyle}
-                    required
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label htmlFor="sumup-card-cvv" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
-                    Código de segurança
-                  </label>
-                  <input
-                    id="sumup-card-cvv"
-                    name="cardCvv"
-                    type="text"
-                    placeholder="Ex.: 123"
-                    autoComplete="cc-csc"
-                    inputMode="numeric"
-                    value={sumupCard.cvv}
-                    onChange={(e) => handleSumupCardChange('cvv', e.target.value)}
-                    style={inputStyle}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="sumup-card-holder" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
-                  Nome do titular como aparece no cartão
-                </label>
-                <input
-                  id="sumup-card-holder"
-                  name="cardholderName"
-                  type="text"
-                  placeholder="Maria Santos Pereira"
-                  autoComplete="cc-name"
-                  value={sumupCard.holder}
-                  onChange={(e) => handleSumupCardChange('holder', e.target.value)}
-                  style={inputStyle}
-                  required
-                />
-              </div>
-
-              <div>
                 <label htmlFor="sumup-email" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
-                  E-mail
+                  E-mail para recibo e confirmação
                 </label>
                 <input
                   id="sumup-email"
@@ -702,45 +590,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ width: '100px' }}>
-                  <label htmlFor="sumup-document-type" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
-                    Tipo
-                  </label>
-                  <select
-                    id="sumup-document-type"
-                    name="documentType"
-                    autoComplete="off"
-                    value={sumupDocumentType}
-                    onChange={(e) => {
-                      const nextType = e.target.value;
-                      setSumupDocumentType(nextType);
-                      setSumupDocument((prev) => maskBrazilianDocument(nextType, prev));
-                    }}
-                    style={{ ...inputStyle, width: '100%' }}
-                  >
-                    <option value="CPF">CPF</option>
-                    <option value="CNPJ">CNPJ</option>
-                  </select>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label htmlFor="sumup-document" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
-                    Documento
-                  </label>
-                  <input
-                    id="sumup-document"
-                    name="documentNumber"
-                    type="text"
-                    placeholder={sumupDocumentType === 'CPF' ? '999.999.999-99' : '99.999.999/0000-99'}
-                    autoComplete="off"
-                    inputMode="numeric"
-                    value={sumupDocument}
-                    onChange={(e) => setSumupDocument(maskBrazilianDocument(sumupDocumentType, e.target.value))}
-                    maxLength={sumupDocumentType === 'CPF' ? 14 : 18}
-                    style={inputStyle}
-                    required
-                  />
-                </div>
+              <div style={{ fontSize: '12px', opacity: 0.72, lineHeight: '1.7', textAlign: 'left', padding: '10px 12px', borderRadius: '10px', background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}>
+                O pagamento será concluído em um formulário seguro da <strong>SumUp</strong>, com autenticação 3DS/SCA e métodos alternativos, como <strong>PIX</strong>, tratados no próprio widget oficial quando habilitados na sua conta.
               </div>
 
               <label
@@ -776,158 +627,83 @@ const DonationModal = ({ show, onClose, activePalette, API_URL }: DonationModalP
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
                 <button
-                  type="button"
-                  onClick={handleSubmitPix}
-                  disabled={isProcessingPix || isProcessingCard}
-                  style={{ ...buttonStyle, background: '#10b981', color: '#fff', cursor: (isProcessingPix || isProcessingCard) ? 'not-allowed' : 'pointer', opacity: (isProcessingPix || isProcessingCard) ? 0.7 : 1 }}
-                >
-                  {isProcessingPix ? <Loader2 size={16} className="animate-spin" /> : <Smartphone size={16} />}
-                  {isProcessingPix ? 'GERANDO PIX...' : 'PIX'}
-                </button>
-                <button
                   type="submit"
-                  disabled={isProcessingCard || isProcessingPix}
-                  style={{ ...buttonStyle, background: '#0066ff', color: '#fff', cursor: (isProcessingCard || isProcessingPix) ? 'not-allowed' : 'pointer', opacity: (isProcessingCard || isProcessingPix) ? 0.7 : 1 }}
+                  disabled={isPreparingCard || isSubmittingCard}
+                  style={{ ...buttonStyle, background: '#0066ff', color: '#fff', cursor: (isPreparingCard || isSubmittingCard) ? 'not-allowed' : 'pointer', opacity: (isPreparingCard || isSubmittingCard) ? 0.7 : 1 }}
                 >
-                  {isProcessingCard ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-                  {isProcessingCard ? 'PROCESSANDO...' : 'CARTÃO DE CRÉDITO'}
+                  {isPreparingCard ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                  {isPreparingCard ? 'PREPARANDO CHECKOUT...' : 'CONTINUAR PARA O PAGAMENTO'}
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {step === 2 && (
-          <div style={{ animation: 'fadeIn 0.3s' }}>
-            <h2 style={{ margin: '0 0 5px 0', fontSize: '18px', fontWeight: '600', color: activePalette.titleColor }}>Código PIX Gerado</h2>
-            <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '20px' }}>Escaneie o QR Code ou use o Copia e Cola.</p>
-
-            <div style={{ background: '#fff', padding: '15px', borderRadius: '12px', display: 'inline-block', marginBottom: '20px', border: '1px solid #ccc' }}>
-              {pixQrDataUri ? (
-                <img src={pixQrDataUri} alt="QR Code PIX" style={{ width: '180px', height: '180px', display: 'block' }} />
-              ) : (
-                <div style={{ width: '180px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', opacity: 0.5 }}>Gerando QR...</div>
-              )}
-            </div>
-
-            <div style={{ marginBottom: '12px' }}>
-              <button type="button" onClick={handleCopy} style={{ width: '100%', padding: '12px', background: isDarkBase ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', color: activePalette.fontColor, border: '1px solid rgba(128,128,128,0.2)', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', fontWeight: 'bold', transition: 'background 0.2s' }}>
-                {isCopied ? <CheckCircle size={18} color="#10b981" /> : <Copy size={18} />}
-                {isCopied ? 'Copiado!' : 'Copiar Código PIX'}
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', opacity: 0.7, marginBottom: '16px' }}>
-              <Loader2 size={14} className="animate-spin" />
-              Aguardando confirmação do pagamento...
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (pollingIntervalRef.current) {
-                  clearInterval(pollingIntervalRef.current);
-                  pollingIntervalRef.current = null;
-                }
-                setStep(1);
-              }}
-              style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: 0.6, textDecoration: 'underline' }}
-            >
-              Cancelar e Voltar
-            </button>
-          </div>
-        )}
-
         {step === 3 && (
           <div style={{ animation: 'fadeIn 0.3s', padding: '20px 0' }}>
             <div style={{ display: 'inline-flex', padding: '20px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', marginBottom: '20px' }}>
-              <Coffee size={40} />
+              <CheckCircle size={40} />
             </div>
             <h2 style={{ margin: '0 0 15px 0', fontSize: '24px', fontWeight: '600', color: activePalette.titleColor }}>Muito Obrigado!</h2>
             <p style={{ fontSize: '15px', opacity: 0.8, lineHeight: '1.6', marginBottom: '30px' }}>
               Sua contribuição aquece os servidores e incentiva a continuidade destas Reflexos. Agradeço imensamente pelo apoio ao meu trabalho.
             </p>
-            <button type="button" onClick={() => { setStep(1); onClose(); }} style={buttonStyle}>Fechar</button>
+            <button type="button" onClick={() => { stopPolling(); setStep(1); onClose(); }} style={buttonStyle}>Fechar</button>
           </div>
         )}
 
-        {step === 23 && sumupNextStep && (
-          <div style={{ animation: 'fadeIn 0.3s', textAlign: 'center', minHeight: '350px' }}>
-            <h2 style={{ margin: '0 0 10px 0', fontSize: '18px', fontWeight: '700', color: activePalette.titleColor }}>Autenticação Segura (3DS)</h2>
-            <p style={{ fontSize: '13px', opacity: 0.8, marginBottom: '20px' }}>
-              Finalize a verificação diretamente com o banco emissor do seu cartão.
-            </p>
-
-            <div style={{ position: 'relative', width: '100%', height: '400px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(128,128,128,0.2)', backgroundColor: '#fff' }}>
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', color: '#000' }}>
-                <Loader2 size={32} className="animate-spin" color={activePalette.titleColor} />
-                <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Carregando ambiente seguro...</span>
+        {step === 4 && cardCheckoutId && (
+          <div style={{ animation: 'fadeIn 0.3s', textAlign: 'left' }}>
+            <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+              <div style={{ display: 'inline-flex', padding: '15px', borderRadius: '50%', backgroundColor: 'rgba(0, 102, 255, 0.12)', color: '#0066ff', marginBottom: '15px' }}>
+                <CreditCard size={34} />
               </div>
-
-              <iframe
-                name="sumup-3ds-frame"
-                title="Autenticação 3D Secure"
-                style={{ width: '100%', height: '100%', border: 'none', position: 'relative', zIndex: 10 }}
-                onLoad={() => {
-                  if (!pollingIntervalRef.current && checkoutId) {
-                    pollingIntervalRef.current = setInterval(async () => {
-                      try {
-                        const res = await fetch(`${API_URL}/sumup/checkout/${checkoutId}/status`);
-                        if (res.ok) {
-                          const data = await res.json();
-                          const st = (data.status || '').toUpperCase();
-                          if (st === 'SUCCESSFUL' || st === 'PAID') {
-                            clearInterval(pollingIntervalRef.current!);
-                            pollingIntervalRef.current = null;
-                            setStep(3);
-                            showToast('Pagamento aprovado com sucesso!', 'success');
-                          } else if (st === 'FAILED') {
-                            clearInterval(pollingIntervalRef.current!);
-                            pollingIntervalRef.current = null;
-                            setStep(1);
-                            setIsProcessingCard(false);
-                            showToast('A transação foi recusada ou falhou.', 'error');
-                          }
-                        }
-                      } catch (err) {
-                        console.error('Polling error', err);
-                      }
-                    }, 4000);
-                  }
-                }}
-              />
-              <form
-                method={(sumupNextStep.method || "POST") as "get" | "post"}
-                action={sumupNextStep.url}
-                target="sumup-3ds-frame"
-                ref={(el: HTMLFormElement | null) => {
-                  if (el && !el.dataset.submitted) {
-                    el.dataset.submitted = 'true';
-                    setTimeout(() => el.submit(), 100);
-                  }
-                }}
-                style={{ display: 'none' }}
-              >
-                {sumupNextStep.payload && Object.entries(sumupNextStep.payload).map(([k, v]) => (
-                  <input key={k} type="hidden" name={k} value={v} />
-                ))}
-              </form>
+              <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '700', color: activePalette.titleColor }}>Pagamento Seguro com SumUp</h2>
+              <p style={{ fontSize: '13px', opacity: 0.78, lineHeight: '1.7', marginBottom: '10px' }}>
+                Escolha no próprio widget oficial a forma de pagamento disponível para esta doação, incluindo cartão e PIX quando habilitados na sua conta SumUp.
+              </p>
+              {cardFlowMessage && (
+                <div style={{ fontSize: '12px', opacity: 0.72, padding: '8px 12px', borderRadius: '10px', background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}>
+                  {cardFlowMessage}
+                </div>
+              )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (pollingIntervalRef.current) {
-                  clearInterval(pollingIntervalRef.current);
-                  pollingIntervalRef.current = null;
-                }
-                setStep(1);
-                setIsProcessingCard(false);
+            <SumUpCardWidget
+              checkoutId={cardCheckoutId}
+              email={sumupEmail.trim()}
+              amount={donationGross > 0 ? donationGross.toFixed(2) : undefined}
+              onError={(message) => {
+                setIsPreparingCard(false);
+                setIsSubmittingCard(false);
+                setCardFlowMessage(message);
+                showToast(message, 'error');
               }}
-              style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: 0.6, marginTop: '20px', textDecoration: 'underline' }}
-            >
-              Cancelar e Voltar
-            </button>
+              onResponse={handleCardWidgetResponse}
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '18px' }}>
+              {isSubmittingCard && (
+                <div style={{ fontSize: '12px', opacity: 0.72, textAlign: 'center', lineHeight: '1.7' }}>
+                  A SumUp está processando sua escolha no widget seguro. Se houver redirecionamento externo, o retorno para esta página retomará a confirmação automaticamente.
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  stopPolling();
+                  clearPendingCheckout();
+                  setCardCheckoutId(null);
+                  setIsPreparingCard(false);
+                  setIsSubmittingCard(false);
+                  setCardFlowMessage('');
+                  setStep(1);
+                }}
+                style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: 0.6, textDecoration: 'underline' }}
+              >
+                Voltar e revisar dados
+              </button>
+            </div>
           </div>
         )}
       </div>

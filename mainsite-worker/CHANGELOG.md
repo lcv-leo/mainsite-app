@@ -1,5 +1,19 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.11.00] - 2026-04-17
+### Adicionado
+- **`/api/theme.css`**: nova folha de estilo same-origin gerada pelo worker a partir de `mainsite/appearance` no D1. O endpoint materializa variáveis CSS de tema/typography sem depender de `<style>` inline no frontend.
+- **`lib/theme.ts` + `lib/theme.test.ts`**: utilitários e testes para serializar o tema do mainsite em CSS válido e seguro.
+- **`lib/origins.ts`**: centralização da allowlist de origens públicas/operacionais do projeto para CORS e validações correlatas.
+### Alterado
+- **`lib/auth.ts`**: superfícies administrativas do `mainsite-worker` agora aceitam validação opcional por Cloudflare Access JWT (`iss`/`aud`/assinatura) quando configurada, reduzindo dependência exclusiva do bearer estático.
+- **`routes/settings.ts` e `routes/uploads.ts`**: CORS deixou de ser genérico nessas rotas e passou a refletir apenas origens aprovadas do projeto, reduzindo exposição cross-origin desnecessária.
+- **`routes/payments.ts`**: `POST /api/sumup/checkout` passou a criar checkouts com `redirect_url` para suportar corretamente APMs/PIX pelo widget oficial; os endpoints legados de processamento direto (`/pay`, `/pix`, return page manual) foram mantidos apenas como superfície de compatibilidade explícita com resposta `410`.
+- **`env.ts`**: bindings opcionais de Cloudflare Access (`CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `ENFORCE_JWT_VALIDATION`) formalizados para o endurecimento administrativo do worker.
+### Corrigido
+- **Fluxo legado de pagamento**: o backend deixou de incentivar caminhos manuais de cartão/PIX/3DS incompatíveis com o novo modelo do widget da SumUp.
+- **CORS aberto em assets públicos**: uploads e brand assets não anunciam mais `Access-Control-Allow-Origin: *`; a entrega agora respeita a topologia real do projeto.
+
 ## [v02.10.02] - 2026-04-16
 ### Alterado
 - **`TURNSTILE_SECRET_KEY`**: migrado para `Secrets Store` no `default_secrets_store` e reintroduzido em `secrets_store_secrets` no `wrangler.json`.

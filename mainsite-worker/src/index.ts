@@ -7,7 +7,7 @@
  * Hono-based modular Worker com paridade total ao monolito.
  * Versão modular: todos os domínios em src/routes/*.ts
  */
-export const APP_VERSION = 'APP v02.10.02';
+export const APP_VERSION = 'APP v02.11.00';
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -15,6 +15,7 @@ import { logger } from 'hono/logger';
 import { timing } from 'hono/timing';
 import type { Env } from './env.ts';
 import { EnvSecretsSchema } from './lib/schemas.ts';
+import { getAllowedOrigin } from './lib/origins.ts';
 
 
 // --- Route Modules ---
@@ -45,7 +46,8 @@ const SECRET_KEYS = [
   'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY',
   'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE',
   'PIX_KEY', 'PIX_NAME', 'PIX_CITY',
-  'GCP_NL_API_KEY', 'TURNSTILE_SECRET_KEY'
+  'GCP_NL_API_KEY', 'TURNSTILE_SECRET_KEY',
+  'CF_ACCESS_TEAM_DOMAIN', 'CF_ACCESS_AUD', 'ENFORCE_JWT_VALIDATION',
 ] as const;
 
 app.use('*', async (c, next) => {
@@ -82,32 +84,9 @@ app.use('*', async (c, next) => {
 
 // ========== CORS + CSRF ==========
 // Lista de domínios autorizados — usada tanto pelo CORS quanto pelo CSRF check.
-const ALLOWED_FRONTEND_DOMAINS = [
-  'reflexosdaalma.blog',
-  'lcv.rio.br',
-  'lcv.eng.br',
-  'lcv.psc.br',
-  'cardozovargas.com',
-  'cardozovargas.com.br',
-  'lcvleo.com',
-  'lcvmail.com',
-  'lcvmasker.com',
-];
-
-// Pré-compila o Set para lookup O(1) (incluindo variantes www.)
-const ALLOWED_ORIGIN_HOSTNAMES = new Set<string>(
-  ALLOWED_FRONTEND_DOMAINS.flatMap(d => [d, `www.${d}`]),
-);
-
 app.use('/api/*', cors({
   origin: (origin) => {
-    if (!origin) return null;
-    try {
-      const hostname = new URL(origin).hostname.toLowerCase();
-      return ALLOWED_ORIGIN_HOSTNAMES.has(hostname) ? origin : null;
-    } catch {
-      return null;
-    }
+    return getAllowedOrigin(origin);
   },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
@@ -124,12 +103,7 @@ app.use('/api/*', async (c, next) => {
   if (method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH') {
     const origin = c.req.header('origin');
     if (origin) {
-      try {
-        const hostname = new URL(origin).hostname.toLowerCase();
-        if (!ALLOWED_ORIGIN_HOSTNAMES.has(hostname)) {
-          return c.json({ error: 'Origem não autorizada.' }, 403);
-        }
-      } catch {
+      if (!getAllowedOrigin(origin)) {
         return c.json({ error: 'Header Origin inválido.' }, 403);
       }
     }

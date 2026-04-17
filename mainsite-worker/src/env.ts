@@ -52,6 +52,11 @@ export interface RawEnv {
   // --- Moderação (GCP NL API + Turnstile) ---
   GCP_NL_API_KEY: SecretStoreBinding;
   TURNSTILE_SECRET_KEY: SecretStoreBinding;
+
+  // --- Cloudflare Access (optional hardening for admin routes) ---
+  CF_ACCESS_TEAM_DOMAIN?: SecretStoreBinding;
+  CF_ACCESS_AUD?: SecretStoreBinding;
+  ENFORCE_JWT_VALIDATION?: SecretStoreBinding;
 }
 
 /**
@@ -90,4 +95,9 @@ export interface Env {
   // --- Moderação (GCP NL API + Turnstile) ---
   GCP_NL_API_KEY: string;
   TURNSTILE_SECRET_KEY: string;
+
+  // --- Cloudflare Access (optional hardening for admin routes) ---
+  CF_ACCESS_TEAM_DOMAIN?: string;
+  CF_ACCESS_AUD?: string;
+  ENFORCE_JWT_VALIDATION?: string;
 }

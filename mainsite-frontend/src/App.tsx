@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 // Módulo: mainsite-frontend/src/App.tsx
-// Versão: v02.13.00
+// Versão: v03.14.00
 // Descrição: TypeScript migration. Frontend Orchestrator — fully typed state, events, refs and component props.
 
 import { useState, useEffect, useMemo, useCallback, Suspense, lazy, useRef, type FormEvent } from 'react';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 
 import type { Post, SiteSettings, DisclaimersConfig, ShareModalState, ToastState, ActivePalette, ContactFormData } from './types';
+import './styles/site-shell.css';
 
 import PostReader from './components/PostReader';
 import ArchiveMenu from './components/ArchiveMenu';
@@ -28,7 +29,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.13.02';
+const APP_VERSION = 'APP v03.14.00';
 const SITE_NAME = 'Reflexos da Alma';
 const SITE_URL = 'https://www.reflexosdaalma.blog';
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
@@ -68,6 +69,7 @@ const App = () => {
   const [showContactModal, setShowContactModal] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showDonationModal, setShowDonationModal] = useState(false);
+  const [donationResumeCheckoutId, setDonationResumeCheckoutId] = useState<string | null>(null);
 
   const [isSubmittingContact, setIsSubmittingContact] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -169,6 +171,32 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkoutId = params.get('checkout_id');
+    if (!checkoutId) return;
+
+    setDonationResumeCheckoutId(checkoutId);
+    setShowDonationModal(true);
+
+    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const nextTop = Math.max(16, Math.min((viewportH * 0.5) - 36, Math.max(16, viewportH - 90)));
+    setToastTop(nextTop);
+    setToast({
+      show: true,
+      message: 'Retomando o pagamento seguro para confirmar o resultado final...',
+      type: 'info',
+    });
+    const toastTimeout = window.setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 4000);
+
+    params.delete('checkout_id');
+    const nextQuery = params.toString();
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', nextUrl);
+
+    return () => window.clearTimeout(toastTimeout);
+  }, []);
+
+  useEffect(() => {
     const handleCopy = (event: ClipboardEvent) => {
       if (isEditableTarget(event.target)) return;
       const selection = document.getSelection();
@@ -248,14 +276,6 @@ const App = () => {
     };
     fetchData();
   }, [fetchPostDetail]);
-
-  // Largura de leitura configurável via painel admin
-  useEffect(() => {
-    const root = document.getElementById('root');
-    if (root && settings.shared.contentMaxWidth) {
-      root.style.width = settings.shared.contentMaxWidth;
-    }
-  }, [settings.shared.contentMaxWidth]);
 
   useEffect(() => {
     const upsertMeta = (selector: string, attrs: Record<string, string>, content: string) => {
@@ -348,42 +368,18 @@ const App = () => {
     return (resolved === 'dark' ? safeDark : safeLight) as ActivePalette;
   }, [settings, userTheme, systemIsDark]);
 
+  const resolvedTheme = useMemo<'light' | 'dark'>(() => {
+    if (!settings.allowAutoMode && userTheme === 'auto') return 'dark';
+    if (userTheme === 'auto') return systemIsDark ? 'dark' : 'light';
+    return userTheme;
+  }, [settings.allowAutoMode, systemIsDark, userTheme]);
+
   const cycleTheme = () => {
     const modes: ThemePreference[] = settings.allowAutoMode ? ['auto', 'light', 'dark'] : ['light', 'dark'];
     const nextIndex = (modes.indexOf(userTheme) + 1) % modes.length;
     const next = modes[nextIndex];
     setUserTheme(next);
     localStorage.setItem('themePref', next);
-  };
-
-  const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
-
-  const defaultCSSPattern = isDarkBase
-    ? `radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.15), transparent 45%), radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.15), transparent 45%)`
-    : `radial-gradient(circle at 15% 40%, rgba(26, 115, 232, 0.08), transparent 45%), radial-gradient(circle at 85% 60%, rgba(161, 66, 244, 0.08), transparent 45%)`;
-
-  const appStyle: React.CSSProperties = {
-    backgroundColor: activePalette.bgColor,
-    backgroundImage: (activePalette.bgImage && activePalette.bgImage.trim() !== '') ? `url("${activePalette.bgImage}")` : defaultCSSPattern,
-    backgroundSize: 'cover',
-    backgroundAttachment: 'fixed',
-    color: activePalette.fontColor,
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    fontFamily: settings.shared.fontFamily,
-    transition: 'background-color 0.5s ease, color 0.5s ease',
-    paddingTop: '60px'
-  };
-
-  // STRUCTURAL BUMP: Increased to 1024px breakpoint with fluid lateral clamping
-  const containerStyle: React.CSSProperties = {
-    width: '100%',
-    maxWidth: '1024px',
-    padding: '0 clamp(12px, 3vw, 24px)', // Responsive padding: tight on mobile, max 24px on desktop
-    flex: 1,
-    boxSizing: 'border-box'
   };
 
   const handleShare = (method: string) => {
@@ -439,10 +435,10 @@ const App = () => {
     } catch { showNotification("Falha ao enviar comentário.", "error"); } finally { setIsSubmittingComment(false); }
   };
 
-  if (loading) return <div role="status" aria-label="Carregando conteúdo" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#131314', color: '#fff' }}><Loader2 size={32} className="animate-spin" /><span className="sr-only">Carregando conteúdo do site…</span></div>;
+  if (loading) return <div role="status" aria-label="Carregando conteúdo" className="site-loading"><Loader2 size={32} className="animate-spin" /><span className="sr-only">Carregando conteúdo do site…</span></div>;
 
   return (
-    <div style={appStyle}>
+    <div className={`site-shell theme-${resolvedTheme}`}>
       {/* Reading Progress Bar */}
       <div
         role="progressbar"
@@ -450,33 +446,22 @@ const App = () => {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label="Progresso de leitura"
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: `${readingProgress}%`,
-          height: '3px',
-          background: 'linear-gradient(90deg, #4285f4, #7c3aed)',
-          zIndex: 11010,
-          transition: 'width 0.15s linear',
-          borderRadius: '0 2px 2px 0',
-          opacity: readingProgress > 0 ? 1 : 0,
-        }}
+        className={`site-progress${readingProgress > 0 ? ' site-progress--visible' : ''}`}
+        style={{ width: `${readingProgress}%` }}
       />
-      <a href="#conteudo-principal" className="sr-only" style={{ position: 'absolute', top: '-40px', left: 0, zIndex: 99999, padding: '8px 16px', background: '#000', color: '#fff' }} onFocus={(e) => e.currentTarget.style.top = '0'} onBlur={(e) => e.currentTarget.style.top = '-40px'}>Ir para o conteúdo principal</a>
-      <div role="alert" aria-live="assertive" aria-atomic="true" style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : (isDarkBase ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)'), color: toast.type === 'error' ? '#fff' : activePalette.fontColor, padding: '16px 32px', borderRadius: '100px', zIndex: 11005, boxShadow: '0 12px 36px rgba(0,0,0,0.2)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${isDarkBase ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: '700', fontSize: '14px' }}>
+      <a href="#conteudo-principal" className="sr-only skip-link">Ir para o conteúdo principal</a>
+      <div role="alert" aria-live="assertive" aria-atomic="true" className={`site-toast${toast.show ? ' site-toast--visible' : ''}${toast.type === 'error' ? ' site-toast--error' : ''}`} style={{ top: `${toastTop}px` }}>
         {toast.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle size={18} />} {toast.message}
       </div>
 
-      <main id="conteudo-principal" style={containerStyle}>
+      <main id="conteudo-principal" className="site-main">
         {!showLicenses ? (
           <>
-            {error ? (<div style={{ textAlign: 'center', color: 'var(--semantic-error)', padding: '40px', fontWeight: 'bold' }}>{error}</div>) :
+            {error ? (<div className="site-error">{error}</div>) :
               currentPost ? (
                 <PostReader
                   post={currentPost}
                   activePalette={activePalette}
-                  settings={settings}
                   onShare={handleShare}
                   onContact={() => setShowContactModal(true)}
                   onComment={() => setShowCommentModal(true)}
@@ -487,19 +472,21 @@ const App = () => {
                   apiUrl={API_URL}
                   turnstileSiteKey={TURNSTILE_SITE_KEY}
                 />
-              ) : (<div style={{ textAlign: 'center', padding: '60px', opacity: 0.5, fontWeight: '700', letterSpacing: '2px' }}>A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>)}
+              ) : (<div className="site-empty">A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>)}
           </>
         ) : (
-          <div style={{ background: isDarkBase ? 'rgba(30,30,30,0.5)' : '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginTop: '40px' }}>
+          <div className="site-licenses">
+            <div className="site-licenses__panel">
             <LicencasModule />
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '30px', marginBottom: '10px' }}>
+            <div className="site-licenses__actions">
               <button 
                 onClick={() => setShowLicenses(false)} 
                 type="button"
-                style={{ background: isDarkBase ? '#333' : '#f0f0f0', color: activePalette.fontColor, border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                className="site-licenses__back">
                 Voltar à Leitura
               </button>
             </div>
+          </div>
           </div>
         )}
       </main>
@@ -527,12 +514,20 @@ const App = () => {
         <ShareOverlay modalState={showShareModal} setModalState={setShowShareModal} onSubmit={submitEmailShare} activePalette={activePalette} turnstileSiteKey={TURNSTILE_SITE_KEY} />
         <ContactModal show={showContactModal} onClose={() => setShowContactModal(false)} onSubmit={submitContact} activePalette={activePalette} isSubmitting={isSubmittingContact} turnstileSiteKey={TURNSTILE_SITE_KEY} />
         <CommentModal show={showCommentModal} onClose={() => setShowCommentModal(false)} onSubmit={submitComment} activePalette={activePalette} isSubmitting={isSubmittingComment} currentPost={currentPost} turnstileSiteKey={TURNSTILE_SITE_KEY} />
-        <DonationModal show={showDonationModal} onClose={() => setShowDonationModal(false)} activePalette={activePalette} API_URL={API_URL} />
+        <DonationModal
+          show={showDonationModal}
+          onClose={() => {
+            setShowDonationModal(false);
+            setDonationResumeCheckoutId(null);
+          }}
+          activePalette={activePalette}
+          API_URL={API_URL}
+          resumeCheckoutId={donationResumeCheckoutId}
+        />
         <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currentPost={currentPost} activePalette={activePalette} API_URL={API_URL} triggerDonation={() => setShowDonationModal(true)} />
       </Suspense>
       <ContentUpdateToast
         visible={contentSync.hasUpdate}
-        activePalette={activePalette}
         onRefresh={refreshPosts}
         onDismiss={contentSync.dismiss}
       />

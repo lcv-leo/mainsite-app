@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 /**
- * Rotas de Pagamento SumUp (checkout, pay, 3DS, insights).
+ * Rotas de Pagamento SumUp (checkout, widget/status, insights).
  * Zero Trust: todas as rotas admin requerem Bearer token.
  * Domínio: /api/sumup/*
  *
@@ -24,7 +24,7 @@ import {
   FINANCIAL_CUTOFF_DATE,
   loadFeeConfig,
 } from '../lib/financial.ts';
-import { SumupCheckoutSchema, SumupPaySchema } from '../lib/schemas.ts';
+import { SumupCheckoutSchema } from '../lib/schemas.ts';
 
 const sumup = new Hono<{ Bindings: Env }>();
 
@@ -32,43 +32,14 @@ const sumup = new Hono<{ Bindings: Env }>();
 const MIN_PAYMENT_AMOUNT = 1.00;
 const MAX_PAYMENT_AMOUNT = 10_000.00;
 
-// Helper: parse SumUp SDK error into user-friendly message
-function parseSumupError(err: Error): { message: string; httpStatus: number } {
-  const rawMsg = err.message || '';
-  const sdkMatch = rawMsg.match(/^(\d{3}):\s*(.+)$/s);
-  let userMessage = rawMsg;
-  let httpStatus = 500;
-
-  if (sdkMatch) {
-    const sdkStatus = parseInt(sdkMatch[1], 10);
-    httpStatus = sdkStatus >= 400 && sdkStatus < 500 ? 422 : 500;
-    try {
-      const parsed = JSON.parse(sdkMatch[2]);
-      userMessage = parsed.message || rawMsg;
-    } catch {
-      userMessage = sdkMatch[2] || rawMsg;
-    }
-  }
-
-  const lowerMsg = userMessage.toLowerCase();
-  if (lowerMsg.includes('card is expired')) userMessage = 'Cartão expirado. Verifique a validade.';
-  else if (lowerMsg.includes('insufficient funds')) userMessage = 'Saldo insuficiente no cartão.';
-  else if (lowerMsg.includes('do not honor')) userMessage = 'Pagamento recusado pelo banco emissor.';
-  else if (lowerMsg.includes('invalid card')) userMessage = 'Número de cartão inválido ou não suportado.';
-  else if (lowerMsg.includes('invalid security code')) userMessage = 'Código de segurança (CVV) inválido.';
-  else if (lowerMsg.includes('failed to validate request')) userMessage = 'Dados de pagamento rejeitados pela operadora. Revise os dados.';
-
-  return { message: userMessage, httpStatus };
-}
-
-// ========== PUBLIC CHECKOUT & PAY ==========
+// ========== PUBLIC CHECKOUT ==========
 
 sumup.post('/api/sumup/checkout', async (c) => {
   try {
     structuredLog('info', '[SumUp Checkout] Iniciando criação de checkout');
     const checkoutParse = SumupCheckoutSchema.safeParse(await c.req.json());
     if (!checkoutParse.success) return c.json({ error: 'Dados inválidos para checkout.' }, 400);
-    const { baseAmount, coverFees, firstName, lastName } = checkoutParse.data;
+    const { baseAmount, coverFees, firstName, lastName, redirectUrl } = checkoutParse.data;
 
     if (!baseAmount || Number(baseAmount) <= 0) {
       return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
@@ -99,7 +70,7 @@ sumup.post('/api/sumup/checkout', async (c) => {
       currency: 'BRL',
       merchant_code: merchantCode,
       description: `Doação de ${fullName} - Reflexos da Alma`,
-      return_url: `${new URL(c.req.url).origin}/api/sumup/checkout/${checkoutReference}/return`,
+      redirect_url: redirectUrl || undefined,
     });
 
     structuredLog('info', `[SumUp Checkout] Checkout criado: ${(checkout as { id: string }).id}`);
@@ -111,145 +82,21 @@ sumup.post('/api/sumup/checkout', async (c) => {
 });
 
 sumup.post('/api/sumup/checkout/:id/pay', async (c) => {
-  try {
-    const checkoutId = c.req.param('id');
-    const payParse = SumupPaySchema.safeParse(await c.req.json());
-    if (!payParse.success) return c.json({ error: 'Dados inválidos para pagamento.' }, 400);
-    const { baseAmount, card, firstName, lastName, email, document: taxId } = payParse.data;
-    const taxIdDigits = String(taxId || '').replace(/\D/g, '').trim();
-
-    if (!checkoutId) return c.json({ error: 'Checkout inválido.' }, 400);
-    if (!baseAmount || Number(baseAmount) <= 0) return c.json({ error: 'Valor inválido para pagamento SumUp.' }, 400);
-    if (Number(baseAmount) < MIN_PAYMENT_AMOUNT || Number(baseAmount) > MAX_PAYMENT_AMOUNT) {
-      return c.json({ error: `Valor deve ser entre R$${MIN_PAYMENT_AMOUNT} e R$${MAX_PAYMENT_AMOUNT}.` }, 400);
-    }
-    if (!card?.name || !card?.number || !card?.expiryMonth || !card?.expiryYear || !card?.cvv) {
-      return c.json({ error: 'Dados de cartão incompletos.' }, 400);
-    }
-
-    // Cover-fees é aplicado no endpoint de criação do checkout, não aqui (process apenas finaliza
-    // um checkout previamente criado com o valor já ajustado). Recomputar amount neste ponto é
-    // dead code — a SumUp process API não aceita override de valor. Removido para limpar lint.
-
-    const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
-    if (!sumupToken) return c.json({ error: 'SUMUP_API_KEY_PRIVATE não configurada.' }, 503);
-
-    const client = new SumUp({ apiKey: sumupToken });
-
-    const processPayload = {
-      payment_type: 'card',
-      card: {
-        number: card.number.replace(/\s/g, ''),
-        expiry_month: String(card.expiryMonth).padStart(2, '0'),
-        expiry_year: String(card.expiryYear).length === 2 ? `20${card.expiryYear}` : String(card.expiryYear),
-        cvv: card.cvv,
-        name: card.name.trim(),
-      },
-      personal_details: {
-        first_name: (firstName || '').trim() || undefined,
-        last_name: (lastName || '').trim() || undefined,
-        email: (email || '').trim() || undefined,
-        tax_id: taxIdDigits || undefined,
-      },
-    };
-
-    let result: Record<string, unknown>;
-    try {
-      result = (await client.checkouts.process(checkoutId, processPayload as Parameters<typeof client.checkouts.process>[1])) as Record<string, unknown>;
-    } catch (updateErr) {
-      // Sem D1 write — provider é fonte de verdade
-      const { message, httpStatus } = parseSumupError(updateErr as Error);
-      return c.json({ error: message }, httpStatus as 422);
-    }
-
-    const transactions = result.transactions as Array<{ id?: string }> | undefined;
-    const storedId = transactions?.[0]?.id || result.id || checkoutId;
-    const storedStatus = normalizeSumupStatus(String(result.status || 'PENDING'));
-
-    // Sem D1 write — provider é fonte de verdade
-
-    return c.json({ success: true, id: storedId, status: storedStatus, next_step: result.next_step });
-  } catch (err) {
-    structuredLog('error', '[SumUp Pay] Erro no pagamento', { error: (err as Error).message });
-    return c.json({ error: 'Falha no pagamento SumUp.' }, 500);
-  }
+  structuredLog('warn', '[SumUp Pay] Endpoint legado bloqueado', { checkoutId: c.req.param('id') });
+  return c.json({ error: 'Processamento direto desativado. Use o widget oficial da SumUp.' }, 410);
 });
 
 // ========== PUBLIC PIX VIA SUMUP ==========
 
 sumup.post('/api/sumup/checkout/:id/pix', async (c) => {
-  try {
-    const checkoutId = c.req.param('id');
-    if (!checkoutId) return c.json({ error: 'Checkout inválido.' }, 400);
-
-    const body = (await c.req.json()) as { email?: string; firstName?: string; lastName?: string };
-    const sumupToken = c.env.SUMUP_API_KEY_PRIVATE;
-    if (!sumupToken) return c.json({ error: 'Configuração de pagamento indisponível.' }, 503);
-
-    const client = new SumUp({ apiKey: sumupToken });
-
-    const processPayload = {
-      payment_type: 'pix',
-      personal_details: {
-        email: (body.email || '').trim() || undefined,
-        first_name: (body.firstName || '').trim() || undefined,
-        last_name: (body.lastName || '').trim() || undefined,
-      },
-    };
-
-    const result = (await client.checkouts.process(
-      checkoutId,
-      processPayload as Parameters<typeof client.checkouts.process>[1],
-    )) as Record<string, unknown>;
-
-    // Extract PIX artifacts (QR code image URL + payment code string)
-    const pixData = result.pix as { artefacts?: Array<{ name?: string; content_type?: string; content?: string; location?: string }> } | undefined;
-    const artefacts = pixData?.artefacts || [];
-    const qrCodeUrl = artefacts.find((a) => a.name === 'barcode')?.location || null;
-    const pixCode = artefacts.find((a) => a.name === 'code')?.content || null;
-
-    return c.json({
-      success: true,
-      checkoutId,
-      status: String(result.status || 'PENDING'),
-      qr_code_url: qrCodeUrl,
-      pix_code: pixCode,
-    });
-  } catch (err) {
-    structuredLog('error', '[PIX] Erro ao processar PIX', { error: (err as Error).message });
-    const { message, httpStatus } = parseSumupError(err as Error);
-    return c.json({ error: message }, httpStatus as 422);
-  }
+  structuredLog('warn', '[SumUp PIX] Endpoint legado bloqueado', { checkoutId: c.req.param('id') });
+  return c.json({ error: 'Fluxo PIX dedicado desativado. Use o widget oficial da SumUp.' }, 410);
 });
 
 // 3DS Return Page
 sumup.get('/api/sumup/checkout/:ref/return', async (c) => {
-  // Sanitize ref to prevent XSS injection in the page
-  const rawRef = c.req.param('ref');
-  const ref = rawRef.replace(/[^a-zA-Z0-9\-_]/g, '');
-  const origin = new URL(c.req.url).origin;
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Verificação Concluída</title>
-  <style>
-    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: transparent; }
-    .loader { border: 3px solid rgba(0, 0, 0, 0.1); border-left-color: #000; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  </style>
-</head>
-<body>
-  <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
-    <div class="loader"></div>
-    <span style="font-size: 13px; font-weight: bold;">Redirecionando...</span>
-  </div>
-  <script>
-    window.parent.postMessage({ type: "sumup-3ds-success", ref: "${ref}" }, "${origin}");
-  </script>
-</body>
-</html>`;
-  return c.html(html);
+  structuredLog('warn', '[SumUp Return] Endpoint legado bloqueado', { reference: c.req.param('ref') });
+  return c.html('<!DOCTYPE html><html><body><p>Fluxo legado desativado. Feche esta janela e reinicie o pagamento pelo widget oficial da SumUp.</p></body></html>', 410);
 });
 
 // 3DS Polling — Consulta SDK diretamente (sem D1)
