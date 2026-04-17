@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import './SumUpCardWidget.css';
 
 const SUMUP_CARD_SDK_URL = 'https://gateway.sumup.com/gateway/ecom/card/v2/sdk.js';
@@ -113,6 +113,14 @@ const SumUpCardWidget = ({
   const onResponseRef = useRef(onResponse);
   const onPaymentMethodsResolvedRef = useRef(onPaymentMethodsResolved);
   const [isLoading, setIsLoading] = useState(true);
+  const normalizedPreferredPaymentMethods = useMemo(() => {
+    if (!preferredPaymentMethods?.length) return [];
+
+    return preferredPaymentMethods
+      .map((method) => method.trim().toLowerCase())
+      .filter(Boolean);
+  }, [preferredPaymentMethods]);
+  const preferredPaymentMethodsKey = normalizedPreferredPaymentMethods.join('|');
 
   useEffect(() => {
     onErrorRef.current = onError;
@@ -163,16 +171,11 @@ const SumUpCardWidget = ({
             const availableMethods = extractPaymentMethodIds(methods);
             onPaymentMethodsResolvedRef.current?.(availableMethods);
 
-            if (!preferredPaymentMethods?.length) {
+            if (!normalizedPreferredPaymentMethods.length) {
               return availableMethods;
             }
 
-            const preferred = preferredPaymentMethods.map((method) => method.trim().toLowerCase()).filter(Boolean);
-            if (!preferred.length) {
-              return availableMethods;
-            }
-
-            const preferredSet = new Set(preferred);
+            const preferredSet = new Set(normalizedPreferredPaymentMethods);
             const filteredMethods = availableMethods.filter((method) => preferredSet.has(method));
             return filteredMethods.length ? filteredMethods : availableMethods;
           },
@@ -202,7 +205,7 @@ const SumUpCardWidget = ({
         widgetRef.current = null;
       }
     };
-  }, [checkoutId, email, mountId, preferredPaymentMethods]);
+  }, [checkoutId, email, mountId, normalizedPreferredPaymentMethods, preferredPaymentMethodsKey]);
 
   return (
     <div className="sumup-card-widget">

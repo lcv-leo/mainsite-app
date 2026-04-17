@@ -54,4 +54,24 @@ describe('SumUpCardWidget', () => {
     expect(config.showAmount).toBe(true);
     expect(config.amount).toBeUndefined();
   });
+
+  it('keeps the widget mounted when the preferred allowlist keeps the same values', async () => {
+    const { rerender } = render(
+      <SumUpCardWidget
+        checkoutId="checkout-1"
+        preferredPaymentMethods={['card']}
+      />,
+    );
+
+    await waitFor(() => expect(mountMock).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <SumUpCardWidget
+        checkoutId="checkout-1"
+        preferredPaymentMethods={['card']}
+      />,
+    );
+
+    await waitFor(() => expect(mountMock).toHaveBeenCalledTimes(1));
+  });
 });

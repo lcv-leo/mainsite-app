@@ -6,7 +6,7 @@
 // Versão: v3.0.0
 // Descrição: Fluxo unificado de doação via Payment Widget da SumUp, incluindo cartão e PIX/APMs quando habilitados.
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { X, Heart, CheckCircle, CreditCard, AlertTriangle, Loader2 } from 'lucide-react';
 import type { ActivePalette } from '../types';
 import SumUpCardWidget from './SumUpCardWidget';
@@ -395,6 +395,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
     pollCheckoutStatus(resumeCheckoutId);
   }, [show, resumeCheckoutId, restorePendingCheckout, restoreViewportContext, pollCheckoutStatus]);
 
+  const selectedWidgetPaymentMethods = useMemo(
+    () => (selectedPaymentMethod === 'pix' ? [...SUMUP_PIX_METHODS] : [...SUMUP_CARD_METHODS]),
+    [selectedPaymentMethod],
+  );
+
   if (!isVisible && !show) return null;
 
   const isDarkBase = activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1');
@@ -558,6 +563,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
     { key: 'amex', label: 'American Express', src: getBrandIconSrc('amex.svg') },
   ];
 
+  const accentCloseButton = (button: HTMLButtonElement, opacity: string, transform: string) => {
+    button.style.opacity = opacity;
+    button.style.transform = transform;
+  };
+
   return (
     <div style={overlayStyle}>
       <div role="alert" aria-live="assertive" aria-atomic="true" style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, pointerEvents: toast.show ? 'auto' : 'none', backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : 'var(--semantic-success)', color: '#fff', padding: '12px 20px', borderRadius: '100px', zIndex: 10005, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: 'bold', fontSize: '13px' }}>
@@ -565,7 +575,16 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
       </div>
 
       <div role="dialog" aria-modal="true" aria-labelledby="donation-title" style={modalStyle}>
-        <button type="button" onClick={() => { stopPolling(); clearPendingCheckout(); setIsResumingCheckout(false); setSelectedPaymentMethod('card'); setStep(1); onClose(); }} aria-label="Fechar" style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }} onMouseOver={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseOut={(e) => { (e.currentTarget.style as CSSStyleDeclaration).opacity = '0.8'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <button
+          type="button"
+          onClick={() => { stopPolling(); clearPendingCheckout(); setIsResumingCheckout(false); setSelectedPaymentMethod('card'); setStep(1); onClose(); }}
+          aria-label="Fechar"
+          style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }}
+          onMouseOver={(e) => { accentCloseButton(e.currentTarget, '1', 'translateY(-2px)'); }}
+          onMouseOut={(e) => { accentCloseButton(e.currentTarget, '0.8', 'translateY(0)'); }}
+          onFocus={(e) => { accentCloseButton(e.currentTarget, '1', 'translateY(-2px)'); }}
+          onBlur={(e) => { accentCloseButton(e.currentTarget, '0.8', 'translateY(0)'); }}
+        >
           <X size={24} />
         </button>
 
@@ -769,11 +788,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
               <SumUpCardWidget
                 checkoutId={cardCheckoutId}
                 email={sumupEmail.trim()}
-                preferredPaymentMethods={selectedPaymentMethod === 'pix' ? [...SUMUP_PIX_METHODS] : [...SUMUP_CARD_METHODS]}
+                preferredPaymentMethods={selectedWidgetPaymentMethods}
                 onPaymentMethodsResolved={(methods) => {
-                  const expectedMethods = new Set<string>(
-                    selectedPaymentMethod === 'pix' ? [...SUMUP_PIX_METHODS] : [...SUMUP_CARD_METHODS],
-                  );
+                  const expectedMethods = new Set<string>(selectedWidgetPaymentMethods);
                   const hasExpectedMethod = methods.some((method) => expectedMethods.has(method));
                   if (methods.length > 0 && !hasExpectedMethod) {
                     stopPolling();
