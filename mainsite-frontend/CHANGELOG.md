@@ -1,5 +1,12 @@
 # Changelog — Mainsite Frontend
 
+## [v03.15.01] - 2026-04-17
+### Alterado
+- `wrangler.json` passou a declarar explicitamente `observability.logs.enabled = true`, `observability.logs.invocation_logs = true` e `observability.traces.enabled = true`.
+### Motivação
+- Alinhar o baseline de telemetria Cloudflare do `mainsite-frontend` ao padrão operacional do workspace.
+
+
 ## [v03.15.00] - 2026-04-17
 ### Alterado
 - **`SumUpCardWidget` estável por conteúdo**: o widget passou a depender da chave estável da allowlist de métodos de pagamento, evitando `unmount`/`mount` extras quando o modal rerenderiza sem mudança lógica na seleção.

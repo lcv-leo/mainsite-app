@@ -1,5 +1,12 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.11.01] - 2026-04-17
+### Alterado
+- `wrangler.json` passou a garantir `observability.traces.enabled = true` e reafirmou o baseline explícito de logs e invocation logs, preservando o sampling já existente.
+### Motivação
+- Fechar a padronização de traces e logs do Cloudflare no `mainsite-worker` sem regredir a configuração já publicada.
+
+
 ## [v02.11.00] - 2026-04-17
 ### Adicionado
 - **`/api/theme.css`**: nova folha de estilo same-origin gerada pelo worker a partir de `mainsite/appearance` no D1. O endpoint materializa variáveis CSS de tema/typography sem depender de `<style>` inline no frontend.

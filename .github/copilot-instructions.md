@@ -9,6 +9,19 @@
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
 # AI Memory Log - MainSite
 
+## 2026-04-17 — Mainsite observability baseline (frontend v03.15.01, worker v02.11.01)
+### Escopo
+Padronização do baseline de observabilidade Cloudflare no `mainsite-app`, cobrindo `mainsite-frontend` e `mainsite-worker`.
+### Alterado
+- `mainsite-frontend/wrangler.json` agora garante `observability.logs.enabled = true`, `observability.logs.invocation_logs = true` e `observability.traces.enabled = true`.
+- `mainsite-worker/wrangler.json` preservou o sampling existente e passou a garantir `observability.traces.enabled = true`, além do baseline explícito de logs.
+### Motivação
+- Fechar a padronização de telemetria do workspace sem regressão do runtime publicado.
+### Versão
+- mainsite-frontend: APP v03.15.00 → APP v03.15.01
+- mainsite-worker: APP v02.11.00 → APP v02.11.01
+
+
 ## 2026-04-17 — Mainsite Frontend v03.15.00 (SumUp remount + 3DS redirect/resume + CI)
 ### Escopo
 Fechamento corretivo do `mainsite-frontend` após a rodada de auditoria técnica de 2026-04-17, estabilizando o Payment Widget da SumUp, promovendo os testes ao gate de deploy e registrando explicitamente a decisão operacional do 3DS em cartão.
