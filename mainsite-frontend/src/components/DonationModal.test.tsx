@@ -74,7 +74,7 @@ describe('DonationModal', () => {
     fireEvent.change(screen.getByLabelText('E-mail para recibo e confirmação'), { target: { value: 'leo@example.com' } });
   };
 
-  it('creates a card checkout without redirectUrl to keep 3DS inside the widget', async () => {
+  it('creates a card checkout with redirectUrl and persists the reader context for SCA fallback', async () => {
     fetchMock
       .mockResolvedValueOnce({ ok: true, json: async () => ({ sumupRate: 0.0399, sumupFixed: 0.39 }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ checkoutId: 'chk-card' }) });
@@ -88,8 +88,15 @@ describe('DonationModal', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const [, requestInit] = fetchMock.mock.calls[1] as [string, RequestInit];
     const body = JSON.parse(String(requestInit.body));
+    const persisted = JSON.parse(String(sessionStorage.getItem('mainsite:sumup:pending-donation')));
 
-    expect(body.redirectUrl).toBeUndefined();
+    expect(new URL(String(body.redirectUrl))).toMatchObject({
+      pathname: '/',
+      search: '',
+      hash: '',
+    });
+    expect(persisted.paymentMethod).toBe('card');
+    expect(persisted.scrollY).toBe(480);
     expect(screen.getByTestId('sumup-widget').getAttribute('data-methods')).toBe('card');
   });
 

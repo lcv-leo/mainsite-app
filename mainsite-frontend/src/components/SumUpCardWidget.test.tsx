@@ -42,10 +42,16 @@ describe('SumUpCardWidget', () => {
     );
 
     await waitFor(() => expect(mountMock).toHaveBeenCalledTimes(1));
-    const config = mountMock.mock.calls[0]?.[0] as { onPaymentMethodsLoad?: (methods: unknown) => string[] };
+    const config = mountMock.mock.calls[0]?.[0] as {
+      onPaymentMethodsLoad?: (methods: unknown) => string[]
+      showAmount?: boolean
+      amount?: unknown
+    };
     const filteredMethods = config.onPaymentMethodsLoad?.([{ id: 'card' }, { id: 'pix' }]) || [];
 
     expect(filteredMethods).toEqual(['card']);
     expect(resolvedMethods).toHaveBeenCalledWith(['card', 'pix']);
+    expect(config.showAmount).toBe(true);
+    expect(config.amount).toBeUndefined();
   });
 });

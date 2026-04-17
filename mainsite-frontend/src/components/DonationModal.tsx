@@ -426,7 +426,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: sumupEmail.trim(),
-          redirectUrl: paymentMethod === 'pix' ? getReturnUrl() : undefined,
+          redirectUrl: getReturnUrl(),
         })
       });
       const createData = await createRes.json();
@@ -769,7 +769,6 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
               <SumUpCardWidget
                 checkoutId={cardCheckoutId}
                 email={sumupEmail.trim()}
-                amount={donationGross > 0 ? donationGross.toFixed(2) : undefined}
                 preferredPaymentMethods={selectedPaymentMethod === 'pix' ? [...SUMUP_PIX_METHODS] : [...SUMUP_CARD_METHODS]}
                 onPaymentMethodsResolved={(methods) => {
                   const expectedMethods = new Set<string>(

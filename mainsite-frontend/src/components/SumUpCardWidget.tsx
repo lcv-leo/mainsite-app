@@ -11,7 +11,6 @@ type SumUpCardResponseHandler = (type: SumUpResponseType | string, body: unknown
 interface SumUpCardWidgetProps {
   checkoutId: string
   email?: string
-  amount?: string
   preferredPaymentMethods?: string[]
   onPaymentMethodsResolved?: (methods: string[]) => void
   onError?: (message: string) => void
@@ -103,7 +102,6 @@ const extractPaymentMethodIds = (value: unknown): string[] => {
 const SumUpCardWidget = ({
   checkoutId,
   email,
-  amount,
   preferredPaymentMethods,
   onPaymentMethodsResolved,
   onError,
@@ -154,11 +152,11 @@ const SumUpCardWidget = ({
           id: mountId,
           checkoutId,
           email,
-          amount,
           currency: 'BRL',
           locale: 'pt-BR',
           country: 'BR',
           donateSubmitButton: true,
+          showAmount: true,
           showFooter: true,
           showSubmitButton: true,
           onPaymentMethodsLoad: (methods: unknown) => {
@@ -204,7 +202,7 @@ const SumUpCardWidget = ({
         widgetRef.current = null;
       }
     };
-  }, [checkoutId, email, amount, mountId, preferredPaymentMethods]);
+  }, [checkoutId, email, mountId, preferredPaymentMethods]);
 
   return (
     <div className="sumup-card-widget">
