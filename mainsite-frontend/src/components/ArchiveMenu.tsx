@@ -174,6 +174,9 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
         <span className="archive-menu__label">
           FRAGMENTOS ANTERIORES
         </span>
+        <span className="archive-menu__sublabel">
+          Arquivo completo de posts
+        </span>
         <ChevronUp size={20} className={`archive-menu__chevron${isHistoryOpen ? ' archive-menu__chevron--open' : ''}`} />
       </button>
 

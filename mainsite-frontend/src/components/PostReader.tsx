@@ -192,24 +192,42 @@ const PostReader = ({ post, activePalette, onShare, onContact, onComment, onDona
       <CommentsSection postId={post.id} activePalette={activePalette} apiUrl={apiUrl} turnstileSiteKey={turnstileSiteKey} />
 
       <nav aria-label="Compartilhamento e interação" className="share-bar">
-        <button onClick={() => onShare('whatsapp')} className="share-btn share-whatsapp" title="Compartilhar no WhatsApp">
-          <MessageCircle size={20} />
-        </button>
-        <button onClick={() => onShare('link')} className="share-btn share-link" title="Copiar Link Direto">
-          <Link2 size={20} />
-        </button>
-        <button onClick={() => onShare('email')} disabled={isSendingEmail} className="share-btn share-email" title="Enviar por E-mail">
-          {isSendingEmail ? <Loader2 className="animate-spin" size={20} /> : <Mail size={20} />}
-        </button>
-        <button onClick={onContact} className="share-btn share-contact" title="Falar com o Autor">
-          <MessageSquare size={20} />
-        </button>
-        <button onClick={onComment} className="share-btn share-comment" title="Deixar um Comentário">
-          <Edit3 size={20} />
-        </button>
-        <button onClick={onDonation} className="share-btn share-donate" title="Apoiar este Espaço">
-          <Heart size={20} />
-        </button>
+        <div className="share-item">
+          <button onClick={() => onShare('whatsapp')} className="share-btn share-whatsapp" title="Compartilhar no WhatsApp">
+            <MessageCircle size={20} />
+          </button>
+          <span className="share-caption">WhatsApp</span>
+        </div>
+        <div className="share-item">
+          <button onClick={() => onShare('link')} className="share-btn share-link" title="Copiar Link Direto">
+            <Link2 size={20} />
+          </button>
+          <span className="share-caption">Copiar</span>
+        </div>
+        <div className="share-item">
+          <button onClick={() => onShare('email')} disabled={isSendingEmail} className="share-btn share-email" title="Enviar por E-mail">
+            {isSendingEmail ? <Loader2 className="animate-spin" size={20} /> : <Mail size={20} />}
+          </button>
+          <span className="share-caption">E-mail</span>
+        </div>
+        <div className="share-item">
+          <button onClick={onContact} className="share-btn share-contact" title="Falar com o Autor">
+            <MessageSquare size={20} />
+          </button>
+          <span className="share-caption">Contato</span>
+        </div>
+        <div className="share-item">
+          <button onClick={onComment} className="share-btn share-comment" title="Deixar um Comentário">
+            <Edit3 size={20} />
+          </button>
+          <span className="share-caption">Comentar</span>
+        </div>
+        <div className="share-item">
+          <button onClick={onDonation} className="share-btn share-donate" title="Apoiar este Espaço">
+            <Heart size={20} />
+          </button>
+          <span className="share-caption">Apoiar</span>
+        </div>
       </nav>
     </article>
   );

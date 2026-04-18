@@ -1,5 +1,12 @@
 # Changelog — Mainsite Frontend
 
+## [v03.15.03] - 2026-04-18
+### Alterado
+- **`PostReader` — barra de ações com legendas permanentes**: os seis botões coloridos abaixo da seção de comentários (WhatsApp, Copiar, E-mail, Contato, Comentar, Apoiar) passaram a exibir um rótulo textual logo abaixo de cada círculo colorido. Os botões permanecem com 48×48px; apenas o `gap` do `share-bar` foi ampliado de 12px para 20px para acomodar as legendas sem adensar a linha.
+- **`ArchiveMenu` — "Fragmentos Anteriores" mais saliente**: o gatilho do arquivo deixou de ser um rótulo minimalista de 11px com `opacity: 0.8` e passou a ser uma pílula com borda sutil, fonte de 13px e uma sublinha italic "Arquivo completo de posts" para orientar leitores novos. No hover, a pílula é preenchida com a cor de fonte do tema ativo, transformando-se num CTA claro sem perder a estética editorial.
+### Motivação
+- **UX para leitores externos**: a rotação programada e periódica dos posts de primeira página torna o arquivo um recurso essencial; o tratamento anterior deixava a entrada para ele excessivamente discreta. Simultaneamente, leitores em mobile não tinham como descobrir a função dos seis botões de ação, porque dependiam exclusivamente de `title` (tooltip no hover) — cenário inacessível fora do desktop.
+
 ## [v03.15.02] - 2026-04-17
 ### Corrigido
 - `wrangler.json` do frontend deixou de declarar `observability` por ser config de Cloudflare Pages; `mainsite-worker/wrangler.json` preserva o baseline de observability por continuar sendo um Worker.

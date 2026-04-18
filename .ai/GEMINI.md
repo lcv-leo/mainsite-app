@@ -9,6 +9,17 @@
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
 # AI Memory Log - MainSite
 
+## 2026-04-18 — Mainsite Frontend v03.15.03 (UX do rodapé: legendas nos botões + arquivo mais saliente)
+### Escopo
+Ajustes de UI/UX na pós-leitura de matérias para leitores externos, motivados pela rotação programada de posts em primeira página (que torna o arquivo um recurso essencial) e pela inacessibilidade dos `title` tooltips em mobile.
+### Alterado
+- **`PostReader.tsx` + `PostReader.css` — share-bar com legendas permanentes**: os seis botões circulares (WhatsApp, Copiar, E-mail, Contato, Comentar, Apoiar) passaram a exibir um rótulo uppercase de 10,5px logo abaixo de cada círculo. O círculo colorido segue com 48×48px; só o `gap` do `share-bar` subiu de 12px → 20px.
+- **`ArchiveMenu.tsx` + `ArchiveMenu.css` — pílula "Fragmentos Anteriores"**: o gatilho do arquivo saiu do minimalismo de 11px com `opacity: 0.8` e virou uma pílula com borda `rgba(128,128,128,0.35)`, `padding: 14px 26px`, fonte 13px e sublinha italic "Arquivo completo de posts". No hover, a pílula inverte (preenche com `--site-font-color`, texto em `--site-bg-color`).
+### Motivação
+- Leitores novos não descobriam o arquivo completo e, em mobile, não descobriam a função dos seis botões — toda a comunicação dependia de `title` (tooltip só no hover de desktop). A mudança torna ambas as superfícies autoexplicativas sem alterar arquitetura ou fluxo.
+### Versão
+- mainsite-frontend: APP v03.15.02 → APP v03.15.03
+
 ## 2026-04-17 — Mainsite Frontend v03.15.02 (Pages observability rollback after GHA failure)
 ### Escopo
 Hotfix de deploy no `mainsite-app` após o GitHub Actions confirmar que `observability` não é suportado em config de Cloudflare Pages.
