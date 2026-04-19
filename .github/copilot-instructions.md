@@ -9,6 +9,16 @@
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
 # AI Memory Log - MainSite
 
+## 2026-04-19 — Mainsite Frontend v03.16.01 (DisclaimerModal: parágrafos justificados + recuo de primeira linha)
+### Escopo
+Ajuste estilístico no corpo do `DisclaimerModal` em cima da reforma de v03.16.00.
+### Alterado
+- **`src/components/DisclaimerModal.tsx`**: texto dividido em `<p>` por `\n{2,}`, `text-align: justify`, `text-indent: 1.75em`, `hyphens: auto`. Fallback: parágrafo único.
+### Motivação
+- Pedido do usuário em 2026-04-19 para padrão editorial dos disclaimers.
+### Versão
+- mainsite-frontend: APP v03.16.00 → APP v03.16.01
+
 ## 2026-04-19 — Mainsite Frontend v03.16.00 (DisclaimerModal: redimensionamento dinâmico + leitura obrigatória)
 ### Escopo
 Reforma do `DisclaimerModal` após incidente em que um aviso com três parágrafos ultrapassava o viewport e escondia o botão "Concordo".

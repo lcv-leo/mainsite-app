@@ -1,5 +1,11 @@
 # Changelog — Mainsite Frontend
 
+## [v03.16.01] - 2026-04-19
+### Alterado
+- **`DisclaimerModal` — tipografia dos avisos**: o corpo do disclaimer passou a dividir o texto em parágrafos reais (`<p>`) por quebras duplas (`\n{2,}`), com `text-align: justify`, `text-indent: 1.75em` na primeira linha de cada parágrafo e `hyphens: auto`. Textos sem quebras duplas seguem renderizando como parágrafo único sem regressão.
+### Motivação
+- Ajuste estilístico solicitado em 2026-04-19 para alinhar a leitura dos disclaimers ao padrão editorial de texto corrido do site.
+
 ## [v03.16.00] - 2026-04-19
 ### Alterado
 - **`DisclaimerModal` — redimensionamento dinâmico e leitura obrigatória**: o card deixou de crescer livremente com textos longos e agora obedece a `max-height: min(90vh, 720px)` com layout em coluna flex, reservando o corpo do aviso como área rolável independente (`overflow-y: auto`, `min-height: 0`). O botão de concordância só é habilitado depois que o leitor rola o texto até o final (tolerância de 2px); textos que já cabem sem rolagem liberam o botão imediatamente. Foram adicionados `ResizeObserver` + listener de `resize` para reavaliar o estado em reflows (barra do navegador móvel, fontes tardias, troca de orientação) e um indicador visual (gradiente de fade + `ChevronDown` animado) quando ainda há texto a ler. O reset acontece a cada troca de item do carrossel de disclaimers.

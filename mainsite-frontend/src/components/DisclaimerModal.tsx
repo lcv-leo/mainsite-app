@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 // Módulo: mainsite-frontend/src/components/DisclaimerModal.tsx
-// Versão: v1.6.0
-// Descrição: Redimensionamento dinâmico, corpo rolável e botão liberado somente após leitura integral.
+// Versão: v1.6.1
+// Descrição: Redimensionamento dinâmico, corpo rolável com parágrafos justificados/recuados e botão liberado somente após leitura integral.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertTriangle, Heart, ChevronDown } from 'lucide-react';
@@ -97,9 +97,17 @@ const DisclaimerItemView = ({ disclaimer, activePalette, isDarkBase, totalItems,
           ref={bodyRef}
           onScroll={evaluate}
           tabIndex={0}
-          style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0, padding: '4px 12px 20px', margin: '0 -4px', fontSize: '15px', lineHeight: 1.8, opacity: 0.9, whiteSpace: 'pre-wrap', fontWeight: 500, textAlign: 'left', outline: 'none' }}
+          style={{ flex: '1 1 auto', overflowY: 'auto', minHeight: 0, padding: '4px 12px 20px', margin: '0 -4px', fontSize: '15px', lineHeight: 1.8, opacity: 0.9, fontWeight: 500, textAlign: 'justify', hyphens: 'auto', outline: 'none' }}
         >
-          {disclaimer.text}
+          {(() => {
+            const paragraphs = disclaimer.text.split(/\n{2,}/).map(p => p.trim()).filter(p => p.length > 0);
+            const list = paragraphs.length > 0 ? paragraphs : [disclaimer.text];
+            return list.map((paragraph, i) => (
+              <p key={i} style={{ margin: 0, marginBottom: i === list.length - 1 ? 0 : '0.9em', textIndent: '1.75em', whiteSpace: 'pre-wrap' }}>
+                {paragraph}
+              </p>
+            ));
+          })()}
         </div>
         {!canClose && (
           <div aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '48px', pointerEvents: 'none', background: `linear-gradient(to bottom, transparent, ${fadeColor})`, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '4px' }}>
