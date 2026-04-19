@@ -9,6 +9,18 @@
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
 # AI Memory Log - MainSite
 
+## 2026-04-19 — Mainsite Frontend v03.16.00 (DisclaimerModal: redimensionamento dinâmico + leitura obrigatória)
+### Escopo
+Reforma do `DisclaimerModal` após incidente em que um aviso com três parágrafos ultrapassava o viewport e escondia o botão "Concordo".
+### Alterado
+- **`src/components/DisclaimerModal.tsx` — altura limitada + corpo rolável**: `max-height: min(90vh, 720px)`, flex column com o corpo do aviso como única área rolável (`overflow-y: auto`, `min-height: 0`); `padding` do card virou `clamp(20px, 4vw, 36px)` para viewports pequenos.
+- **Gate de leitura**: botão principal só habilita depois da rolagem integral (tolerância `2px`); `ResizeObserver` + listener de `resize` reavaliam em reflows; textos que cabem sem rolagem liberam o botão via `useLayoutEffect`. Reset a cada troca de item do carrossel.
+- **Affordance visual**: gradiente de fade + `ChevronDown` animado e `aria-live="polite"` enquanto ainda há texto a ler. O "Pular agora e ler os textos" (modo doação) também é gatado; o checkbox "Não exibir" fica livre.
+### Motivação
+- Incidente de 2026-04-19: disclaimer longo tornava o modal inalcançável. Reforma alinha o componente ao feedback global "modal/toasts sempre centralizados no viewport" e adiciona trava de leitura consciente.
+### Versão
+- mainsite-frontend: APP v03.15.03 → APP v03.16.00
+
 ## 2026-04-18 — Mainsite Frontend v03.15.03 (UX do rodapé: legendas nos botões + arquivo mais saliente)
 ### Escopo
 Ajustes de UI/UX na pós-leitura de matérias para leitores externos, motivados pela rotação programada de posts em primeira página (que torna o arquivo um recurso essencial) e pela inacessibilidade dos `title` tooltips em mobile.

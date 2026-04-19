@@ -1,5 +1,13 @@
 # Changelog — Mainsite Frontend
 
+## [v03.16.00] - 2026-04-19
+### Alterado
+- **`DisclaimerModal` — redimensionamento dinâmico e leitura obrigatória**: o card deixou de crescer livremente com textos longos e agora obedece a `max-height: min(90vh, 720px)` com layout em coluna flex, reservando o corpo do aviso como área rolável independente (`overflow-y: auto`, `min-height: 0`). O botão de concordância só é habilitado depois que o leitor rola o texto até o final (tolerância de 2px); textos que já cabem sem rolagem liberam o botão imediatamente. Foram adicionados `ResizeObserver` + listener de `resize` para reavaliar o estado em reflows (barra do navegador móvel, fontes tardias, troca de orientação) e um indicador visual (gradiente de fade + `ChevronDown` animado) quando ainda há texto a ler. O reset acontece a cada troca de item do carrossel de disclaimers.
+### Corrigido
+- **Botão de fechamento fora da tela em textos longos**: disclaimers com três parágrafos ou mais faziam o card ultrapassar o viewport, escondendo o botão "Concordo" e impedindo o leitor de avançar. Com o corpo rolável interno, o botão permanece sempre visível independentemente do tamanho do texto.
+### Motivação
+- **Incidente de UX reportado em 2026-04-19**: um disclaimer recém-cadastrado com três parágrafos tornou o modal inalcançável em resoluções comuns; a reforma alinha o componente à diretiva geral de "modal/toasts sempre centralizados no viewport" e adiciona uma trava de leitura consciente, garantindo que o leitor tenha contato com o texto integral antes de dispensá-lo.
+
 ## [v03.15.03] - 2026-04-18
 ### Alterado
 - **`PostReader` — barra de ações com legendas permanentes**: os seis botões coloridos abaixo da seção de comentários (WhatsApp, Copiar, E-mail, Contato, Comentar, Apoiar) passaram a exibir um rótulo textual logo abaixo de cada círculo colorido. Os botões permanecem com 48×48px; apenas o `gap` do `share-bar` foi ampliado de 12px para 20px para acomodar as legendas sem adensar a linha.

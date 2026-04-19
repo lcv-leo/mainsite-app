@@ -1,3 +1,16 @@
+## 2026-04-19 — Mainsite Frontend v03.16.00 (DisclaimerModal: redimensionamento dinâmico + leitura obrigatória)
+### Escopo
+Reforma do `DisclaimerModal` após incidente em que um aviso com três parágrafos ultrapassava o viewport e escondia o botão "Concordo", deixando o leitor sem como dispensar o modal.
+### Alterado
+- **`src/components/DisclaimerModal.tsx` — layout com altura limitada e corpo rolável**: o card agora respeita `max-height: min(90vh, 720px)` e vira um flex column com o corpo do aviso como única área rolável (`overflow-y: auto`, `min-height: 0`). O botão e o checkbox permanecem sempre visíveis; o `padding` do card passou a ser `clamp(20px, 4vw, 36px)` para se adequar a viewports pequenos.
+- **`DisclaimerModal` — gate de leitura para fechar**: o botão principal só habilita depois que o leitor rola até o final do texto (tolerância `2px`), com `ResizeObserver` + listener de `resize` para reavaliar em reflows (barra do navegador mobile, fontes tardias, troca de orientação). Textos que já cabem sem rolagem liberam o botão imediatamente via `useLayoutEffect`. O reset acontece a cada troca de item do carrossel de disclaimers.
+- **`DisclaimerModal` — affordance visual**: gradiente de fade no rodapé do corpo + `ChevronDown` animado enquanto a leitura não foi concluída; mensagem `aria-live="polite"` "Role o texto até o final para habilitar o botão." substitui o estado silencioso.
+- **Escopo de gate**: o botão "Pular agora e ler os textos" (modo doação) também é gatado pelo mesmo flag, por consistência; o checkbox "Não exibir este aviso novamente" permanece livre pré-leitura por ser apenas preferência.
+### Motivação
+- Incidente reportado em 2026-04-19: um disclaimer recém-cadastrado com três parágrafos tornou o modal inalcançável em viewports comuns. A reforma alinha o componente ao feedback global "modal/toasts sempre centralizados no viewport" e acopla uma trava de leitura consciente, garantindo que o leitor entre em contato com o texto integral antes de dispensá-lo.
+### Versão
+- mainsite-frontend: APP v03.15.03 → APP v03.16.00
+
 ## 2026-04-18 — Mainsite Frontend v03.15.03 (UX do rodapé: legendas nos botões + arquivo mais saliente)
 ### Escopo
 Ajustes de UI/UX na pós-leitura de matérias para leitores externos, motivados pela rotação programada de posts em primeira página (que torna o arquivo um recurso essencial) e pela inacessibilidade dos `title` tooltips em mobile.

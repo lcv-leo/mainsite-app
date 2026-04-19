@@ -9,6 +9,18 @@
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
 # AI Memory Log - MainSite
 
+## 2026-04-19 — Mainsite Frontend v03.16.00 (DisclaimerModal: redimensionamento dinâmico + leitura obrigatória)
+### Escopo
+Reforma do `DisclaimerModal` após incidente em que um aviso com três parágrafos ultrapassava o viewport e escondia o botão "Concordo", deixando o leitor sem como dispensar o modal.
+### Alterado
+- **`src/components/DisclaimerModal.tsx` — altura limitada + corpo rolável**: `max-height: min(90vh, 720px)`, layout flex column com o corpo do aviso como única área rolável (`overflow-y: auto`, `min-height: 0`). Botão e checkbox permanecem sempre visíveis; `padding` do card passou a ser `clamp(20px, 4vw, 36px)` para viewports pequenos.
+- **`DisclaimerModal` — gate de leitura**: botão principal só habilita depois da rolagem integral (tolerância `2px`); `ResizeObserver` + listener de `resize` reavaliam em reflows (barra do navegador mobile, fontes tardias, troca de orientação). Textos que já cabem sem rolagem liberam o botão imediatamente via `useLayoutEffect`. Reset aplicado a cada troca de item do carrossel.
+- **`DisclaimerModal` — affordance visual**: gradiente de fade + `ChevronDown` animado e mensagem `aria-live="polite"` ("Role o texto até o final para habilitar o botão.") enquanto a leitura não foi concluída. O botão "Pular agora e ler os textos" (modo doação) também é gatado; o checkbox "Não exibir este aviso novamente" segue livre pré-leitura.
+### Motivação
+- Incidente reportado em 2026-04-19: disclaimer recém-cadastrado com três parágrafos ultrapassava o viewport em resoluções comuns. A reforma alinha o componente ao feedback global "modal/toasts sempre centralizados no viewport" e adiciona uma trava de leitura consciente.
+### Versão
+- mainsite-frontend: APP v03.15.03 → APP v03.16.00
+
 ## 2026-04-18 — Mainsite Frontend v03.15.03 (UX do rodapé: legendas nos botões + arquivo mais saliente)
 ### Escopo
 Ajustes de UI/UX na pós-leitura de matérias para leitores externos, motivados pela rotação programada de posts em primeira página (que torna o arquivo um recurso essencial) e pela inacessibilidade dos `title` tooltips em mobile.
