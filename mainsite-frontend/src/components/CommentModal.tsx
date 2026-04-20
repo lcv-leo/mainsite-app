@@ -49,11 +49,12 @@ const CommentModal = ({
   useEffect(() => {
     if (!turnstileSiteKey || !show || !turnstileRef.current) return;
     if (turnstileWidgetId.current) return;
+    const siteKey = turnstileSiteKey;
 
     function renderTurnstile() {
       if (!window.turnstile || !turnstileRef.current) return;
       turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
-        sitekey: turnstileSiteKey!,
+        sitekey: siteKey,
         callback: (token: string) => {
           setTurnstileToken(token);
           setTurnstileMessage(null);
@@ -232,6 +233,14 @@ const CommentModal = ({
             e.currentTarget.style.opacity = '0.8';
             e.currentTarget.style.transform = 'translateY(0)';
           }}
+          onFocus={(e) => {
+            e.currentTarget.style.opacity = '1';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.opacity = '0.8';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
           <X size={20} />
         </button>
@@ -356,8 +365,18 @@ const CommentModal = ({
             type="submit"
             disabled={submitDisabled}
             style={buttonStyle}
-            onMouseOver={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(-2px)')}
-            onMouseOut={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(0)')}
+            onMouseOver={(e) => {
+              if (!submitDisabled) e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseOut={(e) => {
+              if (!submitDisabled) e.currentTarget.style.transform = 'translateY(0)';
+            }}
+            onFocus={(e) => {
+              if (!submitDisabled) e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onBlur={(e) => {
+              if (!submitDisabled) e.currentTarget.style.transform = 'translateY(0)';
+            }}
           >
             {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
             {isSubmitting ? 'ENVIANDO...' : 'ENVIAR COMENTÁRIO'}

@@ -94,6 +94,7 @@ export function LicencasModule() {
       .filter(Boolean);
 
     return paragraphs.map((paragraph, index) => (
+      // biome-ignore lint/suspicious/noArrayIndexKey: parágrafos derivados de split estável, ordem imutável
       <p key={`paragraph-${index}`} style={paragraphStyle}>
         {paragraph}
       </p>

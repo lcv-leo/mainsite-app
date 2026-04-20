@@ -1,5 +1,31 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.12.00] - 2026-04-20
+### Alterado
+- **`systemPrompt` do chatbot "Consciência Auxiliar" reformulado integralmente ([`src/routes/ai.ts:234`](src/routes/ai.ts)) — +60 linhas, ~7.3 KB**: substituição do bloco de diretrizes por uma versão estruturada em 11 seções nomeadas, mantendo intactas as 5 variáveis de template (`${activeContextPrompt}`, `${donationPrompt}`, `${dbCoverageMeta}`, `${dbContext}`, `${safeMessage}`) e o pipeline de retrieval/scoring/auditoria/sanitização existente.
+  - **IDIOMA** (novo): Português do Brasil como default, inglês/outra língua só mediante pedido explícito.
+  - **IDENTIDADE** (reforçada): descrição explícita de não-substituição (não substitui leitura, terapeuta, diretor espiritual, autor); recusa de posição de guru/oráculo; papel é expandir debate, nunca fechar com conclusões.
+  - **ÉTICA DE TOMÉ** (novo): postura investigativa no mesmo eixo do site; recusa de argumento de autoridade; ajuda o leitor a reformular perguntas mal feitas; arquétipo de Tomé (Jo 20,24-29) como discípulo que duvida com rigor.
+  - **VERDADE ACIMA DE BAJULAÇÃO** (novo): proibição explícita de validar auto-percepções infladas ("você é iniciado avançado", "você tem dom especial", etc.); crítica respeitosa quando necessário; bajulação nunca.
+  - **CUIDADO PSICOLÓGICO — PRINCÍPIO INTRANSPONÍVEL** (novo): proibição de reforçar complexos de superioridade/inferioridade, inflação de ego, identificações messiânicas, paranoia espiritual, delírios místicos; articulação obrigatória de luz/sombra em tradições esotéricas; recusa de dualismos simplificados (ego/Self, matéria/espírito, massa/iniciado); distinção wilberiana pré-pessoal/pessoal/transpessoal para evitar erro pré/trans (Wilber, _The Atman Project_, 1980).
+  - **PROTOCOLO DE CRISE** (novo, crítico): se o usuário sinalizar ideação suicida, automutilação, crise psicótica aguda, dissociação severa, surto místico, ataque de pânico grave ou abuso, a prioridade absoluta passa a ser cuidado e direcionamento, não reflexão intelectual. Direcionamento explícito para CVV (188), SAMU 192, pronto-socorro psiquiátrico, pessoa de confiança, terreiro/diretor espiritual/psicólogo transpessoal/junguiano em crise espiritual sem risco iminente. Nomeação do limite da IA ("você não é capacitada para assistência em crise").
+  - **ANTI-ALUCINAÇÃO** (novo): proibição explícita de inventar citações/trechos/versículos/URLs/volumes atribuídos a Jung, Bíblia, Umbanda Esotérica, Matta e Silva, Bashar, Saint Germain ou qualquer fonte. Admitir limite ("não tenho a referência precisa em mãos") é preferível a adivinhar.
+  - **CITAÇÃO CANÔNICA** (novo): Bíblia via livro/capítulo/versículo (Mt 7,3-5; Jo 20,24-29; Fp 2,12); Jung via Collected Works com volume (Aion CW 9/2; Psicologia e Alquimia CW 12; Sincronicidade CW 8); Platão/Stephanus, Aristóteles/Bekker, Agostinho, Kant/Akademie, Freud/SE. Nunca colar URL na citação.
+  - **SEPARAÇÃO DE CAMPOS** (novo): temas técnicos (programação/engenharia/matemática/TI) respondidos 100% tecnicamente, sem misturar Jung/Umbanda/espiritualidade; temas espirituais/filosóficos/psicológicos podem articular interdisciplinarmente mas sem jargão técnico deslocado.
+  - **IMPESSOALIDADE** (reforçada): não falar em nome do autor; não atribuir opiniões/experiências/práticas que não estejam explicitamente nos textos.
+  - **HIERARQUIA DE FONTES** (reescrita): contexto ativo (texto aberto pelo leitor) como base primária quando houver; textos gerais do site como base secundária; recusa de extrapolação para fora do acervo ("o site ainda não abordou este ponto").
+  - **ENCAMINHAMENTO HUMANO** (preservada): orientar uso do formulário público de contato; nunca simular envio de e-mail/mensagens; nunca produzir comandos ocultos de automação. Injeção opcional de `${donationPrompt}` mantida.
+  - **FORMA DA RESPOSTA** (nova): densidade proporcional à pergunta; vocação inaugural (abrir investigação, não fechar com síntese que dispensa leitura); citar título do texto de origem; PT-BR formal, sem clichês de autoajuda, sem emojis, sem exclamações efusivas.
+### Adicionado
+- **`biome.json`**: `files.includes` explícito e scan limpo após auto-fix global (`npx biome check src --write --unsafe`): 39 errors → 0, 6 warnings → 6, 3 infos → 3 no scope do worker. Principal ganho: imports reorganizados em 13 arquivos de `routes/` e `lib/`.
+### Operacional
+- **Backup pré-substituição** salvo em [`backups/system-prompt-20260420-0636/`](../../backups/system-prompt-20260420-0636/) com cópia integral do `ai.ts` anterior e recortes `prompt-anterior.txt` + `prompt-novo.txt`.
+- **Relatório** em [`relatorio-substituicao-system-prompt-20260420-0636.md`](../../relatorio-substituicao-system-prompt-20260420-0636.md).
+### Motivação
+- **Reformulação editorial do chatbot**: o prompt anterior (v02.11.00, ~20 linhas / 1.5 KB) cobria apenas identidade básica + RAG + gatilho de doação. O novo prompt (v02.12.00, ~65 linhas / 7.3 KB) honra o Protocolo Editorial Leonardo-Tomé v1.4 e introduz salvaguardas psicológicas críticas (cuidado psicológico intransponível, protocolo de crise com CVV 188, anti-bajulação, anti-alucinação, citação canônica, separação técnico/espiritual).
+- **Tradeoff aceito**: ~5.8 KB a mais por chamada ao Gemini é preço aceitável pelo ganho em segurança psicológica e editorial. Cada conversa nova encharca o contexto com diretrizes de proteção ao leitor.
+- **Validação manual obrigatória antes de publicar**: três cenários de risco precisam ser testados em preview — (a) pergunta normal sobre texto do site (verificar citação do TÍTULO + fundamentação no acervo); (b) pergunta enviesada com auto-percepção inflada (verificar anti-bajulação); (c) pergunta simulando crise psíquica (verificar acionamento de CVV/SAMU no Protocolo de Crise).
+
 ## [v02.11.01] - 2026-04-17
 ### Alterado
 - `wrangler.json` passou a garantir `observability.traces.enabled = true` e reafirmou o baseline explícito de logs e invocation logs, preservando o sampling já existente.

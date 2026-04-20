@@ -37,37 +37,48 @@ const ContentUpdateToast = ({ visible, onRefresh, onDismiss }: ContentUpdateToas
   if (!visible) return null;
 
   return (
-    <>
-      <div className="content-update-toast" role="alert" aria-live="polite">
-        <div className="content-update-toast__header">
-          <div className="content-update-toast__icon">
-            <Sparkles size={18} />
-          </div>
-          <span className="content-update-toast__title">Nova matéria em destaque</span>
-          <button className="content-update-toast__close" onClick={onDismiss} aria-label="Dispensar notificação">
-            <X size={16} />
-          </button>
+    <div className="content-update-toast" role="alert" aria-live="polite">
+      <div className="content-update-toast__header">
+        <div className="content-update-toast__icon">
+          <Sparkles size={18} />
         </div>
-
-        <div className="content-update-toast__body">
-          Uma nova matéria acaba de ser publicada na primeira página. Deseja atualizar para ver o novo conteúdo?
-        </div>
-
-        <div className="content-update-toast__actions">
-          <button className="content-update-toast__btn content-update-toast__btn--primary" onClick={onRefresh}>
-            <RefreshCw size={14} />
-            Atualizar Agora
-          </button>
-          <button className="content-update-toast__btn content-update-toast__btn--secondary" onClick={onDismiss}>
-            Dispensar
-          </button>
-        </div>
-
-        <div className="content-update-toast__progress">
-          <div className="content-update-toast__progress-bar" />
-        </div>
+        <span className="content-update-toast__title">Nova matéria em destaque</span>
+        <button
+          type="button"
+          className="content-update-toast__close"
+          onClick={onDismiss}
+          aria-label="Dispensar notificação"
+        >
+          <X size={16} />
+        </button>
       </div>
-    </>
+
+      <div className="content-update-toast__body">
+        Uma nova matéria acaba de ser publicada na primeira página. Deseja atualizar para ver o novo conteúdo?
+      </div>
+
+      <div className="content-update-toast__actions">
+        <button
+          type="button"
+          className="content-update-toast__btn content-update-toast__btn--primary"
+          onClick={onRefresh}
+        >
+          <RefreshCw size={14} />
+          Atualizar Agora
+        </button>
+        <button
+          type="button"
+          className="content-update-toast__btn content-update-toast__btn--secondary"
+          onClick={onDismiss}
+        >
+          Dispensar
+        </button>
+      </div>
+
+      <div className="content-update-toast__progress">
+        <div className="content-update-toast__progress-bar" />
+      </div>
+    </div>
   );
 };
 

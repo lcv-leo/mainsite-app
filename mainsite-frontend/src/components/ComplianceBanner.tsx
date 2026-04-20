@@ -32,6 +32,7 @@ export const ComplianceBanner: React.FC<ComplianceBannerProps> = ({ onViewLicens
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
       }}
+      role="contentinfo"
       aria-label="Rodapé de conformidade de licenciamento"
     >
       <span>Copyright © 2026 Leonardo Cardozo Vargas</span>

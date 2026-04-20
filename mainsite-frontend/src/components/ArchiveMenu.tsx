@@ -7,7 +7,7 @@
 // Descrição: Fase 4 visual redesign — 2-column editorial grid, pill year selectors, gradient accents.
 
 import { Calendar, ChevronUp, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ActivePalette, Post } from '../types';
 import './ArchiveMenu.css';
 
@@ -37,11 +37,11 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
   const [showOlderYears, setShowOlderYears] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
-  const parsePostDate = (post: Post): Date => {
+  const parsePostDate = useCallback((post: Post): Date => {
     if (!post?.created_at) return new Date(0);
-    const parsed = new Date(post.created_at.replace(' ', 'T') + 'Z');
+    const parsed = new Date(`${post.created_at.replace(' ', 'T')}Z`);
     return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
-  };
+  }, []);
 
   const monthFormatter = useMemo(
     () => new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'America/Sao_Paulo' }),
@@ -74,27 +74,26 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
       const year = String(postDate.getFullYear());
       const month = monthFormatter.format(postDate).toLocaleUpperCase('pt-BR');
 
-      if (!yearMap.has(year)) {
-        const entry = { year, months: [] as MonthGroup[], monthMap: new Map<string, MonthGroup>() };
-        yearMap.set(year, entry);
-        years.push(entry);
+      let yearEntry = yearMap.get(year);
+      if (!yearEntry) {
+        yearEntry = { year, months: [] as MonthGroup[], monthMap: new Map<string, MonthGroup>() };
+        yearMap.set(year, yearEntry);
+        years.push(yearEntry);
       }
-
-      const yearEntry = yearMap.get(year)!;
       if (!yearEntry.monthMap.has(month)) {
         const monthEntry: MonthGroup = { month, posts: [] };
         yearEntry.monthMap.set(month, monthEntry);
         yearEntry.months.push(monthEntry);
       }
 
-      yearEntry.monthMap.get(month)!.posts.push(post);
+      yearEntry.monthMap.get(month)?.posts.push(post);
     });
 
     return years.map((entry) => ({
       year: entry.year,
       months: entry.months,
     }));
-  }, [historicalArchive, monthFormatter]);
+  }, [historicalArchive, monthFormatter, parsePostDate]);
 
   const latestFourYears = groupedHistory.slice(0, 4);
   const olderYears = groupedHistory.slice(4);
@@ -155,7 +154,20 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
       fmtDateShort(post.created_at) ||
       parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     return (
-      <div key={post.id} onClick={() => handleSelectPost(post)} className="editorial-card">
+      // biome-ignore lint/a11y/useSemanticElements: preserva .editorial-card CSS; keyboard-accessible via role+tabIndex+onKeyDown
+      <div
+        key={post.id}
+        role="button"
+        tabIndex={0}
+        onClick={() => handleSelectPost(post)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleSelectPost(post);
+          }
+        }}
+        className="editorial-card"
+      >
         <div className="editorial-card-accent" />
         <div className="editorial-card-body">
           <div className="editorial-card-date">
@@ -175,7 +187,19 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
     const showUpdated = atualizado && atualizado !== criado;
     return (
       <div key={post.id} className="featured-card-wrap">
-        <div onClick={() => handleSelectPost(post)} className="featured-card">
+        {/* biome-ignore lint/a11y/useSemanticElements: preserva .featured-card CSS; keyboard-accessible via role+tabIndex+onKeyDown */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => handleSelectPost(post)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleSelectPost(post);
+            }
+          }}
+          className="featured-card"
+        >
           <div className="featured-card-date">
             {criado || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
             {showUpdated && <div className="featured-card-updated">Atualizado em {atualizado}</div>}
@@ -188,7 +212,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
 
   return (
     <footer className="archive-menu">
-      <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} className="archive-menu__toggle">
+      <button type="button" onClick={() => setIsHistoryOpen(!isHistoryOpen)} className="archive-menu__toggle">
         <span className="archive-menu__label">FRAGMENTOS ANTERIORES</span>
         <span className="archive-menu__sublabel">Arquivo completo de posts</span>
         <ChevronUp

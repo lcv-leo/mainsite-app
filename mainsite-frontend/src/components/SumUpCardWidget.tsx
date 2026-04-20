@@ -143,6 +143,7 @@ const SumUpCardWidget = ({
     preferredPaymentMethodsRef.current = normalizedPreferredPaymentMethods;
   }, [normalizedPreferredPaymentMethods]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `preferredPaymentMethodsKey` é dep de GATILHO — re-monta o widget apenas quando a seleção lógica de métodos muda, não a cada render. Testado em SumUpCardWidget.test.tsx (v03.15.00 memory).
   useEffect(() => {
     let cancelled = false;
 

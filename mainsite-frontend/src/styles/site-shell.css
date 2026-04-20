@@ -101,9 +101,9 @@
 }
 
 .site-toast--error {
-  background-color: var(--semantic-error) !important;
-  color: #fff !important;
-  border-color: transparent !important;
+  background-color: var(--semantic-error);
+  color: #fff;
+  border-color: transparent;
 }
 
 .site-error {

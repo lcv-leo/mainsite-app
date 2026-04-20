@@ -91,7 +91,10 @@ const PostReader = ({
           a.setAttribute('rel', 'noopener noreferrer');
         }
       });
-      return <div className="html-content" dangerouslySetInnerHTML={{ __html: container.innerHTML }} />;
+      return (
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML passou por DOMPurify (USE_PROFILES: html) + post-process de links; conteúdo é autorado por admin autenticado
+        <div className="html-content" dangerouslySetInnerHTML={{ __html: container.innerHTML }} />
+      );
     }
 
     return activeContent
@@ -101,6 +104,7 @@ const PostReader = ({
         const ytMatch = text.match(/^\[YT:(.+?)(\|(.*?))?\]$/);
         if (ytMatch)
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: parágrafos do post divididos por \n, ordem imutável em render único
             <div key={index} className="media-container">
               <iframe
                 className="media-iframe"
@@ -115,6 +119,7 @@ const PostReader = ({
         const imgMatch = text.match(/^\[IMG:(.+?)(\|(.*?))?\]$/);
         if (imgMatch)
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: parágrafos do post divididos por \n, ordem imutável em render único
             <div key={index} className="media-container">
               <img
                 src={imgMatch[1].trim()}
@@ -126,6 +131,7 @@ const PostReader = ({
             </div>
           );
         return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: parágrafos do post divididos por \n, ordem imutável em render único
           <p key={index} className="p-content">
             {text}
           </p>
@@ -155,7 +161,7 @@ const PostReader = ({
       sameAs: ['https://github.com/lcv-leo', 'https://www.linkedin.com/in/lcv-leo'],
     },
     datePublished: post.created_at
-      ? new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString()
+      ? new Date(`${post.created_at.replace(' ', 'T')}Z`).toISOString()
       : new Date().toISOString(),
     dateModified: post.updated_at
       ? new Date(
@@ -163,7 +169,7 @@ const PostReader = ({
             (post.updated_at.includes('Z') || post.updated_at.includes('+') ? '' : 'Z'),
         ).toISOString()
       : post.created_at
-        ? new Date(post.created_at.replace(' ', 'T') + 'Z').toISOString()
+        ? new Date(`${post.created_at.replace(' ', 'T')}Z`).toISOString()
         : new Date().toISOString(),
     publisher: {
       '@type': 'Organization',
@@ -198,6 +204,7 @@ const PostReader = ({
       {isNotHomePage && (
         <div className="post-reader__home-wrap">
           <button
+            type="button"
             onClick={() => (window.location.href = '/')}
             className="post-reader__home-button"
             title="Voltar para a postagem principal"
@@ -215,11 +222,12 @@ const PostReader = ({
       <div className="post-byline">
         Por {postAuthor}
         {post.created_at &&
-          ` · ${new Date(post.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
+          ` · ${new Date(`${post.created_at.replace(' ', 'T')}Z`).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
       </div>
 
       <div className="post-reader__content-area">
         <div>
+          {/* biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD serializer escapa <, >, &, U+2028, U+2029 — previne injection de </script> e quebra de string */}
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schemaOrgJSONLDText }} />
           {renderContent(post.content)}
         </div>
@@ -273,6 +281,7 @@ const PostReader = ({
       <nav aria-label="Compartilhamento e interação" className="share-bar">
         <div className="share-item">
           <button
+            type="button"
             onClick={() => onShare('whatsapp')}
             className="share-btn share-whatsapp"
             title="Compartilhar no WhatsApp"
@@ -282,13 +291,19 @@ const PostReader = ({
           <span className="share-caption">WhatsApp</span>
         </div>
         <div className="share-item">
-          <button onClick={() => onShare('link')} className="share-btn share-link" title="Copiar Link Direto">
+          <button
+            type="button"
+            onClick={() => onShare('link')}
+            className="share-btn share-link"
+            title="Copiar Link Direto"
+          >
             <Link2 size={20} />
           </button>
           <span className="share-caption">Copiar</span>
         </div>
         <div className="share-item">
           <button
+            type="button"
             onClick={() => onShare('email')}
             disabled={isSendingEmail}
             className="share-btn share-email"
@@ -299,19 +314,19 @@ const PostReader = ({
           <span className="share-caption">E-mail</span>
         </div>
         <div className="share-item">
-          <button onClick={onContact} className="share-btn share-contact" title="Falar com o Autor">
+          <button type="button" onClick={onContact} className="share-btn share-contact" title="Falar com o Autor">
             <MessageSquare size={20} />
           </button>
           <span className="share-caption">Contato</span>
         </div>
         <div className="share-item">
-          <button onClick={onComment} className="share-btn share-comment" title="Deixar um Comentário">
+          <button type="button" onClick={onComment} className="share-btn share-comment" title="Deixar um Comentário">
             <Edit3 size={20} />
           </button>
           <span className="share-caption">Comentar</span>
         </div>
         <div className="share-item">
-          <button onClick={onDonation} className="share-btn share-donate" title="Apoiar este Espaço">
+          <button type="button" onClick={onDonation} className="share-btn share-donate" title="Apoiar este Espaço">
             <Heart size={20} />
           </button>
           <span className="share-caption">Apoiar</span>

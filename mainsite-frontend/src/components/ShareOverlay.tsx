@@ -186,6 +186,14 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette, turn
             e.currentTarget.style.opacity = '0.8';
             e.currentTarget.style.transform = 'translateY(0)';
           }}
+          onFocus={(e) => {
+            e.currentTarget.style.opacity = '1';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.opacity = '0.8';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
           <X size={20} />
         </button>
@@ -223,7 +231,6 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette, turn
             name="recipientEmail"
             type="email"
             required
-            autoFocus
             autoComplete="email"
             placeholder="destinatario@exemplo.com"
             value={modalState.email}
@@ -250,8 +257,18 @@ const ShareOverlay = ({ modalState, setModalState, onSubmit, activePalette, turn
               cursor: submitDisabled ? 'not-allowed' : 'pointer',
               opacity: submitDisabled ? 0.7 : 1,
             }}
-            onMouseOver={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(-2px)')}
-            onMouseOut={(e) => !submitDisabled && (e.currentTarget.style.transform = 'translateY(0)')}
+            onMouseOver={(e) => {
+              if (!submitDisabled) e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseOut={(e) => {
+              if (!submitDisabled) e.currentTarget.style.transform = 'translateY(0)';
+            }}
+            onFocus={(e) => {
+              if (!submitDisabled) e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onBlur={(e) => {
+              if (!submitDisabled) e.currentTarget.style.transform = 'translateY(0)';
+            }}
           >
             <Send size={20} /> ENVIAR E-MAIL
           </button>

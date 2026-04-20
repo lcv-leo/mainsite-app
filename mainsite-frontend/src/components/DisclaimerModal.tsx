@@ -157,7 +157,6 @@ const DisclaimerItemView = ({
           id="disclaimer-body"
           ref={bodyRef}
           onScroll={evaluate}
-          tabIndex={0}
           style={{
             flex: '1 1 auto',
             overflowY: 'auto',
@@ -181,6 +180,7 @@ const DisclaimerItemView = ({
             const list = paragraphs.length > 0 ? paragraphs : [disclaimer.text];
             return list.map((paragraph, i) => (
               <p
+                // biome-ignore lint/suspicious/noArrayIndexKey: parágrafos derivados de split estável, ordem imutável
                 key={i}
                 style={{
                   margin: 0,
@@ -241,6 +241,7 @@ const DisclaimerItemView = ({
         </label>
 
         <button
+          type="button"
           onClick={handleAgree}
           disabled={!canClose}
           aria-disabled={!canClose}
@@ -261,7 +262,7 @@ const DisclaimerItemView = ({
             justifyContent: 'center',
             gap: '10px',
             boxShadow: canClose
-              ? `0 8px 24px ${isDonationMode ? 'rgba(236, 72, 153, 0.4)' : activePalette.titleColor + '40'}`
+              ? `0 8px 24px ${isDonationMode ? 'rgba(236, 72, 153, 0.4)' : `${activePalette.titleColor}40`}`
               : 'none',
             opacity: canClose ? 1 : 0.45,
             filter: canClose ? 'none' : 'saturate(0.6)',
@@ -270,6 +271,12 @@ const DisclaimerItemView = ({
             if (canClose) e.currentTarget.style.transform = 'translateY(-2px)';
           }}
           onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+          onFocus={(e) => {
+            if (canClose) e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onBlur={(e) => {
             e.currentTarget.style.transform = 'translateY(0)';
           }}
         >
@@ -285,6 +292,7 @@ const DisclaimerItemView = ({
 
         {isDonationMode && (
           <button
+            type="button"
             onClick={handleSkip}
             disabled={!canClose}
             aria-disabled={!canClose}
@@ -316,7 +324,7 @@ const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigg
     if (show) setTimeout(() => setCurrentIndex(0), 0);
   }, [show]);
 
-  if (!show || !activePalette || !config || !config.enabled || !config.items || config.items.length === 0) {
+  if (!show || !activePalette || !config?.enabled || !config.items || config.items.length === 0) {
     if (show) onClose();
     return null;
   }

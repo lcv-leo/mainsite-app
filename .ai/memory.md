@@ -1,3 +1,58 @@
+## 2026-04-20 — Mainsite Frontend v03.17.00 (auditoria de qualidade: zerar biome/eslint/tsc + evitar armadilhas do unsafe)
+### Escopo
+Auditoria completa dos gates do `mainsite-frontend` a pedido do usuário em 2026-04-20, logo após o hotfix v01.91.01 do `admin-app`. Baseline: 55 errors / 22 warnings / 13 infos no Biome (débito acumulado). Meta: todos os gates verdes.
+### Armadilhas de loop infinito evitadas (lição do admin-app)
+- **`src/App.tsx:217`** — `useEffect` de listener `copy` teria `isEditableTarget` + `showNotification` (funções locais não-memoizadas) adicionadas às deps pelo unsafe-fix. Revertido para `[currentPost]` + `// biome-ignore`.
+- **`src/App.tsx:265`** — `useEffect` de fetch inicial teria `getUrlPostId` (não memoizada) adicionada. Causaria loop infinito de fetch completo do site a cada render. Revertido para `[fetchPostDetail]` + `// biome-ignore`.
+- **`src/components/SumUpCardWidget.tsx:146`** — `preferredPaymentMethodsKey` havia sido REMOVIDA das deps; seria regressão funcional (widget não re-monta ao togglar métodos de pagamento). Restaurada como dep de gatilho (trigger-only) com `// biome-ignore`.
+### Alterado
+- **`biome.json`**: schema 2.4.12, `files.includes` explícito, `style/noDescendingSpecificity` desabilitada (3 falsos positivos CSS).
+- **a11y — interatividade**: 2 `noStaticElementInteractions` + 2 `useKeyWithClickEvents` + 5 `useKeyWithMouseEvents` resolvidos — cards do `ArchiveMenu` ganharam `role="button" tabIndex={0} onKeyDown`; botões de modal (CommentModal, ContactModal, ShareOverlay, DisclaimerModal) ganharam `onFocus`/`onBlur` pareados.
+- **a11y — `useButtonType` em 20 botões**: `FloatingControls` (7×), `PostReader` (7×), `ContentUpdateToast` (3×), `DisclaimerModal` (2×), `ArchiveMenu` (1×).
+- **a11y — `useAriaPropsSupportedByRole` em `ComplianceBanner`**: `role="contentinfo"` explícito.
+- **React — `noArrayIndexKey` (4×)** em parágrafos derivados de split estável com biome-ignore documentado.
+- **React — `parsePostDate` envolvida em `useCallback([])`** em `ArchiveMenu` para estabilizar dep de `useMemo`.
+- **Correção — `useIterableCallbackReturn`** em `App.tsx:upsertMeta` (forEach com body block em vez de expressão com optional chaining).
+- **Correção — `noAssignInExpressions`** em onMouseOver/Out de CommentModal/ContactModal (short-circuit → if).
+- **Segurança — `noDangerouslySetInnerHtml` (2×)**: documentadas as mitigações em `PostReader.tsx` — DOMPurify.sanitize com USE_PROFILES html para post-content, e `serializeJsonLd` (escape de `<`/`>`/`&`/`U+2028`/`U+2029`) para JSON-LD script tag.
+- **`noNonNullAssertion` (5 warnings)**: null check em `main.tsx:getElementById('root')`; `yearMap.get()!` refatorado com pattern `let entry = map.get(); if (!entry) ...` em `ArchiveMenu`; `turnstileSiteKey!` substituído por capture em `const siteKey` pós early-return em `CommentModal`/`ContactModal`/`CommentsSection`.
+- **`noArguments` no GA4 snippet de `index.html`**: preservado com biome-ignore (contrato de dataLayer.push oficial).
+### Gates (pós-auditoria)
+- `npx tsc --noEmit`: ✅ 0 erros
+- `npm run lint`: ✅ 0 problems
+- `npm run build`: ✅ build completa
+- `npx biome check .`: ✅ **0 errors, 0 warnings, 0 infos**
+### Versão
+- APP v03.16.02 → APP v03.17.00
+
+## 2026-04-20 — Mainsite Worker v02.12.00 + Mainsite Frontend v03.16.02 (reformulação do system prompt "Consciência Auxiliar" + fix de rolagem do chatbot)
+### Escopo — mainsite-worker (v02.12.00)
+Substituição integral do `const systemPrompt` do chatbot público ([`src/routes/ai.ts:234`](../mainsite-worker/src/routes/ai.ts)) conforme Protocolo Editorial Leonardo-Tomé v1.4. Bloco saiu de ~20 linhas / 1.5 KB para ~65 linhas / 7.3 KB, introduzindo 11 seções nomeadas (IDIOMA, IDENTIDADE, ÉTICA DE TOMÉ, VERDADE ACIMA DE BAJULAÇÃO, CUIDADO PSICOLÓGICO, PROTOCOLO DE CRISE, ANTI-ALUCINAÇÃO, CITAÇÃO CANÔNICA, SEPARAÇÃO DE CAMPOS, IMPESSOALIDADE, HIERARQUIA DE FONTES, ENCAMINHAMENTO HUMANO, FORMA DA RESPOSTA). As 5 variáveis de template (`${activeContextPrompt}`, `${donationPrompt}`, `${dbCoverageMeta}`, `${dbContext}`, `${safeMessage}`) foram preservadas exatamente uma vez cada; pipeline de retrieval/scoring/auditoria/sanitização não foi alterado.
+
+**Salvaguardas psicológicas críticas adicionadas**:
+- **PROTOCOLO DE CRISE** direciona ideação suicida / automutilação / crise psicótica / dissociação / surto místico / pânico grave / abuso para CVV 188 (24h gratuito), SAMU 192, pronto-socorro psiquiátrico, pessoa de confiança, terreiro/diretor espiritual/psicólogo transpessoal ou junguiano — com nomeação explícita do limite da IA.
+- **ANTI-ALUCINAÇÃO** proíbe inventar citações/trechos/versículos/URLs atribuídos a Jung/Bíblia/Umbanda Esotérica/Matta e Silva/Bashar/Saint Germain.
+- **CITAÇÃO CANÔNICA** padroniza Bíblia (livro/cap/vers), Jung (Collected Works + volume), Platão/Stephanus, Aristóteles/Bekker, Agostinho, Kant/Akademie, Freud/SE — sem URL.
+- **VERDADE ACIMA DE BAJULAÇÃO** proíbe validar auto-percepções infladas.
+- **CUIDADO PSICOLÓGICO** proíbe reforçar complexos/inflação de ego/identificações messiânicas e exige articular luz/sombra em tradições esotéricas, com distinção wilberiana pré/pessoal/transpessoal para evitar erro pré/trans.
+- **SEPARAÇÃO DE CAMPOS** força temas técnicos a respostas 100% técnicas, sem misturar espiritualidade.
+
+### Alterado — mainsite-worker (v02.12.00)
+- `biome.json`: scan limpo após `npx biome check src --write --unsafe` (39 errors → 0; imports reorganizados em 13 arquivos de `routes/` e `lib/`).
+### Operacional
+- **Backup pré-substituição**: [`backups/system-prompt-20260420-0636/`](../../backups/system-prompt-20260420-0636/) (arquivo integral + recortes).
+- **Relatório**: [`relatorio-substituicao-system-prompt-20260420-0636.md`](../../relatorio-substituicao-system-prompt-20260420-0636.md).
+- **Validação manual obrigatória antes de publicar**: três cenários — (a) pergunta normal (cita TÍTULO + fundamenta no acervo); (b) pergunta enviesada com inflação (anti-bajulação ativa); (c) pergunta simulando crise (CVV 188 acionado).
+
+### Escopo — mainsite-frontend (v03.16.02)
+Fix de rolagem interna do `ChatWidget` que voltou a expandir em vez de rolar quando o histórico ultrapassava a altura do container.
+### Corrigido — mainsite-frontend (v03.16.02)
+- **`src/components/ChatWidget.css`**: adicionado `min-height: 0` em `.chat-widget__panel` e `.chat-widget__messages` — bug clássico de flexbox em que um flex child sem esse override expande para o conteúdo em vez de acionar o `overflow-y: auto`. Rolagem restaurada sem alterar layout, transições ou auto-scroll para o fim de cada nova resposta.
+
+### Versões
+- mainsite-worker: APP v02.11.01 → APP v02.12.00
+- mainsite-frontend: APP v03.16.01 → APP v03.16.02
+
 ## 2026-04-19 — Mainsite Frontend v03.16.01 (DisclaimerModal: parágrafos justificados + recuo de primeira linha)
 ### Escopo
 Ajuste estilístico no corpo do `DisclaimerModal` em cima da reforma de v03.16.00.

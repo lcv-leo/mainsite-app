@@ -94,6 +94,7 @@
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-LV37B67Z96"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
+    // biome-ignore lint/complexity/noArguments: snippet oficial Google Analytics 4 — usar `arguments` preserva compatibilidade com o contrato da dataLayer.push
     function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 

@@ -79,76 +79,85 @@ const FloatingControls = ({
   const isZoomed = Math.abs(zoomLevel - 1) > 0.01;
 
   return (
-    <>
-      <div className="floating-controls" role="toolbar" aria-label="Controles do leitor">
-        <div className={`fab-bottom-cluster${isChatOpen ? ' chat-open' : ''}`}>
-          {showBackToTop && (
-            <button onClick={scrollToTop} className="fab-btn" title="Voltar ao Topo" aria-label="Voltar ao topo">
-              <ArrowUp size={24} />
-            </button>
-          )}
-
-          {showScrollToBottom && (
-            <button onClick={scrollToBottom} className="fab-btn" title="Ir para o Final" aria-label="Ir para o final">
-              <ArrowDown size={24} />
-            </button>
-          )}
-
+    <div className="floating-controls" role="toolbar" aria-label="Controles do leitor">
+      <div className={`fab-bottom-cluster${isChatOpen ? ' chat-open' : ''}`}>
+        {showBackToTop && (
           <button
-            onClick={cycleTheme}
+            type="button"
+            onClick={scrollToTop}
             className="fab-btn"
-            title={`Modo do Tema: ${userTheme.toUpperCase()}`}
-            aria-label={`Alternar tema: modo ${userTheme} ativo`}
+            title="Voltar ao Topo"
+            aria-label="Voltar ao topo"
           >
-            {userTheme === 'auto' ? (
-              <Monitor size={24} />
-            ) : userTheme === 'dark' ? (
-              <Moon size={24} />
-            ) : (
-              <Sun size={24} />
-            )}
+            <ArrowUp size={24} />
           </button>
+        )}
 
+        {showScrollToBottom && (
           <button
-            onClick={onZoomOut}
+            type="button"
+            onClick={scrollToBottom}
             className="fab-btn"
-            title="Diminuir texto (Ctrl+-)"
-            aria-label="Diminuir tamanho do texto"
+            title="Ir para o Final"
+            aria-label="Ir para o final"
           >
-            <ZoomOut size={24} />
+            <ArrowDown size={24} />
           </button>
+        )}
 
+        <button
+          type="button"
+          onClick={cycleTheme}
+          className="fab-btn"
+          title={`Modo do Tema: ${userTheme.toUpperCase()}`}
+          aria-label={`Alternar tema: modo ${userTheme} ativo`}
+        >
+          {userTheme === 'auto' ? <Monitor size={24} /> : userTheme === 'dark' ? <Moon size={24} /> : <Sun size={24} />}
+        </button>
+
+        <button
+          type="button"
+          onClick={onZoomOut}
+          className="fab-btn"
+          title="Diminuir texto (Ctrl+-)"
+          aria-label="Diminuir tamanho do texto"
+        >
+          <ZoomOut size={24} />
+        </button>
+
+        <button
+          type="button"
+          onClick={onZoomIn}
+          className="fab-btn"
+          title={`Aumentar texto (${Math.round(zoomLevel * 100)}%) (Ctrl++)`}
+          aria-label={`Aumentar tamanho do texto. Atual ${Math.round(zoomLevel * 100)} por cento`}
+        >
+          <ZoomIn size={24} />
+        </button>
+
+        {isZoomed && (
           <button
-            onClick={onZoomIn}
+            type="button"
+            onClick={onZoomReset}
             className="fab-btn"
-            title={`Aumentar texto (${Math.round(zoomLevel * 100)}%) (Ctrl++)`}
-            aria-label={`Aumentar tamanho do texto. Atual ${Math.round(zoomLevel * 100)} por cento`}
+            title="Restaurar texto para 100% (Ctrl+0)"
+            aria-label="Restaurar tamanho padrão do texto"
           >
-            <ZoomIn size={24} />
+            <RotateCcw size={22} />
           </button>
+        )}
 
-          {isZoomed && (
-            <button
-              onClick={onZoomReset}
-              className="fab-btn"
-              title="Restaurar texto para 100% (Ctrl+0)"
-              aria-label="Restaurar tamanho padrão do texto"
-            >
-              <RotateCcw size={22} />
-            </button>
-          )}
-
-          <button
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className={`fab-btn chat-trigger ${isChatOpen ? 'chat-active' : ''}`}
-            title="Busca Semântica / Conversar"
-            aria-label={isChatOpen ? 'Fechar busca semântica' : 'Abrir busca semântica'}
-          >
-            {isChatOpen ? <X size={28} /> : <Bot size={28} />}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className={`fab-btn chat-trigger ${isChatOpen ? 'chat-active' : ''}`}
+          title="Busca Semântica / Conversar"
+          aria-label={isChatOpen ? 'Fechar busca semântica' : 'Abrir busca semântica'}
+        >
+          {isChatOpen ? <X size={28} /> : <Bot size={28} />}
+        </button>
       </div>
-    </>
+    </div>
   );
 };
 

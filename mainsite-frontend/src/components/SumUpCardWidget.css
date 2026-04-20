@@ -42,9 +42,9 @@
 }
 
 .sumup-card-widget [data-sumup-id="widget__container"] {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
+  background: transparent;
+  box-shadow: none;
+  border: none;
 }
 
 .sumup-card-widget [data-sumup-id="widget__container"] * {

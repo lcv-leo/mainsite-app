@@ -146,6 +146,7 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
   useEffect(() => {
     if (!turnstileSiteKey || !showForm || !turnstileRef.current) return;
     if (turnstileWidgetId.current) return; // Already rendered
+    const siteKey = turnstileSiteKey;
 
     // Load Turnstile script if not already present
     if (!document.querySelector('script[src*="turnstile"]')) {
@@ -161,7 +162,7 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
     function renderTurnstile() {
       if (!window.turnstile || !turnstileRef.current) return;
       turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
-        sitekey: turnstileSiteKey!,
+        sitekey: siteKey,
         callback: (token: string) => {
           setTurnstileToken(token);
           setSubmitMessage(null);
@@ -252,7 +253,7 @@ const CommentsSection = ({ postId, activePalette, apiUrl, turnstileSiteKey }: Co
 
   const formatDate = (raw: string): string => {
     try {
-      const d = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T') + 'Z');
+      const d = new Date(raw.includes('T') ? raw : `${raw.replace(' ', 'T')}Z`);
       return d.toLocaleDateString('pt-BR', {
         timeZone: 'America/Sao_Paulo',
         day: '2-digit',

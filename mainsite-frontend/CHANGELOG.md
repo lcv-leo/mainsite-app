@@ -1,5 +1,36 @@
 # Changelog — Mainsite Frontend
 
+## [v03.17.00] - 2026-04-20
+### Corrigido
+- **`src/App.tsx` — armadilha de loop infinito evitada**: o auto-fix `--unsafe` do Biome havia expandido as deps de dois `useEffect` críticos do orquestrador do site. O `useEffect` de listener de copy passou de `[currentPost]` para `[currentPost, isEditableTarget, showNotification]` (ambas funções locais não-memoizadas); e o `useEffect` de fetch inicial passou de `[fetchPostDetail]` para `[fetchPostDetail, getUrlPostId]` (também não memoizada) — **este último causaria re-fetch completo do site (posts + settings + disclaimers) a cada render**, loop infinito ao vivo. Ambos revertidos ao escopo narrow original com `// biome-ignore lint/correctness/useExhaustiveDependencies` documentando a intenção.
+- **`src/components/SumUpCardWidget.tsx` — regressão de payment-methods re-mount**: deps passaram de `[checkoutId, email, mountId, preferredPaymentMethodsKey]` para `[checkoutId, email, mountId]`, removendo o gatilho que re-monta o widget quando o leitor toggla métodos de pagamento no modal de doação. Restaurado o dep `preferredPaymentMethodsKey` como trigger-only (biome-ignore documentando que o valor não é lido no body do efeito mas a ref ativa re-mount via chave estável — testado em `SumUpCardWidget.test.tsx` conforme v03.15.00).
+- **`src/components/ArchiveMenu.tsx` — `parsePostDate` envolvida em `useCallback([])`**: era função local re-criada a cada render, usada como dep do `useMemo` de `groupedHistory`; recomputação indevida a cada render do componente.
+### Alterado
+- **a11y — `useButtonType` em 20 botões**: adicionado `type="button"` em [FloatingControls.tsx](src/components/FloatingControls.tsx) (7× — scroll to top/bottom, cycleTheme, zoom in/out/reset, chat), [PostReader.tsx](src/components/PostReader.tsx) (7× — home, share WhatsApp/Copiar/E-mail/Contato/Comentar/Apoiar), [ContentUpdateToast.tsx](src/components/ContentUpdateToast.tsx) (3×), [DisclaimerModal.tsx](src/components/DisclaimerModal.tsx) (2×), [ArchiveMenu.tsx](src/components/ArchiveMenu.tsx) (1×).
+- **a11y — `useKeyWithMouseEvents` em 5 botões**: adicionado `onFocus`/`onBlur` pareados com `onMouseOver`/`onMouseOut` em botões de fechar modal (CommentModal, ContactModal, ShareOverlay) e no submit dos forms de comentário/contato/compartilhamento e DisclaimerModal — efeitos de hover visual agora também disparam em foco por teclado.
+- **a11y — `noStaticElementInteractions` + `useKeyWithClickEvents` em `ArchiveMenu`**: cards editoriais e featured com `<div onClick>` ganharam `role="button"`, `tabIndex={0}` e `onKeyDown` para Enter/Space, com biome-ignore de `useSemanticElements` preservando CSS do cartão.
+- **a11y — `useAriaPropsSupportedByRole` em `ComplianceBanner`**: `<footer>` nested ganhou `role="contentinfo"` explícito para suportar o `aria-label` existente.
+- **React — `noArrayIndexKey` (4 ocorrências em parágrafos derivados de split estável)**: supressões documentadas em [PostReader.tsx](src/components/PostReader.tsx) (YT/IMG/text), [DisclaimerModal.tsx](src/components/DisclaimerModal.tsx) e [LicencasModule.tsx](src/modules/compliance/LicencasModule.tsx) explicando que a ordem é imutável dentro do render.
+- **Segurança — `noDangerouslySetInnerHtml` em `PostReader`**: duas ocorrências documentadas — (1) renderização de conteúdo HTML de post autorado por admin já passa por `DOMPurify.sanitize({ USE_PROFILES: { html: true } })` com ADD_ATTR explícito e post-process de `target="_blank"`; (2) injeção de `<script type="application/ld+json">` usa `serializeJsonLd` que escapa `<`, `>`, `&`, `U+2028`, `U+2029`, prevenindo injection de `</script>` e line-terminator break.
+- **noNonNullAssertion** (5 warnings): `main.tsx` ganhou null check explícito em `getElementById('root')`; `ArchiveMenu` reescreveu `yearMap.get(year)!` com pattern `let entry = map.get(); if (!entry) { entry = {...}; map.set() }`; `CommentModal`, `ContactModal`, `CommentsSection` capturam `turnstileSiteKey` em `const siteKey` após early-return para permitir narrowing através do closure do `renderTurnstile`.
+- **React hooks consistency** (`useIterableCallbackReturn`): em `App.tsx:upsertMeta`, `.forEach((k, v) => el?.setAttribute(...))` reescrito com block body para evitar callback retornando `undefined` via optional chaining.
+- **Misc**: `noAssignInExpressions` em botões de hover de `CommentModal`/`ContactModal` — short-circuit ternário substituído por `if` statement; `noArguments` no snippet oficial GA4 em [index.html](index.html) preservado com biome-ignore documentando compatibilidade com `dataLayer.push`.
+- **Config**: `biome.json` schema migrado para 2.4.12; `files.includes` explícito excluindo `dist/`, `dist-ssr/`, `INTERACTIVE_EXAMPLES.tsx`, `e2e/`, `functions/`, `scripts/`, `public/`; rule `style/noDescendingSpecificity` desabilitada (3 falsos positivos em CSS com propriedades disjuntas).
+### Gates (pós-auditoria)
+- `npx tsc --noEmit`: ✅ 0 erros
+- `npm run lint`: ✅ 0 problems
+- `npm run build`: ✅ build completa
+- `npx biome check .`: ✅ **0 errors, 0 warnings, 0 infos**
+### Motivação
+- **Auditoria de qualidade do workspace completa (2026-04-20)**: segundo repo atacado após o `admin-app`. Baseline: 55 errors / 22 warnings / 13 infos no Biome (débito acumulado pré-existente). Objetivo: zerar todos os gates.
+- **Armadilhas aprendidas no admin-app v01.91.01**: `biome check --write --unsafe` removeu múltiplos `// eslint-disable-next-line react-hooks/exhaustive-deps` e expandiu deps de `useEffect`. No caso do `admin-app/PopupPortal`, isso causou spawn infinito de `window.open()`. Como preventiva, esta auditoria revisitou **cada mudança de dep array** no diff do mainsite-frontend antes de commitar, encontrando **3 armadilhas equivalentes** (App.tsx copy listener, App.tsx initial fetch, SumUpCardWidget payment methods). Corrigidas via supressão dupla (biome-ignore + dep array explícito) conforme padrão da memória `feedback_biome_unsafe_hook_deps.md`.
+
+## [v03.16.02] - 2026-04-20
+### Corrigido
+- **`ChatWidget` — barra de rolagem interna restaurada**: o painel do chatbot havia perdido a capacidade de rolar o histórico de mensagens quando a conversa ultrapassava a altura do container, deixando o conteúdo fora do viewport clipado pelo `overflow: hidden` externo. Adicionado `min-height: 0` em `.chat-widget__panel` e `.chat-widget__messages` ([`ChatWidget.css`](src/components/ChatWidget.css)), bug clássico de flexbox em que um flex child sem esse override expande para caber o conteúdo em vez de acionar o `overflow-y: auto`.
+### Motivação
+- **Incidente reportado em 2026-04-20**: leitor não conseguia rolar mensagens novas do chatbot "Consciência Auxiliar" após interações longas. A correção restaura a rolagem interna sem alterar layout, transições ou `scrollIntoView` automático ao final de cada resposta.
+
 ## [v03.16.01] - 2026-04-19
 ### Alterado
 - **`DisclaimerModal` — tipografia dos avisos**: o corpo do disclaimer passou a dividir o texto em parágrafos reais (`<p>`) por quebras duplas (`\n{2,}`), com `text-align: justify`, `text-indent: 1.75em` na primeira linha de cada parágrafo e `hyphens: auto`. Textos sem quebras duplas seguem renderizando como parágrafo único sem regressão.

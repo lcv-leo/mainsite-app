@@ -37,7 +37,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.16.01';
+const APP_VERSION = 'APP v03.17.00';
 const SITE_NAME = 'Reflexos da Alma';
 const SITE_URL = 'https://www.reflexosdaalma.blog';
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
@@ -214,6 +214,7 @@ const App = () => {
     return () => window.clearTimeout(toastTimeout);
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `isEditableTarget` e `showNotification` não são memoizadas; incluí-las remonta o listener de copy a cada render
   useEffect(() => {
     const handleCopy = (event: ClipboardEvent) => {
       if (isEditableTarget(event.target)) return;
@@ -260,6 +261,7 @@ const App = () => {
   }, []);
 
   // Initial Data Fetch
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fire-once-on-mount — `getUrlPostId` não é memoizada e incluí-la causa loop infinito de fetch (re-fetch completo do site a cada render)
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -272,7 +274,7 @@ const App = () => {
 
         if (postId) {
           const detailed = await fetchPostDetail(postId);
-          const found = detailed || dataPosts.find((p) => p.id === parseInt(postId)) || null;
+          const found = detailed || dataPosts.find((p) => p.id === parseInt(postId, 10)) || null;
           setCurrentPost(
             found || (dataPosts.length > 0 ? (await fetchPostDetail(dataPosts[0].id)) || dataPosts[0] : null),
           );
@@ -313,7 +315,10 @@ const App = () => {
       let el = document.head.querySelector(selector) as HTMLMetaElement | null;
       if (!el) {
         el = document.createElement('meta');
-        Object.entries(attrs).forEach(([k, v]) => el!.setAttribute(k, v));
+        const created = el;
+        Object.entries(attrs).forEach(([k, v]) => {
+          created.setAttribute(k, v);
+        });
         document.head.appendChild(el);
       }
       el.setAttribute('content', content);
@@ -552,27 +557,25 @@ const App = () => {
 
       <main id="conteudo-principal" className="site-main">
         {!showLicenses ? (
-          <>
-            {error ? (
-              <div className="site-error">{error}</div>
-            ) : currentPost ? (
-              <PostReader
-                post={currentPost}
-                activePalette={activePalette}
-                onShare={handleShare}
-                onContact={() => setShowContactModal(true)}
-                onComment={() => setShowCommentModal(true)}
-                onDonation={() => setShowDonationModal(true)}
-                isSendingEmail={isSendingEmail}
-                isNotHomePage={isDeepLinkedPost}
-                zoomLevel={zoomLevel}
-                apiUrl={API_URL}
-                turnstileSiteKey={TURNSTILE_SITE_KEY}
-              />
-            ) : (
-              <div className="site-empty">A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>
-            )}
-          </>
+          error ? (
+            <div className="site-error">{error}</div>
+          ) : currentPost ? (
+            <PostReader
+              post={currentPost}
+              activePalette={activePalette}
+              onShare={handleShare}
+              onContact={() => setShowContactModal(true)}
+              onComment={() => setShowCommentModal(true)}
+              onDonation={() => setShowDonationModal(true)}
+              isSendingEmail={isSendingEmail}
+              isNotHomePage={isDeepLinkedPost}
+              zoomLevel={zoomLevel}
+              apiUrl={API_URL}
+              turnstileSiteKey={TURNSTILE_SITE_KEY}
+            />
+          ) : (
+            <div className="site-empty">A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>
+          )
         ) : (
           <div className="site-licenses">
             <div className="site-licenses__panel">
