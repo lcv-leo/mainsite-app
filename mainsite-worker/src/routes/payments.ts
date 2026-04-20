@@ -2,6 +2,7 @@
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import SumUp from '@sumup/sdk';
 /**
  * Rotas de Pagamento SumUp (checkout, widget/status, insights).
  * Zero Trust: todas as rotas admin requerem Bearer token.
@@ -13,24 +14,23 @@
  * - Fee Config: D1 `mainsite_settings` (configuração, não transação)
  */
 import { Hono } from 'hono';
-import SumUp from '@sumup/sdk';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
-import { structuredLog } from '../lib/logger.ts';
 import {
-  normalizeSumupStatus,
+  FINANCIAL_CUTOFF_DATE,
   getStartIsoWithCutoff,
   isOnOrAfterCutoff,
-  FINANCIAL_CUTOFF_DATE,
   loadFeeConfig,
+  normalizeSumupStatus,
 } from '../lib/financial.ts';
+import { structuredLog } from '../lib/logger.ts';
 import { SumupCheckoutSchema } from '../lib/schemas.ts';
 
 const sumup = new Hono<{ Bindings: Env }>();
 
 // Payment amount bounds (BRL)
-const MIN_PAYMENT_AMOUNT = 1.00;
-const MAX_PAYMENT_AMOUNT = 10_000.00;
+const MIN_PAYMENT_AMOUNT = 1.0;
+const MAX_PAYMENT_AMOUNT = 10_000.0;
 
 // ========== PUBLIC CHECKOUT ==========
 
@@ -96,7 +96,10 @@ sumup.post('/api/sumup/checkout/:id/pix', async (c) => {
 // 3DS Return Page
 sumup.get('/api/sumup/checkout/:ref/return', async (c) => {
   structuredLog('warn', '[SumUp Return] Endpoint legado bloqueado', { reference: c.req.param('ref') });
-  return c.html('<!DOCTYPE html><html><body><p>Fluxo legado desativado. Feche esta janela e reinicie o pagamento pelo widget oficial da SumUp.</p></body></html>', 410);
+  return c.html(
+    '<!DOCTYPE html><html><body><p>Fluxo legado desativado. Feche esta janela e reinicie o pagamento pelo widget oficial da SumUp.</p></body></html>',
+    410,
+  );
 });
 
 // 3DS Polling — Consulta SDK diretamente (sem D1)
@@ -129,8 +132,7 @@ sumup.get('/api/sumup/checkout/:id/status', async (c) => {
 // estiver indisponível, retorna 503 para que o frontend desabilite a opção.
 sumup.get('/api/sumup/fees', async (c) => {
   try {
-    const row = await c.env.DB
-      .prepare('SELECT payload FROM mainsite_settings WHERE id = ? LIMIT 1')
+    const row = await c.env.DB.prepare('SELECT payload FROM mainsite_settings WHERE id = ? LIMIT 1')
       .bind('mainsite/fees')
       .first<{ payload?: string }>();
     if (!row?.payload) {
@@ -140,7 +142,8 @@ sumup.get('/api/sumup/fees', async (c) => {
     if (
       typeof parsed.sumupRate !== 'number' ||
       typeof parsed.sumupFixed !== 'number' ||
-      parsed.sumupRate < 0 || parsed.sumupRate >= 1 ||
+      parsed.sumupRate < 0 ||
+      parsed.sumupRate >= 1 ||
       parsed.sumupFixed < 0
     ) {
       return c.json({ error: 'Configuração de taxas inválida.' }, 503);
@@ -165,8 +168,12 @@ sumup.get('/api/sumup/payment-methods', requireAuth, async (c) => {
     const currency = (c.req.query('currency') || 'BRL').toUpperCase();
 
     const client = new SumUp({ apiKey: token });
-    const data = (await client.checkouts.listAvailablePaymentMethods(merchantCode, { amount, currency })) as { available_payment_methods?: Array<{ id?: string }> };
-    const methods = Array.isArray(data?.available_payment_methods) ? data.available_payment_methods.map((m) => m.id).filter(Boolean) : [];
+    const data = (await client.checkouts.listAvailablePaymentMethods(merchantCode, { amount, currency })) as {
+      available_payment_methods?: Array<{ id?: string }>;
+    };
+    const methods = Array.isArray(data?.available_payment_methods)
+      ? data.available_payment_methods.map((m) => m.id).filter(Boolean)
+      : [];
 
     return c.json({ success: true, amount, currency, methods });
   } catch (err) {
@@ -186,7 +193,11 @@ sumup.get('/api/sumup/transactions-summary', requireAuth, async (c) => {
     const changesSince = getStartIsoWithCutoff(c.req.query('changes_since') || c.req.query('start_date'));
 
     const client = new SumUp({ apiKey: token });
-    const txData = (await client.transactions.list(merchantCode, { order: 'descending', limit, changes_since: changesSince })) as { items?: Array<Record<string, unknown>>; links?: Array<Record<string, unknown>> };
+    const txData = (await client.transactions.list(merchantCode, {
+      order: 'descending',
+      limit,
+      changes_since: changesSince,
+    })) as { items?: Array<Record<string, unknown>>; links?: Array<Record<string, unknown>> };
     const rawItems = Array.isArray(txData?.items) ? txData.items : [];
     const items = rawItems.filter((tx) => isOnOrAfterCutoff(tx?.timestamp as string));
 
@@ -201,7 +212,15 @@ sumup.get('/api/sumup/transactions-summary', requireAuth, async (c) => {
       totalAmount += Number(tx?.amount || 0);
     }
 
-    return c.json({ success: true, scanned: items.length, limit, totalAmount, byStatus, byType, hasMore: Array.isArray(txData?.links) && txData.links.length > 0 });
+    return c.json({
+      success: true,
+      scanned: items.length,
+      limit,
+      totalAmount,
+      byStatus,
+      byType,
+      hasMore: Array.isArray(txData?.links) && txData.links.length > 0,
+    });
   } catch (err) {
     structuredLog('error', '[SumUp] Erro interno', { error: (err as Error).message });
     return c.json({ error: 'Erro interno.' }, 500);
@@ -214,17 +233,37 @@ sumup.get('/api/sumup/transactions-advanced', requireAuth, async (c) => {
     const merchantCode = c.env.SUMUP_MERCHANT_CODE;
     if (!token || !merchantCode) throw new Error('SUMUP_API_KEY_PRIVATE ou SUMUP_MERCHANT_CODE ausentes.');
 
-    const parseList = (value: string | undefined) => String(value || '').split(',').map((v) => v.trim()).filter(Boolean);
+    const parseList = (value: string | undefined) =>
+      String(value || '')
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean);
     const limitRaw = Number(c.req.query('limit'));
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 50;
     const order = c.req.query('order') === 'ascending' ? 'ascending' : 'descending';
 
-    const statusMap: Record<string, string> = { successful: 'SUCCESSFUL', cancelled: 'CANCELLED', failed: 'FAILED', refunded: 'REFUNDED', charge_back: 'CHARGE_BACK', chargeback: 'CHARGE_BACK' };
-    const typeMap: Record<string, string> = { payment: 'PAYMENT', refund: 'REFUND', charge_back: 'CHARGE_BACK', chargeback: 'CHARGE_BACK' };
+    const statusMap: Record<string, string> = {
+      successful: 'SUCCESSFUL',
+      cancelled: 'CANCELLED',
+      failed: 'FAILED',
+      refunded: 'REFUNDED',
+      charge_back: 'CHARGE_BACK',
+      chargeback: 'CHARGE_BACK',
+    };
+    const typeMap: Record<string, string> = {
+      payment: 'PAYMENT',
+      refund: 'REFUND',
+      charge_back: 'CHARGE_BACK',
+      chargeback: 'CHARGE_BACK',
+    };
 
     const allowedStatuses = new Set(['SUCCESSFUL', 'CANCELLED', 'FAILED', 'REFUNDED', 'CHARGE_BACK']);
-    const statuses = parseList(c.req.query('statuses')).map((s) => statusMap[s.toLowerCase()] || s.toUpperCase()).filter((s) => allowedStatuses.has(s));
-    const types = parseList(c.req.query('types')).map((t) => typeMap[t.toLowerCase()] || t.toUpperCase()).filter(Boolean);
+    const statuses = parseList(c.req.query('statuses'))
+      .map((s) => statusMap[s.toLowerCase()] || s.toUpperCase())
+      .filter((s) => allowedStatuses.has(s));
+    const types = parseList(c.req.query('types'))
+      .map((t) => typeMap[t.toLowerCase()] || t.toUpperCase())
+      .filter(Boolean);
     const paymentTypes = parseList(c.req.query('payment_types')).map((v) => v.toUpperCase());
     const users = parseList(c.req.query('users'));
 
@@ -247,7 +286,10 @@ sumup.get('/api/sumup/transactions-advanced', requireAuth, async (c) => {
     if (oldestRef) query.oldest_ref = oldestRef;
 
     const client = new SumUp({ apiKey: token });
-    const txData = (await client.transactions.list(merchantCode, query)) as { items?: Array<Record<string, unknown>>; links?: Array<{ rel?: string; href?: string }> };
+    const txData = (await client.transactions.list(merchantCode, query)) as {
+      items?: Array<Record<string, unknown>>;
+      links?: Array<{ rel?: string; href?: string }>;
+    };
     const items = Array.isArray(txData?.items) ? txData.items : [];
 
     const normalized = items.map((tx) => ({
@@ -279,7 +321,9 @@ sumup.get('/api/sumup/transactions-advanced', requireAuth, async (c) => {
         if (ot) cursor.oldest_time = ot;
         if (orf) cursor.oldest_ref = orf;
         return Object.keys(cursor).length ? cursor : null;
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     };
 
     const links = Array.isArray(txData?.links) ? txData.links : [];
@@ -295,7 +339,19 @@ sumup.get('/api/sumup/transactions-advanced', requireAuth, async (c) => {
 
     return c.json({
       success: true,
-      query: { order, limit, statuses, types, paymentTypes, users, changesSince: changesSince || null, newestTime: newestTime || null, newestRef: newestRef || null, oldestTime: oldestTime || null, oldestRef: oldestRef || null },
+      query: {
+        order,
+        limit,
+        statuses,
+        types,
+        paymentTypes,
+        users,
+        changesSince: changesSince || null,
+        newestTime: newestTime || null,
+        newestRef: newestRef || null,
+        oldestTime: oldestTime || null,
+        oldestRef: oldestRef || null,
+      },
       total: filteredByDate.length,
       hasMore: links.length > 0,
       cursors: { next: nextCursor, prev: prevCursor },
@@ -319,7 +375,12 @@ sumup.get('/api/sumup/payouts-summary', requireAuth, async (c) => {
     const endDate = c.req.query('end_date') || now.toISOString().slice(0, 10);
 
     const client = new SumUp({ apiKey: token });
-    const payouts = (await client.payouts.list(merchantCode, { start_date: startDate, end_date: endDate, order: 'desc', limit: 100 })) as Array<Record<string, unknown>>;
+    const payouts = (await client.payouts.list(merchantCode, {
+      start_date: startDate,
+      end_date: endDate,
+      order: 'desc',
+      limit: 100,
+    })) as Array<Record<string, unknown>>;
     const list = Array.isArray(payouts) ? payouts : [];
 
     let totalAmount = 0;

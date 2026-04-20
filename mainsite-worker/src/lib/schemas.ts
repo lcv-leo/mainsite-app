@@ -115,14 +115,14 @@ export type ShareLogInput = z.infer<typeof ShareLogSchema>;
  * Secrets de features opcionais permanecem .optional().
  */
 export const EnvSecretsSchema = z.object({
-  CLOUDFLARE_PW:              z.string().min(1),
-  GEMINI_API_KEY:             z.string().min(1),
-  RESEND_API_KEY:             z.string().min(1),
-  SUMUP_API_KEY_PRIVATE:      z.string().min(1),
-  SUMUP_MERCHANT_CODE:        z.string().min(1),
-  PIX_KEY:                    z.string().min(1).optional(),
-  PIX_NAME:                   z.string().min(1).optional(),
-  PIX_CITY:                   z.string().min(1).optional(),
-  GCP_NL_API_KEY:             z.string().min(1).optional(),
-  TURNSTILE_SECRET_KEY:       z.string().min(1).optional(),
+  CLOUDFLARE_PW: z.string().min(1),
+  GEMINI_API_KEY: z.string().min(1),
+  RESEND_API_KEY: z.string().min(1),
+  SUMUP_API_KEY_PRIVATE: z.string().min(1),
+  SUMUP_MERCHANT_CODE: z.string().min(1),
+  PIX_KEY: z.string().min(1).optional(),
+  PIX_NAME: z.string().min(1).optional(),
+  PIX_CITY: z.string().min(1).optional(),
+  GCP_NL_API_KEY: z.string().min(1).optional(),
+  TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
 });

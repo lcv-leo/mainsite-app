@@ -13,7 +13,7 @@
  * - Ignora a primeira resposta (inicialização) para evitar falsos positivos
  * - Cleanup automático no unmount
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const POLL_INTERVAL_MS = 30_000; // 30 segundos
 
@@ -83,7 +83,9 @@ export function useContentSync(apiUrl: string, enabled: boolean = true): Content
     isMountedRef.current = true;
 
     // Inicializa versão via microtask para evitar setState sincronoo no body do effect
-    queueMicrotask(() => { void fetchFingerprint(); });
+    queueMicrotask(() => {
+      void fetchFingerprint();
+    });
 
     // Inicia polling periódico
     intervalRef.current = setInterval(fetchFingerprint, POLL_INTERVAL_MS);

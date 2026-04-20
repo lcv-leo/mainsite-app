@@ -1,8 +1,8 @@
 /// <reference types="vitest/config" />
-import { fileURLToPath } from 'url';
-import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { fileURLToPath } from 'url';
+import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 /**
  * Remove console.* e debugger do bundle de produção.

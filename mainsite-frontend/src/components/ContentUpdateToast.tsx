@@ -8,8 +8,9 @@
  * Glassmorphism toast com micro-animações que aparece quando o backend
  * detecta uma nova matéria na primeira página. Auto-dismiss após 15s.
  */
+
+import { RefreshCw, Sparkles, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { Sparkles, RefreshCw, X } from 'lucide-react';
 import './ContentUpdateToast.css';
 
 interface ContentUpdateToastProps {
@@ -43,18 +44,13 @@ const ContentUpdateToast = ({ visible, onRefresh, onDismiss }: ContentUpdateToas
             <Sparkles size={18} />
           </div>
           <span className="content-update-toast__title">Nova matéria em destaque</span>
-          <button
-            className="content-update-toast__close"
-            onClick={onDismiss}
-            aria-label="Dispensar notificação"
-          >
+          <button className="content-update-toast__close" onClick={onDismiss} aria-label="Dispensar notificação">
             <X size={16} />
           </button>
         </div>
 
         <div className="content-update-toast__body">
-          Uma nova matéria acaba de ser publicada na primeira página.
-          Deseja atualizar para ver o novo conteúdo?
+          Uma nova matéria acaba de ser publicada na primeira página. Deseja atualizar para ver o novo conteúdo?
         </div>
 
         <div className="content-update-toast__actions">

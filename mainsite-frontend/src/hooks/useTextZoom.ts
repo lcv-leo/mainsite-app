@@ -6,7 +6,7 @@
 // Purpose: Manage text zoom state with localStorage persistence
 // Features: range 80-200%, 5% steps, smooth scaling, keyboard accessible
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 const MIN_ZOOM = 0.8;
 const MAX_ZOOM = 2.0;

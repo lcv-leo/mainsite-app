@@ -1,9 +1,10 @@
 /// <reference types="vitest/config" />
-import { fileURLToPath } from 'url';
-import { defineConfig } from 'vite';
+
 import react from '@vitejs/plugin-react';
-import type { Plugin } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { fileURLToPath } from 'url';
+import type { Plugin } from 'vite';
+import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 /**

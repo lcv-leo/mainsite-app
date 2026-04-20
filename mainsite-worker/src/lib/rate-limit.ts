@@ -22,9 +22,7 @@ export const DEFAULT_RATE_LIMIT: RateLimitConfig = {
 /**
  * Normaliza a configuração de rate limit, preenchendo rotas ausentes com defaults.
  */
-export const normalizeRateLimitConfig = (
-  config: Partial<RateLimitConfig>
-): RateLimitConfig => {
+export const normalizeRateLimitConfig = (config: Partial<RateLimitConfig>): RateLimitConfig => {
   const routes = { ...DEFAULT_RATE_LIMIT.routes };
   if (config?.routes) {
     for (const [key, value] of Object.entries(config.routes)) {
@@ -59,7 +57,7 @@ export const checkRateLimit = async (
   db: D1Database,
   routeKey: string,
   ip: string,
-  config: RateLimitConfig
+  config: RateLimitConfig,
 ): Promise<boolean> => {
   const routeConfig = config.routes[routeKey];
   if (!routeConfig) return false; // Rota sem rate limit = permitir
@@ -70,7 +68,7 @@ export const checkRateLimit = async (
   try {
     const result = await db
       .prepare(
-        "SELECT COUNT(*) as cnt FROM mainsite_rate_limit WHERE route = ? AND ip = ? AND datetime(created_at) >= datetime(?)"
+        'SELECT COUNT(*) as cnt FROM mainsite_rate_limit WHERE route = ? AND ip = ? AND datetime(created_at) >= datetime(?)',
       )
       .bind(routeKey, ip, since)
       .first<{ cnt: number }>();
@@ -84,18 +82,9 @@ export const checkRateLimit = async (
 /**
  * Registra um hit de rate limit.
  */
-export const recordRateLimitHit = async (
-  db: D1Database,
-  routeKey: string,
-  ip: string
-): Promise<void> => {
+export const recordRateLimitHit = async (db: D1Database, routeKey: string, ip: string): Promise<void> => {
   try {
-    await db
-      .prepare(
-        'INSERT INTO mainsite_rate_limit (route, ip) VALUES (?, ?)'
-      )
-      .bind(routeKey, ip)
-      .run();
+    await db.prepare('INSERT INTO mainsite_rate_limit (route, ip) VALUES (?, ?)').bind(routeKey, ip).run();
   } catch {
     // Non-blocking
   }

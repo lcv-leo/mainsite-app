@@ -6,8 +6,8 @@
 // Versão: v3.0.0
 // Descrição: Fluxo unificado de doação via Payment Widget da SumUp, incluindo cartão e PIX/APMs quando habilitados.
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { X, Heart, CheckCircle, CreditCard, AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, CreditCard, Heart, Loader2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActivePalette } from '../types';
 import SumUpCardWidget from './SumUpCardWidget';
 
@@ -15,7 +15,8 @@ const brandIconsBaseUrl = (import.meta.env.VITE_BRAND_ICONS_BASE_URL || '/api/up
   .trim()
   .replace(/^['"]|['"]$/g, '')
   .replace(/\/+$/, '');
-const getBrandIconSrc = (fileName: string, _fallbackUrl = '') => (brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : _fallbackUrl);
+const getBrandIconSrc = (fileName: string, _fallbackUrl = '') =>
+  brandIconsBaseUrl ? `${brandIconsBaseUrl}/${fileName}` : _fallbackUrl;
 
 // Taxas de processamento são SEMPRE buscadas em GET /api/sumup/fees
 // (fonte: D1 mainsite_settings — configurada no admin-app). Sem fallback
@@ -23,40 +24,43 @@ const getBrandIconSrc = (fileName: string, _fallbackUrl = '') => (brandIconsBase
 // fica desabilitada para evitar divergência entre preview e cobrança real.
 
 interface ToastLocal {
-  show: boolean
-  message: string
-  type: 'info' | 'success' | 'error'
+  show: boolean;
+  message: string;
+  type: 'info' | 'success' | 'error';
 }
 
 interface BrandIcon {
-  key: string
-  label: string
-  src: string
+  key: string;
+  label: string;
+  src: string;
 }
 
 type DonationPaymentMethod = 'card' | 'pix';
 
 interface DonationResumePayload {
-  checkoutId: string
-  firstName: string
-  lastName: string
-  email: string
-  amountDisplay: string
-  coverFees: boolean
-  paymentMethod: DonationPaymentMethod
-  scrollY: number | null
+  checkoutId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  amountDisplay: string;
+  coverFees: boolean;
+  paymentMethod: DonationPaymentMethod;
+  scrollY: number | null;
 }
 
 interface DonationModalProps {
-  show: boolean
-  onClose: () => void
-  activePalette: ActivePalette
-  API_URL: string
-  resumeCheckoutId?: string | null
+  show: boolean;
+  onClose: () => void;
+  activePalette: ActivePalette;
+  API_URL: string;
+  resumeCheckoutId?: string | null;
 }
 
 const formatBRL = (num: number): string =>
-  num.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+  num
+    .toFixed(2)
+    .replace('.', ',')
+    .replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
 
 const SUMUP_PENDING_DONATION_STORAGE_KEY = 'mainsite:sumup:pending-donation';
 const SUMUP_CARD_METHODS = ['card'] as const;
@@ -66,7 +70,8 @@ const getSumUpWidgetErrorMessage = (body: unknown): string | null => {
   if (!body || typeof body !== 'object') return null;
   const candidate = body as { message?: unknown; error?: unknown; error_message?: unknown };
   if (typeof candidate.message === 'string' && candidate.message.trim()) return candidate.message.trim();
-  if (typeof candidate.error_message === 'string' && candidate.error_message.trim()) return candidate.error_message.trim();
+  if (typeof candidate.error_message === 'string' && candidate.error_message.trim())
+    return candidate.error_message.trim();
   if (typeof candidate.error === 'string' && candidate.error.trim()) return candidate.error.trim();
   return null;
 };
@@ -101,11 +106,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
   const showToast = useCallback((message: string, type: ToastLocal['type'] = 'error') => {
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
     const pointerY = lastPointerYRef.current;
-    const baseY = pointerY != null ? pointerY : (viewportH * 0.5);
+    const baseY = pointerY != null ? pointerY : viewportH * 0.5;
     const nextTop = Math.max(16, Math.min(baseY - 36, Math.max(16, viewportH - 90)));
     setToastTop(nextTop);
     setToast({ show: true, message, type });
-    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+    setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 4000);
   }, []);
 
   const persistPendingCheckout = useCallback((payload: DonationResumePayload) => {
@@ -204,7 +209,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
       try {
         const res = await fetch(`${API_URL}/sumup/fees`, { credentials: 'omit' });
         if (!res.ok) throw new Error(`fees ${res.status}`);
-        const data = await res.json() as { sumupRate?: number; sumupFixed?: number };
+        const data = (await res.json()) as { sumupRate?: number; sumupFixed?: number };
         if (cancelled) return;
         const okRate = typeof data.sumupRate === 'number' && data.sumupRate >= 0 && data.sumupRate < 1;
         const okFixed = typeof data.sumupFixed === 'number' && data.sumupFixed >= 0;
@@ -219,7 +224,9 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
         setCoverFees(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [show, API_URL]);
 
   useEffect(() => {
@@ -279,7 +286,10 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
-    if (value === '') { setAmountDisplay(''); return; }
+    if (value === '') {
+      setAmountDisplay('');
+      return;
+    }
     value = (parseInt(value, 10) / 100).toFixed(2);
     value = value.replace('.', ',');
     value = value.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
@@ -296,16 +306,16 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
   const getGrossAmount = (): number => {
     const base = getNumericAmount();
     if (!coverFees || base <= 0 || !feesLoaded) return base;
-    return parseFloat((((base + (feeFixed as number)) / (1 - (feeRate as number)))).toFixed(2));
+    return parseFloat(((base + (feeFixed as number)) / (1 - (feeRate as number))).toFixed(2));
   };
 
   const validateBaseForm = (): boolean => {
     if (!firstName.trim() || !lastName.trim()) {
-      showToast("Preencha seu Nome e Sobrenome reais.", "error");
+      showToast('Preencha seu Nome e Sobrenome reais.', 'error');
       return false;
     }
     if (getNumericAmount() <= 0) {
-      showToast("Por favor, insira um valor de doação válido.", "error");
+      showToast('Por favor, insira um valor de doação válido.', 'error');
       return false;
     }
     return true;
@@ -324,53 +334,56 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
     }
   }, []);
 
-  const pollCheckoutStatus = useCallback((targetCheckoutId: string) => {
-    stopPolling();
+  const pollCheckoutStatus = useCallback(
+    (targetCheckoutId: string) => {
+      stopPolling();
 
-    const checkStatus = async () => {
-      try {
-        const res = await fetch(`${API_URL}/sumup/checkout/${targetCheckoutId}/status`);
-        if (!res.ok) return;
+      const checkStatus = async () => {
+        try {
+          const res = await fetch(`${API_URL}/sumup/checkout/${targetCheckoutId}/status`);
+          if (!res.ok) return;
 
-        const data = await res.json();
-        const status = String(data.status || '').toUpperCase();
+          const data = await res.json();
+          const status = String(data.status || '').toUpperCase();
 
-        if (status === 'SUCCESSFUL' || status === 'PAID') {
-          stopPolling();
-          clearPendingCheckout();
-          setIsPreparingCard(false);
-          setIsSubmittingCard(false);
-          setIsResumingCheckout(false);
-          setCardFlowMessage('');
-          setStep(3);
-          showToast('Pagamento aprovado com sucesso!', 'success');
-          return;
+          if (status === 'SUCCESSFUL' || status === 'PAID') {
+            stopPolling();
+            clearPendingCheckout();
+            setIsPreparingCard(false);
+            setIsSubmittingCard(false);
+            setIsResumingCheckout(false);
+            setCardFlowMessage('');
+            setStep(3);
+            showToast('Pagamento aprovado com sucesso!', 'success');
+            return;
+          }
+
+          if (status === 'FAILED' || status === 'EXPIRED' || status === 'CANCELLED') {
+            stopPolling();
+            clearPendingCheckout();
+            setIsPreparingCard(false);
+            setIsSubmittingCard(false);
+            setIsResumingCheckout(false);
+            setCardCheckoutId(null);
+            setCardFlowMessage('');
+            setStep(1);
+            showToast(
+              selectedPaymentMethod === 'pix'
+                ? 'O pagamento por PIX não foi concluído. Tente novamente.'
+                : 'O pagamento com cartão não foi concluído. Tente novamente.',
+              'error',
+            );
+          }
+        } catch (err) {
+          console.error('SumUp card polling error', err);
         }
+      };
 
-        if (status === 'FAILED' || status === 'EXPIRED' || status === 'CANCELLED') {
-          stopPolling();
-          clearPendingCheckout();
-          setIsPreparingCard(false);
-          setIsSubmittingCard(false);
-          setIsResumingCheckout(false);
-          setCardCheckoutId(null);
-          setCardFlowMessage('');
-          setStep(1);
-          showToast(
-            selectedPaymentMethod === 'pix'
-              ? 'O pagamento por PIX não foi concluído. Tente novamente.'
-              : 'O pagamento com cartão não foi concluído. Tente novamente.',
-            'error',
-          );
-        }
-      } catch (err) {
-        console.error('SumUp card polling error', err);
-      }
-    };
-
-    void checkStatus();
-    pollingIntervalRef.current = setInterval(checkStatus, 4000);
-  }, [API_URL, clearPendingCheckout, selectedPaymentMethod, showToast, stopPolling]);
+      void checkStatus();
+      pollingIntervalRef.current = setInterval(checkStatus, 4000);
+    },
+    [API_URL, clearPendingCheckout, selectedPaymentMethod, showToast, stopPolling],
+  );
 
   useEffect(() => {
     if (!show || !resumeCheckoutId) return;
@@ -432,7 +445,7 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
           lastName: lastName.trim(),
           email: sumupEmail.trim(),
           redirectUrl: getReturnUrl(),
-        })
+        }),
       });
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.error || 'Falha ao iniciar checkout.');
@@ -519,39 +532,72 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
   };
 
   const overlayStyle: React.CSSProperties = {
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: isDarkBase ? 'rgba(15, 15, 20, 0.82)' : 'rgba(240, 240, 244, 0.52)',
-    backdropFilter: 'blur(var(--glass-blur-subtle))', WebkitBackdropFilter: 'blur(var(--glass-blur-subtle))',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-    opacity: show ? 1 : 0, transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', padding: '20px',
-    overflowY: 'auto'
+    backdropFilter: 'blur(var(--glass-blur-subtle))',
+    WebkitBackdropFilter: 'blur(var(--glass-blur-subtle))',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    opacity: show ? 1 : 0,
+    transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+    padding: '20px',
+    overflowY: 'auto',
   };
 
   const modalStyle: React.CSSProperties = {
-    backgroundColor: isDarkBase ? 'rgba(24,24,28,0.94)' : 'rgba(255,255,255,0.92)', color: activePalette.fontColor,
-    padding: '35px', maxWidth: '450px', width: '100%', borderRadius: 'var(--shape-xl)',
-    border: '1px solid rgba(128, 128, 128, 0.15)', textAlign: 'center',
+    backgroundColor: isDarkBase ? 'rgba(24,24,28,0.94)' : 'rgba(255,255,255,0.92)',
+    color: activePalette.fontColor,
+    padding: '35px',
+    maxWidth: '450px',
+    width: '100%',
+    borderRadius: 'var(--shape-xl)',
+    border: '1px solid rgba(128, 128, 128, 0.15)',
+    textAlign: 'center',
     boxShadow: isDarkBase ? '0 25px 50px -12px rgba(0, 0, 0, 0.7)' : '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
     transform: show ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(15px)',
-    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)', position: 'relative',
-    backdropFilter: 'blur(var(--glass-blur-deep))', WebkitBackdropFilter: 'blur(var(--glass-blur-deep))', textShadow: isDarkBase ? '0 1px 3px rgba(0,0,0,0.35)' : 'none',
-    margin: 'auto'
+    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+    position: 'relative',
+    backdropFilter: 'blur(var(--glass-blur-deep))',
+    WebkitBackdropFilter: 'blur(var(--glass-blur-deep))',
+    textShadow: isDarkBase ? '0 1px 3px rgba(0,0,0,0.35)' : 'none',
+    margin: 'auto',
   };
 
   const buttonStyle: React.CSSProperties = {
-    backgroundColor: activePalette.titleColor, color: isDarkBase ? '#000' : '#fff', border: 'none',
-    padding: '14px', fontSize: '13px', fontWeight: '900', borderRadius: '100px', cursor: 'pointer',
-    width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px',
-    boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)', transition: 'transform 0.2s',
-    letterSpacing: '1px', textTransform: 'uppercase'
+    backgroundColor: activePalette.titleColor,
+    color: isDarkBase ? '#000' : '#fff',
+    border: 'none',
+    padding: '14px',
+    fontSize: '13px',
+    fontWeight: '900',
+    borderRadius: '100px',
+    cursor: 'pointer',
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '8px',
+    boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.1)',
+    transition: 'transform 0.2s',
+    letterSpacing: '1px',
+    textTransform: 'uppercase',
   };
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '12px 16px',
+    width: '100%',
+    padding: '12px 16px',
     backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
     border: '1px solid rgba(128, 128, 128, 0.2)',
-    borderRadius: 'var(--shape-md)', color: activePalette.fontColor,
-    fontSize: '14px', boxSizing: 'border-box'
+    borderRadius: 'var(--shape-md)',
+    color: activePalette.fontColor,
+    fontSize: '14px',
+    boxSizing: 'border-box',
   };
 
   const donationBase = getNumericAmount();
@@ -570,20 +616,75 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
 
   return (
     <div style={overlayStyle}>
-      <div role="alert" aria-live="assertive" aria-atomic="true" style={{ position: 'fixed', top: `${toastTop}px`, left: '50%', transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)', opacity: toast.show ? 1 : 0, pointerEvents: toast.show ? 'auto' : 'none', backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : 'var(--semantic-success)', color: '#fff', padding: '12px 20px', borderRadius: '100px', zIndex: 10005, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)', fontWeight: 'bold', fontSize: '13px' }}>
+      <div
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+        style={{
+          position: 'fixed',
+          top: `${toastTop}px`,
+          left: '50%',
+          transform: toast.show ? 'translate(-50%, 0)' : 'translate(-50%, -28px)',
+          opacity: toast.show ? 1 : 0,
+          pointerEvents: toast.show ? 'auto' : 'none',
+          backgroundColor: toast.type === 'error' ? 'var(--semantic-error)' : 'var(--semantic-success)',
+          color: '#fff',
+          padding: '12px 20px',
+          borderRadius: '100px',
+          zIndex: 10005,
+          boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+          fontWeight: 'bold',
+          fontSize: '13px',
+        }}
+      >
         {toast.type === 'error' ? <AlertTriangle size={16} /> : <CheckCircle size={16} />} {toast.message}
       </div>
 
       <div role="dialog" aria-modal="true" aria-labelledby="donation-title" style={modalStyle}>
         <button
           type="button"
-          onClick={() => { stopPolling(); clearPendingCheckout(); setIsResumingCheckout(false); setSelectedPaymentMethod('card'); setStep(1); onClose(); }}
+          onClick={() => {
+            stopPolling();
+            clearPendingCheckout();
+            setIsResumingCheckout(false);
+            setSelectedPaymentMethod('card');
+            setStep(1);
+            onClose();
+          }}
           aria-label="Fechar"
-          style={{ position: 'absolute', top: '15px', right: '15px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(128,128,128,0.1)', border: '1px solid rgba(128,128,128,0.16)', borderRadius: '100px', color: activePalette.fontColor, cursor: 'pointer', opacity: 0.8, transition: 'all 0.2s' }}
-          onMouseOver={(e) => { accentCloseButton(e.currentTarget, '1', 'translateY(-2px)'); }}
-          onMouseOut={(e) => { accentCloseButton(e.currentTarget, '0.8', 'translateY(0)'); }}
-          onFocus={(e) => { accentCloseButton(e.currentTarget, '1', 'translateY(-2px)'); }}
-          onBlur={(e) => { accentCloseButton(e.currentTarget, '0.8', 'translateY(0)'); }}
+          style={{
+            position: 'absolute',
+            top: '15px',
+            right: '15px',
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(128,128,128,0.1)',
+            border: '1px solid rgba(128,128,128,0.16)',
+            borderRadius: '100px',
+            color: activePalette.fontColor,
+            cursor: 'pointer',
+            opacity: 0.8,
+            transition: 'all 0.2s',
+          }}
+          onMouseOver={(e) => {
+            accentCloseButton(e.currentTarget, '1', 'translateY(-2px)');
+          }}
+          onMouseOut={(e) => {
+            accentCloseButton(e.currentTarget, '0.8', 'translateY(0)');
+          }}
+          onFocus={(e) => {
+            accentCloseButton(e.currentTarget, '1', 'translateY(-2px)');
+          }}
+          onBlur={(e) => {
+            accentCloseButton(e.currentTarget, '0.8', 'translateY(0)');
+          }}
         >
           <X size={24} />
         </button>
@@ -591,44 +692,103 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
         {step === 1 && (
           <div style={{ animation: 'fadeIn 0.3s', textAlign: 'left' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ display: 'inline-flex', padding: '15px', borderRadius: '50%', backgroundColor: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', marginBottom: '15px' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  padding: '15px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                  color: '#ec4899',
+                  marginBottom: '15px',
+                }}
+              >
                 <Heart size={36} />
               </div>
-              <h2 id="donation-title" style={{ margin: '0 0 15px 0', fontSize: 'var(--type-title-md)', fontWeight: '700', color: activePalette.titleColor }}>Apoie este Espaço</h2>
+              <h2
+                id="donation-title"
+                style={{
+                  margin: '0 0 15px 0',
+                  fontSize: 'var(--type-title-md)',
+                  fontWeight: '700',
+                  color: activePalette.titleColor,
+                }}
+              >
+                Apoie este Espaço
+              </h2>
               <p style={{ fontSize: '14px', opacity: 0.8, lineHeight: '1.6', marginBottom: '25px' }}>
                 Insira seus dados reais e o valor desejado.
               </p>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); void handleStartCheckout('card'); }} autoComplete="on" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleStartCheckout('card');
+              }}
+              autoComplete="on"
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
               <div style={{ display: 'flex', gap: '10px' }}>
-                <label htmlFor="donation-first-name" className="sr-only">Nome</label>
+                <label htmlFor="donation-first-name" className="sr-only">
+                  Nome
+                </label>
                 <input
-                  id="donation-first-name" name="firstName"
-                  type="text" required placeholder="Nome"
+                  id="donation-first-name"
+                  name="firstName"
+                  type="text"
+                  required
+                  placeholder="Nome"
                   autoComplete="given-name"
-                  value={firstName} onChange={(e) => setFirstName(e.target.value)}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   style={inputStyle}
                 />
-                <label htmlFor="donation-last-name" className="sr-only">Sobrenome</label>
+                <label htmlFor="donation-last-name" className="sr-only">
+                  Sobrenome
+                </label>
                 <input
-                  id="donation-last-name" name="lastName"
-                  type="text" required placeholder="Sobrenome"
+                  id="donation-last-name"
+                  name="lastName"
+                  type="text"
+                  required
+                  placeholder="Sobrenome"
                   autoComplete="family-name"
-                  value={lastName} onChange={(e) => setLastName(e.target.value)}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
                   style={inputStyle}
                 />
               </div>
 
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ position: 'absolute', left: '20px', fontSize: '18px', fontWeight: 'bold', opacity: 0.5 }}>R$</span>
-                <label htmlFor="donation-amount" className="sr-only">Valor da doação</label>
+                <span
+                  style={{ position: 'absolute', left: '20px', fontSize: '18px', fontWeight: 'bold', opacity: 0.5 }}
+                >
+                  R$
+                </span>
+                <label htmlFor="donation-amount" className="sr-only">
+                  Valor da doação
+                </label>
                 <input
-                  id="donation-amount" name="donationAmount"
-                  type="text" required value={amountDisplay} onChange={handleAmountChange} placeholder="0,00"
+                  id="donation-amount"
+                  name="donationAmount"
+                  type="text"
+                  required
+                  value={amountDisplay}
+                  onChange={handleAmountChange}
+                  placeholder="0,00"
                   autoComplete="transaction-amount"
                   inputMode="decimal"
-                  style={{ width: '100%', padding: '15px 15px 15px 50px', backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)', border: '1px solid rgba(128, 128, 128, 0.2)', borderRadius: 'var(--shape-md)', color: activePalette.fontColor, fontSize: '22px', fontWeight: 'bold', boxSizing: 'border-box' }}
+                  style={{
+                    width: '100%',
+                    padding: '15px 15px 15px 50px',
+                    backgroundColor: isDarkBase ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                    border: '1px solid rgba(128, 128, 128, 0.2)',
+                    borderRadius: 'var(--shape-md)',
+                    color: activePalette.fontColor,
+                    fontSize: '22px',
+                    fontWeight: 'bold',
+                    boxSizing: 'border-box',
+                  }}
                 />
               </div>
 
@@ -669,7 +829,17 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
               </div>
 
               <div>
-                <label htmlFor="sumup-email" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: activePalette.fontColor, opacity: 0.8 }}>
+                <label
+                  htmlFor="sumup-email"
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    marginBottom: '6px',
+                    color: activePalette.fontColor,
+                    opacity: 0.8,
+                  }}
+                >
                   E-mail para recibo e confirmação
                 </label>
                 <input
@@ -685,8 +855,19 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
                 />
               </div>
 
-              <div style={{ fontSize: '12px', opacity: 0.72, lineHeight: '1.7', textAlign: 'left', padding: '10px 12px', borderRadius: '10px', background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}>
-                O pagamento será concluído em um ambiente seguro da <strong>SumUp</strong>. Você poderá escolher a forma disponível para finalizar a sua doação.
+              <div
+                style={{
+                  fontSize: '12px',
+                  opacity: 0.72,
+                  lineHeight: '1.7',
+                  textAlign: 'left',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                }}
+              >
+                O pagamento será concluído em um ambiente seguro da <strong>SumUp</strong>. Você poderá escolher a forma
+                disponível para finalizar a sua doação.
               </div>
 
               <label
@@ -700,22 +881,46 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
                   textAlign: 'left',
                   userSelect: 'none',
                 }}
-                title={feesError ? 'Configuração de taxas indisponível no momento.' : (feesLoaded ? '' : 'Carregando configuração de taxas...')}
+                title={
+                  feesError
+                    ? 'Configuração de taxas indisponível no momento.'
+                    : feesLoaded
+                      ? ''
+                      : 'Carregando configuração de taxas...'
+                }
               >
                 <input
-                  id="donation-cover-fees" name="donationCoverFees"
+                  id="donation-cover-fees"
+                  name="donationCoverFees"
                   type="checkbox"
                   checked={coverFees}
                   disabled={!feesLoaded}
                   onChange={(e) => setCoverFees(e.target.checked)}
-                  style={{ width: '16px', height: '16px', accentColor: activePalette.titleColor, cursor: feesLoaded ? 'pointer' : 'not-allowed', flexShrink: 0 }}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    accentColor: activePalette.titleColor,
+                    cursor: feesLoaded ? 'pointer' : 'not-allowed',
+                    flexShrink: 0,
+                  }}
                 />
                 Cobrir as taxas de processamento do cartão
               </label>
 
               {coverFees && feesLoaded && donationBase > 0 && (
-                <div style={{ fontSize: '12px', opacity: 0.65, textAlign: 'left', lineHeight: '1.7', padding: '8px 12px', borderRadius: '6px', background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}>
-                  <strong>Valor com taxa incluída:</strong><br />
+                <div
+                  style={{
+                    fontSize: '12px',
+                    opacity: 0.65,
+                    textAlign: 'left',
+                    lineHeight: '1.7',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  }}
+                >
+                  <strong>Valor com taxa incluída:</strong>
+                  <br />
                   R$ {formatBRL(donationGross)} (+R$ {formatBRL(donationGross - donationBase)})
                 </div>
               )}
@@ -724,18 +929,40 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
                 <button
                   type="submit"
                   disabled={isPreparingCard || isSubmittingCard}
-                  style={{ ...buttonStyle, background: '#0066ff', color: '#fff', cursor: (isPreparingCard || isSubmittingCard) ? 'not-allowed' : 'pointer', opacity: (isPreparingCard || isSubmittingCard) ? 0.7 : 1 }}
+                  style={{
+                    ...buttonStyle,
+                    background: '#0066ff',
+                    color: '#fff',
+                    cursor: isPreparingCard || isSubmittingCard ? 'not-allowed' : 'pointer',
+                    opacity: isPreparingCard || isSubmittingCard ? 0.7 : 1,
+                  }}
                 >
-                  {isPreparingCard && selectedPaymentMethod === 'card' ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                  {isPreparingCard && selectedPaymentMethod === 'card' ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <CreditCard size={16} />
+                  )}
                   {isPreparingCard && selectedPaymentMethod === 'card' ? 'PREPARANDO CARTÃO...' : 'PAGAR COM CARTÃO'}
                 </button>
                 <button
                   type="button"
                   disabled={isPreparingCard || isSubmittingCard}
-                  onClick={() => { void handleStartCheckout('pix'); }}
-                  style={{ ...buttonStyle, background: '#10b981', color: '#fff', cursor: (isPreparingCard || isSubmittingCard) ? 'not-allowed' : 'pointer', opacity: (isPreparingCard || isSubmittingCard) ? 0.7 : 1 }}
+                  onClick={() => {
+                    void handleStartCheckout('pix');
+                  }}
+                  style={{
+                    ...buttonStyle,
+                    background: '#10b981',
+                    color: '#fff',
+                    cursor: isPreparingCard || isSubmittingCard ? 'not-allowed' : 'pointer',
+                    opacity: isPreparingCard || isSubmittingCard ? 0.7 : 1,
+                  }}
                 >
-                  {isPreparingCard && selectedPaymentMethod === 'pix' ? <Loader2 size={16} className="animate-spin" /> : <Heart size={16} />}
+                  {isPreparingCard && selectedPaymentMethod === 'pix' ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Heart size={16} />
+                  )}
                   {isPreparingCard && selectedPaymentMethod === 'pix' ? 'PREPARANDO PIX...' : 'PAGAR COM PIX'}
                 </button>
               </div>
@@ -745,24 +972,60 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
 
         {step === 3 && (
           <div style={{ animation: 'fadeIn 0.3s', padding: '20px 0' }}>
-            <div style={{ display: 'inline-flex', padding: '20px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', marginBottom: '20px' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                padding: '20px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                color: '#10b981',
+                marginBottom: '20px',
+              }}
+            >
               <CheckCircle size={40} />
             </div>
-            <h2 style={{ margin: '0 0 15px 0', fontSize: '24px', fontWeight: '600', color: activePalette.titleColor }}>Muito Obrigado!</h2>
+            <h2 style={{ margin: '0 0 15px 0', fontSize: '24px', fontWeight: '600', color: activePalette.titleColor }}>
+              Muito Obrigado!
+            </h2>
             <p style={{ fontSize: '15px', opacity: 0.8, lineHeight: '1.6', marginBottom: '30px' }}>
-              Sua contribuição aquece os servidores e incentiva a continuidade destas Reflexos. Agradeço imensamente pelo apoio ao meu trabalho.
+              Sua contribuição aquece os servidores e incentiva a continuidade destas Reflexos. Agradeço imensamente
+              pelo apoio ao meu trabalho.
             </p>
-            <button type="button" onClick={() => { stopPolling(); clearPendingCheckout(); setIsResumingCheckout(false); setSelectedPaymentMethod('card'); setStep(1); onClose(); }} style={buttonStyle}>Fechar</button>
+            <button
+              type="button"
+              onClick={() => {
+                stopPolling();
+                clearPendingCheckout();
+                setIsResumingCheckout(false);
+                setSelectedPaymentMethod('card');
+                setStep(1);
+                onClose();
+              }}
+              style={buttonStyle}
+            >
+              Fechar
+            </button>
           </div>
         )}
 
         {step === 4 && cardCheckoutId && (
           <div style={{ animation: 'fadeIn 0.3s', textAlign: 'left' }}>
             <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-              <div style={{ display: 'inline-flex', padding: '15px', borderRadius: '50%', backgroundColor: 'rgba(0, 102, 255, 0.12)', color: '#0066ff', marginBottom: '15px' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  padding: '15px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(0, 102, 255, 0.12)',
+                  color: '#0066ff',
+                  marginBottom: '15px',
+                }}
+              >
                 <CreditCard size={34} />
               </div>
-              <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '700', color: activePalette.titleColor }}>Pagamento Seguro com SumUp</h2>
+              <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '700', color: activePalette.titleColor }}>
+                Pagamento Seguro com SumUp
+              </h2>
               <p style={{ fontSize: '13px', opacity: 0.78, lineHeight: '1.7', marginBottom: '10px' }}>
                 {isResumingCheckout
                   ? 'Estamos trazendo você de volta ao mesmo ponto da leitura e confirmando a sua doação.'
@@ -771,14 +1034,32 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
                     : 'Conclua a sua doação com cartão no formulário seguro exibido abaixo.'}
               </p>
               {cardFlowMessage && (
-                <div style={{ fontSize: '12px', opacity: 0.72, padding: '8px 12px', borderRadius: '10px', background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    opacity: 0.72,
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    background: isDarkBase ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  }}
+                >
                   {cardFlowMessage}
                 </div>
               )}
             </div>
 
             {isResumingCheckout ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '18px 12px', borderRadius: '16px', background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '18px 12px',
+                  borderRadius: '16px',
+                  background: isDarkBase ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)',
+                }}
+              >
                 <Loader2 size={22} className="animate-spin" />
                 <div style={{ fontSize: '13px', lineHeight: '1.7', textAlign: 'center', opacity: 0.78 }}>
                   Confirmando o pagamento final para levar você diretamente à tela de agradecimento.
@@ -823,7 +1104,8 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '18px' }}>
               {isSubmittingCard && (
                 <div style={{ fontSize: '12px', opacity: 0.72, textAlign: 'center', lineHeight: '1.7' }}>
-                  Estamos confirmando o pagamento. Se a SumUp abrir uma nova etapa, você voltará para o mesmo ponto e seguirá direto para a confirmação da doação.
+                  Estamos confirmando o pagamento. Se a SumUp abrir uma nova etapa, você voltará para o mesmo ponto e
+                  seguirá direto para a confirmação da doação.
                 </div>
               )}
               <button
@@ -839,7 +1121,16 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
                   setSelectedPaymentMethod('card');
                   setStep(1);
                 }}
-                style={{ background: 'none', border: 'none', color: activePalette.fontColor, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: 0.6, textDecoration: 'underline' }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: activePalette.fontColor,
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  opacity: 0.6,
+                  textDecoration: 'underline',
+                }}
               >
                 Voltar e revisar dados
               </button>

@@ -6,31 +6,44 @@
 // Versão: v1.6.0
 // Descrição: TypeScript migration. Chat MD3 + Glassmorphism. Gatilho de Doação preservado.
 
-import { type FormEvent, useState, useEffect, useRef } from 'react';
-import { X, Send, Sparkles, Heart } from 'lucide-react';
+import { Heart, Send, Sparkles, X } from 'lucide-react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import type { ActivePalette, Post } from '../types';
 import './ChatWidget.css';
 
-type AiVisualStatus = 'idle' | 'thinking' | 'responding'
+type AiVisualStatus = 'idle' | 'thinking' | 'responding';
 
 interface ChatMessage {
-  role: 'user' | 'bot'
-  text: string
-  hasDonationButton?: boolean
+  id: string;
+  role: 'user' | 'bot';
+  text: string;
+  hasDonationButton?: boolean;
 }
 
 interface ChatWidgetProps {
-  isOpen: boolean
-  onClose: () => void
-  currentPost: Post | null
-  activePalette: ActivePalette
-  API_URL: string
-  triggerDonation?: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  currentPost: Post | null;
+  activePalette: ActivePalette;
+  API_URL: string;
+  triggerDonation?: () => void;
 }
+
+const createMessageId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
 
 const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, triggerDonation }: ChatWidgetProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'bot', text: 'Olá. Como posso guiar sua reflexão sobre os textos hoje?', hasDonationButton: false }
+    {
+      id: createMessageId(),
+      role: 'bot',
+      text: 'Olá. Como posso guiar sua reflexão sobre os textos hoje?',
+      hasDonationButton: false,
+    },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -39,12 +52,9 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const aiStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    if (!isOpen || messages.length === 0) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOpen]);
 
   useEffect(() => {
@@ -67,7 +77,7 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
 
     const userMsg = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setMessages((prev) => [...prev, { id: createMessageId(), role: 'user', text: userMsg }]);
     setIsLoading(true);
     setAiVisualStatus('thinking');
 
@@ -78,13 +88,13 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
       const payload = {
         message: userMsg,
         currentContext: currentPost ? { title: currentPost.title, content: currentPost.content } : null,
-        askForDonation: currentCount === 3
+        askForDonation: currentCount === 3,
       };
 
       const res = await fetch(`${API_URL}/ai/public/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error('Falha de comunicação neural.');
@@ -98,13 +108,24 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
         rawText = rawText.replace('[[PEDIR_DOACAO]]', '').trim();
       }
 
-      setMessages(prev => [...prev, { role: 'bot', text: rawText, hasDonationButton: showDonationButton }]);
+      setMessages((prev) => [
+        ...prev,
+        { id: createMessageId(), role: 'bot', text: rawText, hasDonationButton: showDonationButton },
+      ]);
       setAiVisualStatus('responding');
       aiStatusTimeoutRef.current = setTimeout(() => {
         setAiVisualStatus('idle');
       }, 1400);
     } catch {
-      setMessages(prev => [...prev, { role: 'bot', text: 'Sinal interrompido. Tente novamente em instantes.', hasDonationButton: false }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: createMessageId(),
+          role: 'bot',
+          text: 'Sinal interrompido. Tente novamente em instantes.',
+          hasDonationButton: false,
+        },
+      ]);
       setAiVisualStatus('responding');
       aiStatusTimeoutRef.current = setTimeout(() => {
         setAiVisualStatus('idle');
@@ -126,84 +147,84 @@ const ChatWidget = ({ isOpen, onClose, currentPost, activePalette, API_URL, trig
   const widgetClassName = `chat-widget chat-widget--${isDarkBase ? 'dark' : 'light'} chat-widget--${aiVisualStatus}`;
 
   return (
-      <div role="complementary" aria-label="Assistente de busca semântica" className={widgetClassName}>
-        <div className="chat-widget__panel">
-          <div className="chat-widget__header">
-            <div className="chat-widget__brand">
-              <div className="chat-widget__brand-mark">
-                <span aria-hidden="true" className="chat-widget__brand-ring" />
-                <Sparkles size={18} className="chat-widget__brand-icon" />
-              </div>
-              <div className="chat-widget__brand-copy">
-                <span className="chat-widget__title">Consciência Auxiliar</span>
-                <span className="chat-widget__status-inline">
-                  {aiStatusMeta.text}
-                </span>
-              </div>
+    <aside aria-label="Assistente de busca semântica" className={widgetClassName}>
+      <div className="chat-widget__panel">
+        <div className="chat-widget__header">
+          <div className="chat-widget__brand">
+            <div className="chat-widget__brand-mark">
+              <span aria-hidden="true" className="chat-widget__brand-ring" />
+              <Sparkles size={18} className="chat-widget__brand-icon" />
             </div>
-            <div className="chat-widget__header-actions">
-              <span className="chat-widget__status-pill">{aiStatusMeta.text}</span>
-              <button type="button" onClick={onClose} aria-label="Fechar chat" className="chat-widget__close">
-                <X size={20} />
-              </button>
+            <div className="chat-widget__brand-copy">
+              <span className="chat-widget__title">Consciência Auxiliar</span>
+              <span className="chat-widget__status-inline">{aiStatusMeta.text}</span>
             </div>
           </div>
-
-          <div className="chat-widget__activity-track">
-          {(aiVisualStatus === 'thinking' || aiVisualStatus === 'responding') && (
-              <span aria-hidden="true" className="chat-widget__activity-sweep" />
-          )}
-          </div>
-
-          <div role="log" aria-live="polite" aria-label="Histórico de mensagens" className="chat-widget__messages">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`chat-widget__message-row chat-widget__message-row--${msg.role === 'user' ? 'user' : 'bot'}`}>
-                <div className={`chat-widget__bubble chat-widget__bubble--${msg.role === 'user' ? 'user' : 'bot'}`}>
-                  {msg.text}
-                </div>
-
-                {msg.hasDonationButton && (
-                  <button
-                    onClick={() => triggerDonation && triggerDonation()}
-                    className="chat-widget__donation"
-                  >
-                    <Heart size={16} fill="#fff" /> Apoiar o Projeto
-                  </button>
-                )}
-              </div>
-            ))}
-            {isLoading && (
-              <div role="status" aria-label="Processando resposta" className="chat-widget__typing">
-                <div className="chat-widget__typing-pill">
-                  <span className="chat-widget__typing-dot" />
-                  <span className="chat-widget__typing-dot chat-widget__typing-dot--delay-1" />
-                  <span className="chat-widget__typing-dot chat-widget__typing-dot--delay-2" />
-                </div>
-                A analisar o contexto...
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <form onSubmit={handleSend} className="chat-widget__input-area">
-            <label htmlFor="chat-message-input" className="sr-only">Mensagem para o assistente</label>
-            <input
-              id="chat-message-input" name="chatMessageInput"
-              type="text"
-              autoComplete="off"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Faça uma pergunta..."
-              className="chat-widget__input"
-              disabled={isLoading}
-              autoFocus
-            />
-            <button type="submit" disabled={isLoading || !input.trim()} aria-label="Enviar mensagem" className="chat-widget__send">
-              <Send size={18} />
+          <div className="chat-widget__header-actions">
+            <span className="chat-widget__status-pill">{aiStatusMeta.text}</span>
+            <button type="button" onClick={onClose} aria-label="Fechar chat" className="chat-widget__close">
+              <X size={20} />
             </button>
-          </form>
+          </div>
         </div>
+
+        <div className="chat-widget__activity-track">
+          {(aiVisualStatus === 'thinking' || aiVisualStatus === 'responding') && (
+            <span aria-hidden="true" className="chat-widget__activity-sweep" />
+          )}
+        </div>
+
+        <div role="log" aria-live="polite" aria-label="Histórico de mensagens" className="chat-widget__messages">
+          {messages.map((msg) => (
+            <div key={msg.id} className={`chat-widget__message-row chat-widget__message-row--${msg.role}`}>
+              <div className={`chat-widget__bubble chat-widget__bubble--${msg.role}`}>{msg.text}</div>
+
+              {msg.hasDonationButton && (
+                <button type="button" onClick={() => triggerDonation?.()} className="chat-widget__donation">
+                  <Heart size={16} fill="#fff" /> Apoiar o Projeto
+                </button>
+              )}
+            </div>
+          ))}
+          {isLoading && (
+            <div role="status" aria-label="Processando resposta" className="chat-widget__typing">
+              <div className="chat-widget__typing-pill">
+                <span className="chat-widget__typing-dot" />
+                <span className="chat-widget__typing-dot chat-widget__typing-dot--delay-1" />
+                <span className="chat-widget__typing-dot chat-widget__typing-dot--delay-2" />
+              </div>
+              A analisar o contexto...
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <form onSubmit={handleSend} className="chat-widget__input-area">
+          <label htmlFor="chat-message-input" className="sr-only">
+            Mensagem para o assistente
+          </label>
+          <input
+            id="chat-message-input"
+            name="chatMessageInput"
+            type="text"
+            autoComplete="off"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Faça uma pergunta..."
+            className="chat-widget__input"
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            aria-label="Enviar mensagem"
+            className="chat-widget__send"
+          >
+            <Send size={18} />
+          </button>
+        </form>
       </div>
+    </aside>
   );
 };
 

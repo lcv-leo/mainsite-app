@@ -13,12 +13,12 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
-import { generateShareSummary, hashContent, stripHtml } from '../lib/gemini.ts';
-import { structuredLog } from '../lib/logger.ts';
 import { bumpContentVersion } from '../lib/content-version.ts';
-import { PostBodySchema, PostReorderSchema } from '../lib/schemas.ts';
+import { generateShareSummary, hashContent, stripHtml } from '../lib/gemini.ts';
+import { postUrl as buildPostUrl, pingIndexNow } from '../lib/indexnow.ts';
+import { structuredLog } from '../lib/logger.ts';
 import { sanitizePostHtml } from '../lib/sanitize.ts';
-import { pingIndexNow, postUrl as buildPostUrl } from '../lib/indexnow.ts';
+import { PostBodySchema, PostReorderSchema } from '../lib/schemas.ts';
 
 const posts = new Hono<{ Bindings: Env }>();
 const PUBLIC_POST_EXCERPT_LENGTH = 360;
@@ -35,7 +35,9 @@ type PublicPostRow = {
 };
 
 function toPublicExcerpt(content: string): string {
-  const clean = stripHtml(String(content || '')).replace(/\s+/g, ' ').trim();
+  const clean = stripHtml(String(content || ''))
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!clean) return '';
   return clean.length > PUBLIC_POST_EXCERPT_LENGTH
     ? `${clean.slice(0, PUBLIC_POST_EXCERPT_LENGTH).trimEnd()}...`
@@ -55,11 +57,12 @@ async function triggerSummaryGeneration(
   postId: string | number,
   title: string,
   content: string,
-  env: Env
+  env: Env,
 ): Promise<void> {
   try {
     // Auto-migração
-    await db.prepare(`
+    await db
+      .prepare(`
       CREATE TABLE IF NOT EXISTS mainsite_post_ai_summaries (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         post_id      INTEGER NOT NULL UNIQUE,
@@ -71,15 +74,17 @@ async function triggerSummaryGeneration(
         created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `).run();
+    `)
+      .run();
 
     const cleanContent = stripHtml(content);
     const newHash = await hashContent(cleanContent);
 
     // Verifica se já existe resumo com mesmo hash ou override manual
-    const existing = await db.prepare(
-      'SELECT content_hash, is_manual FROM mainsite_post_ai_summaries WHERE post_id = ?'
-    ).bind(postId).first<{ content_hash: string; is_manual: number }>();
+    const existing = await db
+      .prepare('SELECT content_hash, is_manual FROM mainsite_post_ai_summaries WHERE post_id = ?')
+      .bind(postId)
+      .first<{ content_hash: string; is_manual: number }>();
 
     if (existing) {
       // Manual override: não sobrescrever
@@ -101,7 +106,8 @@ async function triggerSummaryGeneration(
       return;
     }
 
-    await db.prepare(`
+    await db
+      .prepare(`
       INSERT INTO mainsite_post_ai_summaries (post_id, summary_og, summary_ld, content_hash, is_manual, updated_at)
       VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
       ON CONFLICT(post_id) DO UPDATE SET
@@ -111,7 +117,9 @@ async function triggerSummaryGeneration(
         is_manual = 0,
         model = '',
         updated_at = CURRENT_TIMESTAMP
-    `).bind(postId, result.summary_og, result.summary_ld, newHash).run();
+    `)
+      .bind(postId, result.summary_og, result.summary_ld, newHash)
+      .run();
 
     structuredLog('info', 'Share summary generated successfully', {
       postId,
@@ -134,7 +142,7 @@ posts.get('/api/posts', async (c) => {
     const { results } = await c.env.DB.prepare(
       `SELECT id, title, substr(content, 1, 8000) AS content, author, created_at, updated_at, is_pinned, display_order
        FROM mainsite_posts
-       ORDER BY is_pinned DESC, display_order ASC, created_at DESC`
+       ORDER BY is_pinned DESC, display_order ASC, created_at DESC`,
     ).all<PublicPostRow>();
     const publicPosts = (results || []).map((post) => {
       const excerpt = toPublicExcerpt(post.content);
@@ -173,7 +181,7 @@ posts.post('/api/posts', requireAuth, async (c) => {
     const content = sanitizePostHtml(postParse.data.content || '');
     const authorVal = (author || '').trim() || 'Leonardo Cardozo Vargas';
     const result = await c.env.DB.prepare(
-      'INSERT INTO mainsite_posts (title, content, author, is_pinned, display_order) VALUES (?, ?, ?, 0, 0)'
+      'INSERT INTO mainsite_posts (title, content, author, is_pinned, display_order) VALUES (?, ?, ?, 0, 0)',
     )
       .bind(title, content, authorVal)
       .run();
@@ -181,9 +189,7 @@ posts.post('/api/posts', requireAuth, async (c) => {
     // Fire-and-forget: gerar resumo IA para compartilhamento
     const geminiKey = c.env.GEMINI_API_KEY;
     if (geminiKey && title && content && result.meta?.last_row_id) {
-      c.executionCtx.waitUntil(
-        triggerSummaryGeneration(c.env.DB, result.meta.last_row_id, title, content, c.env)
-      );
+      c.executionCtx.waitUntil(triggerSummaryGeneration(c.env.DB, result.meta.last_row_id, title, content, c.env));
     }
 
     // Sinaliza mudança para o polling de content-fingerprint
@@ -211,16 +217,14 @@ posts.put('/api/posts/:id', requireAuth, async (c) => {
     const content = sanitizePostHtml(postParse.data.content || '');
     const authorVal = (author || '').trim() || 'Leonardo Cardozo Vargas';
     await c.env.DB.prepare(
-      'UPDATE mainsite_posts SET title = ?, content = ?, author = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      'UPDATE mainsite_posts SET title = ?, content = ?, author = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
     )
       .bind(title, content, authorVal, id)
       .run();
 
     const geminiKey = c.env.GEMINI_API_KEY;
     if (geminiKey && title && content && id) {
-      c.executionCtx.waitUntil(
-        triggerSummaryGeneration(c.env.DB, id, title, content, c.env)
-      );
+      c.executionCtx.waitUntil(triggerSummaryGeneration(c.env.DB, id, title, content, c.env));
     }
 
     c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));
@@ -273,7 +277,7 @@ posts.put('/api/posts/reorder', requireAuth, async (c) => {
     if (!reorderParse.success) return c.json({ error: 'Dados inválidos.' }, 400);
     const items = reorderParse.data;
     const statements = items.map((item) =>
-      c.env.DB.prepare('UPDATE mainsite_posts SET display_order = ? WHERE id = ?').bind(item.display_order, item.id)
+      c.env.DB.prepare('UPDATE mainsite_posts SET display_order = ? WHERE id = ?').bind(item.display_order, item.id),
     );
     await c.env.DB.batch(statements);
     c.executionCtx.waitUntil(bumpContentVersion(c.env.DB));

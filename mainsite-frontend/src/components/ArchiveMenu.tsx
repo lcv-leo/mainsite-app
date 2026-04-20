@@ -6,29 +6,29 @@
 // Versão: v2.0.0
 // Descrição: Fase 4 visual redesign — 2-column editorial grid, pill year selectors, gradient accents.
 
+import { Calendar, ChevronUp, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { ChevronUp, Search, Calendar } from 'lucide-react';
 import type { ActivePalette, Post } from '../types';
 import './ArchiveMenu.css';
 
 /** Agrupamento interno por mês. */
 interface MonthGroup {
-  month: string
-  posts: Post[]
+  month: string;
+  posts: Post[];
 }
 
 /** Agrupamento interno por ano. */
 interface YearGroup {
-  year: string
-  months: MonthGroup[]
+  year: string;
+  months: MonthGroup[];
 }
 
 interface ArchiveMenuProps {
-  posts: Post[]
-  currentPost: Post | null
-  setCurrentPost: (post: Post) => void
-  activePalette: ActivePalette | null
-  APP_VERSION: string
+  posts: Post[];
+  currentPost: Post | null;
+  setCurrentPost: (post: Post) => void;
+  activePalette: ActivePalette | null;
+  APP_VERSION: string;
 }
 
 const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VERSION }: ArchiveMenuProps) => {
@@ -43,14 +43,24 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
     return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
   };
 
-  const monthFormatter = useMemo(() => new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'America/Sao_Paulo' }), []);
+  const monthFormatter = useMemo(
+    () => new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'America/Sao_Paulo' }),
+    [],
+  );
 
-  const filteredArchive = useMemo(() => posts.filter(post => {
-    const safeTitle = post.title || '';
-    const safeContent = post.content || '';
-    const matchesSearch = searchTerm === '' || safeTitle.toLowerCase().includes(searchTerm.toLowerCase()) || safeContent.toLowerCase().includes(searchTerm.toLowerCase());
-    return searchTerm ? matchesSearch : (matchesSearch && post.id !== currentPost?.id);
-  }), [posts, searchTerm, currentPost?.id]);
+  const filteredArchive = useMemo(
+    () =>
+      posts.filter((post) => {
+        const safeTitle = post.title || '';
+        const safeContent = post.content || '';
+        const matchesSearch =
+          searchTerm === '' ||
+          safeTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          safeContent.toLowerCase().includes(searchTerm.toLowerCase());
+        return searchTerm ? matchesSearch : matchesSearch && post.id !== currentPost?.id;
+      }),
+    [posts, searchTerm, currentPost?.id],
+  );
 
   const latestByRotation = filteredArchive.slice(0, 4);
   const historicalArchive = useMemo(() => filteredArchive.slice(4), [filteredArchive]);
@@ -117,31 +127,42 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
   const fmtDate = (raw: string | undefined | null): string | null => {
     if (!raw) return null;
     const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
-    return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return d.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
   };
 
   const fmtDateShort = (raw: string | undefined | null): string | null => {
     if (!raw) return null;
     const d = new Date(raw.replace(' ', 'T') + (raw.includes('Z') || raw.includes('+') ? '' : 'Z'));
-    return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short', year: 'numeric' });
+    return d.toLocaleDateString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   /** 2-column editorial post card */
   const renderEditorialCard = (post: Post) => {
-    const dateStr = fmtDateShort(post.created_at) || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const dateStr =
+      fmtDateShort(post.created_at) ||
+      parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     return (
-      <div
-        key={post.id}
-        onClick={() => handleSelectPost(post)}
-          className="editorial-card"
-        >
-          <div className="editorial-card-accent" />
-          <div className="editorial-card-body">
-            <div className="editorial-card-date">
-              <Calendar size={12} className="editorial-card-date-icon" />
-              {dateStr}
-            </div>
-            <div className="editorial-card-title">{post.title}</div>
+      <div key={post.id} onClick={() => handleSelectPost(post)} className="editorial-card">
+        <div className="editorial-card-accent" />
+        <div className="editorial-card-body">
+          <div className="editorial-card-date">
+            <Calendar size={12} className="editorial-card-date-icon" />
+            {dateStr}
+          </div>
+          <div className="editorial-card-title">{post.title}</div>
         </div>
       </div>
     );
@@ -154,10 +175,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
     const showUpdated = atualizado && atualizado !== criado;
     return (
       <div key={post.id} className="featured-card-wrap">
-        <div
-          onClick={() => handleSelectPost(post)}
-          className="featured-card"
-        >
+        <div onClick={() => handleSelectPost(post)} className="featured-card">
           <div className="featured-card-date">
             {criado || parsePostDate(post).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
             {showUpdated && <div className="featured-card-updated">Atualizado em {atualizado}</div>}
@@ -171,13 +189,12 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
   return (
     <footer className="archive-menu">
       <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} className="archive-menu__toggle">
-        <span className="archive-menu__label">
-          FRAGMENTOS ANTERIORES
-        </span>
-        <span className="archive-menu__sublabel">
-          Arquivo completo de posts
-        </span>
-        <ChevronUp size={20} className={`archive-menu__chevron${isHistoryOpen ? ' archive-menu__chevron--open' : ''}`} />
+        <span className="archive-menu__label">FRAGMENTOS ANTERIORES</span>
+        <span className="archive-menu__sublabel">Arquivo completo de posts</span>
+        <ChevronUp
+          size={20}
+          className={`archive-menu__chevron${isHistoryOpen ? ' archive-menu__chevron--open' : ''}`}
+        />
       </button>
 
       <div className={`archive-menu__panel${isHistoryOpen ? ' archive-menu__panel--open' : ''}`}>
@@ -199,9 +216,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
           <>
             {/* Featured Posts — top 4 in 2-col grid */}
             {latestByRotation.length > 0 && (
-              <div className="featured-grid">
-                {latestByRotation.map(renderFeaturedCard)}
-              </div>
+              <div className="featured-grid">{latestByRotation.map(renderFeaturedCard)}</div>
             )}
 
             {/* Year Pills */}
@@ -219,11 +234,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
                 ))}
 
                 {hasOlderYears && !effectiveShowOlderYears && (
-                  <button
-                    type="button"
-                    onClick={() => setShowOlderYears(true)}
-                    className="show-older-pill"
-                  >
+                  <button type="button" onClick={() => setShowOlderYears(true)} className="show-older-pill">
                     + Anteriores
                   </button>
                 )}
@@ -231,16 +242,17 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
                 {/* Older year pills revealed */}
                 {hasOlderYears && (
                   <div className={`archive-older-years-wrap ${effectiveShowOlderYears ? 'open' : 'closed'}`}>
-                    {effectiveShowOlderYears && olderYears.map((yearGroup) => (
-                      <button
-                        key={yearGroup.year}
-                        type="button"
-                        onClick={() => setSelectedYear(yearGroup.year)}
-                        className={`year-pill ${resolvedSelectedYear === yearGroup.year ? 'active' : ''}`}
-                      >
-                        {yearGroup.year}
-                      </button>
-                    ))}
+                    {effectiveShowOlderYears &&
+                      olderYears.map((yearGroup) => (
+                        <button
+                          key={yearGroup.year}
+                          type="button"
+                          onClick={() => setSelectedYear(yearGroup.year)}
+                          className={`year-pill ${resolvedSelectedYear === yearGroup.year ? 'active' : ''}`}
+                        >
+                          {yearGroup.year}
+                        </button>
+                      ))}
                   </div>
                 )}
               </div>
@@ -254,20 +266,15 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
                 {selectedYearGroup.months.map((monthGroup) => (
                   <div key={`${selectedYearGroup.year}-${monthGroup.month}`}>
                     <h4 className="archive-month-title">{monthGroup.month}</h4>
-                    <div className="editorial-grid">
-                      {monthGroup.posts.map(renderEditorialCard)}
-                    </div>
+                    <div className="editorial-grid">{monthGroup.posts.map(renderEditorialCard)}</div>
                   </div>
                 ))}
               </div>
             )}
           </>
-          ) : (
-            <div className="archive-empty">
-              Nenhum registro encontrado.
-            </div>
-          )}
-
+        ) : (
+          <div className="archive-empty">Nenhum registro encontrado.</div>
+        )}
       </div>
       <div className="archive-version">{APP_VERSION}</div>
     </footer>

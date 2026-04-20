@@ -9,10 +9,10 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
-import { structuredLog } from '../lib/logger.ts';
-import { normalizeRateLimitConfig, DEFAULT_RATE_LIMIT } from '../lib/rate-limit.ts';
 import { getContentFingerprint } from '../lib/content-version.ts';
-import { buildThemeStylesheet, loadThemeSettings, DEFAULT_THEME_SETTINGS } from '../lib/theme.ts';
+import { structuredLog } from '../lib/logger.ts';
+import { DEFAULT_RATE_LIMIT, normalizeRateLimitConfig } from '../lib/rate-limit.ts';
+import { buildThemeStylesheet, DEFAULT_THEME_SETTINGS, loadThemeSettings } from '../lib/theme.ts';
 
 const settings = new Hono<{ Bindings: Env }>();
 
@@ -50,7 +50,9 @@ settings.get('/api/theme.css', async (c) => {
 settings.put('/api/settings', requireAuth, async (c) => {
   try {
     const payload = await c.req.text();
-    await c.env.DB.prepare("INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/appearance', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload")
+    await c.env.DB.prepare(
+      "INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/appearance', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload",
+    )
       .bind(payload)
       .run();
     return c.json({ success: true });
@@ -63,7 +65,9 @@ settings.put('/api/settings', requireAuth, async (c) => {
 // --- Rotação ---
 settings.get('/api/settings/rotation', async (c) => {
   try {
-    const record = await c.env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/rotation'").first<{ payload: string }>();
+    const record = await c.env.DB.prepare(
+      "SELECT payload FROM mainsite_settings WHERE id = 'mainsite/rotation'",
+    ).first<{ payload: string }>();
     if (record) return c.json(JSON.parse(record.payload));
     return c.json({ enabled: false, interval: 60, last_rotated_at: 0 });
   } catch (err) {
@@ -75,7 +79,9 @@ settings.get('/api/settings/rotation', async (c) => {
 settings.put('/api/settings/rotation', requireAuth, async (c) => {
   try {
     const payload = await c.req.text();
-    await c.env.DB.prepare("INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/rotation', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload")
+    await c.env.DB.prepare(
+      "INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/rotation', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload",
+    )
       .bind(payload)
       .run();
     return c.json({ success: true });
@@ -88,7 +94,9 @@ settings.put('/api/settings/rotation', requireAuth, async (c) => {
 // --- Rate Limit ---
 settings.get('/api/settings/ratelimit', requireAuth, async (c) => {
   try {
-    const record = await c.env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/ratelimit'").first<{ payload: string }>();
+    const record = await c.env.DB.prepare(
+      "SELECT payload FROM mainsite_settings WHERE id = 'mainsite/ratelimit'",
+    ).first<{ payload: string }>();
     if (record) return c.json(normalizeRateLimitConfig(JSON.parse(record.payload)));
     return c.json(DEFAULT_RATE_LIMIT);
   } catch (err) {
@@ -100,7 +108,9 @@ settings.get('/api/settings/ratelimit', requireAuth, async (c) => {
 settings.put('/api/settings/ratelimit', requireAuth, async (c) => {
   try {
     const payload = await c.req.text();
-    await c.env.DB.prepare("INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/ratelimit', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload")
+    await c.env.DB.prepare(
+      "INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/ratelimit', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload",
+    )
       .bind(payload)
       .run();
     return c.json({ success: true });
@@ -113,7 +123,9 @@ settings.put('/api/settings/ratelimit', requireAuth, async (c) => {
 // --- Disclaimers ---
 settings.get('/api/settings/disclaimers', async (c) => {
   try {
-    const record = await c.env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/disclaimers'").first<{ payload: string }>();
+    const record = await c.env.DB.prepare(
+      "SELECT payload FROM mainsite_settings WHERE id = 'mainsite/disclaimers'",
+    ).first<{ payload: string }>();
     if (record) return c.json(JSON.parse(record.payload));
     return c.json({
       enabled: true,
@@ -128,7 +140,9 @@ settings.get('/api/settings/disclaimers', async (c) => {
 settings.put('/api/settings/disclaimers', requireAuth, async (c) => {
   try {
     const payload = await c.req.text();
-    await c.env.DB.prepare("INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/disclaimers', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload")
+    await c.env.DB.prepare(
+      "INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/disclaimers', ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload",
+    )
       .bind(payload)
       .run();
     return c.json({ success: true });
@@ -137,7 +151,6 @@ settings.put('/api/settings/disclaimers', requireAuth, async (c) => {
     return c.json({ error: 'Erro interno.' }, 500);
   }
 });
-
 
 // --- Content Fingerprint (polling para sincronização em tempo real) ---
 settings.get('/api/content-fingerprint', async (c) => {

@@ -17,7 +17,12 @@
   --chat-status-border: rgba(128, 128, 128, 0.28);
   --chat-status-bg: rgba(0, 0, 0, 0.03);
   --chat-activity-bg: rgba(0, 0, 0, 0.06);
-  --chat-activity-gradient: linear-gradient(90deg, rgba(77, 166, 255, 0.05), rgba(77, 166, 255, 0.95), rgba(77, 166, 255, 0.05));
+  --chat-activity-gradient: linear-gradient(
+    90deg,
+    rgba(77, 166, 255, 0.05),
+    rgba(77, 166, 255, 0.95),
+    rgba(77, 166, 255, 0.05)
+  );
   --chat-panel-bg: rgba(255, 255, 255, 0.88);
   --chat-surface-bg: rgba(255, 255, 255, 0.4);
   --chat-surface-muted: rgba(0, 0, 0, 0.03);
@@ -43,14 +48,24 @@
   --chat-status-color: rgba(77, 166, 255, 0.95);
   --chat-status-border: rgba(77, 166, 255, 0.45);
   --chat-status-bg: rgba(77, 166, 255, 0.1);
-  --chat-activity-gradient: linear-gradient(90deg, rgba(77, 166, 255, 0.05), rgba(77, 166, 255, 0.95), rgba(77, 166, 255, 0.05));
+  --chat-activity-gradient: linear-gradient(
+    90deg,
+    rgba(77, 166, 255, 0.05),
+    rgba(77, 166, 255, 0.95),
+    rgba(77, 166, 255, 0.05)
+  );
 }
 
 .chat-widget--responding {
   --chat-status-color: rgba(46, 125, 50, 0.95);
   --chat-status-border: rgba(46, 125, 50, 0.45);
   --chat-status-bg: rgba(46, 125, 50, 0.1);
-  --chat-activity-gradient: linear-gradient(90deg, rgba(46, 125, 50, 0.05), rgba(46, 125, 50, 0.95), rgba(46, 125, 50, 0.05));
+  --chat-activity-gradient: linear-gradient(
+    90deg,
+    rgba(46, 125, 50, 0.05),
+    rgba(46, 125, 50, 0.95),
+    rgba(46, 125, 50, 0.05)
+  );
 }
 
 .chat-widget__panel {
@@ -285,7 +300,9 @@
   align-items: center;
   gap: 8px;
   box-shadow: 0 8px 24px rgba(236, 72, 153, 0.3);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   letter-spacing: 0.5px;
 }
 

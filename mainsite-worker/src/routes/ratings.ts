@@ -18,7 +18,7 @@ const ratings = new Hono<{ Bindings: Env }>();
 
 // Tipos de reação válidos
 const VALID_REACTIONS = ['love', 'insightful', 'thought-provoking', 'inspiring', 'beautiful'] as const;
-type ReactionType = typeof VALID_REACTIONS[number];
+type ReactionType = (typeof VALID_REACTIONS)[number];
 
 // ── POST /api/ratings — Submissão/atualização de voto ───────────────────────
 
@@ -53,13 +53,10 @@ ratings.post('/api/ratings', async (c) => {
        VALUES (?, ?, ?, ?)
        ON CONFLICT(post_id, voter_hash) DO UPDATE SET
          rating = excluded.rating,
-         reaction_type = excluded.reaction_type`
-    ).bind(
-      body.post_id,
-      body.rating,
-      voterHash,
-      body.reaction_type || null,
-    ).run();
+         reaction_type = excluded.reaction_type`,
+    )
+      .bind(body.post_id, body.rating, voterHash, body.reaction_type || null)
+      .run();
 
     // Retorna stats atualizados para feedback imediato
     const stats = await getPostRatingStats(c.env.DB, body.post_id, voterHash);
@@ -98,14 +95,16 @@ ratings.get('/api/ratings/:postId', async (c) => {
 
 async function getPostRatingStats(db: D1Database, postId: number, voterHash: string) {
   // Stats gerais
-  const aggregate = await db.prepare(
-    'SELECT AVG(rating) as avg_rating, COUNT(*) as total_votes FROM mainsite_ratings WHERE post_id = ?'
-  ).bind(postId).first<{ avg_rating: number | null; total_votes: number }>();
+  const aggregate = await db
+    .prepare('SELECT AVG(rating) as avg_rating, COUNT(*) as total_votes FROM mainsite_ratings WHERE post_id = ?')
+    .bind(postId)
+    .first<{ avg_rating: number | null; total_votes: number }>();
 
   // Distribuição por estrela (1-5)
-  const { results: distResults } = await db.prepare(
-    'SELECT rating, COUNT(*) as count FROM mainsite_ratings WHERE post_id = ? GROUP BY rating ORDER BY rating'
-  ).bind(postId).all();
+  const { results: distResults } = await db
+    .prepare('SELECT rating, COUNT(*) as count FROM mainsite_ratings WHERE post_id = ? GROUP BY rating ORDER BY rating')
+    .bind(postId)
+    .all();
 
   const distribution: Record<number, number> = {};
   for (const row of (distResults || []) as Array<{ rating: number; count: number }>) {
@@ -113,12 +112,15 @@ async function getPostRatingStats(db: D1Database, postId: number, voterHash: str
   }
 
   // Contagem por tipo de reação
-  const { results: reactionResults } = await db.prepare(
-    `SELECT reaction_type, COUNT(*) as count
+  const { results: reactionResults } = await db
+    .prepare(
+      `SELECT reaction_type, COUNT(*) as count
      FROM mainsite_ratings
      WHERE post_id = ? AND reaction_type IS NOT NULL
-     GROUP BY reaction_type`
-  ).bind(postId).all();
+     GROUP BY reaction_type`,
+    )
+    .bind(postId)
+    .all();
 
   const reactions: Record<string, number> = {};
   for (const row of (reactionResults || []) as Array<{ reaction_type: string; count: number }>) {
@@ -126,9 +128,10 @@ async function getPostRatingStats(db: D1Database, postId: number, voterHash: str
   }
 
   // Voto do visitante atual (se já votou)
-  const userVote = await db.prepare(
-    'SELECT rating, reaction_type FROM mainsite_ratings WHERE post_id = ? AND voter_hash = ?'
-  ).bind(postId, voterHash).first<{ rating: number; reaction_type: string | null }>();
+  const userVote = await db
+    .prepare('SELECT rating, reaction_type FROM mainsite_ratings WHERE post_id = ? AND voter_hash = ?')
+    .bind(postId, voterHash)
+    .first<{ rating: number; reaction_type: string | null }>();
 
   return {
     avgRating: aggregate?.avg_rating ? Math.round(aggregate.avg_rating * 10) / 10 : 0,

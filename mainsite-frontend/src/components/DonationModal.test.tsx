@@ -57,21 +57,24 @@ describe('DonationModal', () => {
     cleanup();
   });
 
-  const renderModal = (resumeCheckoutId?: string | null) => render(
-    <DonationModal
-      show
-      onClose={() => {}}
-      activePalette={ACTIVE_PALETTE}
-      API_URL="/api"
-      resumeCheckoutId={resumeCheckoutId}
-    />,
-  );
+  const renderModal = (resumeCheckoutId?: string | null) =>
+    render(
+      <DonationModal
+        show
+        onClose={() => {}}
+        activePalette={ACTIVE_PALETTE}
+        API_URL="/api"
+        resumeCheckoutId={resumeCheckoutId}
+      />,
+    );
 
   const fillBaseForm = () => {
     fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Leonardo' } });
     fireEvent.change(screen.getByLabelText('Sobrenome'), { target: { value: 'Vargas' } });
     fireEvent.change(screen.getByLabelText('Valor da doação'), { target: { value: '1500' } });
-    fireEvent.change(screen.getByLabelText('E-mail para recibo e confirmação'), { target: { value: 'leo@example.com' } });
+    fireEvent.change(screen.getByLabelText('E-mail para recibo e confirmação'), {
+      target: { value: 'leo@example.com' },
+    });
   };
 
   it('creates a card checkout with redirectUrl and persists the reader context for SCA fallback', async () => {

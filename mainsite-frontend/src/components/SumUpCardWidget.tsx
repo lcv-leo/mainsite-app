@@ -9,27 +9,27 @@ type SumUpResponseType = 'sent' | 'invalid' | 'auth-screen' | 'error' | 'success
 type SumUpCardResponseHandler = (type: SumUpResponseType | string, body: unknown) => void;
 
 interface SumUpCardWidgetProps {
-  checkoutId: string
-  email?: string
-  preferredPaymentMethods?: string[]
-  onPaymentMethodsResolved?: (methods: string[]) => void
-  onError?: (message: string) => void
-  onResponse?: SumUpCardResponseHandler
+  checkoutId: string;
+  email?: string;
+  preferredPaymentMethods?: string[];
+  onPaymentMethodsResolved?: (methods: string[]) => void;
+  onError?: (message: string) => void;
+  onResponse?: SumUpCardResponseHandler;
 }
 
 interface SumUpCardMountInstance {
-  submit: () => void
-  unmount: () => void
-  update: (config: Record<string, unknown>) => void
+  submit: () => void;
+  unmount: () => void;
+  update: (config: Record<string, unknown>) => void;
 }
 
 interface SumUpCardNamespace {
-  mount: (config: Record<string, unknown>) => SumUpCardMountInstance
+  mount: (config: Record<string, unknown>) => SumUpCardMountInstance;
 }
 
 declare global {
   interface Window {
-    SumUpCard?: SumUpCardNamespace
+    SumUpCard?: SumUpCardNamespace;
   }
 }
 
@@ -114,9 +114,14 @@ const SumUpCardWidget = ({
   const onPaymentMethodsResolvedRef = useRef(onPaymentMethodsResolved);
   const preferredPaymentMethodsRef = useRef<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const preferredPaymentMethodsKey = useMemo(() => (
-    preferredPaymentMethods?.map((method) => method.trim().toLowerCase()).filter(Boolean).join('|') ?? ''
-  ), [preferredPaymentMethods]);
+  const preferredPaymentMethodsKey = useMemo(
+    () =>
+      preferredPaymentMethods
+        ?.map((method) => method.trim().toLowerCase())
+        .filter(Boolean)
+        .join('|') ?? '',
+    [preferredPaymentMethods],
+  );
   const normalizedPreferredPaymentMethods = useMemo(
     () => (preferredPaymentMethodsKey ? preferredPaymentMethodsKey.split('|').filter(Boolean) : []),
     [preferredPaymentMethodsKey],

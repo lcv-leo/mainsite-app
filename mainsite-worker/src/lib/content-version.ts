@@ -45,7 +45,7 @@ export async function bumpContentVersion(db: D1Database): Promise<void> {
     await db
       .prepare(
         `INSERT INTO mainsite_settings (id, payload) VALUES (?, ?)
-         ON CONFLICT(id) DO UPDATE SET payload = excluded.payload`
+         ON CONFLICT(id) DO UPDATE SET payload = excluded.payload`,
       )
       .bind(CONTENT_VERSION_KEY, JSON.stringify(next))
       .run();
@@ -61,7 +61,7 @@ export async function bumpContentVersion(db: D1Database): Promise<void> {
  * - headline_post_id: ID do post atualmente na primeira posição (homepage)
  */
 export async function getContentFingerprint(
-  db: D1Database
+  db: D1Database,
 ): Promise<{ version: number; updated_at: string; headline_post_id: number | null }> {
   // Lê versão
   const record = await db
@@ -84,9 +84,7 @@ export async function getContentFingerprint(
 
   // Lê o post que está na homepage (primeiro pela ordem de exibição)
   const headlineRow = await db
-    .prepare(
-      `SELECT id FROM mainsite_posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC LIMIT 1`
-    )
+    .prepare(`SELECT id FROM mainsite_posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC LIMIT 1`)
     .first<{ id: number }>();
 
   return {

@@ -11,6 +11,4 @@ import type { Env } from '../env.ts';
 
 const misc = new Hono<{ Bindings: Env }>();
 
-
-
 export default misc;

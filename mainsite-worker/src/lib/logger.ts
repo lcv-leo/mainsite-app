@@ -10,11 +10,7 @@ type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 const TAG = '[mainsite-motor]';
 
-export const structuredLog = (
-  level: LogLevel,
-  message: string,
-  data?: Record<string, unknown>
-): void => {
+export const structuredLog = (level: LogLevel, message: string, data?: Record<string, unknown>): void => {
   const entry = {
     level,
     message: `${TAG} ${message}`,

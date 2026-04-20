@@ -80,20 +80,27 @@ async function fetchJwks(teamDomain: string): Promise<JwksKey[]> {
   if (!res.ok) {
     throw new Error(`JWKS fetch failed: ${res.status}`);
   }
-  const body = await res.json() as { keys?: JwksKey[] };
+  const body = (await res.json()) as { keys?: JwksKey[] };
   const keys = Array.isArray(body?.keys) ? body.keys : [];
   cachedJwks = keys;
   cachedJwksTeamDomain = teamDomain;
   return keys;
 }
 
-async function verifyJwt(jwt: string, teamDomain: string, expectedAudiences: string[]): Promise<{ valid: boolean; email?: string; error?: string }> {
+async function verifyJwt(
+  jwt: string,
+  teamDomain: string,
+  expectedAudiences: string[],
+): Promise<{ valid: boolean; email?: string; error?: string }> {
   try {
     const parts = jwt.split('.');
     if (parts.length !== 3) return { valid: false, error: 'JWT malformado.' };
 
     const [headerB64, payloadB64, signatureB64] = parts;
-    const headerJson = JSON.parse(new TextDecoder().decode(base64UrlDecode(headerB64))) as { kid?: string; alg?: string };
+    const headerJson = JSON.parse(new TextDecoder().decode(base64UrlDecode(headerB64))) as {
+      kid?: string;
+      alg?: string;
+    };
     const payloadJson = JSON.parse(new TextDecoder().decode(base64UrlDecode(payloadB64))) as {
       aud?: string | string[];
       email?: string;
@@ -139,13 +146,15 @@ async function verifyJwt(jwt: string, teamDomain: string, expectedAudiences: str
 
 function isBrowserLikeRequest(request: Request): boolean {
   return Boolean(
-    request.headers.get('Origin') ||
-    request.headers.get('Sec-Fetch-Mode') ||
-    request.headers.get('Sec-Fetch-Site'),
+    request.headers.get('Origin') || request.headers.get('Sec-Fetch-Mode') || request.headers.get('Sec-Fetch-Site'),
   );
 }
 
-async function validateCfAccessJwt(request: Request, cfAccessEmail: string, jwtConfig?: JwtConfig): Promise<AuthContext | null> {
+async function validateCfAccessJwt(
+  request: Request,
+  cfAccessEmail: string,
+  jwtConfig?: JwtConfig,
+): Promise<AuthContext | null> {
   const teamDomain = jwtConfig?.teamDomain?.trim();
   if (!teamDomain) return null;
 
@@ -193,7 +202,11 @@ async function validateRequestAuth(request: Request, env: Env): Promise<AuthCont
       return { isAuthenticated: false, source: 'bearer', error: 'Bearer token inválido.' };
     }
     if (isBrowserLikeRequest(request) && !cfAccessEmail) {
-      return { isAuthenticated: false, source: 'bearer', error: 'Bearer-only auth não é permitida em requests de navegador.' };
+      return {
+        isAuthenticated: false,
+        source: 'bearer',
+        error: 'Bearer-only auth não é permitida em requests de navegador.',
+      };
     }
     return { isAuthenticated: true, source: 'bearer' };
   }
@@ -230,9 +243,9 @@ let cachedAdminEmail: string | null = null;
 export async function getAdminEmail(db: D1Database): Promise<string | null> {
   if (cachedAdminEmail) return cachedAdminEmail;
   try {
-    const row = await db.prepare(
-      "SELECT payload FROM mainsite_settings WHERE id = 'mainsite/admin_email'"
-    ).first<{ payload: string }>();
+    const row = await db
+      .prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/admin_email'")
+      .first<{ payload: string }>();
     if (row?.payload) {
       const parsed = JSON.parse(row.payload);
       if (typeof parsed.email === 'string' && parsed.email.includes('@')) {
@@ -240,7 +253,11 @@ export async function getAdminEmail(db: D1Database): Promise<string | null> {
         return parsed.email;
       }
     }
-  } catch { /* continue */ }
-  console.warn('[mainsite-motor] [Auth] Admin email not configured in D1 (mainsite/admin_email). Email notifications disabled.');
+  } catch {
+    /* continue */
+  }
+  console.warn(
+    '[mainsite-motor] [Auth] Admin email not configured in D1 (mainsite/admin_email). Email notifications disabled.',
+  );
   return null;
 }

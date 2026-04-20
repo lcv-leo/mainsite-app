@@ -53,17 +53,17 @@ export interface ModerationSettings {
   apiUnavailableBehavior: 'pending' | 'approve'; // O que fazer quando GCP API está offline
 
   // ── Anti-spam ──
-  rateLimitPerIpPerHour: number;      // 0 = sem limite
-  blocklistWords: string[];           // Palavras/frases que causam rejeição imediata
+  rateLimitPerIpPerHour: number; // 0 = sem limite
+  blocklistWords: string[]; // Palavras/frases que causam rejeição imediata
   linkPolicy: 'allow' | 'pending' | 'block'; // Política para comentários com URLs
-  duplicateWindowHours: number;       // Janela de dedup (padrão 24h)
+  duplicateWindowHours: number; // Janela de dedup (padrão 24h)
 
   // ── Ciclo de vida ──
-  autoCloseAfterDays: number;         // 0 = nunca fecha; >0 = fecha comentários após N dias
+  autoCloseAfterDays: number; // 0 = nunca fecha; >0 = fecha comentários após N dias
 
   // ── Notificações ──
   notifyOnNewComment: boolean;
-  notifyEmail: string;                // Email de destino para notificações
+  notifyEmail: string; // Email de destino para notificações
 }
 
 // ── GCP Natural Language API v2 — moderateText ──────────────────────────────
@@ -113,7 +113,7 @@ async function getAccessTokenFromServiceAccount(jsonKey: string): Promise<string
       .replace(/-----BEGIN PRIVATE KEY-----/g, '')
       .replace(/-----END PRIVATE KEY-----/g, '')
       .replace(/\s/g, '');
-    const binaryKey = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+    const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
 
     const cryptoKey = await crypto.subtle.importKey(
       'pkcs8',
@@ -123,11 +123,7 @@ async function getAccessTokenFromServiceAccount(jsonKey: string): Promise<string
       ['sign'],
     );
 
-    const signature = await crypto.subtle.sign(
-      'RSASSA-PKCS1-v1_5',
-      cryptoKey,
-      new TextEncoder().encode(signingInput),
-    );
+    const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(signingInput));
 
     const jwt = `${signingInput}.${bufferToBase64Url(signature)}`;
 
@@ -196,7 +192,9 @@ export async function moderateText(content: string, apiKey: string): Promise<Mod
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unable to read body');
-      console.error(`[mainsite-motor] [Moderation] GCP NL API error: ${response.status} ${response.statusText} — ${errorBody}`);
+      console.error(
+        `[mainsite-motor] [Moderation] GCP NL API error: ${response.status} ${response.statusText} — ${errorBody}`,
+      );
       return { categories: [], languageCode: 'pt', languageSupported: true };
     }
 
@@ -222,7 +220,7 @@ export async function moderateText(content: string, apiKey: string): Promise<Mod
 
 /**
  * Avalia os scores de moderação e decide o status do comentário.
- * 
+ *
  * Lógica tri-fásica:
  * 1. Se requireApproval = true → sempre 'pending'
  * 2. Se qualquer categoria crítica > autoRejectThreshold → 'rejected_auto'
@@ -230,10 +228,7 @@ export async function moderateText(content: string, apiKey: string): Promise<Mod
  * 4. Se todas abaixo de autoApproveThreshold → 'approved'
  * 5. Sem scores (API falhou) → 'pending'
  */
-export function evaluateModeration(
-  result: ModerationResult,
-  settings: ModerationSettings,
-): ModerationDecision {
+export function evaluateModeration(result: ModerationResult, settings: ModerationSettings): ModerationDecision {
   // Sem scores disponíveis (API offline) → revisão manual
   if (!result.categories || result.categories.length === 0) {
     return {
@@ -246,12 +241,11 @@ export function evaluateModeration(
 
   // Se requireApproval = true, TODOS os comentários vão para revisão
   if (settings.requireApproval) {
-    const criticalScores = result.categories
-      .filter(c => settings.criticalCategories.includes(c.name));
-    const maxCritical = criticalScores.reduce(
-      (max, c) => (c.confidence > max.confidence ? c : max),
-      { name: '', confidence: 0 },
-    );
+    const criticalScores = result.categories.filter((c) => settings.criticalCategories.includes(c.name));
+    const maxCritical = criticalScores.reduce((max, c) => (c.confidence > max.confidence ? c : max), {
+      name: '',
+      confidence: 0,
+    });
     return {
       action: 'pending',
       maxScore: maxCritical.confidence,
@@ -261,8 +255,7 @@ export function evaluateModeration(
   }
 
   // Filtra apenas categorias críticas (as que indicam conteúdo prejudicial)
-  const criticalScores = result.categories
-    .filter(c => settings.criticalCategories.includes(c.name));
+  const criticalScores = result.categories.filter((c) => settings.criticalCategories.includes(c.name));
 
   if (criticalScores.length === 0) {
     return {
@@ -274,10 +267,10 @@ export function evaluateModeration(
   }
 
   // Encontra o score mais alto entre categorias críticas
-  const maxCritical = criticalScores.reduce(
-    (max, c) => (c.confidence > max.confidence ? c : max),
-    { name: '', confidence: 0 },
-  );
+  const maxCritical = criticalScores.reduce((max, c) => (c.confidence > max.confidence ? c : max), {
+    name: '',
+    confidence: 0,
+  });
 
   // Auto-reject: score alto em categoria crítica
   if (maxCritical.confidence >= settings.autoRejectThreshold) {
@@ -318,9 +311,7 @@ export function evaluateModeration(
 export async function hashIdentity(ip: string, userAgent: string, salt: string): Promise<string> {
   const data = new TextEncoder().encode(`${ip}:${userAgent}:${salt}`);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(hashBuffer)]
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+  return [...new Uint8Array(hashBuffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 // ── Turnstile Verification ──────────────────────────────────────────────────
@@ -363,13 +354,15 @@ export async function notifyAdminNewComment(
   toEmail?: string,
 ): Promise<void> {
   if (!toEmail) return;
-  const statusLabel = comment.status === 'approved' ? '✅ Aprovado automaticamente'
-    : comment.status === 'rejected_auto' ? '🚫 Rejeitado automaticamente'
-    : '⏳ Aguardando revisão';
+  const statusLabel =
+    comment.status === 'approved'
+      ? '✅ Aprovado automaticamente'
+      : comment.status === 'rejected_auto'
+        ? '🚫 Rejeitado automaticamente'
+        : '⏳ Aguardando revisão';
 
-  const statusColor = comment.status === 'approved' ? '#10b981'
-    : comment.status === 'rejected_auto' ? '#ef4444'
-    : '#f59e0b';
+  const statusColor =
+    comment.status === 'approved' ? '#10b981' : comment.status === 'rejected_auto' ? '#ef4444' : '#f59e0b';
 
   const safeTitle = escapeHtml(comment.postTitle);
   const safeAuthor = escapeHtml(comment.authorName);

@@ -142,7 +142,8 @@ function buildBackgroundImage(url: string, fallback: string): string {
 export function normalizeThemeSettings(input: ThemeSettings | null | undefined): NormalizedThemeSettings {
   const source = input || {};
   return {
-    allowAutoMode: typeof source.allowAutoMode === 'boolean' ? source.allowAutoMode : DEFAULT_THEME_SETTINGS.allowAutoMode,
+    allowAutoMode:
+      typeof source.allowAutoMode === 'boolean' ? source.allowAutoMode : DEFAULT_THEME_SETTINGS.allowAutoMode,
     light: {
       bgColor: sanitizeHexColor(source.light?.bgColor, DEFAULT_THEME_SETTINGS.light.bgColor),
       bgImage: sanitizeImageUrl(source.light?.bgImage),
@@ -172,7 +173,9 @@ export function normalizeThemeSettings(input: ThemeSettings | null | undefined):
 }
 
 export async function loadThemeSettings(db: D1Database): Promise<NormalizedThemeSettings> {
-  const row = await db.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/appearance'").first<{ payload?: string }>();
+  const row = await db
+    .prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/appearance'")
+    .first<{ payload?: string }>();
   if (!row?.payload) return DEFAULT_THEME_SETTINGS;
   try {
     return normalizeThemeSettings(JSON.parse(row.payload) as ThemeSettings);
@@ -182,8 +185,10 @@ export async function loadThemeSettings(db: D1Database): Promise<NormalizedTheme
 }
 
 export function buildThemeStylesheet(settings: NormalizedThemeSettings): string {
-  const lightDefaultPattern = 'radial-gradient(circle at 15% 40%, rgba(26, 115, 232, 0.08), transparent 45%), radial-gradient(circle at 85% 60%, rgba(161, 66, 244, 0.08), transparent 45%)';
-  const darkDefaultPattern = 'radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.15), transparent 45%), radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.15), transparent 45%)';
+  const lightDefaultPattern =
+    'radial-gradient(circle at 15% 40%, rgba(26, 115, 232, 0.08), transparent 45%), radial-gradient(circle at 85% 60%, rgba(161, 66, 244, 0.08), transparent 45%)';
+  const darkDefaultPattern =
+    'radial-gradient(circle at 15% 40%, rgba(138, 180, 248, 0.15), transparent 45%), radial-gradient(circle at 85% 60%, rgba(197, 138, 248, 0.15), transparent 45%)';
   const titleWeights = deriveTitleWeights(settings.shared.titleWeight);
 
   return [

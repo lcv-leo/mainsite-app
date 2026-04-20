@@ -14,20 +14,21 @@
  * 5. INSERT em mainsite_comments com status adequado
  * 6. Notificação por email ao admin via Resend
  */
-import { Hono } from 'hono';
+
 import type { Context } from 'hono';
+import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
 import { structuredLog } from '../lib/logger.ts';
-import { NewCommentSchema } from '../lib/schemas.ts';
 import {
-  moderateText,
   evaluateModeration,
   hashIdentity,
-  verifyTurnstile,
-  notifyAdminNewComment,
   type ModerationSettings,
+  moderateText,
+  notifyAdminNewComment,
+  verifyTurnstile,
 } from '../lib/moderation.ts';
+import { NewCommentSchema } from '../lib/schemas.ts';
 
 const comments = new Hono<{ Bindings: Env }>();
 type RouteContext = Context<{ Bindings: Env }>;
@@ -59,9 +60,9 @@ const DEFAULT_MOD_SETTINGS: ModerationSettings = {
 };
 
 async function getModerationSettings(db: D1Database): Promise<ModerationSettings> {
-  const record = await db.prepare(
-    "SELECT payload FROM mainsite_settings WHERE id = 'mainsite/moderation'"
-  ).first<{ payload: string }>();
+  const record = await db
+    .prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/moderation'")
+    .first<{ payload: string }>();
 
   if (record) {
     const stored = JSON.parse(record.payload) as Partial<ModerationSettings>;
@@ -72,9 +73,10 @@ async function getModerationSettings(db: D1Database): Promise<ModerationSettings
 
 /** Busca o título do post pelo ID */
 async function getPostTitle(db: D1Database, postId: number): Promise<string> {
-  const post = await db.prepare(
-    'SELECT title FROM mainsite_posts WHERE id = ?'
-  ).bind(postId).first<{ title: string }>();
+  const post = await db
+    .prepare('SELECT title FROM mainsite_posts WHERE id = ?')
+    .bind(postId)
+    .first<{ title: string }>();
   return post?.title || `Post #${postId}`;
 }
 
@@ -93,9 +95,10 @@ async function getCommentDepth(
     }
     visited.add(currentId);
 
-    const current: { id: number; parent_id: number | null; post_id: number; status: string } | null = await db.prepare(
-      'SELECT id, parent_id, post_id, status FROM mainsite_comments WHERE id = ?'
-    ).bind(currentId).first<{ id: number; parent_id: number | null; post_id: number; status: string }>();
+    const current: { id: number; parent_id: number | null; post_id: number; status: string } | null = await db
+      .prepare('SELECT id, parent_id, post_id, status FROM mainsite_comments WHERE id = ?')
+      .bind(currentId)
+      .first<{ id: number; parent_id: number | null; post_id: number; status: string }>();
 
     if (!current || current.status !== 'approved') {
       return { depth, error: 'Comentário pai não encontrado ou não aprovado.' };
@@ -185,16 +188,22 @@ comments.post('/api/comments', async (c) => {
 
     // Validação de comprimento máximo
     if (body.content.length > settings.maxCommentLength) {
-      return c.json({
-        error: `Comentário excede o limite de ${settings.maxCommentLength} caracteres.`,
-      }, 400);
+      return c.json(
+        {
+          error: `Comentário excede o limite de ${settings.maxCommentLength} caracteres.`,
+        },
+        400,
+      );
     }
 
     // Validação de comprimento mínimo
     if (body.content.trim().length < settings.minCommentLength) {
-      return c.json({
-        error: `Comentário deve ter ao menos ${settings.minCommentLength} caractere(s).`,
-      }, 400);
+      return c.json(
+        {
+          error: `Comentário deve ter ao menos ${settings.minCommentLength} caractere(s).`,
+        },
+        400,
+      );
     }
 
     // Validação de nome (se anônimo não permitido)
@@ -209,15 +218,18 @@ comments.post('/api/comments', async (c) => {
 
     // ── Auto-close: rejeitar em posts antigos ────────────────────────────
     if (settings.autoCloseAfterDays > 0) {
-      const post = await c.env.DB.prepare(
-        "SELECT created_at FROM mainsite_posts WHERE id = ?"
-      ).bind(body.post_id).first<{ created_at: string }>();
+      const post = await c.env.DB.prepare('SELECT created_at FROM mainsite_posts WHERE id = ?')
+        .bind(body.post_id)
+        .first<{ created_at: string }>();
 
       if (post) {
         const postDate = new Date(post.created_at.replace(' ', 'T') + (post.created_at.includes('Z') ? '' : 'Z'));
         const ageDays = (Date.now() - postDate.getTime()) / (1000 * 60 * 60 * 24);
         if (ageDays > settings.autoCloseAfterDays) {
-          return c.json({ error: `Comentários foram encerrados para este post (após ${settings.autoCloseAfterDays} dias).` }, 403);
+          return c.json(
+            { error: `Comentários foram encerrados para este post (após ${settings.autoCloseAfterDays} dias).` },
+            403,
+          );
         }
       }
     }
@@ -253,8 +265,10 @@ comments.post('/api/comments', async (c) => {
       const windowHours = 1;
       const recentCount = await c.env.DB.prepare(
         `SELECT COUNT(*) as cnt FROM mainsite_comments
-         WHERE author_ip_hash = ? AND created_at > datetime('now', ? || ' hours')`
-      ).bind(ipHash, `-${windowHours}`).first<{ cnt: number }>();
+         WHERE author_ip_hash = ? AND created_at > datetime('now', ? || ' hours')`,
+      )
+        .bind(ipHash, `-${windowHours}`)
+        .first<{ cnt: number }>();
 
       if (recentCount && recentCount.cnt >= settings.rateLimitPerIpPerHour) {
         return c.json({ error: 'Limite de comentários por hora atingido. Tente novamente mais tarde.' }, 429);
@@ -267,17 +281,17 @@ comments.post('/api/comments', async (c) => {
       `SELECT id FROM mainsite_comments
        WHERE post_id = ? AND author_ip_hash = ? AND content = ?
        AND created_at > datetime('now', ? || ' hours')
-       LIMIT 1`
-    ).bind(body.post_id, ipHash, body.content, `-${dupWindow}`).first();
+       LIMIT 1`,
+    )
+      .bind(body.post_id, ipHash, body.content, `-${dupWindow}`)
+      .first();
 
     if (duplicateCheck) {
       return c.json({ error: 'Comentário duplicado detectado.' }, 409);
     }
 
     // Sanitização básica do conteúdo (strip HTML tags)
-    const sanitizedContent = body.content
-      .replace(/<[^>]*>/g, '')
-      .trim();
+    const sanitizedContent = body.content.replace(/<[^>]*>/g, '').trim();
 
     if (sanitizedContent.length === 0) {
       return c.json({ error: 'Comentário não pode estar vazio.' }, 400);
@@ -286,9 +300,7 @@ comments.post('/api/comments', async (c) => {
     // ── Blocklist de palavras (rejeição imediata) ────────────────────────
     if (settings.blocklistWords.length > 0) {
       const contentLower = sanitizedContent.toLowerCase();
-      const blocked = settings.blocklistWords.find(
-        word => contentLower.includes(word.toLowerCase())
-      );
+      const blocked = settings.blocklistWords.find((word) => contentLower.includes(word.toLowerCase()));
       if (blocked) {
         return c.json({ error: 'Comentário contém conteúdo não permitido.' }, 403);
       }
@@ -333,37 +345,44 @@ comments.post('/api/comments', async (c) => {
       `INSERT INTO mainsite_comments
        (post_id, parent_id, author_name, author_email, author_ip_hash,
         content, status, moderation_scores, moderation_decision)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      body.post_id,
-      body.parent_id || null,
-      (body.author_name || 'Anônimo').trim().substring(0, 100),
-      body.author_email ? body.author_email.trim().substring(0, 255) : null,
-      ipHash,
-      sanitizedContent,
-      commentStatus,
-      moderationScores,
-      moderationDecisionJson,
-    ).run();
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        body.post_id,
+        body.parent_id || null,
+        (body.author_name || 'Anônimo').trim().substring(0, 100),
+        body.author_email ? body.author_email.trim().substring(0, 255) : null,
+        ipHash,
+        sanitizedContent,
+        commentStatus,
+        moderationScores,
+        moderationDecisionJson,
+      )
+      .run();
 
     // ── Notificação por email (async, non-blocking) ─────────────────────
     const postTitle = await getPostTitle(c.env.DB, body.post_id);
     if (settings.notifyOnNewComment && c.env.RESEND_API_KEY && settings.notifyEmail) {
       c.executionCtx.waitUntil(
-        notifyAdminNewComment(c.env.RESEND_API_KEY, {
-          authorName: (body.author_name || 'Anônimo').trim(),
-          content: sanitizedContent.substring(0, 500),
-          postTitle,
-          status: commentStatus,
-        }, settings.notifyEmail)
+        notifyAdminNewComment(
+          c.env.RESEND_API_KEY,
+          {
+            authorName: (body.author_name || 'Anônimo').trim(),
+            content: sanitizedContent.substring(0, 500),
+            postTitle,
+            status: commentStatus,
+          },
+          settings.notifyEmail,
+        ),
       );
     }
 
     return c.json({
       success: true,
-      message: commentStatus === 'approved'
-        ? 'Comentário publicado com sucesso!'
-        : 'Comentário enviado! Será visível após moderação.',
+      message:
+        commentStatus === 'approved'
+          ? 'Comentário publicado com sucesso!'
+          : 'Comentário enviado! Será visível após moderação.',
       comment_id: result.meta.last_row_id,
       status: commentStatus,
     });
@@ -412,8 +431,10 @@ comments.get('/api/comments/:postId', async (c) => {
       `SELECT id, post_id, parent_id, author_name, content, is_author_reply, created_at
        FROM mainsite_comments
        WHERE post_id = ? AND status = 'approved'
-       ORDER BY created_at ASC`
-    ).bind(postId).all();
+       ORDER BY created_at ASC`,
+    )
+      .bind(postId)
+      .all();
 
     const threaded = buildThreadedComments((results || []) as Array<Record<string, unknown>>);
 
@@ -435,8 +456,10 @@ comments.get('/api/comments/:postId/count', async (c) => {
     if (isNaN(postId)) return c.json({ error: 'Post ID inválido.' }, 400);
 
     const result = await c.env.DB.prepare(
-      "SELECT COUNT(*) as count FROM mainsite_comments WHERE post_id = ? AND status = 'approved'"
-    ).bind(postId).first<{ count: number }>();
+      "SELECT COUNT(*) as count FROM mainsite_comments WHERE post_id = ? AND status = 'approved'",
+    )
+      .bind(postId)
+      .first<{ count: number }>();
 
     return c.json({ count: result?.count || 0 });
   } catch {
@@ -458,14 +481,16 @@ comments.get('/api/comments/admin/all', requireAuth, async (c) => {
        LEFT JOIN mainsite_posts p ON c.post_id = p.id
        WHERE c.status = ?
        ORDER BY c.created_at DESC
-       LIMIT ? OFFSET ?`
-    ).bind(status, limit, offset).all();
+       LIMIT ? OFFSET ?`,
+    )
+      .bind(status, limit, offset)
+      .all();
 
     // Contagens por status para métricas do dashboard
     const counts = await c.env.DB.prepare(
       `SELECT status, COUNT(*) as count
        FROM mainsite_comments
-       GROUP BY status`
+       GROUP BY status`,
     ).all();
 
     const statusCounts: Record<string, number> = {};
@@ -502,8 +527,10 @@ comments.patch('/api/comments/admin/:id', requireAuth, async (c) => {
     await c.env.DB.prepare(
       `UPDATE mainsite_comments
        SET status = ?, admin_notes = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = 'admin'
-       WHERE id = ?`
-    ).bind(status, admin_notes || null, id).run();
+       WHERE id = ?`,
+    )
+      .bind(status, admin_notes || null, id)
+      .run();
 
     return c.json({ success: true });
   } catch (err) {
@@ -541,9 +568,9 @@ comments.post('/api/comments/admin/:id/reply', requireAuth, async (c) => {
     }
 
     // Verifica que o comentário pai existe e está aprovado
-    const parent = await c.env.DB.prepare(
-      'SELECT post_id, status FROM mainsite_comments WHERE id = ?'
-    ).bind(parentId).first<{ post_id: number; status: string }>();
+    const parent = await c.env.DB.prepare('SELECT post_id, status FROM mainsite_comments WHERE id = ?')
+      .bind(parentId)
+      .first<{ post_id: number; status: string }>();
 
     if (!parent) return c.json({ error: 'Comentário pai não encontrado.' }, 404);
 
@@ -551,8 +578,10 @@ comments.post('/api/comments/admin/:id/reply', requireAuth, async (c) => {
     await c.env.DB.prepare(
       `INSERT INTO mainsite_comments
        (post_id, parent_id, author_name, content, status, is_author_reply, reviewed_at, reviewed_by)
-       VALUES (?, ?, 'Autor', ?, 'approved', 1, CURRENT_TIMESTAMP, 'admin')`
-    ).bind(parent.post_id, parentId, content.trim()).run();
+       VALUES (?, ?, 'Autor', ?, 'approved', 1, CURRENT_TIMESTAMP, 'admin')`,
+    )
+      .bind(parent.post_id, parentId, content.trim())
+      .run();
 
     return c.json({ success: true });
   } catch (err) {
@@ -578,19 +607,21 @@ comments.post('/api/comments/admin/bulk', requireAuth, async (c) => {
 
     if (action === 'delete') {
       // Deleta respostas primeiro, depois os comentários
-      await c.env.DB.prepare(
-        `DELETE FROM mainsite_comments WHERE parent_id IN (${placeholders})`
-      ).bind(...ids).run();
-      await c.env.DB.prepare(
-        `DELETE FROM mainsite_comments WHERE id IN (${placeholders})`
-      ).bind(...ids).run();
+      await c.env.DB.prepare(`DELETE FROM mainsite_comments WHERE parent_id IN (${placeholders})`)
+        .bind(...ids)
+        .run();
+      await c.env.DB.prepare(`DELETE FROM mainsite_comments WHERE id IN (${placeholders})`)
+        .bind(...ids)
+        .run();
     } else {
       const newStatus = action === 'approve' ? 'approved' : 'rejected_manual';
       await c.env.DB.prepare(
         `UPDATE mainsite_comments
          SET status = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = 'admin'
-         WHERE id IN (${placeholders})`
-      ).bind(newStatus, ...ids).run();
+         WHERE id IN (${placeholders})`,
+      )
+        .bind(newStatus, ...ids)
+        .run();
     }
 
     return c.json({ success: true, affected: ids.length });
@@ -644,11 +675,10 @@ comments.put('/api/comments/admin/settings', requireAuth, async (c) => {
     // Upsert no D1
     await c.env.DB.prepare(
       `INSERT INTO mainsite_settings (id, payload) VALUES ('mainsite/moderation', ?)
-       ON CONFLICT(id) DO UPDATE SET payload = excluded.payload`
-    ).bind(JSON.stringify(merged)).run();
-
-
-
+       ON CONFLICT(id) DO UPDATE SET payload = excluded.payload`,
+    )
+      .bind(JSON.stringify(merged))
+      .run();
 
     return c.json({ success: true, settings: merged });
   } catch (err) {

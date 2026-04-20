@@ -11,7 +11,9 @@
  * Normaliza status de pagamento para formato canônico.
  */
 export const normalizeSumupStatus = (status: string | undefined | null): string => {
-  const s = String(status || '').trim().toUpperCase();
+  const s = String(status || '')
+    .trim()
+    .toUpperCase();
   if (!s) return 'UNKNOWN';
 
   const map: Record<string, string> = {
@@ -50,14 +52,7 @@ export const resolveSumupStatusFromSources = ({
   const row = normalizeSumupStatus(rowStatus || 'UNKNOWN');
   const payload = normalizeSumupStatus(payloadStatus || 'UNKNOWN');
 
-  const terminalPriority = [
-    'PARTIALLY_REFUNDED',
-    'REFUNDED',
-    'CANCELLED',
-    'CHARGE_BACK',
-    'FAILED',
-    'EXPIRED',
-  ];
+  const terminalPriority = ['PARTIALLY_REFUNDED', 'REFUNDED', 'CANCELLED', 'CHARGE_BACK', 'FAILED', 'EXPIRED'];
 
   for (const st of terminalPriority) {
     if (row === st || payload === st) return st;
@@ -79,16 +74,12 @@ export const getStartIsoWithCutoff = (rawDate?: string | null): string => {
   if (!rawDate) return FINANCIAL_CUTOFF_ISO;
   const parsed = new Date(rawDate);
   if (Number.isNaN(parsed.getTime())) return FINANCIAL_CUTOFF_ISO;
-  return parsed.getTime() < FINANCIAL_CUTOFF_UTC.getTime()
-    ? FINANCIAL_CUTOFF_ISO
-    : parsed.toISOString();
+  return parsed.getTime() < FINANCIAL_CUTOFF_UTC.getTime() ? FINANCIAL_CUTOFF_ISO : parsed.toISOString();
 };
 
-export const toDbDateTime = (isoString: string): string =>
-  isoString.slice(0, 19).replace('T', ' ');
+export const toDbDateTime = (isoString: string): string => isoString.slice(0, 19).replace('T', ' ');
 
-export const getStartDbWithCutoff = (rawDate?: string | null): string =>
-  toDbDateTime(getStartIsoWithCutoff(rawDate));
+export const getStartDbWithCutoff = (rawDate?: string | null): string => toDbDateTime(getStartIsoWithCutoff(rawDate));
 
 export const isOnOrAfterCutoff = (value?: string | null): boolean => {
   if (!value) return false;
@@ -121,7 +112,8 @@ const DEFAULT_FEE_CONFIG: FeeConfig = {
  */
 export const loadFeeConfig = async (db: D1Database): Promise<FeeConfig> => {
   try {
-    const row = await db.prepare('SELECT payload FROM mainsite_settings WHERE id = ? LIMIT 1')
+    const row = await db
+      .prepare('SELECT payload FROM mainsite_settings WHERE id = ? LIMIT 1')
       .bind('mainsite/fees')
       .first<{ payload?: string }>();
 
@@ -144,7 +136,7 @@ export const calculateWithFeeCoverage = (
   baseAmount: number,
   feeRate: number,
   feeFixed: number,
-  coverFees: boolean
+  coverFees: boolean,
 ): number => {
   if (!coverFees) return baseAmount;
   return parseFloat(((baseAmount + feeFixed) / (1 - feeRate)).toFixed(2));

@@ -23,10 +23,12 @@ describe('theme helpers', () => {
   });
 
   it('builds a safe stylesheet from normalized settings', () => {
-    const css = buildThemeStylesheet(normalizeThemeSettings({
-      dark: { bgColor: '#111111', titleColor: '#abcdef' },
-      shared: { fontSize: '1.2rem', fontFamily: 'sans-serif' },
-    }));
+    const css = buildThemeStylesheet(
+      normalizeThemeSettings({
+        dark: { bgColor: '#111111', titleColor: '#abcdef' },
+        shared: { fontSize: '1.2rem', fontFamily: 'sans-serif' },
+      }),
+    );
 
     expect(css).toContain('--site-bg-color: #111111;');
     expect(css).toContain('--site-title-color: #abcdef;');

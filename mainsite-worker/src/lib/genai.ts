@@ -11,7 +11,13 @@
  * - Helper de geração tipada com logging estruturado
  * - Token counting tipado
  */
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold, ThinkingLevel, type GenerateContentResponse } from '@google/genai';
+import {
+  type GenerateContentResponse,
+  GoogleGenAI,
+  HarmBlockThreshold,
+  HarmCategory,
+  ThinkingLevel,
+} from '@google/genai';
 import { structuredLog } from './logger.ts';
 
 // ========== CONFIG CENTRALIZADA ==========
@@ -48,7 +54,7 @@ import type { Env } from '../env.ts';
  */
 export function createClient(env: Env): GoogleGenAI {
   return new GoogleGenAI({
-    apiKey: env.GEMINI_API_KEY
+    apiKey: env.GEMINI_API_KEY,
   });
 }
 
@@ -68,14 +74,12 @@ interface MainsiteConfig {
  * @param db - D1 database binding (same bigdata_db used by admin-app)
  * @param configKey - which model to read: 'chat' or 'summary'
  */
-export async function getConfiguredModel(
-  db: D1Database,
-  configKey: keyof MainsiteConfig = 'chat',
-): Promise<string> {
+export async function getConfiguredModel(db: D1Database, configKey: keyof MainsiteConfig = 'chat'): Promise<string> {
   try {
-    const row = await db.prepare(
-      'SELECT payload FROM mainsite_settings WHERE id = ? LIMIT 1'
-    ).bind('mainsite/ai_models').first<{ payload: string }>();
+    const row = await db
+      .prepare('SELECT payload FROM mainsite_settings WHERE id = ? LIMIT 1')
+      .bind('mainsite/ai_models')
+      .first<{ payload: string }>();
 
     if (row?.payload) {
       const parsed = JSON.parse(row.payload) as MainsiteConfig;
@@ -112,30 +116,49 @@ export async function countTokens(client: GoogleGenAI, text: string, model?: str
 // ── Telemetria: registra uso de AI no BIGDATA_DB ──
 function logAiUsage(
   db: D1Database | undefined,
-  entry: { module: string; model: string; input_tokens: number; output_tokens: number; latency_ms: number; status: string; error_detail?: string },
+  entry: {
+    module: string;
+    model: string;
+    input_tokens: number;
+    output_tokens: number;
+    latency_ms: number;
+    status: string;
+    error_detail?: string;
+  },
 ) {
   if (!db) return;
   (async () => {
     try {
-      await db.prepare(`
+      await db
+        .prepare(`
         CREATE TABLE IF NOT EXISTS ai_usage_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL DEFAULT (datetime('now')),
           module TEXT NOT NULL, model TEXT NOT NULL, input_tokens INTEGER DEFAULT 0,
           output_tokens INTEGER DEFAULT 0, latency_ms INTEGER DEFAULT 0,
           status TEXT DEFAULT 'ok', error_detail TEXT
         )
-      `).run();
-      await db.prepare(`
+      `)
+        .run();
+      await db
+        .prepare(`
         INSERT INTO ai_usage_logs (module, model, input_tokens, output_tokens, latency_ms, status, error_detail)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        entry.module, entry.model,
-        entry.input_tokens, entry.output_tokens,
-        entry.latency_ms, entry.status,
-        entry.error_detail || null,
-      ).run();
+      `)
+        .bind(
+          entry.module,
+          entry.model,
+          entry.input_tokens,
+          entry.output_tokens,
+          entry.latency_ms,
+          entry.status,
+          entry.error_detail || null,
+        )
+        .run();
     } catch (err) {
-      console.warn('[mainsite-motor] [telemetry] ai_usage_logs INSERT failed:', err instanceof Error ? err.message : err);
+      console.warn(
+        '[mainsite-motor] [telemetry] ai_usage_logs INSERT failed:',
+        err instanceof Error ? err.message : err,
+      );
     }
   })();
 }
@@ -190,10 +213,12 @@ export async function generate(opts: GenerateOptions): Promise<GenerateContentRe
 
       // Telemetria de sucesso
       void logAiUsage(db, {
-        module: `mainsite-${endpoint}`, model: resolvedModel,
+        module: `mainsite-${endpoint}`,
+        model: resolvedModel,
         input_tokens: response.usageMetadata?.promptTokenCount ?? 0,
         output_tokens: response.usageMetadata?.candidatesTokenCount ?? 0,
-        latency_ms: Date.now() - _telStart, status: 'ok'
+        latency_ms: Date.now() - _telStart,
+        status: 'ok',
       });
 
       return response;
@@ -219,9 +244,12 @@ export async function generate(opts: GenerateOptions): Promise<GenerateContentRe
 
   // Telemetria de falha
   void logAiUsage(db, {
-    module: `mainsite-${endpoint}`, model: resolvedModel,
-    input_tokens: 0, output_tokens: 0,
-    latency_ms: Date.now() - _telStart, status: 'error',
+    module: `mainsite-${endpoint}`,
+    model: resolvedModel,
+    input_tokens: 0,
+    output_tokens: 0,
+    latency_ms: Date.now() - _telStart,
+    status: 'error',
     error_detail: ((lastError as Error)?.message || 'Unknown').slice(0, 200),
   });
 
@@ -257,4 +285,3 @@ export function extractText(response: GenerateContentResponse): string {
       .join('');
   }
 }
-

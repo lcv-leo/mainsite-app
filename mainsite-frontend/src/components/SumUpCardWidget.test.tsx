@@ -45,9 +45,9 @@ describe('SumUpCardWidget', () => {
 
     await waitFor(() => expect(mountMock).toHaveBeenCalledTimes(1));
     const config = mountMock.mock.calls[0]?.[0] as {
-      onPaymentMethodsLoad?: (methods: unknown) => string[]
-      showAmount?: boolean
-      amount?: unknown
+      onPaymentMethodsLoad?: (methods: unknown) => string[];
+      showAmount?: boolean;
+      amount?: unknown;
     };
     const filteredMethods = config.onPaymentMethodsLoad?.([{ id: 'card' }, { id: 'pix' }]) || [];
 
@@ -58,21 +58,11 @@ describe('SumUpCardWidget', () => {
   });
 
   it('keeps the widget mounted when the preferred allowlist keeps the same values', async () => {
-    const { rerender } = render(
-      <SumUpCardWidget
-        checkoutId="checkout-1"
-        preferredPaymentMethods={['card']}
-      />,
-    );
+    const { rerender } = render(<SumUpCardWidget checkoutId="checkout-1" preferredPaymentMethods={['card']} />);
 
     await waitFor(() => expect(mountMock).toHaveBeenCalledTimes(1));
 
-    rerender(
-      <SumUpCardWidget
-        checkoutId="checkout-1"
-        preferredPaymentMethods={['card']}
-      />,
-    );
+    rerender(<SumUpCardWidget checkoutId="checkout-1" preferredPaymentMethods={['card']} />);
 
     await Promise.resolve();
     await Promise.resolve();

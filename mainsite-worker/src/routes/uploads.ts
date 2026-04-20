@@ -8,8 +8,8 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
-import { structuredLog } from '../lib/logger.ts';
 import { requireAuth } from '../lib/auth.ts';
+import { structuredLog } from '../lib/logger.ts';
 import { getAllowedOrigin } from '../lib/origins.ts';
 
 const uploads = new Hono<{ Bindings: Env }>();
@@ -17,7 +17,12 @@ const uploads = new Hono<{ Bindings: Env }>();
 // --- Upload Security Constants ---
 const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'pdf']);
 const ALLOWED_CONTENT_TYPES = new Set([
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'image/avif',
   'application/pdf',
 ]);
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -28,7 +33,13 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
  */
 function sanitizeFilename(filename: string): string | null {
   // Remove path separators and null bytes
-  const base = filename.replace(/[\\/\0]/g, '').split('/').pop()?.split('\\').pop() || '';
+  const base =
+    filename
+      .replace(/[\\/\0]/g, '')
+      .split('/')
+      .pop()
+      ?.split('\\')
+      .pop() || '';
   if (!base || base.startsWith('.')) return null;
   // Only keep the final segment after any remaining dots (except extension dot)
   const parts = base.split('.');

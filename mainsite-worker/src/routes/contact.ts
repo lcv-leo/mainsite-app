@@ -6,14 +6,15 @@
  * Rotas de Contato, Comentários e Compartilhamento.
  * Domínio: /api/contact, /api/comment, /api/shares/*, /api/share/email
  */
-import { Hono } from 'hono';
+
 import type { Context } from 'hono';
+import { Hono } from 'hono';
 import type { Env } from '../env.ts';
-import { requireAuth, getAdminEmail } from '../lib/auth.ts';
-import { structuredLog } from '../lib/logger.ts';
-import { ContactSchema, CommentEmailSchema, ShareEmailSchema, ShareLogSchema } from '../lib/schemas.ts';
+import { getAdminEmail, requireAuth } from '../lib/auth.ts';
 import { escapeHtml } from '../lib/html.ts';
+import { structuredLog } from '../lib/logger.ts';
 import { verifyTurnstile } from '../lib/moderation.ts';
+import { CommentEmailSchema, ContactSchema, ShareEmailSchema, ShareLogSchema } from '../lib/schemas.ts';
 
 const contact = new Hono<{ Bindings: Env }>();
 type RouteContext = Context<{ Bindings: Env }>;
@@ -92,20 +93,30 @@ contact.post('/api/contact', async (c) => {
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: adminEmail, subject: `Novo Contato de ${name}`, html: adminHtml }),
+        body: JSON.stringify({
+          from: 'Reflexos da Alma <mainsite@lcv.app.br>',
+          to: adminEmail,
+          subject: `Novo Contato de ${name}`,
+          html: adminHtml,
+        }),
       });
     }
 
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: email, subject: 'Recebemos sua mensagem', html: userHtml }),
+      body: JSON.stringify({
+        from: 'Reflexos da Alma <mainsite@lcv.app.br>',
+        to: email,
+        subject: 'Recebemos sua mensagem',
+        html: userHtml,
+      }),
     });
 
     c.executionCtx.waitUntil(
       c.env.DB.prepare('INSERT INTO mainsite_contact_logs (name, phone, email, message) VALUES (?, ?, ?, ?)')
         .bind(name, phone || '', email, message)
-        .run()
+        .run(),
     );
     return c.json({ success: true });
   } catch {
@@ -143,7 +154,12 @@ contact.post('/api/comment', async (c) => {
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: 'Reflexos da Alma <mainsite@lcv.app.br>', to: commentAdminEmail, subject: `Novo Comentário: ${post_title || 'Geral'}`, html: adminHtml }),
+        body: JSON.stringify({
+          from: 'Reflexos da Alma <mainsite@lcv.app.br>',
+          to: commentAdminEmail,
+          subject: `Novo Comentário: ${post_title || 'Geral'}`,
+          html: adminHtml,
+        }),
       });
     }
 
@@ -156,7 +172,9 @@ contact.post('/api/comment', async (c) => {
 // --- Contact Logs (admin) ---
 contact.get('/api/contact-logs', requireAuth, async (c) => {
   try {
-    const { results } = await c.env.DB.prepare('SELECT * FROM mainsite_contact_logs ORDER BY created_at DESC LIMIT 200').all();
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM mainsite_contact_logs ORDER BY created_at DESC LIMIT 200',
+    ).all();
     return c.json(results || []);
   } catch (err) {
     structuredLog('error', '[Contact] Erro interno', { error: (err as Error).message });
@@ -177,7 +195,9 @@ contact.delete('/api/contact-logs/:id', requireAuth, async (c) => {
 // --- Shares (admin + público) ---
 contact.get('/api/shares', requireAuth, async (c) => {
   try {
-    const { results } = await c.env.DB.prepare('SELECT * FROM mainsite_shares ORDER BY created_at DESC LIMIT 200').all();
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM mainsite_shares ORDER BY created_at DESC LIMIT 200',
+    ).all();
     return c.json(results || []);
   } catch (err) {
     structuredLog('error', '[Contact] Erro interno', { error: (err as Error).message });
@@ -226,9 +246,9 @@ contact.post('/api/share/email', async (c) => {
       return c.json({ error: 'Link de compartilhamento inválido.' }, 400);
     }
 
-    const post = await c.env.DB.prepare(
-      'SELECT id, title FROM mainsite_posts WHERE id = ?'
-    ).bind(post_id).first<{ id: number; title: string }>();
+    const post = await c.env.DB.prepare('SELECT id, title FROM mainsite_posts WHERE id = ?')
+      .bind(post_id)
+      .first<{ id: number; title: string }>();
 
     if (!post) {
       return c.json({ error: 'Post não encontrado.' }, 404);
@@ -237,8 +257,10 @@ contact.post('/api/share/email', async (c) => {
     const recipientWindow = await c.env.DB.prepare(
       `SELECT COUNT(*) AS cnt
        FROM mainsite_shares
-       WHERE platform = 'email' AND target = ? AND created_at > datetime('now', '-1 day')`
-    ).bind(target_email).first<{ cnt: number }>();
+       WHERE platform = 'email' AND target = ? AND created_at > datetime('now', '-1 day')`,
+    )
+      .bind(target_email)
+      .first<{ cnt: number }>();
 
     if ((recipientWindow?.cnt || 0) >= 5) {
       return c.json({ error: 'Limite diário para este destinatário excedido.' }, 429);
@@ -263,7 +285,7 @@ contact.post('/api/share/email', async (c) => {
     c.executionCtx.waitUntil(
       c.env.DB.prepare("INSERT INTO mainsite_shares (post_id, post_title, platform, target) VALUES (?, ?, 'email', ?)")
         .bind(post_id, post.title || post_title, target_email)
-        .run()
+        .run(),
     );
     return c.json({ success: true });
   } catch (err) {

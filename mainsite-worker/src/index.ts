@@ -14,40 +14,48 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { timing } from 'hono/timing';
 import type { Env } from './env.ts';
-import { EnvSecretsSchema } from './lib/schemas.ts';
+import { bumpContentVersion } from './lib/content-version.ts';
 import { getAllowedOrigin } from './lib/origins.ts';
-
-
+import { EnvSecretsSchema } from './lib/schemas.ts';
 // --- Route Modules ---
 import aiRoutes from './routes/ai.ts';
-import postsRoutes from './routes/posts.ts';
+import commentsRoutes from './routes/comments.ts';
 import contactRoutes from './routes/contact.ts';
-import settingsRoutes from './routes/settings.ts';
-import uploadsRoutes from './routes/uploads.ts';
 import miscRoutes from './routes/misc.ts';
 import paymentsRoutes from './routes/payments.ts';
 import postSummariesRoutes from './routes/post-summaries.ts';
-import commentsRoutes from './routes/comments.ts';
+import postsRoutes from './routes/posts.ts';
 import ratingsRoutes from './routes/ratings.ts';
-import { bumpContentVersion } from './lib/content-version.ts';
-
+import settingsRoutes from './routes/settings.ts';
+import uploadsRoutes from './routes/uploads.ts';
 
 const app = new Hono<{ Bindings: Env }>();
 
 // ========== OBSERVABILITY ==========
 app.use('*', timing());
-app.use('*', logger((msg) => console.log(`[mainsite-motor] ${msg}`)));
+app.use(
+  '*',
+  logger((msg) => console.log(`[mainsite-motor] ${msg}`)),
+);
 
 // ========== SECRET STORE RESOLVER MIDDLEWARE ==========
 // Cloudflare Secret Store bindings are Fetcher objects with `.get()`.
 // This middleware eagerly resolves all secret values so downstream
 // handlers can use c.env.GEMINI_API_KEY as a plain string.
 const SECRET_KEYS = [
-  'CLOUDFLARE_PW', 'GEMINI_API_KEY', 'RESEND_API_KEY',
-  'SUMUP_API_KEY_PRIVATE', 'SUMUP_MERCHANT_CODE',
-  'PIX_KEY', 'PIX_NAME', 'PIX_CITY',
-  'GCP_NL_API_KEY', 'TURNSTILE_SECRET_KEY',
-  'CF_ACCESS_TEAM_DOMAIN', 'CF_ACCESS_AUD', 'ENFORCE_JWT_VALIDATION',
+  'CLOUDFLARE_PW',
+  'GEMINI_API_KEY',
+  'RESEND_API_KEY',
+  'SUMUP_API_KEY_PRIVATE',
+  'SUMUP_MERCHANT_CODE',
+  'PIX_KEY',
+  'PIX_NAME',
+  'PIX_CITY',
+  'GCP_NL_API_KEY',
+  'TURNSTILE_SECRET_KEY',
+  'CF_ACCESS_TEAM_DOMAIN',
+  'CF_ACCESS_AUD',
+  'ENFORCE_JWT_VALIDATION',
 ] as const;
 
 app.use('*', async (c, next) => {
@@ -74,9 +82,7 @@ app.use('*', async (c, next) => {
 app.use('*', async (c, next) => {
   const result = EnvSecretsSchema.safeParse(c.env);
   if (!result.success) {
-    const missing = result.error.issues
-      .map(i => i.path.join('.'))
-      .join(', ');
+    const missing = result.error.issues.map((i) => i.path.join('.')).join(', ');
     console.warn(`[mainsite-motor] [Env] Secrets ausentes ou inválidos: ${missing}`);
   }
   return next();
@@ -84,15 +90,18 @@ app.use('*', async (c, next) => {
 
 // ========== CORS + CSRF ==========
 // Lista de domínios autorizados — usada tanto pelo CORS quanto pelo CSRF check.
-app.use('/api/*', cors({
-  origin: (origin) => {
-    return getAllowedOrigin(origin);
-  },
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  maxAge: 86400,
-}));
+app.use(
+  '/api/*',
+  cors({
+    origin: (origin) => {
+      return getAllowedOrigin(origin);
+    },
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    maxAge: 86400,
+  }),
+);
 
 // CSRF — server-side Origin check para mutations.
 // CORS só seta headers; o browser é quem bloqueia. Este middleware bloqueia
@@ -121,7 +130,11 @@ const RATE_LIMIT_BINDINGS: Record<string, keyof Pick<Env, 'RL_CHATBOT' | 'RL_EMA
   comments: 'RL_COMMENTS',
 };
 
-interface RlToggleConfig { chatbot: { enabled: boolean }; email: { enabled: boolean }; comments: { enabled: boolean } }
+interface RlToggleConfig {
+  chatbot: { enabled: boolean };
+  email: { enabled: boolean };
+  comments: { enabled: boolean };
+}
 let cachedRlToggle: RlToggleConfig | null = null;
 let rlToggleFetchedAt = 0;
 
@@ -129,7 +142,9 @@ async function getRlEnabled(env: Env): Promise<RlToggleConfig> {
   const now = Date.now();
   if (cachedRlToggle && now - rlToggleFetchedAt < 60000) return cachedRlToggle;
   try {
-    const record = await env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/ratelimit'").first<{ payload: string }>();
+    const record = await env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/ratelimit'").first<{
+      payload: string;
+    }>();
     if (record) {
       const parsed = JSON.parse(record.payload);
       cachedRlToggle = {
@@ -148,7 +163,14 @@ async function getRlEnabled(env: Env): Promise<RlToggleConfig> {
 }
 
 function createRateLimiterMiddleware(bucketName: 'chatbot' | 'email' | 'comments') {
-  return async (c: { req: { header: (name: string) => string | undefined }; json: (data: unknown, status?: number) => Response; env: Env }, next: () => Promise<void>) => {
+  return async (
+    c: {
+      req: { header: (name: string) => string | undefined };
+      json: (data: unknown, status?: number) => Response;
+      env: Env;
+    },
+    next: () => Promise<void>,
+  ) => {
     const toggles = await getRlEnabled(c.env);
     if (!toggles[bucketName]?.enabled) return next();
 
@@ -158,9 +180,10 @@ function createRateLimiterMiddleware(bucketName: 'chatbot' | 'email' | 'comments
 
     const { success } = await limiter.limit({ key: `${bucketName}:${ip}` });
     if (!success) {
-      const errMsg = bucketName === 'email'
-        ? 'Limite de envios de e-mail excedido. Aguarde alguns instantes.'
-        : 'Limite de requisições de IA excedido. Aguarde alguns instantes.';
+      const errMsg =
+        bucketName === 'email'
+          ? 'Limite de envios de e-mail excedido. Aguarde alguns instantes.'
+          : 'Limite de requisições de IA excedido. Aguarde alguns instantes.';
       return c.json({ error: errMsg }, 429);
     }
 
@@ -175,7 +198,6 @@ app.use('/api/contact', createRateLimiterMiddleware('email') as Parameters<typeo
 app.use('/api/comment', createRateLimiterMiddleware('email') as Parameters<typeof app.use>[1]);
 app.use('/api/comments', createRateLimiterMiddleware('comments') as Parameters<typeof app.use>[1]);
 app.use('/api/ratings', createRateLimiterMiddleware('comments') as Parameters<typeof app.use>[1]);
-
 
 // ========== MOUNT ROUTE MODULES ==========
 app.route('/', aiRoutes);
@@ -199,12 +221,14 @@ export default {
   fetch: app.fetch,
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     try {
-      const record = await env.DB.prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/rotation'").first<{ payload: string }>();
+      const record = await env.DB.prepare(
+        "SELECT payload FROM mainsite_settings WHERE id = 'mainsite/rotation'",
+      ).first<{ payload: string }>();
       if (!record) return;
       const config = JSON.parse(record.payload) as { enabled: boolean; interval: number; last_rotated_at: number };
       if (!config.enabled) return;
 
-      const pinnedCheck = await env.DB.prepare("SELECT id FROM mainsite_posts WHERE is_pinned = 1 LIMIT 1").first();
+      const pinnedCheck = await env.DB.prepare('SELECT id FROM mainsite_posts WHERE is_pinned = 1 LIMIT 1').first();
       if (pinnedCheck) return;
 
       const now = Date.now();
@@ -212,19 +236,26 @@ export default {
       const intervalMs = (config.interval || 60) * 60 * 1000;
       if (now - lastRotated < intervalMs) return;
 
-      const { results: posts } = await env.DB.prepare("SELECT id FROM mainsite_posts ORDER BY display_order ASC, created_at DESC").all();
+      const { results: posts } = await env.DB.prepare(
+        'SELECT id FROM mainsite_posts ORDER BY display_order ASC, created_at DESC',
+      ).all();
       if (!posts || posts.length <= 1) return;
 
       const topPost = posts.shift()!;
       posts.push(topPost);
 
       const statements = posts.map((post, index) =>
-        env.DB.prepare("UPDATE mainsite_posts SET display_order = ? WHERE id = ?").bind(index, (post as { id: number }).id)
+        env.DB.prepare('UPDATE mainsite_posts SET display_order = ? WHERE id = ?').bind(
+          index,
+          (post as { id: number }).id,
+        ),
       );
       await env.DB.batch(statements);
 
       config.last_rotated_at = now;
-      await env.DB.prepare("UPDATE mainsite_settings SET payload = ? WHERE id = 'mainsite/rotation'").bind(JSON.stringify(config)).run();
+      await env.DB.prepare("UPDATE mainsite_settings SET payload = ? WHERE id = 'mainsite/rotation'")
+        .bind(JSON.stringify(config))
+        .run();
 
       // Sinaliza mudança para o polling de content-fingerprint
       ctx.waitUntil(bumpContentVersion(env.DB));

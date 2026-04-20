@@ -16,14 +16,15 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { requireAuth } from '../lib/auth.ts';
-import { structuredLog } from '../lib/logger.ts';
 import { generateShareSummary, hashContent, stripHtml } from '../lib/gemini.ts';
+import { structuredLog } from '../lib/logger.ts';
 
 const postSummaries = new Hono<{ Bindings: Env }>();
 
 // Auto-migração da tabela (idempotente)
 async function ensureTable(db: D1Database): Promise<void> {
-  await db.prepare(`
+  await db
+    .prepare(`
     CREATE TABLE IF NOT EXISTS mainsite_post_ai_summaries (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       post_id      INTEGER NOT NULL UNIQUE,
@@ -35,7 +36,8 @@ async function ensureTable(db: D1Database): Promise<void> {
       created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-  `).run();
+  `)
+    .run();
 }
 
 // GET /api/post-summaries — lista todos
@@ -60,9 +62,9 @@ postSummaries.get('/api/post-summaries/:postId', requireAuth, async (c) => {
   try {
     await ensureTable(c.env.DB);
     const postId = c.req.param('postId');
-    const summary = await c.env.DB.prepare(
-      'SELECT * FROM mainsite_post_ai_summaries WHERE post_id = ?'
-    ).bind(postId).first();
+    const summary = await c.env.DB.prepare('SELECT * FROM mainsite_post_ai_summaries WHERE post_id = ?')
+      .bind(postId)
+      .first();
     if (!summary) return c.json({ error: 'Resumo não encontrado para este post' }, 404);
     return c.json(summary);
   } catch (err) {
@@ -86,9 +88,9 @@ postSummaries.put('/api/post-summaries/:postId', requireAuth, async (c) => {
     }
 
     // Busca o post para computar hash atual
-    const post = await c.env.DB.prepare(
-      'SELECT content FROM mainsite_posts WHERE id = ?'
-    ).bind(postId).first<{ content: string }>();
+    const post = await c.env.DB.prepare('SELECT content FROM mainsite_posts WHERE id = ?')
+      .bind(postId)
+      .first<{ content: string }>();
 
     if (!post) return c.json({ error: 'Post não encontrado' }, 404);
 
@@ -103,12 +105,14 @@ postSummaries.put('/api/post-summaries/:postId', requireAuth, async (c) => {
         content_hash = excluded.content_hash,
         is_manual = 1,
         updated_at = CURRENT_TIMESTAMP
-    `).bind(
-      postId,
-      summary_og.trim().substring(0, 200),
-      (summary_ld || summary_og).trim().substring(0, 300),
-      contentHash
-    ).run();
+    `)
+      .bind(
+        postId,
+        summary_og.trim().substring(0, 200),
+        (summary_ld || summary_og).trim().substring(0, 300),
+        contentHash,
+      )
+      .run();
 
     structuredLog('info', 'Share summary manually updated', { postId });
     return c.json({ success: true });
@@ -126,9 +130,9 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async 
     const geminiKey = c.env.GEMINI_API_KEY;
     if (!geminiKey) return c.json({ error: 'GEMINI_API_KEY não configurada' }, 503);
 
-    const post = await c.env.DB.prepare(
-      'SELECT id, title, content FROM mainsite_posts WHERE id = ?'
-    ).bind(postId).first<{ id: number; title: string; content: string }>();
+    const post = await c.env.DB.prepare('SELECT id, title, content FROM mainsite_posts WHERE id = ?')
+      .bind(postId)
+      .first<{ id: number; title: string; content: string }>();
 
     if (!post) return c.json({ error: 'Post não encontrado' }, 404);
 
@@ -150,7 +154,9 @@ postSummaries.post('/api/post-summaries/:postId/regenerate', requireAuth, async 
         is_manual = 0,
         model = '',
         updated_at = CURRENT_TIMESTAMP
-    `).bind(postId, result.summary_og, result.summary_ld, contentHash).run();
+    `)
+      .bind(postId, result.summary_og, result.summary_ld, contentHash)
+      .run();
 
     structuredLog('info', 'Share summary regenerated via AI', { postId });
     return c.json({ success: true, ...result });
@@ -173,7 +179,7 @@ postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) =>
     const mode = (c.req.query('mode') || 'missing') as string;
 
     const { results: allPosts } = await c.env.DB.prepare(
-      'SELECT id, title, content FROM mainsite_posts ORDER BY id ASC'
+      'SELECT id, title, content FROM mainsite_posts ORDER BY id ASC',
     ).all<{ id: number; title: string; content: string }>();
 
     if (!allPosts || allPosts.length === 0) {
@@ -182,7 +188,7 @@ postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) =>
 
     // Carrega resumos existentes para comparação
     const { results: existingSummaries } = await c.env.DB.prepare(
-      'SELECT post_id, content_hash, is_manual FROM mainsite_post_ai_summaries'
+      'SELECT post_id, content_hash, is_manual FROM mainsite_post_ai_summaries',
     ).all<{ post_id: number; content_hash: string; is_manual: number }>();
 
     const summaryMap = new Map<number, { content_hash: string; is_manual: number }>();
@@ -239,7 +245,9 @@ postSummaries.post('/api/post-summaries/generate-all', requireAuth, async (c) =>
             is_manual = 0,
             model = '',
             updated_at = CURRENT_TIMESTAMP
-        `).bind(post.id, result.summary_og, result.summary_ld, newHash).run();
+        `)
+          .bind(post.id, result.summary_og, result.summary_ld, newHash)
+          .run();
 
         generated++;
         details.push({ postId: post.id, title: post.title, status: 'generated' });

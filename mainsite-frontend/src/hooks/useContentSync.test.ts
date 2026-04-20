@@ -2,8 +2,9 @@
  * Copyright (C) 2026 Leonardo Cardozo Vargas
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useContentSync } from './useContentSync';
 
 describe('useContentSync', () => {

@@ -9,7 +9,9 @@
   flex-direction: column;
   align-items: center;
   font-family: var(--site-font-family);
-  transition: background-color 0.5s ease, color 0.5s ease;
+  transition:
+    background-color 0.5s ease,
+    color 0.5s ease;
   padding-top: 60px;
 }
 
@@ -37,7 +39,9 @@
   height: 3px;
   background: linear-gradient(90deg, #4285f4, #7c3aed);
   z-index: 11010;
-  transition: width 0.15s linear, opacity 0.15s linear;
+  transition:
+    width 0.15s linear,
+    opacity 0.15s linear;
   border-radius: 0 2px 2px 0;
   opacity: 0;
 }
