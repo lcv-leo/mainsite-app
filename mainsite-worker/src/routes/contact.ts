@@ -14,6 +14,7 @@ import { getAdminEmail, requireAuth } from '../lib/auth.ts';
 import { escapeHtml } from '../lib/html.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { verifyTurnstile } from '../lib/moderation.ts';
+import { readPublishingMode } from '../lib/publishing.ts';
 import { CommentEmailSchema, ContactSchema, ShareEmailSchema, ShareLogSchema } from '../lib/schemas.ts';
 
 const contact = new Hono<{ Bindings: Env }>();
@@ -246,7 +247,12 @@ contact.post('/api/share/email', async (c) => {
       return c.json({ error: 'Link de compartilhamento inválido.' }, 400);
     }
 
-    const post = await c.env.DB.prepare('SELECT id, title FROM mainsite_posts WHERE id = ?')
+    // Compartilhamento só é permitido em posts efetivamente publicados: respeita
+    // kill switch global (mainsite/publishing.mode) e visibilidade individual.
+    if ((await readPublishingMode(c.env.DB)) === 'hidden') {
+      return c.json({ error: 'Post não encontrado.' }, 404);
+    }
+    const post = await c.env.DB.prepare('SELECT id, title FROM mainsite_posts WHERE id = ? AND is_published = 1')
       .bind(post_id)
       .first<{ id: number; title: string }>();
 

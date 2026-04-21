@@ -28,6 +28,7 @@ import {
   notifyAdminNewComment,
   verifyTurnstile,
 } from '../lib/moderation.ts';
+import { isPostPublicallyVisible } from '../lib/publishing.ts';
 import { NewCommentSchema } from '../lib/schemas.ts';
 
 const comments = new Hono<{ Bindings: Env }>();
@@ -184,6 +185,11 @@ comments.post('/api/comments', async (c) => {
     // Validação de campos obrigatórios
     if (!body.post_id || !body.content) {
       return c.json({ error: 'Post ID e conteúdo são obrigatórios.' }, 400);
+    }
+
+    // Kill switch / visibilidade individual: não aceita comentário em post oculto
+    if (!(await isPostPublicallyVisible(c.env.DB, body.post_id))) {
+      return c.json({ error: 'Post não encontrado' }, 404);
     }
 
     // Validação de comprimento máximo
@@ -424,7 +430,13 @@ comments.get('/api/comments/config', async (c) => {
 comments.get('/api/comments/:postId', async (c) => {
   try {
     const postId = parseInt(c.req.param('postId'), 10);
-    if (isNaN(postId)) return c.json({ error: 'Post ID inválido.' }, 400);
+    if (Number.isNaN(postId)) return c.json({ error: 'Post ID inválido.' }, 400);
+
+    // Post oculto (kill switch global ou visibilidade individual): não lista comentários.
+    if (!(await isPostPublicallyVisible(c.env.DB, postId))) {
+      c.header('Cache-Control', 'no-store');
+      return c.json({ comments: [], total: 0 });
+    }
 
     // Busca todos os comentários aprovados do post (threading-ready)
     const { results } = await c.env.DB.prepare(
@@ -453,7 +465,12 @@ comments.get('/api/comments/:postId', async (c) => {
 comments.get('/api/comments/:postId/count', async (c) => {
   try {
     const postId = parseInt(c.req.param('postId'), 10);
-    if (isNaN(postId)) return c.json({ error: 'Post ID inválido.' }, 400);
+    if (Number.isNaN(postId)) return c.json({ error: 'Post ID inválido.' }, 400);
+
+    if (!(await isPostPublicallyVisible(c.env.DB, postId))) {
+      c.header('Cache-Control', 'no-store');
+      return c.json({ count: 0 });
+    }
 
     const result = await c.env.DB.prepare(
       "SELECT COUNT(*) as count FROM mainsite_comments WHERE post_id = ? AND status = 'approved'",

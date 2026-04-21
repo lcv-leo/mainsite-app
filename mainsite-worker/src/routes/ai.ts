@@ -24,6 +24,7 @@ import { requireAuth } from '../lib/auth.ts';
 import { stripHtml } from '../lib/gemini.ts';
 import { countTokens, createClient, extractText, extractUsage, generate, getConfiguredModel } from '../lib/genai.ts';
 import { structuredLog } from '../lib/logger.ts';
+import { readPublishingMode } from '../lib/publishing.ts';
 import { ChatInputSchema } from '../lib/schemas.ts';
 
 const ai = new Hono<{ Bindings: Env }>();
@@ -155,12 +156,20 @@ ai.post('/api/ai/public/chat', async (c) => {
     if (!parsed.success) return c.json({ error: 'Mensagem ausente.' }, 400);
     const { message, currentContext, askForDonation } = parsed.data;
 
-    const { results } = await c.env.DB.prepare(
-      `SELECT id, title, substr(content, 1, 4000) AS content, created_at
-       FROM mainsite_posts
-       ORDER BY is_pinned DESC, display_order ASC, created_at DESC
-       LIMIT 120`,
-    ).all();
+    // Kill switch global OU filtragem por is_published: chatbot usa só contexto
+    // dos textos efetivamente publicados. Em modo hidden, contexto fica vazio
+    // (o chatbot continua respondendo, mas sem referenciar textos ocultos).
+    const publishingMode = await readPublishingMode(c.env.DB);
+    const { results } =
+      publishingMode === 'hidden'
+        ? ({ results: [] } as { results: Array<Record<string, unknown>> })
+        : await c.env.DB.prepare(
+            `SELECT id, title, substr(content, 1, 4000) AS content, created_at
+             FROM mainsite_posts
+             WHERE is_published = 1
+             ORDER BY is_pinned DESC, display_order ASC, created_at DESC
+             LIMIT 120`,
+          ).all();
 
     const normalizeForSearch = (value = '') =>
       String(value)

@@ -48,8 +48,18 @@ export interface Post {
   created_at: string;
   updated_at?: string;
   is_pinned: number | boolean;
+  is_published?: number | boolean;
   display_order?: number;
   slug?: string;
+}
+
+/** Status de publicação global do site, exposto por /api/site-status. */
+export type PublishingMode = 'normal' | 'hidden';
+
+export interface SiteStatus {
+  mode: PublishingMode;
+  notice_title: string;
+  notice_message: string;
 }
 
 /** Item de disclaimer configurável. */

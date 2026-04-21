@@ -1,3 +1,52 @@
+## 2026-04-21 — Mainsite Frontend v03.18.01 (hotfix: deep link fazia redirect em hidden)
+### Escopo
+Parecer técnico externo apontou que `refreshPosts` em [App.tsx](../mainsite-frontend/src/App.tsx) executava `window.history.pushState({}, '', '/')` dentro do branch `mode='hidden'`, empurrando um visitante em `/p/42` para `/` no momento em que o kill switch era ativado via `ContentUpdateToast`. O initial fetch (mount) já preservava a URL corretamente; os dois code paths divergiam. Contraria promessa de design ("URL direta em modo hidden carrega a folha em branco sem redirect").
+### Corrigido
+- Removido o `pushState('/')` do branch hidden em `refreshPosts`. A URL agora é preservada em qualquer cenário de ativação de kill switch — só posts/currentPost são esvaziados.
+### Versão
+- Mainsite Frontend APP v03.18.00 → v03.18.01
+- Mainsite Worker v02.13.00 sem alteração
+
+## 2026-04-21 — Mainsite Worker v02.13.00 + Mainsite Frontend v03.18.00 (mecanismo de Publicação + folha em branco)
+### Escopo
+Implementação sincronizada com `admin-app` v01.92.00 do mecanismo de publicação editorial (kill switch global + visibilidade individual). Coluna `is_published` em `mainsite_posts` + chave `mainsite/publishing` em `mainsite_settings` aplicadas via Cloudflare D1 API na `bigdata_db`.
+
+### mainsite-worker (v02.13.00)
+**Adicionado**
+- Helper centralizado [`src/lib/publishing.ts`](../mainsite-worker/src/lib/publishing.ts) expõe `readPublishingMode(db)` e `readPublishing(db)` (mode + notice). Strip iterativo de HTML no read como defesa-em-profundidade (admin-motor já faz no write).
+- Endpoint público [`GET /api/site-status`](../mainsite-worker/src/routes/site-status.ts) retorna `{ mode, notice_title, notice_message }` com `Cache-Control: no-store` obrigatório (propagação imediata sem CDN).
+
+**Gating aplicado em todas as rotas públicas que leem posts ou derivados**
+- `/api/posts` e `/api/posts/:id` ([posts.ts](../mainsite-worker/src/routes/posts.ts)): modo hidden → lista `[]` / detalhe `404`; modo normal → `WHERE is_published = 1`.
+- `/api/comments/:postId` (GET lista), `/api/comments/:postId/count`, `POST /api/comments` ([comments.ts](../mainsite-worker/src/routes/comments.ts)): helper `isPostPublicallyVisible(db, postId)` combina mode + is_published. GETs retornam vazio/zerado em post oculto (evita vazar existência via quantitativo); POST retorna 404.
+- `/api/ratings` (POST) e `/api/ratings/:postId` (GET) ([ratings.ts](../mainsite-worker/src/routes/ratings.ts)): mesmo padrão.
+- `/api/ai/public/chat` ([ai.ts](../mainsite-worker/src/routes/ai.ts)): modo hidden → contexto de retrieval fica vazio; modo normal → filtra por `is_published = 1`.
+- `/api/share/email` ([contact.ts](../mainsite-worker/src/routes/contact.ts)): gate antes de resolver post; SELECT exige `is_published = 1`.
+- `getContentFingerprint` ([lib/content-version.ts](../mainsite-worker/src/lib/content-version.ts)): `headline_post_id` respeita o gate.
+- Cron de rotação ([src/index.ts scheduled](../mainsite-worker/src/index.ts)): modo hidden → early return; modo normal → rotaciona só visíveis.
+- **`post-summaries.ts` não precisou gate**: todos os endpoints são `requireAuth` (admin-only).
+
+### mainsite-frontend (v03.18.00)
+**Adicionado**
+- Tipos `PublishingMode`, `SiteStatus` em [`types.ts`](../mainsite-frontend/src/types.ts); `Post.is_published?` opcional.
+- Estado `siteStatus: SiteStatus | null` em App.tsx; fetch de `/api/site-status` com `cache: 'no-store'` antes do `/api/posts` no mount e em cada `refreshPosts` disparado pelo `ContentUpdateToast`.
+- Prop opcional `maintenance?: SiteStatus | null` no [PostReader.tsx](../mainsite-frontend/src/components/PostReader.tsx): quando `mode='hidden'`, substitui o conteúdo SEM alterar a estrutura. `h1` recebe `notice_title`, área de conteúdo recebe `notice_message` (split `\n`, renderizado como `<p>` texto plano), byline/meta/citation/JSON-LD omitidos, RatingWidget e CommentsSection omitidos (dependem de `postId` real, evita 404 floods), share bar preservada com canonical `https://www.reflexosdaalma.blog/`.
+- `post` aceita `Post | null` — guards null-safe em toda construção de metadata.
+
+### Regras operacionais combinadas
+- **Precedência**: texto só é público quando `mode='normal'` AND `is_published=1`. Modo hidden prevalece sobre qualquer `is_published=1`; modo normal respeita `is_published=0` individual.
+- **Propagação imediata**: admin-motor chama `bumpContentVersion` quando publishing muda ou visibilidade é toggled; `useContentSync` do frontend detecta via `/api/content-fingerprint` e oferece `ContentUpdateToast` para refresh.
+- **XSS prevenido**: notice_title/notice_message são strippados no admin-motor (write) e re-strippados no worker (read) — política de texto plano, sem HTML permitido em nenhum caminho.
+- **URLs diretas em modo hidden**: `/p/42` carrega normalmente; App.tsx pula fetch de posts e renderiza PostReader com `maintenance={siteStatus}` — sem 404 no browser, sem redirect, sem quebra de layout.
+
+### Motivação
+- Exigência editorial do proprietário: mecanismo local de "retirar tudo do ar" preservando identidade visual (logo, tema, contato, doação, rodapé). Texto do aviso 100% editorial — se em branco, folha vazia; nada hardcoded. Controle granular individual permite ocultar textos pontualmente sem excluí-los.
+- **Metáfora da folha**: PostReader = folha; com texto = folha escrita; sem texto = folha em branco. Estrutura visual do componente nunca muda, só o que está escrito.
+
+### Versões
+- mainsite-worker v02.12.00 → v02.13.00
+- mainsite-frontend v03.17.00 → v03.18.00
+
 ## 2026-04-20 — Mainsite Frontend v03.17.00 (auditoria de qualidade: zerar biome/eslint/tsc + evitar armadilhas do unsafe)
 ### Escopo
 Auditoria completa dos gates do `mainsite-frontend` a pedido do usuário em 2026-04-20, logo após o hotfix v01.91.01 do `admin-app`. Baseline: 55 errors / 22 warnings / 13 infos no Biome (débito acumulado). Meta: todos os gates verdes.

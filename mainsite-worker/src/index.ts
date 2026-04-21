@@ -7,7 +7,7 @@
  * Hono-based modular Worker com paridade total ao monolito.
  * Versão modular: todos os domínios em src/routes/*.ts
  */
-export const APP_VERSION = 'APP v02.12.00';
+export const APP_VERSION = 'APP v02.13.00';
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -16,6 +16,7 @@ import { timing } from 'hono/timing';
 import type { Env } from './env.ts';
 import { bumpContentVersion } from './lib/content-version.ts';
 import { getAllowedOrigin } from './lib/origins.ts';
+import { readPublishingMode } from './lib/publishing.ts';
 import { EnvSecretsSchema } from './lib/schemas.ts';
 // --- Route Modules ---
 import aiRoutes from './routes/ai.ts';
@@ -27,6 +28,7 @@ import postSummariesRoutes from './routes/post-summaries.ts';
 import postsRoutes from './routes/posts.ts';
 import ratingsRoutes from './routes/ratings.ts';
 import settingsRoutes from './routes/settings.ts';
+import siteStatusRoutes from './routes/site-status.ts';
 import uploadsRoutes from './routes/uploads.ts';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -204,6 +206,7 @@ app.route('/', aiRoutes);
 app.route('/', postsRoutes);
 app.route('/', contactRoutes);
 app.route('/', settingsRoutes);
+app.route('/', siteStatusRoutes);
 app.route('/', uploadsRoutes);
 app.route('/', miscRoutes);
 app.route('/', paymentsRoutes);
@@ -221,6 +224,9 @@ export default {
   fetch: app.fetch,
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     try {
+      // Kill switch global: se o site está oculto, não rotacionar nada.
+      if ((await readPublishingMode(env.DB)) === 'hidden') return;
+
       const record = await env.DB.prepare(
         "SELECT payload FROM mainsite_settings WHERE id = 'mainsite/rotation'",
       ).first<{ payload: string }>();
@@ -228,7 +234,9 @@ export default {
       const config = JSON.parse(record.payload) as { enabled: boolean; interval: number; last_rotated_at: number };
       if (!config.enabled) return;
 
-      const pinnedCheck = await env.DB.prepare('SELECT id FROM mainsite_posts WHERE is_pinned = 1 LIMIT 1').first();
+      const pinnedCheck = await env.DB.prepare(
+        'SELECT id FROM mainsite_posts WHERE is_pinned = 1 AND is_published = 1 LIMIT 1',
+      ).first();
       if (pinnedCheck) return;
 
       const now = Date.now();
@@ -236,8 +244,10 @@ export default {
       const intervalMs = (config.interval || 60) * 60 * 1000;
       if (now - lastRotated < intervalMs) return;
 
+      // Rotação opera apenas entre posts visíveis. Posts ocultos ficam fora
+      // do ciclo até serem reativados.
       const { results: posts } = await env.DB.prepare(
-        'SELECT id FROM mainsite_posts ORDER BY display_order ASC, created_at DESC',
+        'SELECT id FROM mainsite_posts WHERE is_published = 1 ORDER BY display_order ASC, created_at DESC',
       ).all();
       if (!posts || posts.length <= 1) return;
 

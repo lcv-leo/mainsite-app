@@ -12,6 +12,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
 import { hashIdentity } from '../lib/moderation.ts';
+import { isPostPublicallyVisible } from '../lib/publishing.ts';
 import { RatingsSchema } from '../lib/schemas.ts';
 
 const ratings = new Hono<{ Bindings: Env }>();
@@ -30,6 +31,10 @@ ratings.post('/api/ratings', async (c) => {
 
     if (!body.post_id) {
       return c.json({ error: 'Post ID é obrigatório.' }, 400);
+    }
+
+    if (!(await isPostPublicallyVisible(c.env.DB, body.post_id))) {
+      return c.json({ error: 'Post não encontrado' }, 404);
     }
 
     if (!body.rating || body.rating < 1 || body.rating > 5 || !Number.isInteger(body.rating)) {
@@ -76,7 +81,12 @@ ratings.post('/api/ratings', async (c) => {
 ratings.get('/api/ratings/:postId', async (c) => {
   try {
     const postId = parseInt(c.req.param('postId'), 10);
-    if (isNaN(postId)) return c.json({ error: 'Post ID inválido.' }, 400);
+    if (Number.isNaN(postId)) return c.json({ error: 'Post ID inválido.' }, 400);
+
+    if (!(await isPostPublicallyVisible(c.env.DB, postId))) {
+      c.header('Cache-Control', 'no-store');
+      return c.json({ avgRating: 0, totalVotes: 0, userRating: null, distribution: {}, reactions: {} });
+    }
 
     // Gera voter_hash para check "já votou?"
     const clientIp = c.req.header('cf-connecting-ip') || 'unknown';

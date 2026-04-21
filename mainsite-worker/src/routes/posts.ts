@@ -17,6 +17,7 @@ import { bumpContentVersion } from '../lib/content-version.ts';
 import { generateShareSummary, hashContent, stripHtml } from '../lib/gemini.ts';
 import { postUrl as buildPostUrl, pingIndexNow } from '../lib/indexnow.ts';
 import { structuredLog } from '../lib/logger.ts';
+import { readPublishingMode } from '../lib/publishing.ts';
 import { sanitizePostHtml } from '../lib/sanitize.ts';
 import { PostBodySchema, PostReorderSchema } from '../lib/schemas.ts';
 
@@ -136,12 +137,18 @@ async function triggerSummaryGeneration(
 
 // ========== ROTAS ==========
 
-// GET /api/posts (público)
+// GET /api/posts (público) — filtra por is_published=1 e retorna [] em modo hidden.
 posts.get('/api/posts', async (c) => {
   try {
+    const mode = await readPublishingMode(c.env.DB);
+    if (mode === 'hidden') {
+      c.header('Cache-Control', 'no-store');
+      return c.json([]);
+    }
     const { results } = await c.env.DB.prepare(
       `SELECT id, title, substr(content, 1, 8000) AS content, author, created_at, updated_at, is_pinned, display_order
        FROM mainsite_posts
+       WHERE is_published = 1
        ORDER BY is_pinned DESC, display_order ASC, created_at DESC`,
     ).all<PublicPostRow>();
     const publicPosts = (results || []).map((post) => {
@@ -159,11 +166,18 @@ posts.get('/api/posts', async (c) => {
   }
 });
 
-// GET /api/posts/:id (público)
+// GET /api/posts/:id (público) — 404 quando hidden global OU is_published=0.
 posts.get('/api/posts/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    const post = await c.env.DB.prepare('SELECT * FROM mainsite_posts WHERE id = ?').bind(id).first();
+    const mode = await readPublishingMode(c.env.DB);
+    if (mode === 'hidden') {
+      c.header('Cache-Control', 'no-store');
+      return c.json({ error: 'Post não encontrado' }, 404);
+    }
+    const post = await c.env.DB.prepare('SELECT * FROM mainsite_posts WHERE id = ? AND is_published = 1')
+      .bind(id)
+      .first();
     if (!post) return c.json({ error: 'Post não encontrado' }, 404);
     return c.json(post);
   } catch (err) {

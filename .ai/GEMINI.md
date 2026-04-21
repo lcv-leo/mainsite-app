@@ -9,6 +9,9 @@
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
 # AI Memory Log - MainSite
 
+## 2026-04-21 — Mainsite Worker v02.13.00 + Mainsite Frontend v03.18.00 (Mecanismo de Publicação + folha em branco)
+Sincronizado com admin-app v01.92.00. **Worker**: helper central `src/lib/publishing.ts` (`readPublishingMode`, `readPublishing`), endpoint público `GET /api/site-status` (Cache-Control: no-store), gate aplicado em `/api/posts`, `/api/posts/:id`, `/api/comments/:postId` (GET/POST/count), `/api/ratings/:postId` (GET/POST), `/api/ai/public/chat`, `/api/share/email`, `getContentFingerprint` (headline), cron de rotação. Em modo hidden: lista `[]`, detalhe 404, rotation para. `post-summaries.ts` intocado (todas admin-only via `requireAuth`). **Frontend**: tipo `SiteStatus`, fetch de `/api/site-status` antes de `/api/posts` no mount e em refresh, novo prop `maintenance?: SiteStatus|null` em `PostReader` — modo hidden preserva estrutura do article e substitui conteúdo (h1=`notice_title`, área=`notice_message` em `<p>` texto plano), omite byline/meta/citation/JSON-LD/RatingWidget/CommentsSection, share bar permanece com canonical raiz. `post` aceita `Post|null`. URL direta `/p/42` em hidden carrega folha em branco sem 404 nem redirect. **Regras**: texto público ⇔ `mode='normal'` AND `is_published=1`; geral prevalece sobre individual; propagação imediata via `bumpContentVersion` do admin-motor. Versões: worker v02.12.00 → v02.13.00, frontend v03.17.00 → v03.18.00.
+
 ## 2026-04-19 — Mainsite Frontend v03.16.01 (DisclaimerModal: parágrafos justificados + recuo de primeira linha)
 ### Escopo
 Ajuste estilístico no corpo do `DisclaimerModal` em cima da reforma de v03.16.00.

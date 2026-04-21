@@ -16,6 +16,7 @@ import type {
   Post,
   ShareModalState,
   SiteSettings,
+  SiteStatus,
   ToastState,
 } from './types';
 import './styles/site-shell.css';
@@ -37,7 +38,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.17.00';
+const APP_VERSION = 'APP v03.18.01';
 const SITE_NAME = 'Reflexos da Alma';
 const SITE_URL = 'https://www.reflexosdaalma.blog';
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
@@ -66,6 +67,7 @@ type ThemePreference = 'auto' | 'light' | 'dark';
 const App = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [currentPost, setCurrentPost] = useState<Post | null>(null);
+  const [siteStatus, setSiteStatus] = useState<SiteStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -131,8 +133,32 @@ const App = () => {
     [fetchPostDetail, posts],
   );
 
+  const fetchSiteStatus = useCallback(async (): Promise<SiteStatus | null> => {
+    try {
+      const res = await fetch(`${API_URL}/site-status`, { cache: 'no-store' });
+      if (!res.ok) return null;
+      return (await res.json()) as SiteStatus;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const refreshPosts = useCallback(async () => {
     try {
+      // Kill switch vem primeiro: se global=hidden, não vale buscar posts.
+      const status = await fetchSiteStatus();
+      setSiteStatus(status);
+
+      if (status?.mode === 'hidden') {
+        // Kill switch: esvazia a leitura sem mexer na URL.
+        // Um visitante em /p/42 vê a folha em branco com o aviso no lugar do texto,
+        // coerente com o comportamento do initial fetch. Trocar a URL aqui seria
+        // um redirect silencioso que o desenho explicitamente recusa.
+        setPosts([]);
+        setCurrentPost(null);
+        return;
+      }
+
       const res = await fetch(`${API_URL}/posts`);
       if (!res.ok) return;
       const freshPosts: Post[] = await res.json();
@@ -146,13 +172,15 @@ const App = () => {
         window.history.pushState({}, '', '/');
         const detailed = await fetchPostDetail(target.id);
         setCurrentPost(detailed || target);
+      } else {
+        setCurrentPost(null);
       }
     } catch {
       // Falha silenciosa
     } finally {
       contentSync.refresh();
     }
-  }, [contentSync, fetchPostDetail]);
+  }, [contentSync, fetchPostDetail, fetchSiteStatus]);
 
   const getUrlPostId = (): string | null => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -265,21 +293,32 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const resPosts = await fetch(`${API_URL}/posts`);
-        if (!resPosts.ok) throw new Error('Failed to fetch posts.');
-        const dataPosts: Post[] = await resPosts.json();
-        setPosts(dataPosts);
+        // Site-status primeiro: quando hidden, pula toda a árvore de fetch de posts
+        // e força currentPost=null para o PostReader renderizar a folha em branco.
+        const resStatus = await fetch(`${API_URL}/site-status`, { cache: 'no-store' });
+        const status: SiteStatus | null = resStatus.ok ? await resStatus.json() : null;
+        setSiteStatus(status);
 
-        const postId = getUrlPostId();
-
-        if (postId) {
-          const detailed = await fetchPostDetail(postId);
-          const found = detailed || dataPosts.find((p) => p.id === parseInt(postId, 10)) || null;
-          setCurrentPost(
-            found || (dataPosts.length > 0 ? (await fetchPostDetail(dataPosts[0].id)) || dataPosts[0] : null),
-          );
+        if (status?.mode === 'hidden') {
+          setPosts([]);
+          setCurrentPost(null);
         } else {
-          setCurrentPost(dataPosts.length > 0 ? (await fetchPostDetail(dataPosts[0].id)) || dataPosts[0] : null);
+          const resPosts = await fetch(`${API_URL}/posts`);
+          if (!resPosts.ok) throw new Error('Failed to fetch posts.');
+          const dataPosts: Post[] = await resPosts.json();
+          setPosts(dataPosts);
+
+          const postId = getUrlPostId();
+
+          if (postId) {
+            const detailed = await fetchPostDetail(postId);
+            const found = detailed || dataPosts.find((p) => p.id === parseInt(postId, 10)) || null;
+            setCurrentPost(
+              found || (dataPosts.length > 0 ? (await fetchPostDetail(dataPosts[0].id)) || dataPosts[0] : null),
+            );
+          } else {
+            setCurrentPost(dataPosts.length > 0 ? (await fetchPostDetail(dataPosts[0].id)) || dataPosts[0] : null);
+          }
         }
 
         const resSettings = await fetch(`${API_URL}/settings`);
@@ -559,7 +598,7 @@ const App = () => {
         {!showLicenses ? (
           error ? (
             <div className="site-error">{error}</div>
-          ) : currentPost ? (
+          ) : siteStatus?.mode === 'hidden' || currentPost ? (
             <PostReader
               post={currentPost}
               activePalette={activePalette}
@@ -572,6 +611,7 @@ const App = () => {
               zoomLevel={zoomLevel}
               apiUrl={API_URL}
               turnstileSiteKey={TURNSTILE_SITE_KEY}
+              maintenance={siteStatus?.mode === 'hidden' ? siteStatus : null}
             />
           ) : (
             <div className="site-empty">A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>

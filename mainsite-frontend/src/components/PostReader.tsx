@@ -9,13 +9,18 @@ import DOMPurify from 'dompurify';
 import { Edit3, Heart, Home, Link2, Loader2, Mail, MessageCircle, MessageSquare } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { serializeJsonLd } from '../lib/structuredData';
-import type { ActivePalette, Post } from '../types';
+import type { ActivePalette, Post, SiteStatus } from '../types';
 import CommentsSection from './CommentsSection';
 import RatingWidget from './RatingWidget';
 import './PostReader.css';
 
 interface PostReaderProps {
-  post: Post;
+  /**
+   * Post a renderizar. Em modo manutenção (maintenance != null) este prop é ignorado:
+   * a estrutura do PostReader é preservada mas com conteúdo vazio ou o aviso configurado
+   * pelo admin — a "folha" nunca some, só muda o que está escrito nela.
+   */
+  post: Post | null;
   activePalette: ActivePalette;
   onShare: (type: 'whatsapp' | 'link' | 'email') => void;
   onContact: () => void;
@@ -26,6 +31,13 @@ interface PostReaderProps {
   zoomLevel: number;
   apiUrl: string;
   turnstileSiteKey?: string;
+  /**
+   * Kill switch global recebido de /api/site-status. Quando presente com mode='hidden',
+   * RatingWidget e CommentsSection são omitidos (dependem de postId real) e a área de
+   * conteúdo exibe notice_title/notice_message em texto plano; campos vazios deixam a
+   * folha em branco.
+   */
+  maintenance?: SiteStatus | null;
 }
 
 const PostReader = ({
@@ -40,8 +52,10 @@ const PostReader = ({
   zoomLevel,
   apiUrl,
   turnstileSiteKey,
+  maintenance = null,
 }: PostReaderProps) => {
-  const canonicalUrl = `https://www.reflexosdaalma.blog/p/${post.id}`;
+  const isMaintenance = maintenance?.mode === 'hidden';
+  const canonicalUrl = post ? `https://www.reflexosdaalma.blog/p/${post.id}` : 'https://www.reflexosdaalma.blog/';
 
   const renderContent = (content: string) => {
     // Normaliza links internos para paths relativos — funciona em qualquer domínio.
@@ -139,69 +153,86 @@ const PostReader = ({
       });
   };
 
-  // Schema.org — Expanded for AI-era visibility (GEO/AEO)
-  const cleanExcerpt = (post.content || '')
+  // Schema.org — Expanded for AI-era visibility (GEO/AEO).
+  // Em manutenção (isMaintenance) ou sem post, JSON-LD é omitido: não há
+  // artigo a declarar e publicar metadata de um post vazio confunde crawlers.
+  const cleanExcerpt = (post?.content || '')
     .replace(/<[^>]*>?/gm, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   const descriptionExcerpt = cleanExcerpt.substring(0, 200) + (cleanExcerpt.length > 200 ? '...' : '');
   const wordCount = cleanExcerpt.split(/\s+/).filter(Boolean).length;
 
-  const postAuthor = post.author || 'Leonardo Cardozo Vargas';
+  const postAuthor = post?.author || 'Leonardo Cardozo Vargas';
 
-  const schemaOrgJSONLD = {
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: post.title,
-    description: descriptionExcerpt,
-    author: {
-      '@type': 'Person',
-      name: postAuthor,
-      url: 'https://www.reflexosdaalma.blog',
-      sameAs: ['https://github.com/lcv-leo', 'https://www.linkedin.com/in/lcv-leo'],
-    },
-    datePublished: post.created_at
-      ? new Date(`${post.created_at.replace(' ', 'T')}Z`).toISOString()
-      : new Date().toISOString(),
-    dateModified: post.updated_at
-      ? new Date(
-          post.updated_at.replace(' ', 'T') +
-            (post.updated_at.includes('Z') || post.updated_at.includes('+') ? '' : 'Z'),
-        ).toISOString()
-      : post.created_at
-        ? new Date(`${post.created_at.replace(' ', 'T')}Z`).toISOString()
-        : new Date().toISOString(),
-    publisher: {
-      '@type': 'Organization',
-      name: 'Reflexos da Alma',
-      url: 'https://www.reflexosdaalma.blog',
-      logo: { '@type': 'ImageObject', url: 'https://www.reflexosdaalma.blog/favicon.svg' },
-    },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://www.reflexosdaalma.blog/p/${post.id}` },
-    inLanguage: 'pt-BR',
-    articleSection: 'Filosofia',
-    wordCount: wordCount,
-    speakable: {
-      '@type': 'SpeakableSpecification',
-      cssSelector: ['.h1-title', '.p-content'],
-    },
-  };
-  const schemaOrgJSONLDText = serializeJsonLd(schemaOrgJSONLD);
+  const schemaOrgJSONLDText = post
+    ? serializeJsonLd({
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: post.title,
+        description: descriptionExcerpt,
+        author: {
+          '@type': 'Person',
+          name: postAuthor,
+          url: 'https://www.reflexosdaalma.blog',
+          sameAs: ['https://github.com/lcv-leo', 'https://www.linkedin.com/in/lcv-leo'],
+        },
+        datePublished: post.created_at
+          ? new Date(`${post.created_at.replace(' ', 'T')}Z`).toISOString()
+          : new Date().toISOString(),
+        dateModified: post.updated_at
+          ? new Date(
+              post.updated_at.replace(' ', 'T') +
+                (post.updated_at.includes('Z') || post.updated_at.includes('+') ? '' : 'Z'),
+            ).toISOString()
+          : post.created_at
+            ? new Date(`${post.created_at.replace(' ', 'T')}Z`).toISOString()
+            : new Date().toISOString(),
+        publisher: {
+          '@type': 'Organization',
+          name: 'Reflexos da Alma',
+          url: 'https://www.reflexosdaalma.blog',
+          logo: { '@type': 'ImageObject', url: 'https://www.reflexosdaalma.blog/favicon.svg' },
+        },
+        mainEntityOfPage: { '@type': 'WebPage', '@id': `https://www.reflexosdaalma.blog/p/${post.id}` },
+        inLanguage: 'pt-BR',
+        articleSection: 'Filosofia',
+        wordCount: wordCount,
+        speakable: {
+          '@type': 'SpeakableSpecification',
+          cssSelector: ['.h1-title', '.p-content'],
+        },
+      })
+    : '';
 
   const readerStyle = {
     '--text-zoom-scale': zoomLevel,
   } as CSSProperties;
 
+  // Conteúdo da "folha":
+  //  - Com post: renderiza normalmente (fluxo existente).
+  //  - Sem post / em manutenção: renderiza notice_title no h1 e notice_message na área
+  //    de conteúdo, ambos em texto plano com quebras de linha preservadas. Campos vazios
+  //    deixam a seção visualmente em branco mas a estrutura do <article> permanece.
+  const displayTitle = isMaintenance ? (maintenance?.notice_title ?? '') : (post?.title ?? '');
+  const displayAriaLabel = displayTitle || 'Área de leitura';
+  const maintenanceParagraphs = isMaintenance
+    ? (maintenance?.notice_message ?? '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+    : [];
+
   return (
     <article
-      aria-label={post.title}
+      aria-label={displayAriaLabel}
       data-readable-content="true"
       data-canonical-url={canonicalUrl}
       className="post-reader"
       style={readerStyle}
     >
       {/* UPDATED HOME BUTTON: Size and padding reduced by 30% */}
-      {isNotHomePage && (
+      {isNotHomePage && !isMaintenance && (
         <div className="post-reader__home-wrap">
           <button
             type="button"
@@ -217,24 +248,39 @@ const PostReader = ({
         </div>
       )}
 
-      <h1 className="h1-title">{post.title}</h1>
+      <h1 className="h1-title">{displayTitle}</h1>
       <div className="post-gradient-divider" />
-      <div className="post-byline">
-        Por {postAuthor}
-        {post.created_at &&
-          ` · ${new Date(`${post.created_at.replace(' ', 'T')}Z`).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
-      </div>
+      {post && !isMaintenance && (
+        <div className="post-byline">
+          Por {postAuthor}
+          {post.created_at &&
+            ` · ${new Date(`${post.created_at.replace(' ', 'T')}Z`).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' })}`}
+        </div>
+      )}
 
       <div className="post-reader__content-area">
         <div>
-          {/* biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD serializer escapa <, >, &, U+2028, U+2029 — previne injection de </script> e quebra de string */}
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schemaOrgJSONLDText }} />
-          {renderContent(post.content)}
+          {post && !isMaintenance && schemaOrgJSONLDText && (
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD serializer escapa <, >, &, U+2028, U+2029 — previne injection de </script> e quebra de string
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schemaOrgJSONLDText }} />
+          )}
+          {isMaintenance
+            ? maintenanceParagraphs.map((line, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: mensagem de manutenção é estática neste render
+                <p key={index} className="p-content">
+                  {line}
+                </p>
+              ))
+            : post
+              ? renderContent(post.content)
+              : null}
         </div>
       </div>
 
       {/* Rodapé de metadados com datas de publicação/atualização */}
-      {post.created_at &&
+      {post &&
+        !isMaintenance &&
+        post.created_at &&
         (() => {
           const fmt = (raw: string | undefined | null): string | null => {
             if (!raw) return null;
@@ -260,23 +306,27 @@ const PostReader = ({
           );
         })()}
 
-      <div className="post-reader__citation">
-        Citação recomendada: mantenha o título original e a URL canônica deste texto.{' '}
-        <a href={canonicalUrl} className="post-reader__citation-link">
-          {canonicalUrl}
-        </a>
-      </div>
+      {post && !isMaintenance && (
+        <div className="post-reader__citation">
+          Citação recomendada: mantenha o título original e a URL canônica deste texto.{' '}
+          <a href={canonicalUrl} className="post-reader__citation-link">
+            {canonicalUrl}
+          </a>
+        </div>
+      )}
 
-      {/* Rating Widget — avaliação por estrelas + reações */}
-      <RatingWidget postId={post.id} activePalette={activePalette} apiUrl={apiUrl} />
-
-      {/* Seção pública de comentários (threading 2 níveis) */}
-      <CommentsSection
-        postId={post.id}
-        activePalette={activePalette}
-        apiUrl={apiUrl}
-        turnstileSiteKey={turnstileSiteKey}
-      />
+      {/* Rating Widget e Comments dependem de um postId real — omitidos em manutenção */}
+      {post && !isMaintenance && (
+        <>
+          <RatingWidget postId={post.id} activePalette={activePalette} apiUrl={apiUrl} />
+          <CommentsSection
+            postId={post.id}
+            activePalette={activePalette}
+            apiUrl={apiUrl}
+            turnstileSiteKey={turnstileSiteKey}
+          />
+        </>
+      )}
 
       <nav aria-label="Compartilhamento e interação" className="share-bar">
         <div className="share-item">

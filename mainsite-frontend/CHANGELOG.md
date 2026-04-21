@@ -1,5 +1,27 @@
 # Changelog — Mainsite Frontend
 
+## [v03.18.01] - 2026-04-21
+### Corrigido
+- **`App.tsx` — deep link sob kill switch fazia redirect silencioso**: em `refreshPosts`, quando o site alternava para `mode='hidden'` (detectado via `ContentUpdateToast` após o admin virar o switch), o código chamava `window.history.pushState({}, '', '/')` ao zerar `posts`/`currentPost`. Resultado: um visitante em `/p/42` era empurrado para `/` — violando a promessa (explícita no design do recurso) de que URLs diretas em modo oculto carregam a folha em branco **sem redirect**. O initial fetch (`useEffect` de mount) já preservava a URL corretamente; o `refreshPosts` foi alinhado. Agora a URL nunca é alterada pelo kill switch.
+### Motivação
+- Parecer técnico externo em 2026-04-21 identificou a inconsistência comparando os dois code paths (mount vs refresh).
+
+## [v03.18.00] - 2026-04-21
+### Adicionado
+- **Modo "folha em branco" no PostReader para kill switch editorial**: o leitor principal passou a aceitar um prop opcional `maintenance?: SiteStatus | null` que, quando presente com `mode='hidden'`, substitui o conteúdo do texto sem alterar a estrutura do componente — "a folha" continua visualmente presente (article wrapper, h1, gradient divider, área de conteúdo, share bar), mas:
+  - `h1` recebe `notice_title` (vazio se o admin não preencheu) em vez do título do post;
+  - área de conteúdo recebe `notice_message` (split por `\n`, texto plano renderizado em `<p>`) em vez do HTML do post; texto plano por design porque o payload é sanitizado pelo admin-motor, evitando XSS persistido;
+  - byline, meta-footer (publicado/atualizado), citação canônica e JSON-LD são omitidos — não existem "dados do texto" a declarar quando não há texto;
+  - `RatingWidget` e `CommentsSection` são omitidos — ambos dependem de `postId` real e fariam fetch a `/api/ratings/0` / `/api/comments/0` em 404 floods sem gate;
+  - `home button` ("Voltar à postagem principal") é omitido — não há postagem principal a voltar;
+  - share bar (WhatsApp, e-mail, contato, comentar, apoiar) permanece visível porque compartilhar/contatar/apoiar faz sentido mesmo em modo manutenção; `canonicalUrl` vira a URL raiz do site.
+- **`/api/site-status` integrado ao ciclo de fetch**: novo estado `siteStatus: SiteStatus | null` no `App.tsx`, consultado (1) no fetch inicial antes de chamar `/api/posts` e (2) em cada `refreshPosts` disparado via `ContentUpdateToast`. Quando `mode='hidden'`, pula completamente a árvore de fetch de posts, limpa `currentPost=null` e `posts=[]`, e passa `maintenance={siteStatus}` ao `PostReader`. URLs diretas tipo `/p/42` abertas em modo hidden caem na mesma folha em branco (sem 404 do browser, sem redirect).
+### Alterado
+- **`types.ts`**: `Post.is_published?: number | boolean` (opcional para compatibilidade com payloads antigos); novos tipos `PublishingMode = 'normal'|'hidden'` e `SiteStatus = { mode, notice_title, notice_message }`.
+- **`PostReader.tsx`**: `post` passou de `Post` para `Post | null` (guardas null-safe em todo o componente); construção de JSON-LD envolvida em ternário com fallback vazio; `canonicalUrl` aceita fallback para `https://www.reflexosdaalma.blog/`; `aria-label` do article usa `displayTitle || 'Área de leitura'`.
+### Motivação
+- **Folha em branco como metáfora de design**: exigência explícita do proprietário — a estrutura visual do site nunca muda; só o que está escrito na "folha" muda (ou desaparece). Implementação rigorosamente blindada contra crashes por ausência de post, mesmo em URLs diretas / deep-links antigos salvos por leitores. Complementa o kill switch no worker (v02.13.00) e a configuração no admin (v01.92.00).
+
 ## [v03.17.00] - 2026-04-20
 ### Corrigido
 - **`src/App.tsx` — armadilha de loop infinito evitada**: o auto-fix `--unsafe` do Biome havia expandido as deps de dois `useEffect` críticos do orquestrador do site. O `useEffect` de listener de copy passou de `[currentPost]` para `[currentPost, isEditableTarget, showNotification]` (ambas funções locais não-memoizadas); e o `useEffect` de fetch inicial passou de `[fetchPostDetail]` para `[fetchPostDetail, getUrlPostId]` (também não memoizada) — **este último causaria re-fetch completo do site (posts + settings + disclaimers) a cada render**, loop infinito ao vivo. Ambos revertidos ao escopo narrow original com `// biome-ignore lint/correctness/useExhaustiveDependencies` documentando a intenção.

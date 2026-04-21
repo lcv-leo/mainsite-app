@@ -12,6 +12,8 @@
  * detectar mudanças e notificar o leitor em tempo real.
  */
 
+import { readPublishingMode } from './publishing.ts';
+
 const CONTENT_VERSION_KEY = 'mainsite/content-version';
 
 interface ContentVersionPayload {
@@ -82,10 +84,16 @@ export async function getContentFingerprint(
     }
   }
 
-  // Lê o post que está na homepage (primeiro pela ordem de exibição)
-  const headlineRow = await db
-    .prepare(`SELECT id FROM mainsite_posts ORDER BY is_pinned DESC, display_order ASC, created_at DESC LIMIT 1`)
-    .first<{ id: number }>();
+  // Kill switch: em modo hidden, não há headline. Em normal, só posts publicados.
+  const mode = await readPublishingMode(db);
+  const headlineRow =
+    mode === 'hidden'
+      ? null
+      : await db
+          .prepare(
+            `SELECT id FROM mainsite_posts WHERE is_published = 1 ORDER BY is_pinned DESC, display_order ASC, created_at DESC LIMIT 1`,
+          )
+          .first<{ id: number }>();
 
   return {
     version,
