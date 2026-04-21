@@ -213,7 +213,7 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
   return (
     <footer className="archive-menu">
       <button type="button" onClick={() => setIsHistoryOpen(!isHistoryOpen)} className="archive-menu__toggle">
-        <span className="archive-menu__label">FRAGMENTOS ANTERIORES</span>
+        <span className="archive-menu__label">TEXTOS ANTERIORES</span>
         <span className="archive-menu__sublabel">Arquivo completo de posts</span>
         <ChevronUp
           size={20}
