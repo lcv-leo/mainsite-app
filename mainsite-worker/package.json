@@ -1,5 +1,6 @@
 {
   "name": "mainsite-worker",
+  "private": true,
   "version": "2.3.1",
   "description": "",
   "main": "index.js",
