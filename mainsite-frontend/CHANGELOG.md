@@ -1,5 +1,17 @@
 # Changelog — Mainsite Frontend
 
+## [v03.19.01] - 2026-04-22
+### Corrigido
+- **`src/test-setup.ts` — polyfill defensivo de `localStorage`/`sessionStorage` no ambiente de testes** (achado de inconsistência do parecer ChatGPT Codex 2026-04-22): a suíte Vitest falhava em [`src/hooks/useTextZoom.test.ts`](src/hooks/useTextZoom.test.ts) e [`src/components/DonationModal.test.tsx`](src/components/DonationModal.test.tsx) com `TypeError: localStorage.clear is not a function` em todos os `beforeEach`. Raiz: Node.js ≥ 22 expõe `globalThis.localStorage` nativo via experimental webstorage; quando o runtime é iniciado sem `--localstorage-file` com path válido (caso do Node v25.9.0 em Windows observado aqui), o objeto global existe mas não implementa os métodos padrão (`clear`, `setItem`, `getItem`, `removeItem`, `key`) — só tem keys vazias. Esse global quebrado tem precedência sobre o `window.localStorage` do happy-dom, fazendo qualquer `.clear()` lançar TypeError. Fix: `ensureStorage()` em `test-setup.ts` detecta o objeto quebrado e substitui por implementação Map-based in-memory via `Object.defineProperty` — idempotente (não mexe se `clear` já é função). Mesmo tratamento para `sessionStorage`. Suíte Vitest do frontend subiu de 8/21 para 21/21 passando.
+### Motivação
+- Parecer ChatGPT Codex 2026-04-22 apontou que o fechamento não era "100% audit-ready" porque o relatório anterior afirmou "gates verdes em todos os 3 apps", mas a suíte completa do mainsite-frontend falhava por problema de ambiente de teste. Fix pré-existente ao patch de disclaimers mas exposto pelos gates rodados nesta revisão — aplicado conforme diretiva `feedback_fix_preexisting_errors.md`.
+
+## [v03.19.00] - 2026-04-22
+### Alterado
+- **`DisclaimerItem`** em [`src/types.ts`](src/types.ts) ganhou o campo opcional `enabled?: boolean`, espelhando a flag introduzida no admin-app (v01.93.00) e no mainsite-worker (v02.14.00). Semântica: `enabled === false` = item desativado (oculto no público); ausência / `undefined` / `true` = item ativo. Nenhuma mudança em `App.tsx` ou em `DisclaimerModal.tsx` é necessária porque o worker já filtra server-side os itens desativados antes de responder a `/api/settings/disclaimers`. O filtro localStorage pré-existente (`hide_disclaimer_${id}`, checkbox "Não exibir este aviso novamente") continua operando normalmente em cima da lista já filtrada — a duas camadas independentes: admin oculta no servidor (decisão editorial), leitor oculta no próprio navegador (preferência individual).
+### Motivação
+- **Paridade de tipos com a fronte autoritativa**: manter `DisclaimerItem` sincronizado com o schema lógico persistido em `mainsite_settings.payload`. Frontend público nunca precisa renderizar o toggle (é um controle do admin), mas declarar o campo evita `any` implícito em leituras futuras que iterem sobre o payload.
+
 ## [v03.18.01] - 2026-04-21
 ### Corrigido
 - **`App.tsx` — deep link sob kill switch fazia redirect silencioso**: em `refreshPosts`, quando o site alternava para `mode='hidden'` (detectado via `ContentUpdateToast` após o admin virar o switch), o código chamava `window.history.pushState({}, '', '/')` ao zerar `posts`/`currentPost`. Resultado: um visitante em `/p/42` era empurrado para `/` — violando a promessa (explícita no design do recurso) de que URLs diretas em modo oculto carregam a folha em branco **sem redirect**. O initial fetch (`useEffect` de mount) já preservava a URL corretamente; o `refreshPosts` foi alinhado. Agora a URL nunca é alterada pelo kill switch.

@@ -69,6 +69,12 @@ export interface DisclaimerItem {
   text: string;
   buttonText: string;
   isDonationTrigger: boolean;
+  /**
+   * Flag de ativação individual (soft-disable). Quando `false`, o item é ignorado
+   * pelo frontend público sem ser removido do D1 — admin pode reativar depois.
+   * Campo opcional para retrocompatibilidade: ausência ou `undefined` equivale a `true`.
+   */
+  enabled?: boolean;
 }
 
 /** Configuração de disclaimers. */

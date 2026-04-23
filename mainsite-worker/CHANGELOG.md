@@ -1,5 +1,29 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.14.02] - 2026-04-22
+### Corrigido
+- **`GET /api/settings/disclaimers` — fecha P3 residual apontado no 2º parecer ChatGPT Codex 2026-04-22**: o filtro endurecido em v02.14.01 descartava `null`, primitivos, arrays e `id` inválido, mas ainda permitia que um item parcialmente corrompido com `id` válido mas **sem** `text`/`title`/`buttonText` atravessasse. Como `DisclaimerModal.tsx:176` chama `disclaimer.text.split(...)` (+ usa `item.title` como heading e `item.buttonText` como label do botão), esse shape parcial crasharia o frontend ao tentar renderizar. Agora o type-predicate exige `typeof item.title === 'string'`, `typeof item.text === 'string'`, `typeof item.buttonText === 'string'` — só itens com shape completamente renderizável saem do worker. Ausência ou tipo errado em qualquer um desses três campos → item descartado silenciosamente (fail-safe coerente com o tratamento da raiz corrompida). `isDonationTrigger` permanece opcional (usado como ternário, `undefined` é safe).
+### Alterado
+- **Teste existente** `it('descarta itens que não são objetos com id string válido')` atualizado: os itens válidos no cenário agora carregam shape completo (`{ id, title, text, buttonText }`) para refletir os novos requisitos — caso contrário seriam corretamente descartados pelo novo filtro e invalidariam a asserção.
+- **Novo teste** `it('descarta itens com shape parcialmente corrompido (sem text/title/buttonText)')` cobre 6 cenários de corrupção parcial: `text` ausente, `title` ausente, `buttonText` ausente, `text` não-string (number), `buttonText` null. Worker subiu de 11 → 12 testes passando.
+### Motivação
+- Segundo parecer ChatGPT Codex 2026-04-22 detectou corretamente que o hardening de v02.14.01 tinha lacuna real: teste `it('descarta itens que não são objetos com id string válido')` incluía `{ id: 'valid', title: 'ok' }` como caso que passava — mas esse shape quebraria o `DisclaimerModal` em runtime. A correção fecha esse gap antes do Commit & Sync e eleva o filtro ao mesmo padrão de "shape completamente renderizável" que o componente público espera.
+
+## [v02.14.01] - 2026-04-22
+### Corrigido
+- **`GET /api/settings/disclaimers` — hardening de payload corrompido** (achado P3 do parecer ChatGPT Codex 2026-04-22): v02.14.00 assumia que o `JSON.parse(record.payload)` sempre retornava um objeto. Payloads patológicos gravados no D1 (`null`, array, primitivo) faziam `parsed.enabled` lançar `TypeError` e o handler caía em erro 500. Pior, `items: [null]` atravessava o filtro original (`item?.enabled !== false` é `true` para `null`) e chegava ao frontend, onde `item.id` crasharia o render. Corrigido com dois guards: (1) novo helper `isPlainObject` valida a raiz — se não for objeto não-array não-null, retorna `{ enabled: true, items: [] }` (fail-safe); (2) filtro de `items` agora é type-narrowing: só passa item que é objeto não-nulo com `id` string não-vazio E `enabled !== false`. Resposta a payload malformado vira resposta vazia em vez de 500 ou crash do cliente.
+### Adicionado
+- **Suíte de testes** [`src/routes/settings.test.ts`](src/routes/settings.test.ts) cobrindo `/api/settings/disclaimers`: (1) filtro de item com `enabled: false`, (2) preservação de `config.enabled === false` como kill switch global, (3) fallback de seed default quando registro não existe, (4) fail-safe para payloads corrompidos (`null`, string, número, array), (5) descarte de items sem `id` válido. 5 novos testes; suíte do worker subiu de 6 → 11 passando.
+### Motivação
+- Parecer ChatGPT Codex 2026-04-22 apontou corretamente que o hardening de v02.14.00 não era tão completo quanto o relatório sugeria. Correção fecha a brecha antes do Commit & Sync, sem depender do caminho de gravação (que o admin-motor já valida) para garantir sanidade da leitura.
+
+## [v02.14.00] - 2026-04-22
+### Alterado
+- **`GET /api/settings/disclaimers`** ([`src/routes/settings.ts`](src/routes/settings.ts)): passou a filtrar no servidor os disclaimers marcados como `enabled === false`, impedindo que cheguem ao frontend público. Política de precedência: disclaimer visível ⇔ `config.enabled !== false` AND `item.enabled !== false`. Campos ausentes ou `undefined` em `config.enabled` / `item.enabled` equivalem a `true` (retrocompat com payloads antigos sem a flag — nenhuma migração de dados necessária). Admin continua vendo todos os itens via `GET /api/mainsite/settings` (`admin-motor`) porque esse handler usa `safeParseObject` que preserva o payload bruto.
+- **Seed default de fallback** (disclaimer criado inline quando `mainsite_settings.id='mainsite/disclaimers'` não existe no D1) agora inclui `enabled: true` explicitamente, alinhado à convenção de novos itens.
+### Motivação
+- **Hardening server-side do soft-disable individual introduzido em admin-app v01.93.00**: implementar o filtro no worker em vez de delegar ao frontend garante que (1) disclaimers desativados nunca saem da borda, mesmo se um bug no cliente falhar no filtro; (2) resposta de `/api/settings/disclaimers` fica enxuta (um admin pode deixar dezenas de avisos arquivados sem impacto em payload/latência); (3) semântica fica consistente com o kill switch de publicação (v02.13.00), onde o worker também é a fronteira autoritativa. O endpoint público não sofre regressão para clients que ainda não conheçam a flag: eles recebem a lista já filtrada e seguem operando normalmente.
+
 ## [v02.13.00] - 2026-04-21
 ### Adicionado
 - **Kill switch de publicação com gating coordenado em todas as rotas públicas que leem posts ou conteúdo derivado**: novo helper centralizado [`src/lib/publishing.ts`](src/lib/publishing.ts) expõe `readPublishingMode(db): 'normal'|'hidden'` e `readPublishing(db)` (mode + notice_title + notice_message). Política de precedência uniforme: texto público ⇔ `mode='normal'` AND `is_published=1`.

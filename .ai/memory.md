@@ -1,3 +1,57 @@
+## 2026-04-22 — Hotfix2 Mainsite Worker v02.14.02 (2º parecer ChatGPT Codex — P3 residual)
+### Escopo
+Segundo parecer Codex 2026-04-22 aprovou o hotfix anterior com uma ressalva real: o filtro de v02.14.01 validava `id` string mas não exigia `text`/`title`/`buttonText`. Um item `{ id: 'valid' }` sem `text` atravessaria o filtro e crasharia `DisclaimerModal.tsx:176` em `item.text.split(...)`.
+
+### Corrigido
+- **`GET /api/settings/disclaimers`** em [`src/routes/settings.ts`](../mainsite-worker/src/routes/settings.ts): type-predicate do filtro passou a exigir as 3 strings textuais que `DisclaimerModal` renderiza (`title`, `text`, `buttonText`), além do `id` string não-vazio. Item com qualquer um desses ausente ou com tipo errado → descartado silenciosamente. `isDonationTrigger` permanece opcional (boolean / undefined).
+
+### Alterado
+- **Teste `descarta itens que não são objetos com id string válido`** atualizado: itens válidos agora carregam shape completo para refletir novos requisitos.
+- **Novo teste `descarta itens com shape parcialmente corrompido (sem text/title/buttonText)`** com 6 cenários explícitos de corrupção parcial.
+- Worker suíte: 11 → 12 testes passando.
+
+### Versão
+- Mainsite Worker APP v02.14.01 → v02.14.02 (patch: hardening adicional)
+
+## 2026-04-22 — Hotfix Mainsite Worker v02.14.01 + Mainsite Frontend v03.19.01 (parecer ChatGPT Codex)
+### Escopo
+Parecer externo ChatGPT Codex 2026-04-22 identificou dois achados substantivos sobre o patch de v02.14.00 / v03.19.00:
+
+**Worker (v02.14.01) — hardening de payload corrompido + teste**
+- `GET /api/settings/disclaimers` em [`src/routes/settings.ts`](../mainsite-worker/src/routes/settings.ts) não validava raiz do JSON. Se `record.payload === 'null'`, `parsed.enabled` lançava TypeError → 500. Se `items: [null]`, o filtro original (`item?.enabled !== false`) deixava passar porque `null?.enabled === undefined !== false`. Frontend crasharia em `item.id`. Corrigido com helper `isPlainObject` (fail-safe retorna `{enabled:true, items:[]}` para raiz inválida) + type-narrow filter (`isPlainObject(item) && typeof item.id === 'string' && item.id.length > 0 && item.enabled !== false`).
+- Nova suíte `src/routes/settings.test.ts` com 5 casos: filtro enabled:false, config.enabled:false, seed default, payload corrompido (null/string/number/array), item sem id válido. Worker 6→11 testes.
+
+**Frontend (v03.19.01) — polyfill localStorage em test-setup**
+- Suíte Vitest do mainsite-frontend falhava em `useTextZoom.test.ts` e `DonationModal.test.tsx` com `TypeError: localStorage.clear is not a function`. Raiz: Node.js v25.9.0 expõe `globalThis.localStorage` nativo via experimental webstorage; sem `--localstorage-file` com path válido (warning visível ao rodar `vitest run`), o global tem keys vazias e SEM os métodos padrão. Esse global tem precedência sobre `window.localStorage` do happy-dom.
+- Fix em [`src/test-setup.ts`](../mainsite-frontend/src/test-setup.ts): `ensureStorage()` detecta `typeof clear !== 'function'` e substitui por impl Map-based via `Object.defineProperty`. Idempotente. Aplicado para `localStorage` e `sessionStorage`. Frontend 8/21 → 21/21 testes.
+
+### Motivação
+- Codex notou com razão: (1) hardening de leitura não podia depender apenas da validação do caminho de gravação; (2) afirmação "gates verdes em todos os 3 apps" do relatório anterior era inexata; (3) faltava teste específico para o filtro novo. Alinhado com `feedback_fix_preexisting_errors.md` e `feedback_proactive_error_audit.md`.
+
+### Versão
+- Mainsite Worker APP v02.14.00 → v02.14.01 (patch: hardening + testes)
+- Mainsite Frontend APP v03.19.00 → v03.19.01 (patch: fix de ambiente de teste)
+
+## 2026-04-22 — Mainsite Worker v02.14.00 + Mainsite Frontend v03.19.00 (disclaimers — ativação individual soft-disable)
+### Escopo
+Implementação sincronizada com `admin-app` v01.93.00. Cada `DisclaimerItem` ganhou flag opcional `enabled?: boolean`. Padrão análogo ao kill switch de publicação (v02.13.00): filtro no worker + paridade de tipos no frontend. Nenhuma migração de D1 necessária — payload continua JSON opaco em `mainsite_settings.payload`.
+
+### mainsite-worker (v02.14.00)
+**Alterado**
+- `GET /api/settings/disclaimers` em [`src/routes/settings.ts`](../mainsite-worker/src/routes/settings.ts) passou a filtrar `item.enabled === false` server-side antes de responder. Política: visível ⇔ `config.enabled !== false` AND `item.enabled !== false`. Ausência/undefined em qualquer dos dois campos = ativo (retrocompat com registros antigos sem a flag).
+- Fallback inline de seed (quando `mainsite/disclaimers` não existe no D1) agora inclui `enabled: true` explicitamente.
+
+**Motivação**
+- Filtro no worker (borda autoritativa) em vez de delegado ao cliente garante (1) disclaimers desativados nunca vazam, mesmo se um bug no frontend falhar no filtro; (2) payload enxuto para clientes (dezenas de avisos arquivados sem impacto em latência/tamanho); (3) semântica consistente com kill switch de publicação v02.13.00 onde o worker também é a fronteira.
+
+### mainsite-frontend (v03.19.00)
+**Alterado**
+- Tipo `DisclaimerItem` em [`src/types.ts`](../mainsite-frontend/src/types.ts) ganhou o campo `enabled?: boolean` para paridade de schema. Nenhuma mudança em `App.tsx` nem em `DisclaimerModal.tsx` — o worker já filtra antes. O filtro localStorage pré-existente (checkbox "Não exibir este aviso novamente") continua operando em cima da lista já filtrada.
+
+### Versão
+- Mainsite Worker APP v02.13.00 → v02.14.00 (minor: nova funcionalidade)
+- Mainsite Frontend APP v03.18.01 → v03.19.00 (minor: paridade de tipo)
+
 ## 2026-04-21 — Mainsite Frontend v03.18.01 (hotfix: deep link fazia redirect em hidden)
 ### Escopo
 Parecer técnico externo apontou que `refreshPosts` em [App.tsx](../mainsite-frontend/src/App.tsx) executava `window.history.pushState({}, '', '/')` dentro do branch `mode='hidden'`, empurrando um visitante em `/p/42` para `/` no momento em que o kill switch era ativado via `ContentUpdateToast`. O initial fetch (mount) já preservava a URL corretamente; os dois code paths divergiam. Contraria promessa de design ("URL direta em modo hidden carrega a folha em branco sem redirect").
