@@ -7,30 +7,184 @@
 
 
 ## 🧠 MEMÓRIA DE CONTEXTO ISOLADO (MAINSITE-APP)
-# AI Memory Log - MainSite
+## 2026-04-22 — Hotfix2 Mainsite Worker v02.14.02 (2º parecer ChatGPT Codex — P3 residual)
+### Escopo
+Segundo parecer Codex 2026-04-22 aprovou o hotfix anterior com uma ressalva real: o filtro de v02.14.01 validava `id` string mas não exigia `text`/`title`/`buttonText`. Um item `{ id: 'valid' }` sem `text` atravessaria o filtro e crasharia `DisclaimerModal.tsx:176` em `item.text.split(...)`.
 
-## 2026-04-21 — Mainsite Worker v02.13.00 + Mainsite Frontend v03.18.00 (Mecanismo de Publicação + folha em branco)
-Sincronizado com admin-app v01.92.00. **Worker**: helper central `src/lib/publishing.ts` (`readPublishingMode`, `readPublishing`), endpoint público `GET /api/site-status` (Cache-Control: no-store), gate aplicado em `/api/posts`, `/api/posts/:id`, `/api/comments/:postId` (GET/POST/count), `/api/ratings/:postId` (GET/POST), `/api/ai/public/chat`, `/api/share/email`, `getContentFingerprint` (headline), cron de rotação. Em modo hidden: lista `[]`, detalhe 404, rotation para. `post-summaries.ts` intocado (todas admin-only via `requireAuth`). **Frontend**: tipo `SiteStatus`, fetch de `/api/site-status` antes de `/api/posts` no mount e em refresh, novo prop `maintenance?: SiteStatus|null` em `PostReader` — modo hidden preserva estrutura do article e substitui conteúdo (h1=`notice_title`, área=`notice_message` em `<p>` texto plano), omite byline/meta/citation/JSON-LD/RatingWidget/CommentsSection, share bar permanece com canonical raiz. `post` aceita `Post|null`. URL direta `/p/42` em hidden carrega folha em branco sem 404 nem redirect. **Regras**: texto público ⇔ `mode='normal'` AND `is_published=1`; geral prevalece sobre individual; propagação imediata via `bumpContentVersion` do admin-motor. Versões: worker v02.12.00 → v02.13.00, frontend v03.17.00 → v03.18.00.
+### Corrigido
+- **`GET /api/settings/disclaimers`** em [`src/routes/settings.ts`](../mainsite-worker/src/routes/settings.ts): type-predicate do filtro passou a exigir as 3 strings textuais que `DisclaimerModal` renderiza (`title`, `text`, `buttonText`), além do `id` string não-vazio. Item com qualquer um desses ausente ou com tipo errado → descartado silenciosamente. `isDonationTrigger` permanece opcional (boolean / undefined).
+
+### Alterado
+- **Teste `descarta itens que não são objetos com id string válido`** atualizado: itens válidos agora carregam shape completo para refletir novos requisitos.
+- **Novo teste `descarta itens com shape parcialmente corrompido (sem text/title/buttonText)`** com 6 cenários explícitos de corrupção parcial.
+- Worker suíte: 11 → 12 testes passando.
+
+### Versão
+- Mainsite Worker APP v02.14.01 → v02.14.02 (patch: hardening adicional)
+
+## 2026-04-22 — Hotfix Mainsite Worker v02.14.01 + Mainsite Frontend v03.19.01 (parecer ChatGPT Codex)
+### Escopo
+Parecer externo ChatGPT Codex 2026-04-22 identificou dois achados substantivos sobre o patch de v02.14.00 / v03.19.00:
+
+**Worker (v02.14.01) — hardening de payload corrompido + teste**
+- `GET /api/settings/disclaimers` em [`src/routes/settings.ts`](../mainsite-worker/src/routes/settings.ts) não validava raiz do JSON. Se `record.payload === 'null'`, `parsed.enabled` lançava TypeError → 500. Se `items: [null]`, o filtro original (`item?.enabled !== false`) deixava passar porque `null?.enabled === undefined !== false`. Frontend crasharia em `item.id`. Corrigido com helper `isPlainObject` (fail-safe retorna `{enabled:true, items:[]}` para raiz inválida) + type-narrow filter (`isPlainObject(item) && typeof item.id === 'string' && item.id.length > 0 && item.enabled !== false`).
+- Nova suíte `src/routes/settings.test.ts` com 5 casos: filtro enabled:false, config.enabled:false, seed default, payload corrompido (null/string/number/array), item sem id válido. Worker 6→11 testes.
+
+**Frontend (v03.19.01) — polyfill localStorage em test-setup**
+- Suíte Vitest do mainsite-frontend falhava em `useTextZoom.test.ts` e `DonationModal.test.tsx` com `TypeError: localStorage.clear is not a function`. Raiz: Node.js v25.9.0 expõe `globalThis.localStorage` nativo via experimental webstorage; sem `--localstorage-file` com path válido (warning visível ao rodar `vitest run`), o global tem keys vazias e SEM os métodos padrão. Esse global tem precedência sobre `window.localStorage` do happy-dom.
+- Fix em [`src/test-setup.ts`](../mainsite-frontend/src/test-setup.ts): `ensureStorage()` detecta `typeof clear !== 'function'` e substitui por impl Map-based via `Object.defineProperty`. Idempotente. Aplicado para `localStorage` e `sessionStorage`. Frontend 8/21 → 21/21 testes.
+
+### Motivação
+- Codex notou com razão: (1) hardening de leitura não podia depender apenas da validação do caminho de gravação; (2) afirmação "gates verdes em todos os 3 apps" do relatório anterior era inexata; (3) faltava teste específico para o filtro novo. Alinhado com `feedback_fix_preexisting_errors.md` e `feedback_proactive_error_audit.md`.
+
+### Versão
+- Mainsite Worker APP v02.14.00 → v02.14.01 (patch: hardening + testes)
+- Mainsite Frontend APP v03.19.00 → v03.19.01 (patch: fix de ambiente de teste)
+
+## 2026-04-22 — Mainsite Worker v02.14.00 + Mainsite Frontend v03.19.00 (disclaimers — ativação individual soft-disable)
+### Escopo
+Implementação sincronizada com `admin-app` v01.93.00. Cada `DisclaimerItem` ganhou flag opcional `enabled?: boolean`. Padrão análogo ao kill switch de publicação (v02.13.00): filtro no worker + paridade de tipos no frontend. Nenhuma migração de D1 necessária — payload continua JSON opaco em `mainsite_settings.payload`.
+
+### mainsite-worker (v02.14.00)
+**Alterado**
+- `GET /api/settings/disclaimers` em [`src/routes/settings.ts`](../mainsite-worker/src/routes/settings.ts) passou a filtrar `item.enabled === false` server-side antes de responder. Política: visível ⇔ `config.enabled !== false` AND `item.enabled !== false`. Ausência/undefined em qualquer dos dois campos = ativo (retrocompat com registros antigos sem a flag).
+- Fallback inline de seed (quando `mainsite/disclaimers` não existe no D1) agora inclui `enabled: true` explicitamente.
+
+**Motivação**
+- Filtro no worker (borda autoritativa) em vez de delegado ao cliente garante (1) disclaimers desativados nunca vazam, mesmo se um bug no frontend falhar no filtro; (2) payload enxuto para clientes (dezenas de avisos arquivados sem impacto em latência/tamanho); (3) semântica consistente com kill switch de publicação v02.13.00 onde o worker também é a fronteira.
+
+### mainsite-frontend (v03.19.00)
+**Alterado**
+- Tipo `DisclaimerItem` em [`src/types.ts`](../mainsite-frontend/src/types.ts) ganhou o campo `enabled?: boolean` para paridade de schema. Nenhuma mudança em `App.tsx` nem em `DisclaimerModal.tsx` — o worker já filtra antes. O filtro localStorage pré-existente (checkbox "Não exibir este aviso novamente") continua operando em cima da lista já filtrada.
+
+### Versão
+- Mainsite Worker APP v02.13.00 → v02.14.00 (minor: nova funcionalidade)
+- Mainsite Frontend APP v03.18.01 → v03.19.00 (minor: paridade de tipo)
+
+## 2026-04-21 — Mainsite Frontend v03.18.01 (hotfix: deep link fazia redirect em hidden)
+### Escopo
+Parecer técnico externo apontou que `refreshPosts` em [App.tsx](../mainsite-frontend/src/App.tsx) executava `window.history.pushState({}, '', '/')` dentro do branch `mode='hidden'`, empurrando um visitante em `/p/42` para `/` no momento em que o kill switch era ativado via `ContentUpdateToast`. O initial fetch (mount) já preservava a URL corretamente; os dois code paths divergiam. Contraria promessa de design ("URL direta em modo hidden carrega a folha em branco sem redirect").
+### Corrigido
+- Removido o `pushState('/')` do branch hidden em `refreshPosts`. A URL agora é preservada em qualquer cenário de ativação de kill switch — só posts/currentPost são esvaziados.
+### Versão
+- Mainsite Frontend APP v03.18.00 → v03.18.01
+- Mainsite Worker v02.13.00 sem alteração
+
+## 2026-04-21 — Mainsite Worker v02.13.00 + Mainsite Frontend v03.18.00 (mecanismo de Publicação + folha em branco)
+### Escopo
+Implementação sincronizada com `admin-app` v01.92.00 do mecanismo de publicação editorial (kill switch global + visibilidade individual). Coluna `is_published` em `mainsite_posts` + chave `mainsite/publishing` em `mainsite_settings` aplicadas via Cloudflare D1 API na `bigdata_db`.
+
+### mainsite-worker (v02.13.00)
+**Adicionado**
+- Helper centralizado [`src/lib/publishing.ts`](../mainsite-worker/src/lib/publishing.ts) expõe `readPublishingMode(db)` e `readPublishing(db)` (mode + notice). Strip iterativo de HTML no read como defesa-em-profundidade (admin-motor já faz no write).
+- Endpoint público [`GET /api/site-status`](../mainsite-worker/src/routes/site-status.ts) retorna `{ mode, notice_title, notice_message }` com `Cache-Control: no-store` obrigatório (propagação imediata sem CDN).
+
+**Gating aplicado em todas as rotas públicas que leem posts ou derivados**
+- `/api/posts` e `/api/posts/:id` ([posts.ts](../mainsite-worker/src/routes/posts.ts)): modo hidden → lista `[]` / detalhe `404`; modo normal → `WHERE is_published = 1`.
+- `/api/comments/:postId` (GET lista), `/api/comments/:postId/count`, `POST /api/comments` ([comments.ts](../mainsite-worker/src/routes/comments.ts)): helper `isPostPublicallyVisible(db, postId)` combina mode + is_published. GETs retornam vazio/zerado em post oculto (evita vazar existência via quantitativo); POST retorna 404.
+- `/api/ratings` (POST) e `/api/ratings/:postId` (GET) ([ratings.ts](../mainsite-worker/src/routes/ratings.ts)): mesmo padrão.
+- `/api/ai/public/chat` ([ai.ts](../mainsite-worker/src/routes/ai.ts)): modo hidden → contexto de retrieval fica vazio; modo normal → filtra por `is_published = 1`.
+- `/api/share/email` ([contact.ts](../mainsite-worker/src/routes/contact.ts)): gate antes de resolver post; SELECT exige `is_published = 1`.
+- `getContentFingerprint` ([lib/content-version.ts](../mainsite-worker/src/lib/content-version.ts)): `headline_post_id` respeita o gate.
+- Cron de rotação ([src/index.ts scheduled](../mainsite-worker/src/index.ts)): modo hidden → early return; modo normal → rotaciona só visíveis.
+- **`post-summaries.ts` não precisou gate**: todos os endpoints são `requireAuth` (admin-only).
+
+### mainsite-frontend (v03.18.00)
+**Adicionado**
+- Tipos `PublishingMode`, `SiteStatus` em [`types.ts`](../mainsite-frontend/src/types.ts); `Post.is_published?` opcional.
+- Estado `siteStatus: SiteStatus | null` em App.tsx; fetch de `/api/site-status` com `cache: 'no-store'` antes do `/api/posts` no mount e em cada `refreshPosts` disparado pelo `ContentUpdateToast`.
+- Prop opcional `maintenance?: SiteStatus | null` no [PostReader.tsx](../mainsite-frontend/src/components/PostReader.tsx): quando `mode='hidden'`, substitui o conteúdo SEM alterar a estrutura. `h1` recebe `notice_title`, área de conteúdo recebe `notice_message` (split `\n`, renderizado como `<p>` texto plano), byline/meta/citation/JSON-LD omitidos, RatingWidget e CommentsSection omitidos (dependem de `postId` real, evita 404 floods), share bar preservada com canonical `https://www.reflexosdaalma.blog/`.
+- `post` aceita `Post | null` — guards null-safe em toda construção de metadata.
+
+### Regras operacionais combinadas
+- **Precedência**: texto só é público quando `mode='normal'` AND `is_published=1`. Modo hidden prevalece sobre qualquer `is_published=1`; modo normal respeita `is_published=0` individual.
+- **Propagação imediata**: admin-motor chama `bumpContentVersion` quando publishing muda ou visibilidade é toggled; `useContentSync` do frontend detecta via `/api/content-fingerprint` e oferece `ContentUpdateToast` para refresh.
+- **XSS prevenido**: notice_title/notice_message são strippados no admin-motor (write) e re-strippados no worker (read) — política de texto plano, sem HTML permitido em nenhum caminho.
+- **URLs diretas em modo hidden**: `/p/42` carrega normalmente; App.tsx pula fetch de posts e renderiza PostReader com `maintenance={siteStatus}` — sem 404 no browser, sem redirect, sem quebra de layout.
+
+### Motivação
+- Exigência editorial do proprietário: mecanismo local de "retirar tudo do ar" preservando identidade visual (logo, tema, contato, doação, rodapé). Texto do aviso 100% editorial — se em branco, folha vazia; nada hardcoded. Controle granular individual permite ocultar textos pontualmente sem excluí-los.
+- **Metáfora da folha**: PostReader = folha; com texto = folha escrita; sem texto = folha em branco. Estrutura visual do componente nunca muda, só o que está escrito.
+
+### Versões
+- mainsite-worker v02.12.00 → v02.13.00
+- mainsite-frontend v03.17.00 → v03.18.00
+
+## 2026-04-20 — Mainsite Frontend v03.17.00 (auditoria de qualidade: zerar biome/eslint/tsc + evitar armadilhas do unsafe)
+### Escopo
+Auditoria completa dos gates do `mainsite-frontend` a pedido do usuário em 2026-04-20, logo após o hotfix v01.91.01 do `admin-app`. Baseline: 55 errors / 22 warnings / 13 infos no Biome (débito acumulado). Meta: todos os gates verdes.
+### Armadilhas de loop infinito evitadas (lição do admin-app)
+- **`src/App.tsx:217`** — `useEffect` de listener `copy` teria `isEditableTarget` + `showNotification` (funções locais não-memoizadas) adicionadas às deps pelo unsafe-fix. Revertido para `[currentPost]` + `// biome-ignore`.
+- **`src/App.tsx:265`** — `useEffect` de fetch inicial teria `getUrlPostId` (não memoizada) adicionada. Causaria loop infinito de fetch completo do site a cada render. Revertido para `[fetchPostDetail]` + `// biome-ignore`.
+- **`src/components/SumUpCardWidget.tsx:146`** — `preferredPaymentMethodsKey` havia sido REMOVIDA das deps; seria regressão funcional (widget não re-monta ao togglar métodos de pagamento). Restaurada como dep de gatilho (trigger-only) com `// biome-ignore`.
+### Alterado
+- **`biome.json`**: schema 2.4.12, `files.includes` explícito, `style/noDescendingSpecificity` desabilitada (3 falsos positivos CSS).
+- **a11y — interatividade**: 2 `noStaticElementInteractions` + 2 `useKeyWithClickEvents` + 5 `useKeyWithMouseEvents` resolvidos — cards do `ArchiveMenu` ganharam `role="button" tabIndex={0} onKeyDown`; botões de modal (CommentModal, ContactModal, ShareOverlay, DisclaimerModal) ganharam `onFocus`/`onBlur` pareados.
+- **a11y — `useButtonType` em 20 botões**: `FloatingControls` (7×), `PostReader` (7×), `ContentUpdateToast` (3×), `DisclaimerModal` (2×), `ArchiveMenu` (1×).
+- **a11y — `useAriaPropsSupportedByRole` em `ComplianceBanner`**: `role="contentinfo"` explícito.
+- **React — `noArrayIndexKey` (4×)** em parágrafos derivados de split estável com biome-ignore documentado.
+- **React — `parsePostDate` envolvida em `useCallback([])`** em `ArchiveMenu` para estabilizar dep de `useMemo`.
+- **Correção — `useIterableCallbackReturn`** em `App.tsx:upsertMeta` (forEach com body block em vez de expressão com optional chaining).
+- **Correção — `noAssignInExpressions`** em onMouseOver/Out de CommentModal/ContactModal (short-circuit → if).
+- **Segurança — `noDangerouslySetInnerHtml` (2×)**: documentadas as mitigações em `PostReader.tsx` — DOMPurify.sanitize com USE_PROFILES html para post-content, e `serializeJsonLd` (escape de `<`/`>`/`&`/`U+2028`/`U+2029`) para JSON-LD script tag.
+- **`noNonNullAssertion` (5 warnings)**: null check em `main.tsx:getElementById('root')`; `yearMap.get()!` refatorado com pattern `let entry = map.get(); if (!entry) ...` em `ArchiveMenu`; `turnstileSiteKey!` substituído por capture em `const siteKey` pós early-return em `CommentModal`/`ContactModal`/`CommentsSection`.
+- **`noArguments` no GA4 snippet de `index.html`**: preservado com biome-ignore (contrato de dataLayer.push oficial).
+### Gates (pós-auditoria)
+- `npx tsc --noEmit`: ✅ 0 erros
+- `npm run lint`: ✅ 0 problems
+- `npm run build`: ✅ build completa
+- `npx biome check .`: ✅ **0 errors, 0 warnings, 0 infos**
+### Versão
+- APP v03.16.02 → APP v03.17.00
+
+## 2026-04-20 — Mainsite Worker v02.12.00 + Mainsite Frontend v03.16.02 (reformulação do system prompt "Consciência Auxiliar" + fix de rolagem do chatbot)
+### Escopo — mainsite-worker (v02.12.00)
+Substituição integral do `const systemPrompt` do chatbot público ([`src/routes/ai.ts:234`](../mainsite-worker/src/routes/ai.ts)) conforme Protocolo Editorial Leonardo-Tomé v1.4. Bloco saiu de ~20 linhas / 1.5 KB para ~65 linhas / 7.3 KB, introduzindo 11 seções nomeadas (IDIOMA, IDENTIDADE, ÉTICA DE TOMÉ, VERDADE ACIMA DE BAJULAÇÃO, CUIDADO PSICOLÓGICO, PROTOCOLO DE CRISE, ANTI-ALUCINAÇÃO, CITAÇÃO CANÔNICA, SEPARAÇÃO DE CAMPOS, IMPESSOALIDADE, HIERARQUIA DE FONTES, ENCAMINHAMENTO HUMANO, FORMA DA RESPOSTA). As 5 variáveis de template (`${activeContextPrompt}`, `${donationPrompt}`, `${dbCoverageMeta}`, `${dbContext}`, `${safeMessage}`) foram preservadas exatamente uma vez cada; pipeline de retrieval/scoring/auditoria/sanitização não foi alterado.
+
+**Salvaguardas psicológicas críticas adicionadas**:
+- **PROTOCOLO DE CRISE** direciona ideação suicida / automutilação / crise psicótica / dissociação / surto místico / pânico grave / abuso para CVV 188 (24h gratuito), SAMU 192, pronto-socorro psiquiátrico, pessoa de confiança, terreiro/diretor espiritual/psicólogo transpessoal ou junguiano — com nomeação explícita do limite da IA.
+- **ANTI-ALUCINAÇÃO** proíbe inventar citações/trechos/versículos/URLs atribuídos a Jung/Bíblia/Umbanda Esotérica/Matta e Silva/Bashar/Saint Germain.
+- **CITAÇÃO CANÔNICA** padroniza Bíblia (livro/cap/vers), Jung (Collected Works + volume), Platão/Stephanus, Aristóteles/Bekker, Agostinho, Kant/Akademie, Freud/SE — sem URL.
+- **VERDADE ACIMA DE BAJULAÇÃO** proíbe validar auto-percepções infladas.
+- **CUIDADO PSICOLÓGICO** proíbe reforçar complexos/inflação de ego/identificações messiânicas e exige articular luz/sombra em tradições esotéricas, com distinção wilberiana pré/pessoal/transpessoal para evitar erro pré/trans.
+- **SEPARAÇÃO DE CAMPOS** força temas técnicos a respostas 100% técnicas, sem misturar espiritualidade.
+
+### Alterado — mainsite-worker (v02.12.00)
+- `biome.json`: scan limpo após `npx biome check src --write --unsafe` (39 errors → 0; imports reorganizados em 13 arquivos de `routes/` e `lib/`).
+### Operacional
+- **Backup pré-substituição**: [`backups/system-prompt-20260420-0636/`](../../backups/system-prompt-20260420-0636/) (arquivo integral + recortes).
+- **Relatório**: [`relatorio-substituicao-system-prompt-20260420-0636.md`](../../relatorio-substituicao-system-prompt-20260420-0636.md).
+- **Validação manual obrigatória antes de publicar**: três cenários — (a) pergunta normal (cita TÍTULO + fundamenta no acervo); (b) pergunta enviesada com inflação (anti-bajulação ativa); (c) pergunta simulando crise (CVV 188 acionado).
+
+### Escopo — mainsite-frontend (v03.16.02)
+Fix de rolagem interna do `ChatWidget` que voltou a expandir em vez de rolar quando o histórico ultrapassava a altura do container.
+### Corrigido — mainsite-frontend (v03.16.02)
+- **`src/components/ChatWidget.css`**: adicionado `min-height: 0` em `.chat-widget__panel` e `.chat-widget__messages` — bug clássico de flexbox em que um flex child sem esse override expande para o conteúdo em vez de acionar o `overflow-y: auto`. Rolagem restaurada sem alterar layout, transições ou auto-scroll para o fim de cada nova resposta.
+
+### Versões
+- mainsite-worker: APP v02.11.01 → APP v02.12.00
+- mainsite-frontend: APP v03.16.01 → APP v03.16.02
 
 ## 2026-04-19 — Mainsite Frontend v03.16.01 (DisclaimerModal: parágrafos justificados + recuo de primeira linha)
 ### Escopo
 Ajuste estilístico no corpo do `DisclaimerModal` em cima da reforma de v03.16.00.
 ### Alterado
-- **`src/components/DisclaimerModal.tsx`**: texto dividido em `<p>` por `\n{2,}`, `text-align: justify`, `text-indent: 1.75em`, `hyphens: auto`. Fallback: parágrafo único.
+- **`src/components/DisclaimerModal.tsx` — tipografia dos avisos**: o texto do disclaimer passa a ser dividido em parágrafos reais (`<p>`) por quebras duplas (`\n{2,}`), cada um com `text-align: justify`, `text-indent: 1.75em` e `hyphens: auto`. Textos sem quebras duplas caem no fallback de parágrafo único.
 ### Motivação
-- Pedido do usuário em 2026-04-19 para padrão editorial dos disclaimers.
+- Pedido do usuário em 2026-04-19 para alinhar a leitura dos disclaimers ao padrão editorial de texto corrido do site.
 ### Versão
 - mainsite-frontend: APP v03.16.00 → APP v03.16.01
 
 ## 2026-04-19 — Mainsite Frontend v03.16.00 (DisclaimerModal: redimensionamento dinâmico + leitura obrigatória)
 ### Escopo
-Reforma do `DisclaimerModal` após incidente em que um aviso com três parágrafos ultrapassava o viewport e escondia o botão "Concordo".
+Reforma do `DisclaimerModal` após incidente em que um aviso com três parágrafos ultrapassava o viewport e escondia o botão "Concordo", deixando o leitor sem como dispensar o modal.
 ### Alterado
-- **`src/components/DisclaimerModal.tsx` — altura limitada + corpo rolável**: `max-height: min(90vh, 720px)`, flex column com o corpo do aviso como única área rolável (`overflow-y: auto`, `min-height: 0`); `padding` do card virou `clamp(20px, 4vw, 36px)` para viewports pequenos.
-- **Gate de leitura**: botão principal só habilita depois da rolagem integral (tolerância `2px`); `ResizeObserver` + listener de `resize` reavaliam em reflows; textos que cabem sem rolagem liberam o botão via `useLayoutEffect`. Reset a cada troca de item do carrossel.
-- **Affordance visual**: gradiente de fade + `ChevronDown` animado e `aria-live="polite"` enquanto ainda há texto a ler. O "Pular agora e ler os textos" (modo doação) também é gatado; o checkbox "Não exibir" fica livre.
+- **`src/components/DisclaimerModal.tsx` — layout com altura limitada e corpo rolável**: o card agora respeita `max-height: min(90vh, 720px)` e vira um flex column com o corpo do aviso como única área rolável (`overflow-y: auto`, `min-height: 0`). O botão e o checkbox permanecem sempre visíveis; o `padding` do card passou a ser `clamp(20px, 4vw, 36px)` para se adequar a viewports pequenos.
+- **`DisclaimerModal` — gate de leitura para fechar**: o botão principal só habilita depois que o leitor rola até o final do texto (tolerância `2px`), com `ResizeObserver` + listener de `resize` para reavaliar em reflows (barra do navegador mobile, fontes tardias, troca de orientação). Textos que já cabem sem rolagem liberam o botão imediatamente via `useLayoutEffect`. O reset acontece a cada troca de item do carrossel de disclaimers.
+- **`DisclaimerModal` — affordance visual**: gradiente de fade no rodapé do corpo + `ChevronDown` animado enquanto a leitura não foi concluída; mensagem `aria-live="polite"` "Role o texto até o final para habilitar o botão." substitui o estado silencioso.
+- **Escopo de gate**: o botão "Pular agora e ler os textos" (modo doação) também é gatado pelo mesmo flag, por consistência; o checkbox "Não exibir este aviso novamente" permanece livre pré-leitura por ser apenas preferência.
 ### Motivação
-- Incidente de 2026-04-19: disclaimer longo tornava o modal inalcançável. Reforma alinha o componente ao feedback global "modal/toasts sempre centralizados no viewport" e adiciona trava de leitura consciente.
+- Incidente reportado em 2026-04-19: um disclaimer recém-cadastrado com três parágrafos tornou o modal inalcançável em viewports comuns. A reforma alinha o componente ao feedback global "modal/toasts sempre centralizados no viewport" e acopla uma trava de leitura consciente, garantindo que o leitor entre em contato com o texto integral antes de dispensá-lo.
 ### Versão
 - mainsite-frontend: APP v03.15.03 → APP v03.16.00
 
@@ -38,10 +192,10 @@ Reforma do `DisclaimerModal` após incidente em que um aviso com três parágraf
 ### Escopo
 Ajustes de UI/UX na pós-leitura de matérias para leitores externos, motivados pela rotação programada de posts em primeira página (que torna o arquivo um recurso essencial) e pela inacessibilidade dos `title` tooltips em mobile.
 ### Alterado
-- **`PostReader.tsx` + `PostReader.css` — share-bar com legendas permanentes**: os seis botões circulares (WhatsApp, Copiar, E-mail, Contato, Comentar, Apoiar) passaram a exibir um rótulo uppercase de 10,5px logo abaixo de cada círculo. O círculo colorido segue com 48×48px; só o `gap` do `share-bar` subiu de 12px → 20px.
-- **`ArchiveMenu.tsx` + `ArchiveMenu.css` — pílula "Fragmentos Anteriores"**: o gatilho do arquivo saiu do minimalismo de 11px com `opacity: 0.8` e virou uma pílula com borda `rgba(128,128,128,0.35)`, `padding: 14px 26px`, fonte 13px e sublinha italic "Arquivo completo de posts". No hover, a pílula inverte (preenche com `--site-font-color`, texto em `--site-bg-color`).
+- **`PostReader.tsx` + `PostReader.css` — share-bar com legendas permanentes**: os seis botões circulares (WhatsApp, Copiar, E-mail, Contato, Comentar, Apoiar) passaram a exibir um rótulo uppercase de 10,5px logo abaixo de cada círculo. O círculo colorido segue com 48×48px; só o `gap` do `share-bar` subiu de 12px → 20px para acomodar sem adensar.
+- **`ArchiveMenu.tsx` + `ArchiveMenu.css` — pílula "Fragmentos Anteriores"**: o gatilho do arquivo saiu do minimalismo de 11px com `opacity: 0.8` e virou uma pílula com borda `rgba(128,128,128,0.35)`, `padding: 14px 26px`, fonte 13px e sublinha italic "Arquivo completo de posts". No hover, a pílula inverte (preenche com `--site-font-color`, texto em `--site-bg-color`) virando um CTA explícito sem perder a elegância editorial.
 ### Motivação
-- Leitores novos não descobriam o arquivo completo e, em mobile, não descobriam a função dos seis botões — toda a comunicação dependia de `title` (tooltip só no hover de desktop). A mudança torna ambas as superfícies autoexplicativas sem alterar arquitetura ou fluxo.
+- Leitores novos não descobriam o arquivo completo e, em mobile, não descobriam a função dos seis botões — toda a comunicação dependia de `title` (tooltip só no hover de desktop). A mudança torna ambas as superfícies autoexplicativas sem alterar a arquitetura ou o fluxo de pagamento/interação.
 ### Versão
 - mainsite-frontend: APP v03.15.02 → APP v03.15.03
 
@@ -67,7 +221,7 @@ Padronização do baseline de observabilidade Cloudflare no `mainsite-app`, cobr
 ### Versão
 - mainsite-frontend: APP v03.15.00 → APP v03.15.01
 - mainsite-worker: APP v02.11.00 → APP v02.11.01
-
+# AI Memory Log - MainSite
 
 ## 2026-04-17 — Mainsite Frontend v03.15.00 (SumUp remount + 3DS redirect/resume + CI)
 ### Escopo
@@ -102,6 +256,33 @@ Fechamento do ciclo atual de endurecimento do `mainsite-app`, concentrando o pag
 ### Versão
 - mainsite-frontend: APP v03.13.02 → APP v03.14.00
 - mainsite-worker: APP v02.10.02 → APP v02.11.00
+
+## 2026-04-17 — Plano do `mainsite-app` revisado contra Email Service atual
+### Escopo
+Atualização do plano de migração futura dos envios de e-mail do `mainsite-worker` após revalidação na documentação oficial da Cloudflare.
+### Refinamentos consolidados
+- **Target técnico mantido**: o `mainsite-worker` segue elegível para migração via binding `send_email` com `env.EMAIL.send(...)`.
+- **Diretriz de remetente mantida**: o mainsite continua com plano de migrar de remetentes `@lcv.app.br` para **`cal@reflexosdaalma.blog`**.
+- **Plano exigido**: a documentação atual informa que Email Sending é recurso de **Workers Paid**, então a migração do mainsite deve assumir esse requisito como hard gate.
+- **Fluxos internos**: notificações administrativas e de moderação continuam classificados como migração direta.
+- **Fluxos públicos**: `/api/contact` (confirmação ao usuário) e principalmente `/api/share/email` seguem dependentes de capacidade de envio para destinatário arbitrário, limites diários e compliance.
+- **Prontidão da zona não confirmada**: a verificação por API do estado de Email Sending em `reflexosdaalma.blog` não pôde ser concluída com o token local atual, que retorna `10000 Authentication error` para o endpoint de subdomains.
+
+## 2026-04-16 — Plano futuro de migração de e-mail do `mainsite-app`
+### Escopo
+Registro do plano de migração futura dos envios de e-mail do `mainsite-worker`, hoje via Resend, para Cloudflare Email Service nativo em Worker.
+### Estratégia de domínio/remetente
+- **Domínio principal do mainsite**: `reflexosdaalma.blog`.
+- **Domínios secundários/custom domains**: continuam existindo para publicação e acesso, mas **não** mudam a identidade primária de envio.
+- **Diretriz consolidada**: os remetentes `@lcv.app.br` hoje usados pelo mainsite devem ser substituídos por **`cal@reflexosdaalma.blog`** na futura migração.
+### Fluxos classificados
+- **Migração direta**: notificações internas ao admin e notificações de moderação/comentários.
+- **Migração com pré-requisito de plataforma**: e-mail de confirmação ao usuário em `/api/contact`.
+- **Fluxo mais sensível**: `/api/share/email` permanece classificado como o ponto de maior risco operacional, porque envia para destinatário arbitrário e continua exigindo cuidado especial com abuso/compliance mesmo após a troca de provider.
+### Pré-requisitos futuros
+- Onboard de `reflexosdaalma.blog` no Cloudflare Email Service para envio.
+- Plano/capacidade que permita envio para destinatários externos arbitrários, caso o comportamento atual de `contact` e `share/email` seja mantido.
+- Binding `send_email` no `mainsite-worker`, com `allowed_sender_addresses` restrito ao remetente oficial do projeto.
 
 ## 2026-04-16 — Text zoom do frontend consolidado como local-only (frontend v03.13.02)
 ### Escopo
@@ -871,8 +1052,6 @@ Migração arquitetural unificada para aproveitamento da infraestrutura Cloudfla
 
 ### Label Accessibility
 - Labels sem campo associado convertidas para `<p className="field-label">` em ConfigModule.
-
-
 
 
 > **DIRETIVA DE SEGURANÇA:** Ao sugerir código ou responder perguntas, leia rigorosamente o contexto e as memórias históricas acima para não divergir das decisões já tomadas pelo outro agente.
