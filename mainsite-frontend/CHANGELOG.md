@@ -1,5 +1,13 @@
 # Changelog — Mainsite Frontend
 
+## [v03.20.01] - 2026-04-24
+### Alterado
+- **Link "Sobre Este Site" no `ArchiveMenu` ganhou presença visual de ação secundária**: passa a usar ícone `Info`, pill com borda, texto uppercase, hover/focus com inversão de cor e sombra sutil, alinhado ao padrão visual dos controles do arquivo do MainSite.
+### Validação
+- `npm test -- AboutPage.test.tsx` — 1 arquivo / 2 testes passando.
+- `npm run lint` — sem problemas.
+- `npm run build` — build Vite/PWA concluído.
+
 ## [v03.20.00] - 2026-04-24
 ### Adicionado
 - **Link "Sobre Este Site" no menu/rodapé lateral** ([`src/components/ArchiveMenu.tsx`](src/components/ArchiveMenu.tsx)): inserido entre a versão do app e o footer de licença, preservando proporção e harmonia visual.

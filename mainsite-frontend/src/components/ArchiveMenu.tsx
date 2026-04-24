@@ -6,7 +6,7 @@
 // Versão: v2.0.0
 // Descrição: Fase 4 visual redesign — 2-column editorial grid, pill year selectors, gradient accents.
 
-import { Calendar, ChevronUp, Search } from 'lucide-react';
+import { Calendar, ChevronUp, Info, Search } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { ActivePalette, Post } from '../types';
 import './ArchiveMenu.css';
@@ -302,8 +302,9 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
         )}
       </div>
       <div className="archive-version">{APP_VERSION}</div>
-      <button type="button" className="archive-about-link" onClick={onViewAbout}>
-        Sobre Este Site
+      <button type="button" className="archive-about-link" onClick={onViewAbout} aria-label="Abrir Sobre Este Site">
+        <Info size={15} aria-hidden="true" />
+        <span>Sobre Este Site</span>
       </button>
     </footer>
   );
