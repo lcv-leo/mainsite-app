@@ -17,6 +17,16 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       'SELECT id, author, created_at FROM mainsite_posts ORDER BY created_at DESC'
     ).all<{ id: number; author: string; created_at: string }>();
 
+    let hasAboutContent = false;
+    try {
+      const about = await db
+        .prepare('SELECT content FROM mainsite_about WHERE id = 1 LIMIT 1')
+        .first<{ content?: string }>();
+      hasAboutContent = Boolean(about?.content && about.content.trim().length > 0);
+    } catch {
+      hasAboutContent = false;
+    }
+
     const siteUrl = 'https://www.reflexosdaalma.blog';
 
     const nameToSlug = (name: string): string =>
@@ -46,6 +56,15 @@ export async function onRequest(context: EventContext<Env, string, Record<string
     xml += '    <changefreq>daily</changefreq>\n';
     xml += '    <priority>0.6</priority>\n';
     xml += '  </url>\n';
+
+    if (hasAboutContent) {
+      xml += '  <url>\n';
+      xml += `    <loc>${siteUrl}/sobre-este-site</loc>\n`;
+      xml += '    <changefreq>monthly</changefreq>\n';
+      xml += '    <priority>0.5</priority>\n';
+      xml += `    <xhtml:link rel="alternate" hreflang="pt-BR" href="${siteUrl}/sobre-este-site" />\n`;
+      xml += '  </url>\n';
+    }
 
     // Páginas de autor (uma por autor único)
     const authorSlugs = new Set<string>();

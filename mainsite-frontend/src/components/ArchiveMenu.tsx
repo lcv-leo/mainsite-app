@@ -29,9 +29,10 @@ interface ArchiveMenuProps {
   setCurrentPost: (post: Post) => void;
   activePalette: ActivePalette | null;
   APP_VERSION: string;
+  onViewAbout: () => void;
 }
 
-const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VERSION }: ArchiveMenuProps) => {
+const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VERSION, onViewAbout }: ArchiveMenuProps) => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showOlderYears, setShowOlderYears] = useState(false);
@@ -301,6 +302,9 @@ const ArchiveMenu = ({ posts, currentPost, setCurrentPost, activePalette, APP_VE
         )}
       </div>
       <div className="archive-version">{APP_VERSION}</div>
+      <button type="button" className="archive-about-link" onClick={onViewAbout}>
+        Sobre Este Site
+      </button>
     </footer>
   );
 };

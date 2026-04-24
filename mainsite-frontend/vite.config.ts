@@ -56,7 +56,9 @@ export default defineConfig({
             urlPattern: ({ url, request }) =>
               request.destination === 'document' &&
               url.origin === self.location.origin &&
-              (url.pathname === '/' || /^\/(p|post|materia|m|s)\/\d+\/?$/i.test(url.pathname)),
+              (url.pathname === '/' ||
+                url.pathname === '/sobre-este-site' ||
+                /^\/(p|post|materia|m|s)\/\d+\/?$/i.test(url.pathname)),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'html-post-cache',
@@ -82,6 +84,7 @@ export default defineConfig({
                 /^\/api\/posts\/\d+\/?$/.test(url.pathname) ||
                 url.pathname === '/api/settings' ||
                 url.pathname === '/api/settings/disclaimers' ||
+                url.pathname === '/api/about' ||
                 url.pathname === '/api/content-fingerprint'),
             handler: 'StaleWhileRevalidate',
             options: {

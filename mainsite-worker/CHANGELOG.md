@@ -1,5 +1,18 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.15.00] - 2026-04-24
+### Adicionado
+- **Endpoint público `GET /api/about`** ([`src/routes/about.ts`](src/routes/about.ts)): lê o singleton `mainsite_about` no D1 e retorna `{ about }`, com `about: null` quando a tabela ou o registro ainda não existem.
+- **Testes de contrato** ([`src/routes/about.test.ts`](src/routes/about.test.ts)): cobrem tabela vazia, tabela ausente e normalização do conteúdo institucional.
+### Alterado
+- O worker agora expõe o conteúdo "Sobre Este Site" fora do fluxo de posts, sem consultar `mainsite_posts` e sem depender da rotação/editorial dos textos públicos.
+### Validação
+- `npm test` — 6 arquivos / 15 testes passando.
+- `npm run lint` — sem problemas.
+- `npx tsc --noEmit` — sem erros.
+### Motivação
+- Disponibilizar o conteúdo institucional persistido em `mainsite_about` para o frontend público com comportamento fail-empty, conforme exigido: link funcional e tela vazia quando ainda não houver conteúdo configurado.
+
 ## [v02.14.02] - 2026-04-22
 ### Corrigido
 - **`GET /api/settings/disclaimers` — fecha P3 residual apontado no 2º parecer ChatGPT Codex 2026-04-22**: o filtro endurecido em v02.14.01 descartava `null`, primitivos, arrays e `id` inválido, mas ainda permitia que um item parcialmente corrompido com `id` válido mas **sem** `text`/`title`/`buttonText` atravessasse. Como `DisclaimerModal.tsx:176` chama `disclaimer.text.split(...)` (+ usa `item.title` como heading e `item.buttonText` como label do botão), esse shape parcial crasharia o frontend ao tentar renderizar. Agora o type-predicate exige `typeof item.title === 'string'`, `typeof item.text === 'string'`, `typeof item.buttonText === 'string'` — só itens com shape completamente renderizável saem do worker. Ausência ou tipo errado em qualquer um desses três campos → item descartado silenciosamente (fail-safe coerente com o tratamento da raiz corrompida). `isDonationTrigger` permanece opcional (usado como ternário, `undefined` é safe).

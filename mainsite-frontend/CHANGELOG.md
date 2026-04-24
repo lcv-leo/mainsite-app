@@ -1,5 +1,20 @@
 # Changelog — Mainsite Frontend
 
+## [v03.20.00] - 2026-04-24
+### Adicionado
+- **Link "Sobre Este Site" no menu/rodapé lateral** ([`src/components/ArchiveMenu.tsx`](src/components/ArchiveMenu.tsx)): inserido entre a versão do app e o footer de licença, preservando proporção e harmonia visual.
+- **Tela pública `/sobre-este-site`** ([`src/components/AboutPage.tsx`](src/components/AboutPage.tsx)): renderiza o HTML institucional vindo de `/api/about` com sanitização defensiva, tipografia alinhada ao leitor de posts e estado vazio sem erro quando não há conteúdo.
+- **Tipos e cache PWA**: `AboutContent` em [`src/types.ts`](src/types.ts), rota document cache para `/sobre-este-site` e cache de leitura para `/api/about`.
+### Alterado
+- `App.tsx` passou a reconhecer a rota `/sobre-este-site`, atualizar histórico, metadados sociais/canônicos e atribuição de cópia sem tratar o conteúdo institucional como post.
+- `sitemap.xml` inclui `/sobre-este-site` somente quando `mainsite_about` contém conteúdo não vazio.
+### Validação
+- `npm test` — 5 arquivos / 23 testes passando.
+- `npm run lint` — sem problemas.
+- `npm run build` — build Vite/PWA concluído.
+### Motivação
+- Expor "Sobre Este Site" como página pública simples, persistida no D1 e independente do ciclo de posts, mantendo o requisito de abrir na mesma janela e não falhar quando ainda não houver conteúdo.
+
 ## [v03.19.01] - 2026-04-22
 ### Corrigido
 - **`src/test-setup.ts` — polyfill defensivo de `localStorage`/`sessionStorage` no ambiente de testes** (achado de inconsistência do parecer ChatGPT Codex 2026-04-22): a suíte Vitest falhava em [`src/hooks/useTextZoom.test.ts`](src/hooks/useTextZoom.test.ts) e [`src/components/DonationModal.test.tsx`](src/components/DonationModal.test.tsx) com `TypeError: localStorage.clear is not a function` em todos os `beforeEach`. Raiz: Node.js ≥ 22 expõe `globalThis.localStorage` nativo via experimental webstorage; quando o runtime é iniciado sem `--localstorage-file` com path válido (caso do Node v25.9.0 em Windows observado aqui), o objeto global existe mas não implementa os métodos padrão (`clear`, `setItem`, `getItem`, `removeItem`, `key`) — só tem keys vazias. Esse global quebrado tem precedência sobre o `window.localStorage` do happy-dom, fazendo qualquer `.clear()` lançar TypeError. Fix: `ensureStorage()` em `test-setup.ts` detecta o objeto quebrado e substitui por implementação Map-based in-memory via `Object.defineProperty` — idempotente (não mexe se `clear` já é função). Mesmo tratamento para `sessionStorage`. Suíte Vitest do frontend subiu de 8/21 para 21/21 passando.

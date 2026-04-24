@@ -10,6 +10,7 @@ import { AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { type FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type {
+  AboutContent,
   ActivePalette,
   ContactFormData,
   DisclaimersConfig,
@@ -31,6 +32,7 @@ import { useTextZoom } from './hooks/useTextZoom';
 import { LicencasModule } from './modules/compliance/LicencasModule';
 
 const ShareOverlay = lazy(() => import('./components/ShareOverlay'));
+const AboutPage = lazy(() => import('./components/AboutPage'));
 const ContactModal = lazy(() => import('./components/ContactModal'));
 const CommentModal = lazy(() => import('./components/CommentModal'));
 const DisclaimerModal = lazy(() => import('./components/DisclaimerModal'));
@@ -38,9 +40,12 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.19.01';
+const APP_VERSION = 'APP v03.20.00';
 const SITE_NAME = 'Reflexos da Alma';
 const SITE_URL = 'https://www.reflexosdaalma.blog';
+const ABOUT_PATH = '/sobre-este-site';
+
+const isAboutRoute = () => window.location.pathname.replace(/\/+$/, '') === ABOUT_PATH;
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -98,10 +103,43 @@ const App = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showDisclaimerFlow, setShowDisclaimerFlow] = useState(false);
   const [showLicenses, setShowLicenses] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const [aboutContent, setAboutContent] = useState<AboutContent | null>(null);
   const { zoomLevel, increase: increaseZoom, decrease: decreaseZoom, reset: resetZoom } = useTextZoom();
 
   // --- Content Sync: polling leve para detectar mudanças na homepage ---
   const contentSync = useContentSync(API_URL, !loading);
+
+  const fetchAbout = useCallback(async (): Promise<AboutContent | null> => {
+    try {
+      const res = await fetch(`${API_URL}/about`, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const payload = (await res.json()) as { about?: AboutContent | null };
+      return payload.about ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const openAboutPage = useCallback(
+    async (options?: { pushUrl?: boolean }) => {
+      const nextAbout = await fetchAbout();
+      setAboutContent(nextAbout);
+      setShowLicenses(false);
+      setShowAbout(true);
+      if (options?.pushUrl) window.history.pushState({}, '', ABOUT_PATH);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    [fetchAbout],
+  );
+
+  const closeAboutPage = useCallback(() => {
+    setShowAbout(false);
+    if (window.location.pathname.replace(/\/+$/, '') === ABOUT_PATH) {
+      window.history.pushState({}, '', '/');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const fetchPostDetail = useCallback(async (postId: number | string): Promise<Post | null> => {
     try {
@@ -242,6 +280,19 @@ const App = () => {
     return () => window.clearTimeout(toastTimeout);
   }, []);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isAboutRoute()) {
+        void openAboutPage();
+      } else {
+        setShowAbout(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [openAboutPage]);
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: `isEditableTarget` e `showNotification` não são memoizadas; incluí-las remonta o listener de copy a cada render
   useEffect(() => {
     const handleCopy = (event: ClipboardEvent) => {
@@ -266,10 +317,12 @@ const App = () => {
         return;
       }
 
-      const canonicalUrl = currentPost ? `${SITE_URL}/p/${currentPost.id}` : `${SITE_URL}/`;
-      const attribution = currentPost
-        ? `\n\nFonte: "${currentPost.title}" — ${canonicalUrl} — ${SITE_NAME}`
-        : `\n\nFonte: ${SITE_NAME} — ${canonicalUrl}`;
+      const canonicalUrl = showAbout ? `${SITE_URL}${ABOUT_PATH}` : currentPost ? `${SITE_URL}/p/${currentPost.id}` : `${SITE_URL}/`;
+      const attribution = showAbout
+        ? `\n\nFonte: Sobre Este Site — ${canonicalUrl} — ${SITE_NAME}`
+        : currentPost
+          ? `\n\nFonte: "${currentPost.title}" — ${canonicalUrl} — ${SITE_NAME}`
+          : `\n\nFonte: ${SITE_NAME} — ${canonicalUrl}`;
 
       event.preventDefault();
       event.clipboardData.setData('text/plain', `${selectedText}${attribution}`);
@@ -278,7 +331,7 @@ const App = () => {
 
     document.addEventListener('copy', handleCopy);
     return () => document.removeEventListener('copy', handleCopy);
-  }, [currentPost]);
+  }, [currentPost, showAbout]);
 
   // Sync theme with OS
   useEffect(() => {
@@ -293,6 +346,7 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const shouldShowAbout = isAboutRoute();
         // Site-status primeiro: quando hidden, pula toda a árvore de fetch de posts
         // e força currentPost=null para o PostReader renderizar a folha em branco.
         const resStatus = await fetch(`${API_URL}/site-status`, { cache: 'no-store' });
@@ -327,6 +381,12 @@ const App = () => {
           if (dataSettings.light) setSettings(dataSettings);
         }
 
+        if (shouldShowAbout) {
+          setAboutContent(await fetchAbout());
+          setShowAbout(true);
+          setShowLicenses(false);
+        }
+
         const resDisc = await fetch(`${API_URL}/settings/disclaimers`);
         if (resDisc.ok) {
           const discData: DisclaimersConfig = await resDisc.json();
@@ -347,7 +407,7 @@ const App = () => {
       }
     };
     fetchData();
-  }, [fetchPostDetail]);
+  }, [fetchAbout, fetchPostDetail]);
 
   useEffect(() => {
     const upsertMeta = (selector: string, attrs: Record<string, string>, content: string) => {
@@ -373,7 +433,39 @@ const App = () => {
       link.setAttribute('href', href);
     };
 
-    if (currentPost) {
+    if (showAbout) {
+      const cleanText = (aboutContent?.content || '')
+        .replace(/<[^>]*>?/gm, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const excerpt = `${cleanText.substring(0, 155)}${cleanText.length > 155 ? '...' : ''}`;
+      const fullTitle = `Sobre Este Site | ${SITE_NAME}`;
+      const canonicalUrl = `${SITE_URL}${ABOUT_PATH}`;
+
+      document.title = fullTitle;
+      upsertMeta(
+        'meta[name="description"]',
+        { name: 'description' },
+        excerpt || 'Informações institucionais sobre o site Reflexos da Alma.',
+      );
+      upsertMeta('meta[property="og:type"]', { property: 'og:type' }, 'website');
+      upsertMeta('meta[property="og:title"]', { property: 'og:title' }, fullTitle);
+      upsertMeta(
+        'meta[property="og:description"]',
+        { property: 'og:description' },
+        excerpt || 'Informações institucionais sobre o site Reflexos da Alma.',
+      );
+      upsertMeta('meta[property="og:url"]', { property: 'og:url' }, canonicalUrl);
+      upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name' }, SITE_NAME);
+      upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card' }, 'summary_large_image');
+      upsertMeta('meta[name="twitter:title"]', { name: 'twitter:title' }, fullTitle);
+      upsertMeta(
+        'meta[name="twitter:description"]',
+        { name: 'twitter:description' },
+        excerpt || 'Informações institucionais sobre o site Reflexos da Alma.',
+      );
+      upsertCanonical(canonicalUrl);
+    } else if (currentPost) {
       const cleanText = (currentPost.content || '')
         .replace(/<[^>]*>?/gm, ' ')
         .replace(/\s+/g, ' ')
@@ -413,7 +505,7 @@ const App = () => {
       upsertMeta('meta[name="twitter:description"]', { name: 'twitter:description' }, defaultDesc);
       upsertCanonical(`${SITE_URL}/`);
     }
-  }, [currentPost]);
+  }, [aboutContent, currentPost, showAbout]);
 
   // Floating scroll controls visibility trigger
   useEffect(() => {
@@ -595,7 +687,22 @@ const App = () => {
       </div>
 
       <main id="conteudo-principal" className="site-main">
-        {!showLicenses ? (
+        {showLicenses ? (
+          <div className="site-licenses">
+            <div className="site-licenses__panel">
+              <LicencasModule />
+              <div className="site-licenses__actions">
+                <button onClick={() => setShowLicenses(false)} type="button" className="site-licenses__back">
+                  Voltar à Leitura
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : showAbout ? (
+          <Suspense fallback={null}>
+            <AboutPage about={aboutContent} onBack={closeAboutPage} zoomLevel={zoomLevel} />
+          </Suspense>
+        ) : (
           error ? (
             <div className="site-error">{error}</div>
           ) : siteStatus?.mode === 'hidden' || currentPost ? (
@@ -616,17 +723,6 @@ const App = () => {
           ) : (
             <div className="site-empty">A MENTE ESTÁ EM SILÊNCIO. NENHUM FRAGMENTO ENCONTRADO.</div>
           )
-        ) : (
-          <div className="site-licenses">
-            <div className="site-licenses__panel">
-              <LicencasModule />
-              <div className="site-licenses__actions">
-                <button onClick={() => setShowLicenses(false)} type="button" className="site-licenses__back">
-                  Voltar à Leitura
-                </button>
-              </div>
-            </div>
-          </div>
         )}
       </main>
 
@@ -639,6 +735,7 @@ const App = () => {
           }}
           activePalette={activePalette}
           APP_VERSION={APP_VERSION}
+          onViewAbout={() => void openAboutPage({ pushUrl: true })}
         />
       )}
 
@@ -710,7 +807,12 @@ const App = () => {
         />
       </Suspense>
       <ContentUpdateToast visible={contentSync.hasUpdate} onRefresh={refreshPosts} onDismiss={contentSync.dismiss} />
-      <ComplianceBanner onViewLicenses={() => setShowLicenses(true)} />
+      <ComplianceBanner
+        onViewLicenses={() => {
+          setShowAbout(false);
+          setShowLicenses(true);
+        }}
+      />
     </div>
   );
 };

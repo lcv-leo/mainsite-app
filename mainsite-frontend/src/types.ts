@@ -53,6 +53,17 @@ export interface Post {
   slug?: string;
 }
 
+/** Conteúdo institucional da rota /sobre-este-site. */
+export interface AboutContent {
+  id: number;
+  title: string;
+  content: string;
+  author?: string;
+  source_post_id?: number | null;
+  created_at?: string;
+  updated_at?: string | null;
+}
+
 /** Status de publicação global do site, exposto por /api/site-status. */
 export type PublishingMode = 'normal' | 'hidden';
 
