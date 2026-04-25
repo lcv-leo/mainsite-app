@@ -63,3 +63,21 @@ _cf_functions_build/
 coverage/
 playwright-report/
 test-results/
+
+# Phase 1 audit additions
+# SQL schema dumps banned
+**/schema.sql
+schema.sql
+
+# Internal docs (migration plans, implementation summaries, deliverables, internal user guides, modernizacao notes)
+NEXTJS_MIGRATION_PLAN.md
+**/MIGRATION_PLAN.md
+**/MIGRATION_*.md
+**/IMPLEMENTATION_*.md
+**/DELIVERABLES.md
+**/MODERNIZACAO_*.md
+**/ARCHITECTURE_*.md
+**/USER_GUIDE.md
+**/README_*ZOOM*.md
+**/*_SUMMARY.md
+**/*_CHECKLIST.md
