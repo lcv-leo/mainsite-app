@@ -58,13 +58,7 @@ async function readAbout(db: D1Database) {
 about.get('/api/about', async (c) => {
   try {
     const result = await readAbout(c.env.DB);
-    return c.json(
-      { about: result },
-      200,
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
+    return c.json({ about: result });
   } catch (err) {
     structuredLog('error', '[About] Erro interno', { error: (err as Error).message });
     return c.json({ error: 'Erro interno.' }, 500);

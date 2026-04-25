@@ -7,6 +7,7 @@
 // Lê dados diretamente do D1 via binding DB, sem chamada a URL externa.
 
 import type { D1Database, EventContext, Element } from '@cloudflare/workers-types';
+import { getPublicPostById } from './_lib/publishing';
 import { escapeHtmlAttribute, serializeJsonLd } from './_lib/structured-data';
 
 interface Env {
@@ -17,6 +18,20 @@ interface Env {
 declare const HTMLRewriter: {
   new (): import('@cloudflare/workers-types').HTMLRewriter;
 };
+
+function stripPublicHtmlCors(response: Response): Response {
+  const contentType = response.headers.get('Content-Type') || '';
+  if (!contentType.toLowerCase().includes('text/html')) return response;
+
+  const headers = new Headers(response.headers);
+  headers.delete('Access-Control-Allow-Origin');
+  headers.delete('Access-Control-Allow-Credentials');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
 
 export async function onRequest(context: EventContext<Env, string, Record<string, unknown>>) {
   const url = new URL(context.request.url);
@@ -59,7 +74,7 @@ export async function onRequest(context: EventContext<Env, string, Record<string
   }
 
   // 1. Obtém a resposta original (index.html estático do React/Vite)
-  const response = await context.next();
+  const response = stripPublicHtmlCors(await context.next());
 
   const queryPostId = url.searchParams.get('p');
   const pathMatch = url.pathname.match(/^\/(?:p|post|materia|m|s)\/(\d+)\/?$/i);
@@ -71,12 +86,9 @@ export async function onRequest(context: EventContext<Env, string, Record<string
   try {
     // 3. Consulta D1 — inclui created_at e updated_at para Schema.org dateModified
     const db = context.env.DB;
-    const post = await db
-      .prepare('SELECT id, title, content, author, created_at, updated_at FROM mainsite_posts WHERE id = ?')
-      .bind(postId)
-      .first<{ id: number, title: string, content: string, author: string, created_at: string, updated_at: string }>();
+    const post = await getPublicPostById(db, postId);
 
-    if (!post) return response;
+    if (!post) return new Response('Not Found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 
     const postAuthor = (post.author || '').trim() || 'Leonardo Cardozo Vargas';
 

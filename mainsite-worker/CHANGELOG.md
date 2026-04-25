@@ -1,5 +1,22 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.16.00] - 2026-04-25
+### Segurança
+- Uploads deixam de aceitar SVG novo; SVGs legados servidos por R2 recebem `Content-Security-Policy: sandbox` e `X-Content-Type-Options: nosniff`.
+- Validação de origem CORS agora exige protocolo HTTPS antes de aceitar uma origem allowlisted.
+- Comparação de bearer token trocada para implementação constante e portável, sem depender de APIs não padronizadas do runtime Workers.
+- Headers próprios de `Cache-Control` removidos das rotas públicas e administrativas do worker, mantendo cache sob controle nativo da Cloudflare.
+### Adicionado
+- Testes de regressão para HTTPS obrigatório em origens CORS e para bloqueio/sandbox de SVG em uploads.
+### Alterado
+- Dependências atualizadas durante a auditoria coordenada com `admin-app`; `WRANGLER_VERSION: "latest"` preservado no workflow do repositório por requisito operacional.
+### Validação
+- `npm run lint`.
+- `npm test` — 8 arquivos / 20 testes.
+- `npx --no-install wrangler deploy --dry-run`.
+- `npm audit --audit-level=moderate` — 0 vulnerabilidades.
+- `npm outdated --json` — sem pacotes pendentes.
+
 ## [v02.15.00] - 2026-04-24
 ### Adicionado
 - **Endpoint público `GET /api/about`** ([`src/routes/about.ts`](src/routes/about.ts)): lê o singleton `mainsite_about` no D1 e retorna `{ about }`, com `about: null` quando a tabela ou o registro ainda não existem.

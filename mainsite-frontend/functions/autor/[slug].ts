@@ -5,17 +5,10 @@
 // Cache de 1h no edge.
 
 import type { D1Database, EventContext, Params } from '@cloudflare/workers-types';
+import { listPublicAuthorPosts } from '../_lib/publishing';
 
 interface Env {
   DB: D1Database;
-}
-
-interface PostRow {
-  id: number;
-  title: string;
-  author: string;
-  created_at: string;
-  content: string;
 }
 
 const SITE_URL = 'https://www.reflexosdaalma.blog';
@@ -59,11 +52,8 @@ export async function onRequest(context: EventContext<Env, 'slug', Params<'slug'
 
   try {
     const db = context.env.DB;
-    const allPosts = await db
-      .prepare('SELECT id, title, author, created_at, content FROM mainsite_posts ORDER BY created_at DESC')
-      .all<PostRow>();
-
-    const candidates = (allPosts.results || []).filter((p) => nameToSlug(p.author || '') === slug);
+    const allPosts = await listPublicAuthorPosts(db);
+    const candidates = allPosts.filter((p) => nameToSlug(p.author || '') === slug);
     if (candidates.length === 0) return new Response('Author Not Found', { status: 404 });
 
     const authorName = candidates[0].author || slugToName(slug);
@@ -190,7 +180,6 @@ ${postsList}
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600',
       },
     });
   } catch {

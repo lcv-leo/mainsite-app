@@ -9,8 +9,7 @@
  * mode='hidden', o frontend renderiza a folha em branco do PostReader com
  * o aviso (se preenchido) e nunca chama /api/posts ou /api/posts/:id.
  *
- * Cache-Control: no-store é obrigatório — mudança no admin deve refletir
- * imediatamente no site, sem interferência de CDN ou cache de browser.
+ * Cache gerenciado nativamente pelo Cloudflare; o app não define Cache-Control.
  */
 import { Hono } from 'hono';
 import type { Env } from '../env.ts';
@@ -20,7 +19,6 @@ const siteStatus = new Hono<{ Bindings: Env }>();
 
 siteStatus.get('/api/site-status', async (c) => {
   const status = await readPublishing(c.env.DB);
-  c.header('Cache-Control', 'no-store');
   return c.json(status);
 });
 

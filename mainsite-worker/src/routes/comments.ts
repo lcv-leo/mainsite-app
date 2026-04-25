@@ -434,7 +434,6 @@ comments.get('/api/comments/:postId', async (c) => {
 
     // Post oculto (kill switch global ou visibilidade individual): não lista comentários.
     if (!(await isPostPublicallyVisible(c.env.DB, postId))) {
-      c.header('Cache-Control', 'no-store');
       return c.json({ comments: [], total: 0 });
     }
 
@@ -468,7 +467,6 @@ comments.get('/api/comments/:postId/count', async (c) => {
     if (Number.isNaN(postId)) return c.json({ error: 'Post ID inválido.' }, 400);
 
     if (!(await isPostPublicallyVisible(c.env.DB, postId))) {
-      c.header('Cache-Control', 'no-store');
       return c.json({ count: 0 });
     }
 

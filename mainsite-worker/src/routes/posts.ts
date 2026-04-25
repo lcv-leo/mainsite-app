@@ -142,7 +142,6 @@ posts.get('/api/posts', async (c) => {
   try {
     const mode = await readPublishingMode(c.env.DB);
     if (mode === 'hidden') {
-      c.header('Cache-Control', 'no-store');
       return c.json([]);
     }
     const { results } = await c.env.DB.prepare(
@@ -172,7 +171,6 @@ posts.get('/api/posts/:id', async (c) => {
     const id = c.req.param('id');
     const mode = await readPublishingMode(c.env.DB);
     if (mode === 'hidden') {
-      c.header('Cache-Control', 'no-store');
       return c.json({ error: 'Post não encontrado' }, 404);
     }
     const post = await c.env.DB.prepare('SELECT * FROM mainsite_posts WHERE id = ? AND is_published = 1')

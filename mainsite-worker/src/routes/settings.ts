@@ -33,7 +33,6 @@ settings.get('/api/theme.css', async (c) => {
     return new Response(buildThemeStylesheet(themeSettings), {
       headers: {
         'Content-Type': 'text/css; charset=utf-8',
-        'Cache-Control': 'no-store',
       },
     });
   } catch (err) {
@@ -41,7 +40,6 @@ settings.get('/api/theme.css', async (c) => {
     return new Response(buildThemeStylesheet(DEFAULT_THEME_SETTINGS), {
       headers: {
         'Content-Type': 'text/css; charset=utf-8',
-        'Cache-Control': 'no-store',
       },
     });
   }
@@ -197,9 +195,7 @@ settings.put('/api/settings/disclaimers', requireAuth, async (c) => {
 settings.get('/api/content-fingerprint', async (c) => {
   try {
     const fingerprint = await getContentFingerprint(c.env.DB);
-    return c.json(fingerprint, 200, {
-      'Cache-Control': 'public, max-age=5',
-    });
+    return c.json(fingerprint);
   } catch (err) {
     structuredLog('error', '[Settings] Erro interno', { error: (err as Error).message });
     return c.json({ error: 'Erro interno.' }, 500);

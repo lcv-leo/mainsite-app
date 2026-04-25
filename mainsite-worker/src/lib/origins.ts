@@ -22,7 +22,9 @@ export const ALLOWED_ORIGIN_HOSTNAMES = new Set<string>(
 export function getAllowedOrigin(origin: string | null | undefined): string | null {
   if (!origin) return null;
   try {
-    const hostname = new URL(origin).hostname.toLowerCase();
+    const url = new URL(origin);
+    if (url.protocol !== 'https:') return null;
+    const hostname = url.hostname.toLowerCase();
     return ALLOWED_ORIGIN_HOSTNAMES.has(hostname) ? origin : null;
   } catch {
     return null;

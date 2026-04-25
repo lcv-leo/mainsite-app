@@ -1,5 +1,20 @@
 # Changelog — Mainsite Frontend
 
+## [v03.21.00] - 2026-04-25
+### Segurança
+- Adicionado helper de publicação para Pages Functions (`functions/_lib/publishing.ts`) que lê `mainsite/publishing`, respeita modo `hidden` e filtra `is_published=1` antes de expor posts públicos.
+- `[[path]].ts`, `sitemap.xml.ts`, `feed.xml.ts` e `autor/[slug].ts` passaram a usar o helper, eliminando vazamento de posts ocultos/não publicados em deep links, feed, sitemap e páginas de autor.
+- Respostas HTML públicas passam por `stripPublicHtmlCors`, removendo `Access-Control-Allow-Origin` e credenciais de HTML renderizado.
+- CSP de `_headers` deixou de usar `https:` amplo em `connect-src`, `frame-src` e `form-action`, mantendo allowlist explícita para Cloudflare, SumUp, Google/Analytics/Tag Manager, OPPWA e provedores 3DS.
+- `VITE_API_SECRET` removido do ambiente de deploy do frontend.
+### Alterado
+- Dependências atualizadas; `WRANGLER_VERSION: "latest"` preservado no workflow por requisito operacional.
+- Runner Vitest dedicado (`scripts/run-vitest.mjs`) define `NODE_OPTIONS` com `--localstorage-file` válido para estabilizar testes no Node moderno.
+### Validação
+- `npm run lint`, `npm test` — 6 arquivos / 27 testes, `npm run build`.
+- `npm audit --audit-level=moderate` — 0 vulnerabilidades.
+- `npm outdated --json` — sem pacotes pendentes.
+
 ## [v03.20.01] - 2026-04-24
 ### Alterado
 - **Link "Sobre Este Site" no `ArchiveMenu` ganhou presença visual de ação secundária**: passa a usar ícone `Info`, pill com borda, texto uppercase, hover/focus com inversão de cor e sombra sutil, alinhado ao padrão visual dos controles do arquivo do MainSite.

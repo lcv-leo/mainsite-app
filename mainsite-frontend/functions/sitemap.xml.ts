@@ -3,6 +3,7 @@
 // Repassa o User-Agent original para manter compatibilidade com detecção de bots.
 
 import type { D1Database, EventContext } from '@cloudflare/workers-types';
+import { listPublicPosts } from './_lib/publishing';
 
 interface Env {
   DB: D1Database;
@@ -12,10 +13,8 @@ export async function onRequest(context: EventContext<Env, string, Record<string
   try {
     const db = context.env.DB;
 
-    // Busca todos os posts publicados, ordenados pelo mais recente
-    const { results } = await db.prepare(
-      'SELECT id, author, created_at FROM mainsite_posts ORDER BY created_at DESC'
-    ).all<{ id: number; author: string; created_at: string }>();
+    // Busca somente posts publicamente visíveis, ordenados pelo mais recente.
+    const results = await listPublicPosts(db);
 
     let hasAboutContent = false;
     try {
@@ -102,7 +101,6 @@ export async function onRequest(context: EventContext<Env, string, Record<string
       status: 200,
       headers: {
         'Content-Type': 'application/xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600',
       },
     });
   } catch {

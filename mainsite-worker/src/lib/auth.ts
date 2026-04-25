@@ -10,14 +10,17 @@ import type { Env } from '../env.ts';
  * Previne timing attacks ao garantir tempo de execução independente do conteúdo.
  */
 function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    // Compara contra si mesmo para manter tempo constante mesmo com tamanhos diferentes
-    const dummy = new TextEncoder().encode(a);
-    crypto.subtle.timingSafeEqual(dummy, dummy);
-    return false;
-  }
   const encoder = new TextEncoder();
-  return crypto.subtle.timingSafeEqual(encoder.encode(a), encoder.encode(b));
+  const left = encoder.encode(a);
+  const right = encoder.encode(b);
+  const length = Math.max(left.length, right.length);
+  let diff = left.length ^ right.length;
+
+  for (let index = 0; index < length; index += 1) {
+    diff |= (left[index] ?? 0) ^ (right[index] ?? 0);
+  }
+
+  return diff === 0;
 }
 
 /**

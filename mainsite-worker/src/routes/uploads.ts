@@ -15,13 +15,12 @@ import { getAllowedOrigin } from '../lib/origins.ts';
 const uploads = new Hono<{ Bindings: Env }>();
 
 // --- Upload Security Constants ---
-const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'pdf']);
+const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'pdf']);
 const ALLOWED_CONTENT_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/gif',
   'image/webp',
-  'image/svg+xml',
   'image/avif',
   'application/pdf',
 ]);
@@ -64,7 +63,7 @@ uploads.post('/api/upload', requireAuth, async (c) => {
     // Extension validation
     const safeName = sanitizeFilename(file.name);
     if (!safeName) {
-      return c.json({ error: 'Tipo de arquivo não permitido. Use: jpg, png, gif, webp, svg, avif, pdf.' }, 400);
+      return c.json({ error: 'Tipo de arquivo não permitido. Use: jpg, png, gif, webp, avif, pdf.' }, 400);
     }
 
     // Content-type validation
@@ -97,12 +96,20 @@ function validateGetFilename(filename: string): string | null {
 }
 
 function applyPublicAssetHeaders(headers: Headers, origin: string | undefined) {
-  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('X-Content-Type-Options', 'nosniff');
   const allowedOrigin = getAllowedOrigin(origin);
   if (allowedOrigin) {
     headers.set('Access-Control-Allow-Origin', allowedOrigin);
     headers.set('Vary', 'Origin');
   }
+}
+
+function applySvgSafetyHeaders(filename: string, headers: Headers) {
+  const contentType = headers.get('Content-Type')?.split(';')[0].trim().toLowerCase();
+  if (contentType !== 'image/svg+xml' && !filename.toLowerCase().endsWith('.svg')) return;
+
+  headers.set('Content-Security-Policy', "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'");
+  headers.set('X-Content-Type-Options', 'nosniff');
 }
 
 // GET /api/uploads/:filename (público)
@@ -116,6 +123,7 @@ uploads.get('/api/uploads/:filename', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     applyPublicAssetHeaders(headers, c.req.header('origin'));
+    applySvgSafetyHeaders(filename, headers);
     return new Response(object.body, { headers });
   } catch (err) {
     structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
@@ -134,6 +142,7 @@ uploads.get('/api/uploads/brands/:filename', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     applyPublicAssetHeaders(headers, c.req.header('origin'));
+    applySvgSafetyHeaders(filename, headers);
     return new Response(object.body, { headers });
   } catch (err) {
     structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
@@ -152,6 +161,7 @@ uploads.get('/api/media/:filename', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     applyPublicAssetHeaders(headers, c.req.header('origin'));
+    applySvgSafetyHeaders(filename, headers);
     return new Response(object.body, { headers });
   } catch (err) {
     structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });
@@ -170,6 +180,7 @@ uploads.get('/api/mainsite/media/:filename', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     applyPublicAssetHeaders(headers, c.req.header('origin'));
+    applySvgSafetyHeaders(filename, headers);
     return new Response(object.body, { headers });
   } catch (err) {
     structuredLog('error', '[Uploads] Erro interno', { error: (err as Error).message });

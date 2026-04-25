@@ -84,7 +84,6 @@ ratings.get('/api/ratings/:postId', async (c) => {
     if (Number.isNaN(postId)) return c.json({ error: 'Post ID inválido.' }, 400);
 
     if (!(await isPostPublicallyVisible(c.env.DB, postId))) {
-      c.header('Cache-Control', 'no-store');
       return c.json({ avgRating: 0, totalVotes: 0, userRating: null, distribution: {}, reactions: {} });
     }
 

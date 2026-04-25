@@ -4,18 +4,10 @@
 // Cache de 1h no edge.
 
 import type { D1Database, EventContext } from '@cloudflare/workers-types';
+import { listPublicPosts } from './_lib/publishing';
 
 interface Env {
   DB: D1Database;
-}
-
-interface PostRow {
-  id: number;
-  title: string;
-  content: string;
-  author: string;
-  created_at: string;
-  updated_at: string;
 }
 
 const SITE_URL = 'https://www.reflexosdaalma.blog';
@@ -44,10 +36,7 @@ function stripHtml(html: string): string {
 export async function onRequest(context: EventContext<Env, string, Record<string, unknown>>) {
   try {
     const db = context.env.DB;
-    const { results } = await db
-      .prepare('SELECT id, title, content, author, created_at, updated_at FROM mainsite_posts ORDER BY created_at DESC LIMIT ?')
-      .bind(FEED_LIMIT)
-      .all<PostRow>();
+    const results = await listPublicPosts(db, FEED_LIMIT);
 
     const lastBuildDate = toRfc822(results?.[0]?.updated_at || results?.[0]?.created_at || null);
 
@@ -82,7 +71,6 @@ ${items}
       status: 200,
       headers: {
         'Content-Type': 'application/rss+xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600',
       },
     });
   } catch {
