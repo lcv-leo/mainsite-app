@@ -71,7 +71,8 @@ const PostReader = ({
       'lcvmail.com',
       'lcvmasker.com',
     ];
-    const domainPattern = INTERNAL_DOMAINS.map((d) => `(?:www\\.)?${d.replace(/\./g, '\\.')}`).join('|');
+    const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const domainPattern = INTERNAL_DOMAINS.map((d) => `(?:www\\.)?${escapeRegExp(d)}`).join('|');
     const internalLinkRegex = new RegExp(`https?://(?:${domainPattern})(/[^"'\\s<>]*)`, 'gi');
     const activeContent = (content || '').replace(internalLinkRegex, '$1');
     const isHtml = /<\/?[a-z][\s\S]*>/i.test(activeContent);

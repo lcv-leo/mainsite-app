@@ -296,8 +296,15 @@ comments.post('/api/comments', async (c) => {
       return c.json({ error: 'Comentário duplicado detectado.' }, 409);
     }
 
-    // Sanitização básica do conteúdo (strip HTML tags)
-    const sanitizedContent = body.content.replace(/<[^>]*>/g, '').trim();
+    // Sanitização básica do conteúdo (strip HTML tags) — loop até estabilizar
+    // para resistir a padrões aninhados como `<a<b>>` que sobreviveriam num único pass.
+    let stripIter = body.content;
+    let stripPrev = '';
+    while (stripPrev !== stripIter) {
+      stripPrev = stripIter;
+      stripIter = stripIter.replace(/<[^>]*>/g, '');
+    }
+    const sanitizedContent = stripIter.trim();
 
     if (sanitizedContent.length === 0) {
       return c.json({ error: 'Comentário não pode estar vazio.' }, 400);

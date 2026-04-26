@@ -26,8 +26,10 @@ const INTERNAL_DOMAINS = [
   'lcvmasker.com',
 ];
 
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const normalizeInternalLinks = (content: string) => {
-  const domainPattern = INTERNAL_DOMAINS.map((domain) => `(?:www\\.)?${domain.replace(/\./g, '\\.')}`).join('|');
+  const domainPattern = INTERNAL_DOMAINS.map((domain) => `(?:www\\.)?${escapeRegExp(domain)}`).join('|');
   const internalLinkRegex = new RegExp(`https?://(?:${domainPattern})(/[^"'\\s<>]*)`, 'gi');
   return content.replace(internalLinkRegex, '$1');
 };

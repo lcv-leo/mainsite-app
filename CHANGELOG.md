@@ -1,5 +1,11 @@
 # Changelog — MainSite App
 
+## [mainsite-worker v02.17.04 + mainsite-frontend v03.21.04] - 2026-04-26
+### Segurança — leak post-public-flip + Code Scanning alerts (CodeQL)
+- **CRÍTICO — token Cloudflare User API vazado**: history scrub via `git-filter-repo` removeu o token (`cfut_*`) que estava em `mainsite-worker/test-genai.ts` (commit `79ea8e22` legado, arquivo já deletado de HEAD desde 2026-04-06). Cloudflare auto-revogou o token via partner notification do GitHub Secret Scanning. Alerta GH #3 marcado como `resolved/revoked`.
+- **`js/incomplete-sanitization` × 2**: `mainsite-frontend/src/components/PostReader.tsx:74` e `mainsite-frontend/src/components/AboutPage.tsx:30` passaram a usar `escapeRegExp` (`[.*+?^${}()|[\]\\]`) para escapar todos os caracteres especiais ao construir o pattern regex de domínios internos. CodeQL false-positive (regex pattern construction, não output sanitization), mas o escape mais comprehensive elimina o aviso.
+- **`js/incomplete-multi-character-sanitization`**: `mainsite-worker/src/routes/comments.ts:300` agora faz loop até estabilizar no strip de tags HTML para resistir a padrões aninhados.
+
 ## [mainsite-worker v02.17.03 + mainsite-frontend v03.21.03] - 2026-04-26
 ### Adicionado — Phase 3 sweep (flip readiness, puramente aditivo)
 - **`CONTRIBUTING.md`**: guia para issues + PRs cobrindo gates locais por sub-app (mainsite-frontend + mainsite-worker), wrangler dry-run, action pinning, versioning, regra de `public/_headers` intocável.
