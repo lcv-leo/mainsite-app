@@ -1,5 +1,10 @@
 # Changelog — MainSite App
 
+## [mainsite-frontend v03.21.06] - 2026-04-26
+### Corrigido — text-indent ausente em `.html-content p`
+- **`src/components/PostReader.css:189-194`** (`.post-reader .html-content p`): adicionado `text-indent: var(--site-text-indent)` para que parágrafos de HTML (vindos do PostEditor) recebam identação automática mesmo quando o HTML salvo não tem `style="text-indent: …rem"` inline. Antes só `.p-content` (legacy plain-text) tinha esse estilo, então AboutPage e qualquer post com `<p>` "nu" renderizava sem identação. Inline styles continuam vencendo (posts antigos com `text-indent: 1.5rem` inline preservam o valor).
+- Pareado com `admin-app` v01.99.04 que muda o default da extensão TextIndent do PostEditor de `0` para `1.5` (paragraph) — toda nova gravação sai com inline `text-indent: 1.5rem`. Conteúdo de `mainsite_about` em D1 backfillado para o mesmo valor.
+
 ## [mainsite-worker v02.17.05 + mainsite-frontend v03.21.05] - 2026-04-26
 ### Adicionado
 - **GitHub Pages site** (PIX donation landing) com workflow `pages.yml` no padrão moderno (artifact deployment via `configure-pages` + `upload-pages-artifact` + `deploy-pages`, todos SHA-pinned).

@@ -189,13 +189,16 @@
 .post-reader .html-content p {
   text-align: var(--site-text-align);
   line-height: var(--site-line-height);
+  text-indent: var(--site-text-indent);
   font-weight: var(--site-body-weight);
   margin: 0 0 1.2rem;
 }
 
-.post-reader .html-content p[style*="text-align: center"] {
+.post-reader .html-content p[style*="text-align: center"],
+.post-reader .html-content p[style*="text-align:center"] {
   margin: 0.35rem 0 1.4rem;
   opacity: 0.86;
+  text-indent: 0;
 }
 
 .post-reader .html-content p[style*="text-align: center"] em {
