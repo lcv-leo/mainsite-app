@@ -54,3 +54,5 @@ _cf_functions_build/
 coverage/
 playwright-report/
 test-results/
+.vitest-localstorage
+.vitest-localstorage-*
