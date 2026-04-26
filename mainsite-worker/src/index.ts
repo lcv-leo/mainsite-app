@@ -7,7 +7,7 @@
  * Hono-based modular Worker com paridade total ao monolito.
  * Versão modular: todos os domínios em src/routes/*.ts
  */
-export const APP_VERSION = 'APP v02.17.04';
+export const APP_VERSION = 'APP v02.17.05';
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';

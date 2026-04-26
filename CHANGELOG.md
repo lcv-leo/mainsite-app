@@ -1,5 +1,14 @@
 # Changelog — MainSite App
 
+## [mainsite-worker v02.17.05 + mainsite-frontend v03.21.05] - 2026-04-26
+### Adicionado
+- **GitHub Pages site** (PIX donation landing) com workflow `pages.yml` no padrão moderno (artifact deployment via `configure-pages` + `upload-pages-artifact` + `deploy-pages`, todos SHA-pinned).
+### Alterado
+- **`.github/workflows/pages.yml`** — `actions/configure-pages@v6.0.0` passou a declarar `with: enablement: true` para idempotência em forks/clones que ainda não tenham GitHub Pages habilitado (corrige `Get Pages site failed... HTTP 404` em primeiro run).
+- **`FUNDING.yml`** — corrigida `custom URL` para apontar a este repo (não cross-review-mcp).
+### Validação
+- Trilateral cross-review session `08bc6b9a-f3f5-434d-8276-2b21f562a843` (caller + Codex + Gemini) **READY**: paridade confirmada nos 9 repos públicos do workspace em security baseline, repo features, workflow perms, branch rulesets, Pages deployment, CodeQL Default Setup, 0 alertas abertos.
+
 ## [mainsite-worker v02.17.04 + mainsite-frontend v03.21.04] - 2026-04-26
 ### Segurança — leak post-public-flip + Code Scanning alerts (CodeQL)
 - **CRÍTICO — token Cloudflare User API vazado**: history scrub via `git-filter-repo` removeu o token (`cfut_*`) que estava em `mainsite-worker/test-genai.ts` (commit `79ea8e22` legado, arquivo já deletado de HEAD desde 2026-04-06). Cloudflare auto-revogou o token via partner notification do GitHub Secret Scanning. Alerta GH #3 marcado como `resolved/revoked`.
