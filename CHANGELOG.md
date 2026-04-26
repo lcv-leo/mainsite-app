@@ -1,5 +1,9 @@
 # Changelog — MainSite App
 
+## [mainsite-worker v02.17.01 + mainsite-frontend v03.21.01] - 2026-04-25
+### Public-flip prep (Auditoria Fase 0)
+- **D1 nil-UUID + GHA secret-injection**: `mainsite-worker/wrangler.json` e `mainsite-frontend/wrangler.json` substituem o `database_id` real por placeholder nil-UUID (`00000000-0000-0000-0000-000000000000`); o ID real é injetado em deploy via `D1_DATABASE_ID` (GitHub Secret) com substituição `jq` em ambos os configs no único job `deploy`. Replica padrão do oraculo-financeiro v01.10.01. Achado BLOCKING #4 da auditoria 2026-04-25.
+
 ## [mainsite-worker v02.17.00] - 2026-04-25
 ### Hardening (Auditoria trilateral cross-review — Fase 0)
 - **`src/lib/auth.ts` — `getAdminEmail` cache com TTL e invalidador**: o cache module-scope que retornava o e-mail do admin sem nunca expirar foi substituído por TTL de 60 s; export de `invalidateAdminEmailCache()` permite invalidação explícita pelos chamadores que mutam `mainsite_settings.mainsite/admin_email`. Achado BLOCKING #3 da auditoria 2026-04-25.

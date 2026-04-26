@@ -31,6 +31,24 @@ jobs:
             ./mainsite-worker/package-lock.json
             ./mainsite-frontend/package-lock.json
 
+      - name: Inject D1 database_id from secret (mainsite-worker + mainsite-frontend)
+        run: |
+          if [ -z "${D1_DATABASE_ID:-}" ]; then
+            echo "::error::D1_DATABASE_ID secret is not set" >&2
+            exit 1
+          fi
+          for CFG in mainsite-worker/wrangler.json mainsite-frontend/wrangler.json; do
+            jq --arg id "$D1_DATABASE_ID" '.d1_databases[0].database_id = $id' "$CFG" > "$CFG.tmp"
+            mv "$CFG.tmp" "$CFG"
+            grep -q "$D1_DATABASE_ID" "$CFG" || { echo "::error::Substitution failed in $CFG" >&2; exit 1; }
+            if grep -q "00000000-0000-0000-0000-000000000000" "$CFG"; then
+              echo "::error::Placeholder still present in $CFG" >&2
+              exit 1
+            fi
+          done
+        env:
+          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+
       - name: Install e Deploy Worker
         working-directory: ./mainsite-worker
         run: |
