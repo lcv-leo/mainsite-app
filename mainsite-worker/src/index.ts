@@ -7,7 +7,7 @@
  * Hono-based modular Worker com paridade total ao monolito.
  * Versão modular: todos os domínios em src/routes/*.ts
  */
-export const APP_VERSION = 'APP v02.17.02';
+export const APP_VERSION = 'APP v02.17.03';
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -222,7 +222,7 @@ export type AppType = typeof app;
 
 export default {
   fetch: app.fetch,
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
     try {
       // Kill switch global: se o site está oculto, não rotacionar nada.
       if ((await readPublishingMode(env.DB)) === 'hidden') return;
@@ -251,7 +251,8 @@ export default {
       ).all();
       if (!posts || posts.length <= 1) return;
 
-      const topPost = posts.shift()!;
+      const topPost = posts.shift();
+      if (!topPost) return;
       posts.push(topPost);
 
       const statements = posts.map((post, index) =>
