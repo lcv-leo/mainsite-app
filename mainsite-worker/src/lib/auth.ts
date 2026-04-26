@@ -236,15 +236,34 @@ export const requireAuth = async (c: Context<{ Bindings: Env }>, next: Next) => 
   await next();
 };
 
-let cachedAdminEmail: string | null = null;
+interface AdminEmailCache {
+  value: string | null;
+  expiresAt: number;
+}
+
+const ADMIN_EMAIL_TTL_MS = 60_000;
+let adminEmailCache: AdminEmailCache | null = null;
+
+/**
+ * Invalidates the admin email cache. Callers MUST invoke this after any
+ * mutation that may change the value of `mainsite_settings.mainsite/admin_email`,
+ * otherwise the cached value can stay stale up to TTL_MS.
+ */
+export function invalidateAdminEmailCache(): void {
+  adminEmailCache = null;
+}
 
 /**
  * Reads admin notification email from D1 settings.
  * Returns null if not configured — callers must guard against null.
- * Caches per-isolate.
+ * Caches per-isolate with TTL (60s) so admin updates propagate without
+ * waiting for isolate recycle.
  */
 export async function getAdminEmail(db: D1Database): Promise<string | null> {
-  if (cachedAdminEmail) return cachedAdminEmail;
+  const now = Date.now();
+  if (adminEmailCache && adminEmailCache.expiresAt > now) {
+    return adminEmailCache.value;
+  }
   try {
     const row = await db
       .prepare("SELECT payload FROM mainsite_settings WHERE id = 'mainsite/admin_email'")
@@ -252,7 +271,7 @@ export async function getAdminEmail(db: D1Database): Promise<string | null> {
     if (row?.payload) {
       const parsed = JSON.parse(row.payload);
       if (typeof parsed.email === 'string' && parsed.email.includes('@')) {
-        cachedAdminEmail = parsed.email;
+        adminEmailCache = { value: parsed.email, expiresAt: now + ADMIN_EMAIL_TTL_MS };
         return parsed.email;
       }
     }
@@ -262,5 +281,6 @@ export async function getAdminEmail(db: D1Database): Promise<string | null> {
   console.warn(
     '[mainsite-motor] [Auth] Admin email not configured in D1 (mainsite/admin_email). Email notifications disabled.',
   );
+  adminEmailCache = { value: null, expiresAt: now + ADMIN_EMAIL_TTL_MS };
   return null;
 }

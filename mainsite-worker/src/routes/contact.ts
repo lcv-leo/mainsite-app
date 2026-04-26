@@ -65,6 +65,10 @@ contact.post('/api/contact', async (c) => {
 
     const sentiment = await getSentimentPrefix(c.env, message);
     const resendToken = c.env.RESEND_API_KEY;
+    if (!resendToken) {
+      structuredLog('error', '[Contact] RESEND_API_KEY ausente em runtime', { route: '/api/contact' });
+      return c.json({ error: 'Serviço de e-mail temporariamente indisponível.' }, 503);
+    }
     const adminHtml = `
       <div style="font-family: sans-serif; color: #333;">
         <h2 style="color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">Novo Contato pelo Site ${escapeHtml(sentiment)}</h2>
@@ -134,6 +138,11 @@ contact.post('/api/comment', async (c) => {
 
     const turnstileFailure = await requireTurnstileValidation(c, turnstile_token);
     if (turnstileFailure) return turnstileFailure;
+
+    if (!c.env.RESEND_API_KEY) {
+      structuredLog('error', '[Contact] RESEND_API_KEY ausente em runtime', { route: '/api/comment' });
+      return c.json({ error: 'Serviço de e-mail temporariamente indisponível.' }, 503);
+    }
 
     const sentiment = await getSentimentPrefix(c.env, message);
     const adminHtml = `

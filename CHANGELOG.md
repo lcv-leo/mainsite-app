@@ -1,5 +1,15 @@
 # Changelog — MainSite App
 
+## [mainsite-worker v02.17.00] - 2026-04-25
+### Hardening (Auditoria trilateral cross-review — Fase 0)
+- **`src/lib/auth.ts` — `getAdminEmail` cache com TTL e invalidador**: o cache module-scope que retornava o e-mail do admin sem nunca expirar foi substituído por TTL de 60 s; export de `invalidateAdminEmailCache()` permite invalidação explícita pelos chamadores que mutam `mainsite_settings.mainsite/admin_email`. Achado BLOCKING #3 da auditoria 2026-04-25.
+- **`src/routes/contact.ts` — guards de `RESEND_API_KEY` ausente**: `/api/contact` e `/api/comment` retornam `503` com log estruturado em vez de emitir `Bearer undefined` ao Resend caso o resolver do Secrets Store falhe transitoriamente. Achado HIGH #5.
+- **`src/routes/ai.ts` + `src/lib/rate-limit.ts` — cap absoluto global em `/api/ai/public/chat`**: nova rota `chat-public-global` no `DEFAULT_RATE_LIMIT` com 500 req/h (default-on, configurável via `mainsite_settings/mainsite/ratelimit`). Independente do toggle per-IP — protege contra botnets ciclando IPs. Retorna `429` quando excedido. Achado HIGH #6.
+### Validação
+- `npm run lint`.
+- `npm test`.
+- `npm run build`.
+
 ## [Auditoria de Segurança Coordenada] - 2026-04-25
 ### Segurança
 - `mainsite-frontend` passou a usar helpers de publicação nas Pages Functions para impedir que sitemap, feed, páginas de autor e deep links exponham posts ocultos, não publicados ou conteúdo em modo `hidden`.

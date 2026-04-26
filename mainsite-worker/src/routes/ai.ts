@@ -25,6 +25,7 @@ import { stripHtml } from '../lib/gemini.ts';
 import { countTokens, createClient, extractText, extractUsage, generate, getConfiguredModel } from '../lib/genai.ts';
 import { structuredLog } from '../lib/logger.ts';
 import { readPublishingMode } from '../lib/publishing.ts';
+import { checkRateLimit, loadRateLimitConfig, recordRateLimitHit } from '../lib/rate-limit.ts';
 import { ChatInputSchema } from '../lib/schemas.ts';
 
 const ai = new Hono<{ Bindings: Env }>();
@@ -143,7 +144,7 @@ ai.post('/api/ai/transform', requireAuth, async (c) => {
   }
 });
 
-// POST /api/ai/public/chat (public, rate-limited upstream)
+// POST /api/ai/public/chat (public, rate-limited upstream + global budget cap)
 ai.post('/api/ai/public/chat', async (c) => {
   try {
     let rawBody: unknown;
@@ -155,6 +156,19 @@ ai.post('/api/ai/public/chat', async (c) => {
     const parsed = ChatInputSchema.safeParse(rawBody);
     if (!parsed.success) return c.json({ error: 'Mensagem ausente.' }, 400);
     const { message, currentContext, askForDonation } = parsed.data;
+
+    // Global absolute budget cap (default-on, configurable via mainsite_settings/mainsite/ratelimit).
+    // Independente do toggle per-IP — protege contra botnets ciclando IPs.
+    const rateLimitConfig = await loadRateLimitConfig(c.env.DB);
+    const globalBudgetExceeded = await checkRateLimit(c.env.DB, 'chat-public-global', 'GLOBAL', rateLimitConfig);
+    if (globalBudgetExceeded) {
+      structuredLog('warn', '[AI Chat] Global budget cap reached', { route: 'chat-public-global' });
+      return c.json(
+        { error: 'Limite global de uso da IA atingido nesta janela. Tente novamente mais tarde.' },
+        429,
+      );
+    }
+    c.executionCtx.waitUntil(recordRateLimitHit(c.env.DB, 'chat-public-global', 'GLOBAL'));
 
     // Kill switch global OU filtragem por is_published: chatbot usa só contexto
     // dos textos efetivamente publicados. Em modo hidden, contexto fica vazio

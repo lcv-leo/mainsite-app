@@ -16,6 +16,9 @@ export const DEFAULT_RATE_LIMIT: RateLimitConfig = {
     summarize: { maxRequests: 5, windowMinutes: 30 },
     translate: { maxRequests: 5, windowMinutes: 30 },
     contact: { maxRequests: 5, windowMinutes: 30 },
+    // Default-on absolute global cap on /api/ai/public/chat (independent of per-IP toggle).
+    // Botnet ciclando IPs ainda é limitado por este cap.
+    'chat-public-global': { maxRequests: 500, windowMinutes: 60 },
   },
 };
 
