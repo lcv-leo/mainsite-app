@@ -7,7 +7,7 @@
  * Hono-based modular Worker com paridade total ao monolito.
  * Versão modular: todos os domínios em src/routes/*.ts
  */
-export const APP_VERSION = 'APP v02.17.01';
+export const APP_VERSION = 'APP v02.17.02';
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -23,7 +23,6 @@ import aboutRoutes from './routes/about.ts';
 import aiRoutes from './routes/ai.ts';
 import commentsRoutes from './routes/comments.ts';
 import contactRoutes from './routes/contact.ts';
-import miscRoutes from './routes/misc.ts';
 import paymentsRoutes from './routes/payments.ts';
 import postSummariesRoutes from './routes/post-summaries.ts';
 import postsRoutes from './routes/posts.ts';
@@ -210,7 +209,6 @@ app.route('/', contactRoutes);
 app.route('/', settingsRoutes);
 app.route('/', siteStatusRoutes);
 app.route('/', uploadsRoutes);
-app.route('/', miscRoutes);
 app.route('/', paymentsRoutes);
 app.route('/', postSummariesRoutes);
 app.route('/', commentsRoutes);

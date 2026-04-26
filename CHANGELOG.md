@@ -1,5 +1,13 @@
 # Changelog — MainSite App
 
+## [mainsite-worker v02.17.02 + mainsite-frontend v03.21.02] - 2026-04-26
+### Phase 1 sweep — audit residuals
+- **lcv-rio → lcv-leo (audit MEDIUM #14)**: 4 arquivos no `mainsite-frontend` (`index.html`, `functions/[[path]].ts`, `public/llms.txt`, `src/components/PostReader.tsx`) atualizados para apontar à org canônica `lcv-leo` em GitHub e LinkedIn (JSON-LD `sameAs` arrays + llms.txt + meta tags). ComplianceBanner já estava correto.
+- **mainsite-worker dead code purge (audit NIT)**: `src/routes/misc.ts` (router Hono vazio mountado sem rotas) deletado; import e mount removidos de `src/index.ts`.
+- **mainsite-worker type tightening (audit NIT)**: `src/env.ts` `AI: any` → `AI: Ai` (tipo nativo de `@cloudflare/workers-types`).
+- **mainsite-worker GCP_NL_API_KEY type-drift fix (audit MEDIUM #44)**: tipo passa de `SecretStoreBinding` para `string` em `RawEnv` com comentário explicativo de que é native Worker secret (>1024 chars JSON SA não cabe em Secrets Store). Resolver permanece duck-typed via `typeof binding.get === 'function'`.
+- **mainsite-worker EnvSecretsSchema (audit MEDIUM #20)**: `TURNSTILE_SECRET_KEY` e `GCP_NL_API_KEY` removidos de `.optional()`; agora exigidos pelo schema para alinhar com o contrato runtime fail-closed dos handlers (`comments.ts`, `contact.ts` retornam 503 quando faltam). PIX permanece opcional (realmente).
+
 ## [docs/SECURITY] - 2026-04-25
 ### Documentação
 - **`SECURITY.md`**: nova seção "Architectural Decision — Content Protection: Attribution over Blocking" formaliza a decisão (CHANGELOG entries v03.13.x e arredores) de remover camadas hostis de bloqueio (contextmenu/keydown/PrintScreen/DevTools/`user-select:none`) em favor de atribuição automática no clipboard. Documentação preventiva contra reintrodução acidental e contra falsos positivos de auditoria. Aborda item NIT #7 da auditoria 2026-04-25.

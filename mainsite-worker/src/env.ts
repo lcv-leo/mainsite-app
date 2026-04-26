@@ -28,7 +28,7 @@ export interface RawEnv {
   BUCKET: R2Bucket;
 
   // --- Workers AI ---
-  AI: any;
+  AI: Ai;
 
   // --- Rate Limiting (native Cloudflare binding) ---
   RL_CHATBOT: RateLimit;
@@ -49,9 +49,15 @@ export interface RawEnv {
   PIX_NAME: SecretStoreBinding;
   PIX_CITY: SecretStoreBinding;
 
-  // --- Moderação (GCP NL API + Turnstile) ---
-  GCP_NL_API_KEY: SecretStoreBinding;
+  // --- Turnstile (Secret Store → .get()) ---
   TURNSTILE_SECRET_KEY: SecretStoreBinding;
+
+  // --- GCP Natural Language API ---
+  // GCP_NL_API_KEY contains the full Service Account JSON (>1024 chars)
+  // and CANNOT live in Secret Store; it is a native Worker secret set via
+  // `wrangler secret put GCP_NL_API_KEY`. Resolver in index.ts duck-types
+  // the .get() check and passes the existing string through unchanged.
+  GCP_NL_API_KEY: string;
 
   // --- Cloudflare Access (optional hardening for admin routes) ---
   CF_ACCESS_TEAM_DOMAIN?: SecretStoreBinding;
@@ -71,7 +77,7 @@ export interface Env {
   BUCKET: R2Bucket;
 
   // --- Workers AI ---
-  AI: any;
+  AI: Ai;
 
   // --- Rate Limiting (native Cloudflare binding) ---
   RL_CHATBOT: RateLimit;

@@ -111,18 +111,27 @@ export type ShareLogInput = z.infer<typeof ShareLogSchema>;
 
 /**
  * Secrets do Worker após resolução pelo middleware SecretStore.
- * Secrets críticos são required — ausência gera warn no middleware (warn-only, nunca 503).
- * Secrets de features opcionais permanecem .optional().
+ *
+ * Camadas:
+ * - "Sempre obrigatório": ausência indica deploy mal configurado; sinalização warn (não 503).
+ * - "Feature-gated": runtime já é fail-closed (handlers retornam 503/410/etc. quando
+ *   estes faltam). Por isso NÃO são `.optional()` — o schema reflete o contrato real
+ *   exigido pelos handlers (`comments.ts`, `contact.ts` etc. dependem de
+ *   `TURNSTILE_SECRET_KEY` e `GCP_NL_API_KEY`).
+ * - PIX: realmente opcionais; PIX permanece desabilitado se ausentes.
  */
 export const EnvSecretsSchema = z.object({
+  // Sempre obrigatório
   CLOUDFLARE_PW: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
   SUMUP_API_KEY_PRIVATE: z.string().min(1),
   SUMUP_MERCHANT_CODE: z.string().min(1),
+  // Feature-gated (handlers retornam 503 quando faltam): require para alinhar schema/runtime
+  GCP_NL_API_KEY: z.string().min(1),
+  TURNSTILE_SECRET_KEY: z.string().min(1),
+  // Realmente opcional — PIX desabilitado quando ausente
   PIX_KEY: z.string().min(1).optional(),
   PIX_NAME: z.string().min(1).optional(),
   PIX_CITY: z.string().min(1).optional(),
-  GCP_NL_API_KEY: z.string().min(1).optional(),
-  TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
 });
