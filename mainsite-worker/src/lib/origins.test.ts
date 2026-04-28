@@ -5,6 +5,7 @@ describe('getAllowedOrigin', () => {
   it('allows configured public HTTPS origins', () => {
     expect(getAllowedOrigin('https://www.reflexosdaalma.blog')).toBe('https://www.reflexosdaalma.blog');
     expect(getAllowedOrigin('https://lcv.rio.br')).toBe('https://lcv.rio.br');
+    expect(getAllowedOrigin('https://maestro-app.lcv.app.br')).toBe('https://maestro-app.lcv.app.br');
   });
 
   it('rejects configured hostnames over plain HTTP', () => {

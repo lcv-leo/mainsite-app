@@ -39,7 +39,7 @@ sumup.post('/api/sumup/checkout', async (c) => {
     structuredLog('info', '[SumUp Checkout] Iniciando criação de checkout');
     const checkoutParse = SumupCheckoutSchema.safeParse(await c.req.json());
     if (!checkoutParse.success) return c.json({ error: 'Dados inválidos para checkout.' }, 400);
-    const { baseAmount, coverFees, firstName, lastName, redirectUrl } = checkoutParse.data;
+    const { baseAmount, coverFees, firstName, lastName, redirectUrl, sourceProject } = checkoutParse.data;
 
     if (!baseAmount || Number(baseAmount) <= 0) {
       return c.json({ error: 'Valor inválido para checkout SumUp.' }, 400);
@@ -63,13 +63,14 @@ sumup.post('/api/sumup/checkout', async (c) => {
     const client = new SumUp({ apiKey: sumupToken });
     const checkoutReference = `SUMUP-DON-${crypto.randomUUID()}`;
     const fullName = `${(String(firstName || '')).trim()} ${(String(lastName || '')).trim()}`.trim() || 'Doador';
+    const sourceLabel = sourceProject?.trim();
 
     const checkout = await client.checkouts.create({
       checkout_reference: checkoutReference,
       amount: Number(amount),
       currency: 'BRL',
       merchant_code: merchantCode,
-      description: `Doação de ${fullName} - Reflexos da Alma`,
+      description: sourceLabel ? `Apoio a ${sourceLabel} - LCV Ideas & Software` : `Doação de ${fullName} - Reflexos da Alma`,
       redirect_url: redirectUrl || undefined,
     });
 

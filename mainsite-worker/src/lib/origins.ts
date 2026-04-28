@@ -13,6 +13,16 @@ export const ALLOWED_FRONTEND_DOMAINS = [
   'lcvleo.com',
   'lcvmail.com',
   'lcvmasker.com',
+  'mainsite-app.lcv.app.br',
+  'admin-app.lcv.app.br',
+  'cross-review-mcp.lcv.app.br',
+  'mtasts-motor.lcv.app.br',
+  'adminapps.lcv.app.br',
+  'oraculo-financeiro-app.lcv.app.br',
+  'apphub.lcv.app.br',
+  'calculadora-app.lcv.app.br',
+  'astrologo-app.lcv.app.br',
+  'maestro-app.lcv.app.br',
 ];
 
 export const ALLOWED_ORIGIN_HOSTNAMES = new Set<string>(
