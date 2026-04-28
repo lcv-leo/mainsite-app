@@ -1,5 +1,16 @@
 # Changelog — Mainsite Frontend
 
+## [v03.21.07] - 2026-04-27
+### Alterado — migração GitHub org + Pages/Sponsors custom domain
+- Repositório transferido para `LCV-Ideas-Software/mainsite-app`; README e rodapé de compliance apontam para o repositório público da organização.
+- `.github/FUNDING.yml` preserva o link custom `https://mainsite-app.lcv.app.br/` para o botão Sponsor, com `github: lcv-leo`.
+- Dependabot deixa de atribuir PRs ao usuário e ganha workflow `Dependabot Automerge` restrito a `dependabot[bot]`, sem checkout de código de PR.
+### Validação
+- `npm run lint`.
+- `npm run build`.
+- YAML dos workflows/dependabot parseado via `js-yaml`.
+- Pages custom domain `https://mainsite-app.lcv.app.br/` respondeu HTTP 200.
+
 ## [v03.21.00] - 2026-04-25
 ### Segurança
 - Adicionado helper de publicação para Pages Functions (`functions/_lib/publishing.ts`) que lê `mainsite/publishing`, respeita modo `hidden` e filtra `is_published=1` antes de expor posts públicos.
