@@ -58,7 +58,7 @@ You will need:
 ### 1. Clone + install
 
 ```bash
-git clone https://github.com/lcv-leo/mainsite-app.git
+git clone https://github.com/LCV-Ideas-Software/mainsite-app.git
 cd mainsite-app
 cd mainsite-frontend && npm ci && cd ..
 cd mainsite-worker && npm ci && cd ..
