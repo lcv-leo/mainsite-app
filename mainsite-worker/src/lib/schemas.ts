@@ -80,6 +80,7 @@ export const SumupCheckoutSchema = z.object({
   lastName: z.string().optional(),
   email: z.string().email().optional(),
   redirectUrl: z.string().url().optional(),
+  sourceProject: z.string().trim().min(1).max(100).optional(),
 });
 export type SumupCheckoutInput = z.infer<typeof SumupCheckoutSchema>;
 
