@@ -1,5 +1,9 @@
 # Changelog — MainSite App
 
+## [mainsite-worker v02.17.06 + mainsite-frontend v03.21.08] - 2026-04-30
+### Alterado — padronização organizacional do README
+- `README.md` passou a seguir o novo padrão organizacional de abertura: logo harmonizado, bloco curto de status e tabela `The version history at a glance` no topo.
+
 ## [mainsite-frontend v03.21.06] - 2026-04-26
 ### Corrigido — text-indent ausente em `.html-content p`
 - **`src/components/PostReader.css:189-194`** (`.post-reader .html-content p`): adicionado `text-indent: var(--site-text-indent)` para que parágrafos de HTML (vindos do PostEditor) recebam identação automática mesmo quando o HTML salvo não tem `style="text-indent: …rem"` inline. Antes só `.p-content` (legacy plain-text) tinha esse estilo, então AboutPage e qualquer post com `<p>` "nu" renderizava sem identação. Inline styles continuam vencendo (posts antigos com `text-indent: 1.5rem` inline preservam o valor).

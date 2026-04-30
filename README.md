@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/assets/lcv-ideas-software-logo.svg" alt="LCV Ideas &amp; Software" width="220">
+  <img src=".github/assets/lcv-ideas-software-logo.svg" alt="LCV Ideas &amp; Software" width="520" />
 </p>
 
 # mainsite-app
@@ -14,6 +14,17 @@
 
 - **`mainsite-frontend`** — React 19 + Vite 8 single-page app on Cloudflare Pages, primary domain `reflexosdaalma.blog` (+ secondary aliases). Public-facing site with reading experience, comments, ratings, AI chatbot, share-by-email, donations (SumUp + PIX), and accessibility-first design.
 - **`mainsite-worker`** — Hono backend on Cloudflare Workers serving `/api/*` for the frontend. AI surfaces (Gemini), payment surfaces (SumUp), moderation (GCP Natural Language API + Turnstile), email relay (Resend), R2 media.
+
+**Status.** Stable. Current release: **mainsite-frontend v03.21.08** paired with **mainsite-worker v02.17.06**. See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
+
+The version history at a glance:
+
+| Release | Scope |
+|---|---|
+| **`mainsite-worker v02.17.06` + `mainsite-frontend v03.21.08`** | **README organizational standardization.** Adopted the shared repository README opening pattern and introduced the top-level version-history table for the monorepo. |
+| **`mainsite-frontend v03.21.06`** | **Typography parity fix.** Restored default text indentation for HTML paragraph rendering so saved PostEditor content matches the intended reading layout. |
+| **`mainsite-worker v02.17.05` + `mainsite-frontend v03.21.05`** | **Pages + Sponsors public surface.** Added the GitHub Pages donation site, corrected the Sponsors custom URL, and modernized the Pages workflow. |
+| **`mainsite-worker v02.17.04` + `mainsite-frontend v03.21.04`** | **Security and history cleanup.** Closed CodeQL issues, removed a leaked legacy Cloudflare token from Git history, and tightened sanitization paths. |
 
 ## What it does
 
