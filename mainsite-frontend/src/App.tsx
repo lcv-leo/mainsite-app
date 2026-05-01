@@ -40,7 +40,7 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'));
 const DonationModal = lazy(() => import('./components/DonationModal'));
 
 const API_URL = '/api';
-const APP_VERSION = 'APP v03.21.08';
+const APP_VERSION = 'APP v03.22.00';
 const SITE_NAME = 'Reflexos da Alma';
 const SITE_URL = 'https://www.reflexosdaalma.blog';
 const ABOUT_PATH = '/sobre-este-site';
@@ -78,9 +78,20 @@ const App = () => {
 
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [disclaimers, setDisclaimers] = useState<DisclaimersConfig>({ enabled: false, items: [] });
-  const [userTheme, setUserTheme] = useState<ThemePreference>(
-    (localStorage.getItem('themePref') as ThemePreference) || 'auto',
-  );
+  const [userTheme, setUserTheme] = useState<ThemePreference>(() => {
+    // v03.22.00 / mainsite-app audit closure (MEDIUM): validate the value
+    // pulled from localStorage instead of casting a raw string into the
+    // ThemePreference type. Pre-fix a corrupted or extension-injected
+    // value (e.g. `themePref: "<script>"`) would propagate untyped data
+    // into the rendering path. Now an unknown value falls back to 'auto'.
+    try {
+      const stored = localStorage.getItem('themePref');
+      if (stored === 'light' || stored === 'dark' || stored === 'auto') return stored;
+    } catch {
+      // localStorage is disabled (Safari private mode, denied permission).
+    }
+    return 'auto';
+  });
   const [systemIsDark, setSystemIsDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   const [toast, setToast] = useState<ToastState>({ show: false, message: '', type: 'info' });

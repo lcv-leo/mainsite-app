@@ -8,6 +8,7 @@
 
 import { AlertTriangle, ChevronDown, Heart } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { ActivePalette, DisclaimerItem, DisclaimersConfig } from '../types';
 
 interface DisclaimerModalProps {
@@ -30,6 +31,7 @@ interface DisclaimerItemViewProps {
   setDontShowAgain: (v: boolean) => void;
   onAgree: () => void;
   onSkipDonation: () => void;
+  onCanCloseChange: (value: boolean) => void;
 }
 
 // O subcomponente é remontado via `key` no pai a cada troca de item, resetando
@@ -45,6 +47,7 @@ const DisclaimerItemView = ({
   setDontShowAgain,
   onAgree,
   onSkipDonation,
+  onCanCloseChange,
 }: DisclaimerItemViewProps) => {
   const [canClose, setCanClose] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -56,6 +59,10 @@ const DisclaimerItemView = ({
     const fitsWithoutScroll = el.scrollHeight <= el.clientHeight + SCROLL_END_TOLERANCE_PX;
     setCanClose(fitsWithoutScroll || reachedEnd);
   }, []);
+
+  useEffect(() => {
+    onCanCloseChange(canClose);
+  }, [canClose, onCanCloseChange]);
 
   useEffect(() => {
     const el = bodyRef.current;
@@ -319,23 +326,17 @@ const DisclaimerItemView = ({
 const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigger }: DisclaimerModalProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [canClose, setCanClose] = useState(false);
 
   useEffect(() => {
     if (show) setTimeout(() => setCurrentIndex(0), 0);
   }, [show]);
 
-  if (!show || !activePalette || !config?.enabled || !config.items || config.items.length === 0) {
-    if (show) onClose();
-    return null;
-  }
+  const isReady = show && activePalette && config?.enabled && config.items && config.items.length > 0;
+  const currentDisclaimer = isReady ? config.items[currentIndex] : null;
 
-  const isDarkBase = !!(
-    activePalette.bgColor &&
-    (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1'))
-  );
-  const currentDisclaimer = config.items[currentIndex];
-
-  const advanceOrClose = () => {
+  const advanceOrClose = useCallback(() => {
+    if (!currentDisclaimer || !config?.items) return;
     if (dontShowAgain) {
       localStorage.setItem(`hide_disclaimer_${currentDisclaimer.id}`, 'true');
     }
@@ -345,7 +346,23 @@ const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigg
     } else {
       onClose();
     }
-  };
+  }, [config, currentDisclaimer, currentIndex, dontShowAgain, onClose]);
+
+  // v03.22.00 / mainsite-app audit closure (MEDIUM): ESC respects the same
+  // scroll-to-end gate as the "Concordo" button. The disclaimer intentionally
+  // requires full-read; ESC bypass would defeat the design. Once read, ESC
+  // advances/closes (donation trigger only fires through explicit button).
+  useEscapeKey(advanceOrClose, !!isReady && canClose);
+
+  if (!isReady || !currentDisclaimer) {
+    if (show) onClose();
+    return null;
+  }
+
+  const isDarkBase = !!(
+    activePalette.bgColor &&
+    (activePalette.bgColor.startsWith('#0') || activePalette.bgColor.startsWith('#1'))
+  );
 
   const handleAgree = () => {
     if (currentDisclaimer.isDonationTrigger && onDonationTrigger) onDonationTrigger();
@@ -391,6 +408,7 @@ const DisclaimerModal = ({ show, onClose, activePalette, config, onDonationTrigg
         setDontShowAgain={setDontShowAgain}
         onAgree={handleAgree}
         onSkipDonation={advanceOrClose}
+        onCanCloseChange={setCanClose}
       />
     </div>
   );

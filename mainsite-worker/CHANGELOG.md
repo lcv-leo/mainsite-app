@@ -1,5 +1,23 @@
 # Changelog — Mainsite Worker (Backend)
 
+## [v02.18.00] - 2026-05-01
+### Adicionado — auditoria de segurança + bugfix
+- **Idempotência + ownership de checkouts SumUp** (`src/routes/payments.ts`): nova tabela `mainsite_sumup_checkouts` (PK `checkout_id`, UNIQUE `idempotency_key`, `caller_hash`) criada via `ensureCheckoutTable()`; `POST /api/sumup/checkout` deduplica por `idempotency_key` derivado de `hashIdentity` (caller fingerprint via `CHECKOUT_OWNERSHIP_SALT` estável) e persiste com `INSERT OR IGNORE`. `GET /api/sumup/checkout/:id/status` aplica check de ownership via `caller_hash` (janela `CHECKOUT_OWNERSHIP_WINDOW_HOURS = 24`); caller diferente recebe `PENDING` ao invés de `403` — não vaza existência do checkout.
+- **Cross-review-v2 R1 fix (gemini catch)**: salt do caller fingerprint era inicialmente `sumup-checkout:${YYYY-MM-DD}` (rotacionado diariamente); checkout criado às 23:55 UTC e polled às 00:05 UTC computava hash diferente → `/status` retornava `PENDING` mesmo quando SumUp já havia processado o pagamento, travando a UI do usuário. Fix: trocado para `CHECKOUT_OWNERSHIP_SALT` estável escopado à tabela; `caller_hash` agora invariante para `{ip, UA}` ao longo da vida da row. O hash é interno (nunca exposto a clientes), então a preocupação cross-day-deanonymization que justifica rotação em moderation não se aplica aqui.
+- **Validação magic-byte de uploads** (`src/routes/uploads.ts`): `inferExtensionFromMagicBytes` cobre JPG (`FF D8 FF`), PNG (`89 50 4E 47`), GIF (`47 49 46 38`), WebP (`RIFF…WEBP`), AVIF (`ftyp+brand`) e PDF (`%PDF`); rejeita antes do `BUCKET.put`. `magicMatchesExtension` confronta extensão declarada com magic bytes detectados.
+- **Sentiment timeout** (`src/routes/contact.ts`): `Promise.race` com `SENTIMENT_TIMEOUT_MS = 2000`; chamada Workers AI agora timed-out em vez de stall indefinido.
+- **Honeypot logging** (`src/routes/comments.ts`): `[Comments] honeypot triggered` via `structuredLog('info', ...)` com hash IP/UA — visibilidade sem PII.
+- **`sanitizePlainText` parser-aware** (`src/lib/sanitize.ts`): substitui regex strip loop em `comments.ts`. Preserva textos legítimos como `x < y` que regex agressivo eliminaria; `allowedTags: []` + `allowedAttributes: {}` + `disallowedTagsMode: 'discard'`.
+### Alterado
+- **Cron handler bugfix** (`src/index.ts`): rename `_event` → `event`, `_ctx` → `ctx` — restaura execução de `bumpContentVersion(env, ctx)` no scheduled hook (rename anterior por unused-arg dropou silenciosamente o param). Bug crítico: cron rodava sem efeito.
+- **Prompt-injection hardening** (`src/routes/ai.ts`): contexto de usuário envelopado em `<user_context_title>` / `<user_context_body>` XML escapado (escapa `<`, `>`, `&`); model recebe instrução explícita para não interpretar conteúdo como instrução. Caps de 500/12000 chars + strip `[]{}` mantidos como defesa em profundidade.
+- **Fees `division-by-zero` guard** (`src/routes/payments.ts`): rejeita `sumupRate >= 1` ou `NaN` antes do cálculo do gross — protege contra config corrompida em D1.
+### Diferido (com rationale)
+- **Settings JSON Zod schema**: refactor amplo, baixo risco residual (settings sob controle exclusivo de admin autenticado); diferido para release dedicada.
+### Validação
+- `npm run lint` — clean.
+- `npm test` — 8 arquivos / 20 testes.
+
 ## [v02.16.00] - 2026-04-25
 ### Segurança
 - Uploads deixam de aceitar SVG novo; SVGs legados servidos por R2 recebem `Content-Security-Policy: sandbox` e `X-Content-Type-Options: nosniff`.

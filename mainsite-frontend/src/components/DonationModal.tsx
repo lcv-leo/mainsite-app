@@ -8,6 +8,7 @@
 
 import { AlertTriangle, CheckCircle, CreditCard, Heart, Loader2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { ActivePalette } from '../types';
 import SumUpCardWidget from './SumUpCardWidget';
 
@@ -93,6 +94,11 @@ const DonationModal = ({ show, onClose, activePalette, API_URL, resumeCheckoutId
   const [isResumingCheckout, setIsResumingCheckout] = useState(false);
 
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // v03.22.00 / mainsite-app audit closure (MEDIUM): ESC closes modal.
+  // Disabled while a submission is in-flight to avoid orphaning a paid
+  // checkout (operator preferred to keep the modal open during processing).
+  useEscapeKey(onClose, show && !isSubmittingCard && !isPreparingCard);
   const scrollRestoreTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [firstName, setFirstName] = useState('');

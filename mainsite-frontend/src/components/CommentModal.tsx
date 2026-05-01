@@ -8,6 +8,7 @@
 
 import { Loader2, Mail, Phone, Send, User, X } from 'lucide-react';
 import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import type { ActivePalette, ContactFormData, Post } from '../types';
 import { isDarkPalette } from '../types';
 
@@ -36,6 +37,9 @@ const CommentModal = ({
   const [turnstileMessage, setTurnstileMessage] = useState<string | null>(null);
   const turnstileRef = useRef<HTMLDivElement>(null);
   const turnstileWidgetId = useRef<string | null>(null);
+
+  // v03.22.00 / mainsite-app audit closure (MEDIUM): ESC closes modal.
+  useEscapeKey(onClose, show);
 
   useEffect(() => {
     if (show) {

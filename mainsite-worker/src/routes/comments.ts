@@ -177,8 +177,18 @@ comments.post('/api/comments', async (c) => {
     }
     const body = bodyResult.data;
 
-    // Honeypot check: campo oculto preenchido = bot → resposta falsa silenciosa
+    // Honeypot check: campo oculto preenchido = bot → resposta falsa silenciosa.
+    // v02.17.00 / audit closure (LOW, was H6): log honeypot triggers so
+    // the operator can see bot pressure and detect false positives from
+    // browser autofill extensions that auto-fill hidden fields.
     if (body._hp) {
+      const hpIp = c.req.header('cf-connecting-ip') || 'unknown';
+      const hpUa = c.req.header('user-agent') || 'unknown';
+      structuredLog('info', '[Comments] honeypot triggered', {
+        post_id: body.post_id,
+        ip_hash: await hashIdentity(hpIp, hpUa, `honeypot:${new Date().toISOString().slice(0, 10)}`),
+        ua_class: hpUa.length > 200 ? 'long' : 'normal',
+      });
       return c.json({ success: true, message: 'Comentário enviado com sucesso!' });
     }
 
@@ -296,15 +306,18 @@ comments.post('/api/comments', async (c) => {
       return c.json({ error: 'Comentário duplicado detectado.' }, 409);
     }
 
-    // Sanitização básica do conteúdo (strip HTML tags) — loop até estabilizar
-    // para resistir a padrões aninhados como `<a<b>>` que sobreviveriam num único pass.
-    let stripIter = body.content;
-    let stripPrev = '';
-    while (stripPrev !== stripIter) {
-      stripPrev = stripIter;
-      stripIter = stripIter.replace(/<[^>]*>/g, '');
-    }
-    const sanitizedContent = stripIter.trim();
+    // v02.17.00 / mainsite-app audit closure (gemini R1 follow-up): swap
+    // the iterative regex strip for the new `sanitizePlainText` helper
+    // (lib/sanitize.ts), which uses `sanitize-html` with an empty
+    // allowlist. The previous loop was XSS-safe but had a data-loss
+    // edge case for legitimate text like `x < y and y > z` (the `<`
+    // paired with the next `>` and disappeared). The HTML-parser-aware
+    // sanitizer preserves unmatched `<` as a literal character. The
+    // frontend (CommentsSection.tsx:337) renders the result as a React
+    // text node, so no markup ever reaches the DOM regardless of what
+    // the parser leaves behind.
+    const { sanitizePlainText } = await import('../lib/sanitize.ts');
+    const sanitizedContent = sanitizePlainText(body.content);
 
     if (sanitizedContent.length === 0) {
       return c.json({ error: 'Comentário não pode estar vazio.' }, 400);

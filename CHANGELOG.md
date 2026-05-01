@@ -1,5 +1,33 @@
 # Changelog — MainSite App
 
+## [mainsite-worker v02.18.00 + mainsite-frontend v03.22.00] - 2026-05-01
+### Adicionado — auditoria de segurança + UX + paridade TipTap (worker + frontend)
+**Worker (`mainsite-worker`)**
+- Idempotência + ownership em checkouts SumUp via nova tabela `mainsite_sumup_checkouts` (PK `checkout_id`, UNIQUE `idempotency_key`, `caller_hash` 24h ownership window). Caller diferente em `/status` recebe `PENDING`, não `403`.
+- Validação magic-byte (JPG/PNG/GIF/WebP/AVIF/PDF) em uploads antes de `BUCKET.put`.
+- Sentiment com timeout (2s) via `Promise.race`.
+- Honeypot trigger logado com hash IP/UA estruturado.
+- `sanitizePlainText` parser-aware substitui regex strip em comentários (preserva `x < y`).
+- Cron handler bugfix (`_ctx` → `ctx`) — restaura `bumpContentVersion`.
+- Prompt-injection hardening na rota AI: envelope XML `<user_context_title>` / `<user_context_body>` com escape.
+- Fees division-by-zero guard.
+
+**Frontend (`mainsite-frontend`)**
+- Error Boundary class component em `main.tsx` ao redor de `QueryClientProvider+App`.
+- `useEscapeKey` hook em ContactModal/CommentModal/DonationModal/DisclaimerModal (read-gate preservado no DisclaimerModal via `canClose` lifted ao parent).
+- `fetchWithTimeout` com `AbortController` composável (default 8s).
+- **PostReader ↔ PostEditor (TipTap) paridade**: tema hljs (github-dark/light) embutido em `PostReader.css` para tokens `<span class="hljs-*">` de `CodeBlockLowlight` (sem dependência runtime); iframes responsivos (`aspect-ratio: 16/9`); `<img>` com `max-width: 100%`; `data-width` whitelisted em `DOMPurify.ADD_ATTR`.
+- Validação de `localStorage.themePref` contra union `'light' | 'dark' | 'auto'`.
+
+### Diferido (com rationale)
+- iframe-3DS no DonationModal — requer testes em sandbox SumUp e fallback robusto.
+- Tightening de `style` em DOMPurify — regrediria inline styles do TipTap em conteúdo já publicado.
+- Worker settings Zod schema — refactor amplo, baixo risco residual (admin autenticado).
+
+### Validação
+- Worker: lint clean; vitest 8 arquivos / 20 testes.
+- Frontend: lint clean; vitest 6 arquivos / 27 testes; build 402 KiB precache, 1812 modules, 1.25s.
+
 ## [mainsite-worker v02.17.06 + mainsite-frontend v03.21.08] - 2026-04-30
 ### Alterado — padronização organizacional do README
 - `README.md` passou a seguir o novo padrão organizacional de abertura: logo harmonizado, bloco curto de status e tabela `The version history at a glance` no topo.

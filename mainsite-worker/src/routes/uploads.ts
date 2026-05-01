@@ -26,6 +26,64 @@ const ALLOWED_CONTENT_TYPES = new Set([
 ]);
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
+// v02.17.00 / mainsite-app audit closure (MEDIUM, was HIGH H5):
+// magic-byte validation. Pre-fix the worker trusted only the file
+// extension and the client-declared Content-Type. An attacker could
+// rename `payload.html` to `image.jpg` with `Content-Type: image/jpeg`
+// and bypass both checks. Reading the first bytes of the actual file
+// content closes that gap (defense in depth — current downstream is
+// `<img>`, so risk was bounded, but the audit recommendation stands).
+//
+// The signatures below cover every ALLOWED_EXTENSIONS entry. Returns
+// the inferred extension, or null on mismatch. We compare against
+// the sanitized extension (not the user-claimed Content-Type).
+function inferExtensionFromMagicBytes(buffer: ArrayBuffer): string | null {
+  const view = new Uint8Array(buffer.slice(0, 16));
+  if (view.length < 4) return null;
+  // JPEG: FF D8 FF
+  if (view[0] === 0xff && view[1] === 0xd8 && view[2] === 0xff) return 'jpg';
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    view[0] === 0x89 &&
+    view[1] === 0x50 &&
+    view[2] === 0x4e &&
+    view[3] === 0x47 &&
+    view[4] === 0x0d &&
+    view[5] === 0x0a &&
+    view[6] === 0x1a &&
+    view[7] === 0x0a
+  ) return 'png';
+  // GIF: 47 49 46 38 ('GIF8')
+  if (view[0] === 0x47 && view[1] === 0x49 && view[2] === 0x46 && view[3] === 0x38) return 'gif';
+  // WebP: 52 49 46 46 .. .. .. .. 57 45 42 50 ('RIFF????WEBP')
+  if (
+    view[0] === 0x52 &&
+    view[1] === 0x49 &&
+    view[2] === 0x46 &&
+    view[3] === 0x46 &&
+    view[8] === 0x57 &&
+    view[9] === 0x45 &&
+    view[10] === 0x42 &&
+    view[11] === 0x50
+  ) return 'webp';
+  // AVIF: ?? ?? ?? ?? 66 74 79 70 (offset 4-7 = 'ftyp'); ftyp brand at 8-11
+  // We check 'ftyp' marker + accept 'avif'/'avis'/'heic'/'mif1' brands
+  if (view[4] === 0x66 && view[5] === 0x74 && view[6] === 0x79 && view[7] === 0x70) {
+    const brand = String.fromCharCode(view[8], view[9], view[10], view[11]);
+    if (brand === 'avif' || brand === 'avis' || brand === 'mif1' || brand === 'heic') return 'avif';
+  }
+  // PDF: 25 50 44 46 ('%PDF')
+  if (view[0] === 0x25 && view[1] === 0x50 && view[2] === 0x44 && view[3] === 0x46) return 'pdf';
+  return null;
+}
+
+function magicMatchesExtension(inferred: string | null, ext: string): boolean {
+  if (!inferred) return false;
+  // jpg/jpeg are interchangeable; everything else must match exactly.
+  if (inferred === 'jpg') return ext === 'jpg' || ext === 'jpeg';
+  return inferred === ext;
+}
+
 /**
  * Sanitize filename to prevent path traversal.
  * Only allows alphanumeric, hyphens, underscores, and a single dot before extension.
@@ -66,12 +124,32 @@ uploads.post('/api/upload', requireAuth, async (c) => {
       return c.json({ error: 'Tipo de arquivo não permitido. Use: jpg, png, gif, webp, avif, pdf.' }, 400);
     }
 
-    // Content-type validation
+    // Content-type validation (client-declared header)
     if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
       return c.json({ error: 'Content-type de arquivo não permitido.' }, 400);
     }
 
-    await c.env.BUCKET.put(safeName, await file.arrayBuffer(), {
+    // v02.17.00 / audit closure: magic-byte validation. Read the actual
+    // bytes once and verify the file content matches the sanitized
+    // extension. Mismatches (e.g. .jpg with HTML body) are rejected
+    // before R2 storage. We reuse the same buffer for the put() below
+    // to avoid a second arrayBuffer() materialization.
+    const buffer = await file.arrayBuffer();
+    const sanitizedExt = safeName.split('.').pop()?.toLowerCase() ?? '';
+    const inferredExt = inferExtensionFromMagicBytes(buffer);
+    if (!magicMatchesExtension(inferredExt, sanitizedExt)) {
+      structuredLog('warn', '[Uploads] Magic-byte mismatch', {
+        sanitizedExt,
+        inferredExt,
+        declaredType: file.type,
+      });
+      return c.json(
+        { error: 'Conteúdo do arquivo não corresponde à extensão declarada.' },
+        400,
+      );
+    }
+
+    await c.env.BUCKET.put(safeName, buffer, {
       httpMetadata: { contentType: file.type },
     });
     const url = new URL(c.req.url);

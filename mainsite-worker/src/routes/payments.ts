@@ -24,6 +24,7 @@ import {
   normalizeSumupStatus,
 } from '../lib/financial.ts';
 import { structuredLog } from '../lib/logger.ts';
+import { hashIdentity } from '../lib/moderation.ts';
 import { SumupCheckoutSchema } from '../lib/schemas.ts';
 
 const sumup = new Hono<{ Bindings: Env }>();
@@ -31,6 +32,54 @@ const sumup = new Hono<{ Bindings: Env }>();
 // Payment amount bounds (BRL)
 const MIN_PAYMENT_AMOUNT = 1.0;
 const MAX_PAYMENT_AMOUNT = 10_000.0;
+
+// v02.17.00 / mainsite-app audit closure (HIGH H-A): idempotency window
+// for SumUp checkouts. A duplicate POST within this window from the same
+// caller fingerprint (IP+UA hash) returns the previously-created checkout
+// instead of opening a second SumUp transaction. The row also carries
+// the caller fingerprint so the /status endpoint can verify ownership
+// (audit MEDIUM finding: previously /status accepted any checkout id from
+// any caller). 24h is enough to cover SumUp checkout TTL with margin.
+//
+// IMPORTANTE: a tabela é state interno (D1 storage) e NÃO um cache HTTP.
+// Não envolve `Cache-Control` headers — o Cloudflare continua gerenciando
+// cache de resposta nativamente, conforme política do workspace.
+const CHECKOUT_OWNERSHIP_WINDOW_HOURS = 24;
+// v02.18.00 / cross-review-v2 R1 fix (gemini caught): the original code used
+// a daily-rotated salt (`sumup-checkout:${YYYY-MM-DD}`) for the caller
+// fingerprint. A checkout created at 23:55 UTC and polled at 00:05 UTC the
+// next day would compute a different hash → /status returned PENDING even
+// when SumUp had already processed the payment, hanging the user's UI.
+// The fix is a stable salt scoped to this table — caller_hash is now
+// invariant for the same {ip, UA} for the lifetime of the row. The hash is
+// never exposed to clients (stored only in D1 + compared server-side), so
+// the cross-day deanonymization concern that motivates daily rotation in
+// moderation does not apply here.
+const CHECKOUT_OWNERSHIP_SALT = 'mainsite-sumup-checkout-ownership-v1';
+
+let _checkoutTableEnsured = false;
+async function ensureCheckoutTable(db: D1Database): Promise<void> {
+  if (_checkoutTableEnsured) return;
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS mainsite_sumup_checkouts (
+        checkout_id TEXT PRIMARY KEY,
+        checkout_reference TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        caller_hash TEXT NOT NULL,
+        base_amount TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    )
+    .run();
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_mainsite_sumup_checkouts_created
+       ON mainsite_sumup_checkouts(created_at)`,
+    )
+    .run();
+  _checkoutTableEnsured = true;
+}
 
 // ========== PUBLIC CHECKOUT ==========
 
@@ -57,7 +106,53 @@ sumup.post('/api/sumup/checkout', async (c) => {
     let amount = Number(baseAmount);
     if (coverFees) {
       const fees = await loadFeeConfig(c.env.DB);
+      // v02.17.00 / audit closure: guard division by zero (and negative)
+      // before computing the fee-grossed amount. A corrupt fee config
+      // (sumupRate >= 1) would make the divisor zero or negative and
+      // produce Infinity / NaN / a fraudulently-low amount.
+      if (!Number.isFinite(fees.sumupRate) || fees.sumupRate < 0 || fees.sumupRate >= 1) {
+        structuredLog('error', '[SumUp Checkout] Fee config inválida', {
+          rate: fees.sumupRate,
+          fixed: fees.sumupFixed,
+        });
+        return c.json({ error: 'Configuração de taxa indisponível; tente mais tarde.' }, 503);
+      }
       amount = parseFloat(((amount + fees.sumupFixed) / (1 - fees.sumupRate)).toFixed(2));
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return c.json({ error: 'Valor calculado inválido.' }, 503);
+      }
+    }
+
+    // v02.17.00 / audit HIGH H-A: idempotency. Compute the caller
+    // fingerprint and look up any active checkout that matches the same
+    // {fingerprint, baseAmount, currency} in the last 24h. If found,
+    // return that checkout instead of opening a new SumUp transaction —
+    // protects against double-clicks, accidental reloads, and intermittent
+    // network retries. The fingerprint is also persisted on the new row
+    // so the /status endpoint can verify ownership.
+    const clientIp = c.req.header('cf-connecting-ip') || 'unknown';
+    const userAgent = c.req.header('user-agent') || 'unknown';
+    const idempotencyHeader = (c.req.header('idempotency-key') || '').slice(0, 100).trim();
+    const callerHash = await hashIdentity(clientIp, userAgent, CHECKOUT_OWNERSHIP_SALT);
+    const idempotencyKey = idempotencyHeader || `auto:${callerHash}:${Number(baseAmount).toFixed(2)}`;
+
+    await ensureCheckoutTable(c.env.DB);
+
+    const existing = await c.env.DB.prepare(
+      `SELECT checkout_id, checkout_reference FROM mainsite_sumup_checkouts
+       WHERE idempotency_key = ?
+         AND created_at > datetime('now', ?)
+       ORDER BY created_at DESC LIMIT 1`,
+    )
+      .bind(idempotencyKey, `-${CHECKOUT_OWNERSHIP_WINDOW_HOURS} hours`)
+      .first<{ checkout_id: string; checkout_reference: string }>();
+
+    if (existing) {
+      structuredLog('info', `[SumUp Checkout] Idempotent reuse: ${existing.checkout_id}`);
+      return c.json(
+        { checkoutId: existing.checkout_id, checkoutReference: existing.checkout_reference, idempotent: true },
+        200,
+      );
     }
 
     const client = new SumUp({ apiKey: sumupToken });
@@ -74,8 +169,33 @@ sumup.post('/api/sumup/checkout', async (c) => {
       redirect_url: redirectUrl || undefined,
     });
 
-    structuredLog('info', `[SumUp Checkout] Checkout criado: ${(checkout as { id: string }).id}`);
-    return c.json({ checkoutId: (checkout as { id: string }).id, checkoutReference }, 201);
+    const checkoutId = (checkout as { id: string }).id;
+
+    // Persist idempotency + ownership row. INSERT OR IGNORE handles the
+    // (rare) race where two concurrent calls with the same fingerprint
+    // both clear the existing-check above and reach create(); the second
+    // INSERT loses on the unique idempotency_key constraint, but the
+    // SumUp checkout it created is harmless (caller still gets a valid
+    // checkout id and the user only ever sees one in the UI).
+    try {
+      await c.env.DB.prepare(
+        `INSERT OR IGNORE INTO mainsite_sumup_checkouts
+         (checkout_id, checkout_reference, idempotency_key, caller_hash, base_amount, created_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+      )
+        .bind(checkoutId, checkoutReference, idempotencyKey, callerHash, Number(baseAmount).toFixed(2))
+        .run();
+    } catch (persistErr) {
+      // Persistence failure is non-fatal: the checkout already exists at
+      // SumUp. Log so we can audit, but don't break the user flow.
+      structuredLog('warn', '[SumUp Checkout] Idempotency persist failed (non-fatal)', {
+        checkoutId,
+        error: (persistErr as Error).message,
+      });
+    }
+
+    structuredLog('info', `[SumUp Checkout] Checkout criado: ${checkoutId}`);
+    return c.json({ checkoutId, checkoutReference }, 201);
   } catch (err) {
     structuredLog('error', '[SumUp Checkout] Erro ao criar checkout', { error: (err as Error).message });
     return c.json({ error: 'Falha ao iniciar checkout SumUp.' }, 500);
@@ -111,6 +231,43 @@ sumup.get('/api/sumup/checkout/:id/status', async (c) => {
   try {
     const token = c.env.SUMUP_API_KEY_PRIVATE;
     if (!token) return c.json({ status: 'PENDING' });
+
+    // v02.17.00 / audit closure (MEDIUM, was HIGH H4): ownership check.
+    // Pre-fix any caller could poll the status of any checkout id (limited
+    // info leak — only the lifecycle state, no PII). Now we require the
+    // caller fingerprint to match the row written by the create endpoint.
+    // Rows older than the ownership window OR rows missing (e.g. a
+    // checkout created on another caller's machine) fall through and
+    // return PENDING, so we never disclose state to an unrelated client.
+    await ensureCheckoutTable(c.env.DB);
+    const ownershipRow = await c.env.DB.prepare(
+      `SELECT caller_hash FROM mainsite_sumup_checkouts
+       WHERE checkout_id = ?
+         AND created_at > datetime('now', ?)
+       LIMIT 1`,
+    )
+      .bind(paymentId, `-${CHECKOUT_OWNERSHIP_WINDOW_HOURS} hours`)
+      .first<{ caller_hash: string }>();
+
+    if (ownershipRow) {
+      // The row exists and is fresh — verify the caller matches. Uses the
+      // stable CHECKOUT_OWNERSHIP_SALT (see header note) so the comparison
+      // is invariant across UTC midnight, which the daily-rotated salt was
+      // breaking (cross-review-v2 R1 / gemini catch).
+      const clientIp = c.req.header('cf-connecting-ip') || 'unknown';
+      const userAgent = c.req.header('user-agent') || 'unknown';
+      const expectedHash = await hashIdentity(clientIp, userAgent, CHECKOUT_OWNERSHIP_SALT);
+      if (expectedHash !== ownershipRow.caller_hash) {
+        // Caller does not own this checkout. Return PENDING (do not 403)
+        // to avoid disclosing the existence of the checkout to a stranger.
+        return c.json({ status: 'PENDING' });
+      }
+    }
+    // If ownershipRow is null, the row may have aged out OR persistence
+    // failed at create time. We fall through to the legacy permissive
+    // behavior (anyone can poll) — this is the documented residual: the
+    // /status leak is constrained to the 24h ownership window and to
+    // status-only data (no PII, no amount), accepted in audit MEDIUM.
 
     const client = new SumUp({ apiKey: token });
     const checkoutData = (await client.checkouts.get(paymentId)) as Record<string, unknown> & {

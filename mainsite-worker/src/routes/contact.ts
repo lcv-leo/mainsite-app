@@ -36,15 +36,30 @@ async function requireTurnstileValidation(c: RouteContext, token: string | undef
   return null;
 }
 
+// v02.17.00 / mainsite-app audit closure (MEDIUM): timeout for the
+// Workers AI sentiment call. Pre-fix a slow/hung AI runtime could
+// stall the /api/contact handler until the Worker's 30s ceiling. The
+// sentiment is a NICE-TO-HAVE prefix on the email — never block the
+// actual delivery on it. 2s is generous for a small inference; on
+// timeout we silently fall back to no prefix.
+const SENTIMENT_TIMEOUT_MS = 2000;
+
 async function getSentimentPrefix(env: Env, text: string): Promise<string> {
   try {
-    const response = await env.AI.run('@cf/huggingface/distilbert-sst-2-int8', { text: text.substring(0, 500) });
-    const negative = response.find((r: any) => r.label === 'NEGATIVE');
-    if (negative && negative.score > 0.8) {
+    const aiPromise = env.AI.run('@cf/huggingface/distilbert-sst-2-int8', { text: text.substring(0, 500) });
+    const timeoutPromise = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), SENTIMENT_TIMEOUT_MS),
+    );
+    const response = (await Promise.race([aiPromise, timeoutPromise])) as
+      | Array<{ label?: string; score?: number }>
+      | null;
+    if (!Array.isArray(response)) return '';
+    const negative = response.find((r) => r.label === 'NEGATIVE');
+    if (negative && typeof negative.score === 'number' && negative.score > 0.8) {
       return '[🔴 Tensão Identificada] ';
     }
-    const positive = response.find((r: any) => r.label === 'POSITIVE');
-    if (positive && positive.score > 0.8) {
+    const positive = response.find((r) => r.label === 'POSITIVE');
+    if (positive && typeof positive.score === 'number' && positive.score > 0.8) {
       return '[🟢 Feedback Positivo] ';
     }
     return '';

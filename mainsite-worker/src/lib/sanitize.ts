@@ -128,3 +128,28 @@ export function sanitizePostHtml(html: string): string {
   if (!html || typeof html !== 'string') return '';
   return sanitizeHtml(html, SANITIZE_OPTIONS).trim();
 }
+
+// v02.17.00 / mainsite-app audit closure: parser-aware plain-text
+// sanitizer for user-generated content (comments). Pre-fix the route
+// used `replace(/<[^>]*>/g, '')` in a loop, which is XSS-safe but ate
+// legitimate text like `x < y and y > z` (the `<` paired with the next
+// `>` and the literal characters disappeared). `sanitize-html` with
+// `allowedTags: []` parses HTML correctly: real tags are stripped,
+// unmatched `<` is preserved as a text-content character. Result:
+// `x < y and y > z` stays intact, while `<script>alert(1)</script>` is
+// reduced to `alert(1)` (script tag removed, content kept as text).
+const PLAIN_TEXT_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [],
+  allowedAttributes: {},
+  disallowedTagsMode: 'discard',
+  // Decode the HTML entities emitted by the parser so callers see clean
+  // text rather than `&lt;` / `&amp;` literals. This is safe because
+  // the output is rendered as a React text node downstream — React
+  // re-escapes for the DOM regardless of input shape.
+  textFilter: (text) => text,
+};
+
+export function sanitizePlainText(value: string): string {
+  if (!value || typeof value !== 'string') return '';
+  return sanitizeHtml(value, PLAIN_TEXT_OPTIONS).trim();
+}

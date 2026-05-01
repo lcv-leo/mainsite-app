@@ -15,12 +15,13 @@
 - **`mainsite-frontend`** — React 19 + Vite 8 single-page app on Cloudflare Pages, primary domain `reflexosdaalma.blog` (+ secondary aliases). Public-facing site with reading experience, comments, ratings, AI chatbot, share-by-email, donations (SumUp + PIX), and accessibility-first design.
 - **`mainsite-worker`** — Hono backend on Cloudflare Workers serving `/api/*` for the frontend. AI surfaces (Gemini), payment surfaces (SumUp), moderation (GCP Natural Language API + Turnstile), email relay (Resend), R2 media.
 
-**Status.** Stable. Current release: **mainsite-frontend v03.21.08** paired with **mainsite-worker v02.17.06**. See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
+**Status.** Stable. Current release: **mainsite-frontend v03.22.00** paired with **mainsite-worker v02.18.00**. See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
 
 The version history at a glance:
 
 | Release | Scope |
 |---|---|
+| **`mainsite-worker v02.18.00` + `mainsite-frontend v03.22.00`** | **Security + UX audit + TipTap parity.** Worker: SumUp checkout idempotency + ownership table, magic-byte upload validation, sentiment timeout, prompt-injection envelope, cron handler bugfix. Frontend: Error Boundary, ESC handler in all modals (read-gate preserved on disclaimer), fetch timeout, localStorage validation, PostReader↔PostEditor parity (embedded hljs theme, responsive iframes, image max-width, `data-width` whitelist). |
 | **`mainsite-worker v02.17.06` + `mainsite-frontend v03.21.08`** | **README organizational standardization.** Adopted the shared repository README opening pattern and introduced the top-level version-history table for the monorepo. |
 | **`mainsite-frontend v03.21.06`** | **Typography parity fix.** Restored default text indentation for HTML paragraph rendering so saved PostEditor content matches the intended reading layout. |
 | **`mainsite-worker v02.17.05` + `mainsite-frontend v03.21.05`** | **Pages + Sponsors public surface.** Added the GitHub Pages donation site, corrected the Sponsors custom URL, and modernized the Pages workflow. |

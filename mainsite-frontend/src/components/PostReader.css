@@ -631,3 +631,139 @@
 .post-reader__citation-link {
   font-weight: 700;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   v03.22.00 / mainsite-app PostEditor (TipTap) parity:
+   admin-app/src/modules/mainsite/PostEditor.tsx emits HTML produced by
+   CodeBlockLowlight (lowlight-tokenized <span class="hljs-*">) plus YouTube
+   <iframe width="840" height="472"> and resizable <img style="width: X%">.
+   The blocks below render those shapes faithfully without pulling the full
+   highlight.js (~50 KB) bundle into the public site. Token palette mirrors
+   github-dark / github-light at minimal scope. Existing rules above
+   (figure.tiptap-figure img, .post-reader pre, .post-reader code) are NOT
+   modified — these blocks are strictly additive.
+   ───────────────────────────────────────────────────────────────────── */
+
+.post-reader .html-content iframe {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 1rem auto;
+  border: 0;
+  border-radius: 8px;
+  aspect-ratio: 16 / 9;
+  height: auto;
+}
+
+/* biome-ignore lint: figure.tiptap-figure img above wins for figure children; this covers raw <img> inside .html-content */
+.post-reader .html-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.post-reader .html-content pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.site-shell.theme-dark .post-reader .hljs-comment,
+.site-shell.theme-dark .post-reader .hljs-quote {
+  color: #8b949e;
+  font-style: italic;
+}
+.site-shell.theme-dark .post-reader .hljs-keyword,
+.site-shell.theme-dark .post-reader .hljs-selector-tag,
+.site-shell.theme-dark .post-reader .hljs-meta {
+  color: #ff7b72;
+}
+.site-shell.theme-dark .post-reader .hljs-string,
+.site-shell.theme-dark .post-reader .hljs-doctag,
+.site-shell.theme-dark .post-reader .hljs-regexp {
+  color: #a5d6ff;
+}
+.site-shell.theme-dark .post-reader .hljs-number,
+.site-shell.theme-dark .post-reader .hljs-literal,
+.site-shell.theme-dark .post-reader .hljs-built_in,
+.site-shell.theme-dark .post-reader .hljs-symbol {
+  color: #79c0ff;
+}
+.site-shell.theme-dark .post-reader .hljs-title,
+.site-shell.theme-dark .post-reader .hljs-section,
+.site-shell.theme-dark .post-reader .hljs-name,
+.site-shell.theme-dark .post-reader .hljs-selector-id,
+.site-shell.theme-dark .post-reader .hljs-selector-class {
+  color: #d2a8ff;
+}
+.site-shell.theme-dark .post-reader .hljs-attr,
+.site-shell.theme-dark .post-reader .hljs-attribute,
+.site-shell.theme-dark .post-reader .hljs-variable,
+.site-shell.theme-dark .post-reader .hljs-template-variable,
+.site-shell.theme-dark .post-reader .hljs-params {
+  color: #ffa657;
+}
+.site-shell.theme-dark .post-reader .hljs-tag,
+.site-shell.theme-dark .post-reader .hljs-bullet {
+  color: #7ee787;
+}
+.site-shell.theme-dark .post-reader .hljs-emphasis { font-style: italic; }
+.site-shell.theme-dark .post-reader .hljs-strong { font-weight: 700; }
+.site-shell.theme-dark .post-reader .hljs-deletion {
+  color: #ffa198;
+  background: rgba(248, 81, 73, 0.15);
+}
+.site-shell.theme-dark .post-reader .hljs-addition {
+  color: #7ee787;
+  background: rgba(46, 160, 67, 0.15);
+}
+
+.site-shell.theme-light .post-reader .hljs-comment,
+.site-shell.theme-light .post-reader .hljs-quote {
+  color: #6e7781;
+  font-style: italic;
+}
+.site-shell.theme-light .post-reader .hljs-keyword,
+.site-shell.theme-light .post-reader .hljs-selector-tag,
+.site-shell.theme-light .post-reader .hljs-meta {
+  color: #cf222e;
+}
+.site-shell.theme-light .post-reader .hljs-string,
+.site-shell.theme-light .post-reader .hljs-doctag,
+.site-shell.theme-light .post-reader .hljs-regexp {
+  color: #0a3069;
+}
+.site-shell.theme-light .post-reader .hljs-number,
+.site-shell.theme-light .post-reader .hljs-literal,
+.site-shell.theme-light .post-reader .hljs-built_in,
+.site-shell.theme-light .post-reader .hljs-symbol {
+  color: #0550ae;
+}
+.site-shell.theme-light .post-reader .hljs-title,
+.site-shell.theme-light .post-reader .hljs-section,
+.site-shell.theme-light .post-reader .hljs-name,
+.site-shell.theme-light .post-reader .hljs-selector-id,
+.site-shell.theme-light .post-reader .hljs-selector-class {
+  color: #8250df;
+}
+.site-shell.theme-light .post-reader .hljs-attr,
+.site-shell.theme-light .post-reader .hljs-attribute,
+.site-shell.theme-light .post-reader .hljs-variable,
+.site-shell.theme-light .post-reader .hljs-template-variable,
+.site-shell.theme-light .post-reader .hljs-params {
+  color: #953800;
+}
+.site-shell.theme-light .post-reader .hljs-tag,
+.site-shell.theme-light .post-reader .hljs-bullet {
+  color: #116329;
+}
+.site-shell.theme-light .post-reader .hljs-emphasis { font-style: italic; }
+.site-shell.theme-light .post-reader .hljs-strong { font-weight: 700; }
+.site-shell.theme-light .post-reader .hljs-deletion {
+  color: #82071e;
+  background: rgba(255, 129, 130, 0.4);
+}
+.site-shell.theme-light .post-reader .hljs-addition {
+  color: #116329;
+  background: rgba(46, 160, 67, 0.15);
+}

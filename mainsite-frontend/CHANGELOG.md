@@ -1,5 +1,21 @@
 # Changelog — Mainsite Frontend
 
+## [v03.22.00] - 2026-05-01
+### Adicionado — auditoria de segurança + UX + paridade TipTap
+- **Error Boundary** (`src/components/ErrorBoundary.tsx`): captura exceções de render, registra em `console` + `window.dataLayer`, oferece fallback com botão de recarga. Wired em `main.tsx` ao redor de `QueryClientProvider+App`.
+- **`useEscapeKey` hook** (`src/hooks/useEscapeKey.ts`): handler ESC centralizado para diálogos (WCAG 2.1 AA). Wired em `ContactModal`, `CommentModal`, `DonationModal` (gated em `!isSubmittingCard && !isPreparingCard` para não orfanar checkout pago) e `DisclaimerModal` (gated no scroll-to-end existente — `canClose` lifted ao parent via `onCanCloseChange` para preservar o read-gate intencional do disclaimer; ESC mapeia para `advanceOrClose`, nunca dispara o donation trigger).
+- **`fetchWithTimeout`** (`src/lib/http.ts`): wrapper com `AbortController` composável e `HttpTimeoutError`; default `DEFAULT_FETCH_TIMEOUT_MS = 8000`.
+- **PostReader ↔ PostEditor (TipTap) paridade**: tema `hljs` mínimo (github-dark/light) embutido em `PostReader.css` para colorir `<span class="hljs-*">` produzidos por `CodeBlockLowlight` — sem pulling do bundle highlight.js (~50 KB). Iframe responsivo com `aspect-ratio: 16/9` para YouTube embeds (840×472 do editor não overflow mais em mobile). `<img>` em `.html-content` com `max-width: 100%; height: auto`. `data-width` whitelisted em `DOMPurify.ADD_ATTR` para preservar fidelidade do `CustomResizableImage`. Mudanças puramente aditivas — `figure.tiptap-figure img` (specificity 0,2,2) continua vencendo para imagens em figura.
+### Alterado
+- **Validação de `localStorage.themePref`** (`src/App.tsx`): valor lido validado contra `'light' | 'dark' | 'auto'` antes de uso; entradas corrompidas/legadas caem em `'auto'` em vez de propagar untyped string.
+### Diferido (com rationale)
+- **iframe-3DS na DonationModal**: SumUp `next_step.mechanism: 'iframe' | 'browser'` requer testes em sandbox SumUp + fallback robusto. Risco de regressão na captura de pagamento sem ambiente de validação. Mantido o fluxo de redirect 3DS atual.
+- **Tightening de `style` em `DOMPurify.ADD_ATTR`**: remoção causaria regressão visual em posts existentes (TipTap `TextIndent`, `TextAlign`, `EditorSpacing`, `FontFamily`, `FontSize`, `Color`, image `width:%` são todos inline styles).
+### Validação
+- `npm run lint` — clean.
+- `npm test` — 6 arquivos / 27 testes.
+- `npm run build` — 402 KiB precache (PWA), 1812 modules, 1.25s.
+
 ## [v03.21.07] - 2026-04-27
 ### Alterado — migração GitHub org + Pages/Sponsors custom domain
 - Repositório transferido para `LCV-Ideas-Software/mainsite-app`; README e rodapé de compliance apontam para o repositório público da organização.

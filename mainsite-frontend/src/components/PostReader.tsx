@@ -89,6 +89,11 @@ const PostReader = ({
           'rel',
           'data-type',
           'data-checked',
+          // v03.22.00 / TipTap parity: CustomResizableImage stores the user's
+          // chosen width in `data-width` (the visible width is also mirrored to
+          // inline `style="width: X%"`, but preserving the raw attribute keeps
+          // the editor↔reader round-trip faithful for future hydration).
+          'data-width',
           'style',
         ],
       });
