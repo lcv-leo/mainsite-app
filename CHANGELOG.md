@@ -4,6 +4,12 @@
 
 ### Alterado
 
+- O frontend passa a publicar os textos de licença das dependências incorporadas usando
+  `build.license` nativo do Vite, em `/legal/DEPENDENCY-LICENSES.md`, com referência nos
+  bundles e link na página de licenças. O Workbox, gerado separadamente, recebe uma cópia
+  integral e inalterada de sua licença MIT em `/legal/WORKBOX-LICENSE.txt`. Sem novo
+  verificador, gerador próprio, dependência ou mudança de configuração do GitHub.
+
 - **`npm audit` do `Deploy` distingue vulnerabilidade de requisição de advisories falha.** O
   passo de auditoria de cada pacote continua reprovando o deploy quando o relatório traz
   vulnerabilidade alta ou crítica; quando a requisição de advisories ao registro do npm falha

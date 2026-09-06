@@ -12,6 +12,13 @@ which provides the SBOM on request, rather than being duplicated here.
 The repository itself remains licensed under `AGPL-3.0-or-later`. Third-party components
 remain subject to their own terms, and none is modified or vendored by this repository.
 
+The frontend build also publishes the bundled dependencies' full license texts at
+`/legal/DEPENDENCY-LICENSES.md`, using [Vite's native license output](https://vite.dev/config/build-options#build-license).
+The legal page links to that build-specific report. Workbox is bundled separately by
+`generateSW`; `/legal/WORKBOX-LICENSE.txt` preserves the upstream MIT text shared by the
+Workbox 7.4.1 runtime packages, copied unchanged through Vite's public directory. Review
+that notice against the upstream package license when upgrading Workbox.
+
 | Pacote            | Componente                       | Relação     | Licença                 | Fonte                                                                                 |
 | ----------------- | -------------------------------- | ----------- | ----------------------- | ------------------------------------------------------------------------------------- |
 | mainsite-frontend | `@biomejs/biome`                 | development | MIT OR Apache-2.0       | https://github.com/biomejs/biome (`packages/@biomejs/biome`)                          |

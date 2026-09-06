@@ -115,8 +115,10 @@ export default defineConfig({
   build: {
     target: 'esnext',
     cssCodeSplit: false,
+    license: { fileName: 'legal/DEPENDENCY-LICENSES.md' },
     rollupOptions: {
       output: {
+        postBanner: '/*! Bundled dependency licenses: /legal/DEPENDENCY-LICENSES.md */',
         manualChunks(id): string | undefined {
           if (id.includes('node_modules')) {
             if (id.includes('lucide-react')) return 'vendor-icons';

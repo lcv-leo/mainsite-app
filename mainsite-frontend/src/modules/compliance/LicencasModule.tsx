@@ -114,8 +114,13 @@ export function LicencasModule() {
         Conformidade e Licenças (Open Source Compliance)
       </h1>
       <p style={{ color: '#5f6368', marginBottom: '32px' }}>
-        Este sistema opera sob a GNU Affero General Public License v3 (AGPLv3), com avisos e componentes de terceiros
-        sob Apache License 2.0 devidamente documentados em NOTICE e THIRDPARTY.md.
+        Este sistema opera sob a GNU Affero General Public License v3 (AGPLv3). Os componentes de terceiros preservam
+        suas próprias licenças e avisos de autoria.
+      </p>
+      <p style={paragraphStyle}>
+        Consulte os <a href={`${LEGAL_PUBLIC_BASE}DEPENDENCY-LICENSES.md`}>textos das licenças das dependências</a>{' '}
+        distribuídas neste site e a <a href={`${LEGAL_PUBLIC_BASE}WORKBOX-LICENSE.txt`}>licença do Workbox</a>, usado
+        pelo serviço de navegação offline.
       </p>
 
       <section style={sectionStyle}>
