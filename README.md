@@ -119,9 +119,10 @@ Set the non-secret `VERTEX_PROJECT` Wrangler variable to your Google Cloud proje
 
 The Turnstile site key is public, but Vite still needs it at build time. Replace `your-public-site-key` below with the site key created for your fork.
 
+Wrangler bundles the Worker during `deploy`; the Worker package has no separate `build` script.
+
 ```bash
 cd mainsite-worker
-npm run build
 npx wrangler deploy
 cd ..
 

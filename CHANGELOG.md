@@ -4,6 +4,10 @@
 
 ### Alterado
 
+- Corrigido o guia de fork para usar o empacotamento nativo de `wrangler deploy` no Worker,
+  removendo a chamada a um script `build` que esse pacote não possui. O build do frontend
+  permanece; nenhuma configuração ou implementação foi alterada (GIT-202/GIT-203).
+
 - O frontend passa a publicar os textos de licença das dependências incorporadas usando
   `build.license` nativo do Vite, em `/legal/DEPENDENCY-LICENSES.md`, com referência nos
   bundles e link na página de licenças. O Workbox, gerado separadamente, recebe uma cópia
